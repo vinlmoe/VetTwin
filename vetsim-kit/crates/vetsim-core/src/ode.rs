@@ -6,7 +6,8 @@
 //! - Limites : méthode explicite, donc inadaptée à un système raide ; le pas maximal de 4 ms
 //!   et les constantes de temps du modèle (≥ ~5 ms) maintiennent la stabilité. Les écarts avec
 //!   LSODA sont de l'ordre des tolérances (1e-6) sur la trajectoire.
-//! - Pas d'allocation dans la boucle : l'état est un tableau de taille fixe `[f64; N]`.
+//! - État générique ([`State`]) : `[f64; N]` pour l'hémodynamique, `Vec<f64>` pour la PK
+//!   (dimension fonction du nombre de médicaments).
 
 /// Options de l'intégrateur.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -129,84 +130,125 @@ const MIN_FACTOR: f64 = 0.2;
 const MAX_FACTOR: f64 = 10.0;
 const ERROR_EXPONENT: f64 = -1.0 / 5.0;
 
+/// État intégrable : un vecteur de flottants, de taille fixe (`[f64; N]`, sans allocation)
+/// ou dynamique (`Vec<f64>`).
+pub trait State: Clone {
+    /// Vue en tranche.
+    fn as_slice(&self) -> &[f64];
+    /// Vue mutable en tranche.
+    fn as_mut_slice(&mut self) -> &mut [f64];
+    /// État nul de même dimension.
+    fn zeros_like(&self) -> Self;
+}
+
+impl<const N: usize> State for [f64; N] {
+    fn as_slice(&self) -> &[f64] {
+        self
+    }
+    fn as_mut_slice(&mut self) -> &mut [f64] {
+        self
+    }
+    fn zeros_like(&self) -> Self {
+        [0.0; N]
+    }
+}
+
+impl State for Vec<f64> {
+    fn as_slice(&self) -> &[f64] {
+        self
+    }
+    fn as_mut_slice(&mut self) -> &mut [f64] {
+        self
+    }
+    fn zeros_like(&self) -> Self {
+        vec![0.0; self.len()]
+    }
+}
+
 /// Pas accepté, avec interpolation dense sur `[t_old, t]`.
 #[derive(Debug, Clone)]
-pub struct Step<const N: usize> {
+pub struct Step<S: State> {
     /// Début du pas.
     pub t_old: f64,
     /// Fin du pas.
     pub t: f64,
     /// État en début de pas.
-    pub y_old: [f64; N],
+    pub y_old: S,
     /// État en fin de pas.
-    pub y: [f64; N],
-    q: [[f64; 4]; N],
+    pub y: S,
+    /// Coefficients de l'interpolant : `q[m][i]` pour la puissance `m + 1` de `x`.
+    q: [S; 4],
 }
 
-impl<const N: usize> Step<N> {
+impl<S: State> Step<S> {
     /// État interpolé à `t` ∈ [t_old, t] (ordre 4).
-    pub fn interpolate(&self, t: f64) -> [f64; N] {
+    pub fn interpolate(&self, t: f64) -> S {
         let h = self.t - self.t_old;
         let x = (t - self.t_old) / h;
         let pw = [x, x * x, x * x * x, x * x * x * x];
-        let mut out = self.y_old;
-        for (i, o) in out.iter_mut().enumerate() {
-            let q = &self.q[i];
-            *o += h * (q[0] * pw[0] + q[1] * pw[1] + q[2] * pw[2] + q[3] * pw[3]);
+        let mut out = self.y_old.clone();
+        for (i, o) in out.as_mut_slice().iter_mut().enumerate() {
+            let mut acc = 0.0;
+            for m in 0..4 {
+                acc += self.q[m].as_slice()[i] * pw[m];
+            }
+            *o += h * acc;
         }
         out
     }
 }
 
-fn rms<const N: usize>(v: &[f64; N]) -> f64 {
-    (v.iter().map(|x| x * x).sum::<f64>() / N as f64).sqrt()
+fn rms(v: &[f64]) -> f64 {
+    (v.iter().map(|x| x * x).sum::<f64>() / v.len().max(1) as f64).sqrt()
 }
 
-fn all_finite<const N: usize>(v: &[f64; N]) -> bool {
+fn all_finite(v: &[f64]) -> bool {
     v.iter().all(|x| x.is_finite())
 }
 
 /// Intègre `dy/dt = f(t, y)` de `t0` à `t_end` ; `on_step` reçoit chaque pas accepté.
 /// Renvoie l'état final.
-pub fn solve<const N: usize>(
-    mut f: impl FnMut(f64, &[f64; N]) -> [f64; N],
+pub fn solve<S: State>(
+    mut f: impl FnMut(f64, &S) -> S,
     t0: f64,
-    y0: [f64; N],
+    y0: S,
     t_end: f64,
     opts: &Options,
-    mut on_step: impl FnMut(&Step<N>),
-) -> Result<[f64; N], OdeError> {
+    mut on_step: impl FnMut(&Step<S>),
+) -> Result<S, OdeError> {
     let (rtol, atol) = (opts.rtol, opts.atol);
+    let n = y0.as_slice().len();
     let mut t = t0;
     let mut y = y0;
+    if n == 0 || t >= t_end {
+        return Ok(y);
+    }
     let mut fy = f(t, &y);
-    if !all_finite(&y) || !all_finite(&fy) {
+    if !all_finite(y.as_slice()) || !all_finite(fy.as_slice()) {
         return Err(OdeError::NonFinite(t));
     }
+    let zero = y.zeros_like();
+    let mut scratch = zero.clone();
     // Pas initial (Hairer, Nørsett & Wanner, comme scipy select_initial_step).
     let mut h_abs = {
-        let mut sy = [0.0; N];
-        let mut sf = [0.0; N];
-        for i in 0..N {
-            let scale = atol + y[i].abs() * rtol;
-            sy[i] = y[i] / scale;
-            sf[i] = fy[i] / scale;
-        }
+        let (ys, fs) = (y.as_slice(), fy.as_slice());
+        let scale = |i: usize| atol + ys[i].abs() * rtol;
+        let sy: Vec<f64> = (0..n).map(|i| ys[i] / scale(i)).collect();
+        let sf: Vec<f64> = (0..n).map(|i| fs[i] / scale(i)).collect();
         let (d0, d1) = (rms(&sy), rms(&sf));
         let h0 = if d0 < 1e-5 || d1 < 1e-5 {
             1e-6
         } else {
             0.01 * d0 / d1
         };
-        let mut y1 = y;
-        for i in 0..N {
-            y1[i] += h0 * fy[i];
+        let mut y1 = y.clone();
+        for (i, v) in y1.as_mut_slice().iter_mut().enumerate() {
+            *v += h0 * fs[i];
         }
         let f1 = f(t + h0, &y1);
-        let mut sd = [0.0; N];
-        for i in 0..N {
-            sd[i] = (f1[i] - fy[i]) / (atol + y[i].abs() * rtol);
-        }
+        let sd: Vec<f64> = (0..n)
+            .map(|i| (f1.as_slice()[i] - fs[i]) / scale(i))
+            .collect();
         let d2 = rms(&sd) / h0;
         let h1 = if d1 <= 1e-15 && d2 <= 1e-15 {
             f64::max(1e-6, h0 * 1e-3)
@@ -215,7 +257,8 @@ pub fn solve<const N: usize>(
         };
         f64::min(100.0 * h0, h1)
     };
-    let mut k = [[0.0; N]; 7];
+    let mut k: [S; 7] = std::array::from_fn(|_| zero.clone());
+    let mut err = vec![0.0; n];
     let mut steps = 0;
     while t < t_end {
         steps += 1;
@@ -236,43 +279,47 @@ pub fn solve<const N: usize>(
             let h = t_new - t;
             h_abs = h.abs();
             // Étages de Runge-Kutta.
-            k[0] = fy;
+            k[0] = fy.clone();
             for s in 1..6 {
-                let mut ys = y;
-                for (j, kj) in k.iter().enumerate().take(s) {
+                scratch.clone_from(&y);
+                for j in 0..s {
                     let a = A[s][j];
                     if a != 0.0 {
-                        for i in 0..N {
-                            ys[i] += h * a * kj[i];
+                        let kj = k[j].as_slice();
+                        for (i, v) in scratch.as_mut_slice().iter_mut().enumerate() {
+                            *v += h * a * kj[i];
                         }
                     }
                 }
-                k[s] = f(t + C[s] * h, &ys);
+                k[s] = f(t + C[s] * h, &scratch);
             }
-            let mut y_new = y;
+            let mut y_new = y.clone();
             for (s, ks) in k.iter().enumerate().take(6) {
                 if B[s] != 0.0 {
-                    for i in 0..N {
-                        y_new[i] += h * B[s] * ks[i];
+                    let ks = ks.as_slice();
+                    for (i, v) in y_new.as_mut_slice().iter_mut().enumerate() {
+                        *v += h * B[s] * ks[i];
                     }
                 }
             }
             let f_new = f(t_new, &y_new);
-            k[6] = f_new;
-            if !all_finite(&y_new) || !all_finite(&f_new) {
+            if !all_finite(y_new.as_slice()) || !all_finite(f_new.as_slice()) {
                 // Pas trop grand : on réduit (comme une erreur d'estimation).
                 h_abs *= MIN_FACTOR;
                 rejected = true;
                 continue;
             }
-            let mut err = [0.0; N];
-            for i in 0..N {
-                let mut e = 0.0;
-                for (s, ks) in k.iter().enumerate() {
-                    e += ks[i] * E[s];
+            k[6] = f_new.clone();
+            {
+                let (ys, yn) = (y.as_slice(), y_new.as_slice());
+                for (i, e_i) in err.iter_mut().enumerate() {
+                    let mut e = 0.0;
+                    for (s, ks) in k.iter().enumerate() {
+                        e += ks.as_slice()[i] * E[s];
+                    }
+                    let scale = atol + ys[i].abs().max(yn[i].abs()) * rtol;
+                    *e_i = e * h / scale;
                 }
-                let scale = atol + y[i].abs().max(y_new[i].abs()) * rtol;
-                err[i] = e * h / scale;
             }
             let error_norm = rms(&err);
             if error_norm < 1.0 {
@@ -284,12 +331,14 @@ pub fn solve<const N: usize>(
                 if rejected {
                     factor = factor.min(1.0);
                 }
-                let mut q = [[0.0; 4]; N];
-                for (i, qi) in q.iter_mut().enumerate() {
-                    for (s, ks) in k.iter().enumerate() {
-                        for (m, qim) in qi.iter_mut().enumerate() {
-                            *qim += ks[i] * P[s][m];
+                let mut q: [S; 4] = std::array::from_fn(|_| zero.clone());
+                for (m, qm) in q.iter_mut().enumerate() {
+                    for (i, v) in qm.as_mut_slice().iter_mut().enumerate() {
+                        let mut acc = 0.0;
+                        for (s, ks) in k.iter().enumerate() {
+                            acc += ks.as_slice()[i] * P[s][m];
                         }
+                        *v = acc;
                     }
                 }
                 let step = Step {
@@ -301,7 +350,7 @@ pub fn solve<const N: usize>(
                 };
                 on_step(&step);
                 t = t_new;
-                y = y_new;
+                y = step.y;
                 fy = f_new;
                 h_abs *= factor;
                 break;
