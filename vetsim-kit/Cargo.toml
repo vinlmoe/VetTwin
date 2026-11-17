@@ -1,0 +1,24 @@
+[workspace]
+resolver = "2"
+members = ["crates/vetsim-core", "crates/vetsim-cli"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.80"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[workspace.dependencies]
+serde_json = { version = "1", features = ["preserve_order"] }
+thiserror = "2"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_debug_implementations = "warn"
+
+[workspace.lints.clippy]
+float_cmp = "allow"
+
+[profile.release]
+debug = false
