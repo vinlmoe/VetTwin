@@ -15,4 +15,5 @@ La référence Python intègre la boucle cardiovasculaire avec LSODA (`scipy.int
    - Effets : `lv_edp` 1,326 contre 1,368 (−3,1 %, 1,02 × la tolérance du golden) ; FC 196,4 contre 195,5 ; PAM 93,83 contre 93,52.
    - Au 4e passage, l'état Rust est identique à la référence (`lv_edp` 1,367690 contre 1,367684).
    - Ce cas n'est pas dans le golden (100 % conforme). Il est signalé, non masqué, par `tests/hemodynamics.rs`.
+   - Après le passage du noyau sur `libm` (fonctions mathématiques identiques au bit près sur toutes les plateformes), ce même cas fait 4 passages comme la référence et redevient conforme (0,0019 × tolérance). Ce n'est pas une correction : quelques bits ont suffi à le faire passer de l'autre côté du seuil. Les cas Addison 0,9 et 1,0 (marges 1,8e-4 et 2,7e-4) restent conformes, mais un autre cas proche du seuil peut basculer à tout moment. Avec `libm`, le côté du seuil où tombe un cas est au moins le même sur toutes les plateformes.
    - Correction possible, qui relève d'une décision de modèle et non du port : remplacer l'arrêt sur seuil par une convergence plus serrée ou un nombre fixe d'itérations. Cela changerait la référence et le golden.

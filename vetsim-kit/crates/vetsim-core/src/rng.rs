@@ -9,6 +9,7 @@
 //! statistique (jalon M5).
 
 use crate::case::DrawSource;
+use crate::math;
 use rand_chacha::rand_core::{RngCore, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 
@@ -52,10 +53,10 @@ impl SimRng {
         // u1 ∈ (0, 1] pour éviter ln(0).
         let u1 = 1.0 - self.uniform01();
         let u2 = self.uniform01();
-        let r = (-2.0 * libm::log(u1)).sqrt();
+        let r = (-2.0 * math::ln(u1)).sqrt();
         let theta = 2.0 * std::f64::consts::PI * u2;
-        self.spare = Some(r * libm::sin(theta));
-        r * libm::cos(theta)
+        self.spare = Some(r * math::sin(theta));
+        r * math::cos(theta)
     }
 
     /// Normale de moyenne `mu` et d'écart-type `sd`.
@@ -84,7 +85,7 @@ impl DrawSource for SimRng {
         if sd == 0.0 {
             return 1.0;
         }
-        libm::exp(self.normal(-0.5 * sd * sd, sd))
+        math::exp(self.normal(-0.5 * sd * sd, sd))
     }
 
     fn bernoulli(&mut self, p: f64) -> bool {
@@ -144,7 +145,7 @@ mod tests {
         let n = 200_000;
         let z: Vec<f64> = (0..n).map(|_| r.standard_normal()).collect();
         let mean = z.iter().sum::<f64>() / n as f64;
-        let var = z.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / n as f64;
+        let var = z.iter().map(|x| (x - mean) * (x - mean)).sum::<f64>() / n as f64;
         assert!(
             mean.abs() < 0.01 && (var - 1.0).abs() < 0.01,
             "{mean} {var}"

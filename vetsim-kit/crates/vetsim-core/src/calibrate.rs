@@ -11,6 +11,7 @@
 
 use crate::engine::{evaluate, Evaluation};
 use crate::error::{Error, LoadError};
+use crate::math;
 use crate::modules::Catalog;
 use crate::patient::Patient;
 use crate::pkpd::{timecourse, Dose, Route};
@@ -102,7 +103,7 @@ pub fn extractor(var: &str) -> Option<Extractor> {
         "PvO2" => |e| e.metabolic.ven.po2,
         "Excès de base" => |e| e.metabolic.art.be,
         // P50 ramenée à pH 7,4 (correction de Bohr inverse)
-        "P50 (pH 7,4)" => |e| e.metabolic.art.p50 * 10f64.powf(-0.37 * (7.4 - e.metabolic.art.ph)),
+        "P50 (pH 7,4)" => |e| e.metabolic.art.p50 * math::pow10(-0.37 * (7.4 - e.metabolic.art.ph)),
         "HCO3 art." => |e| e.metabolic.art.hco3,
         "Na" => |e| e.metabolic.chem.na,
         "K" => |e| e.metabolic.chem.k,
@@ -288,7 +289,7 @@ pub fn pk_checks(cat: &Catalog) -> Result<Vec<PkRow>, Error> {
         tc.t.iter()
             .zip(c)
             .filter(|(t, _)| **t > 2.0 && **t < 8.0)
-            .map(|(t, c)| (*t, c.ln()))
+            .map(|(t, c)| (*t, math::ln(*c)))
             .collect();
     let n = pts.len() as f64;
     let (mt, my) = (
@@ -296,7 +297,7 @@ pub fn pk_checks(cat: &Catalog) -> Result<Vec<PkRow>, Error> {
         pts.iter().map(|p| p.1).sum::<f64>() / n,
     );
     let slope = pts.iter().map(|p| (p.0 - mt) * (p.1 - my)).sum::<f64>()
-        / pts.iter().map(|p| (p.0 - mt).powi(2)).sum::<f64>();
+        / pts.iter().map(|p| (p.0 - mt) * (p.0 - mt)).sum::<f64>();
     rows.push(PkRow {
         module: "PK furosemide".into(),
         var: "t1/2 IV".into(),

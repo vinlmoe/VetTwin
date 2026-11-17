@@ -9,6 +9,7 @@
 //! - État générique ([`State`]) : `[f64; N]` pour l'hémodynamique, `Vec<f64>` pour la PK
 //!   (dimension fonction du nombre de médicaments).
 
+use crate::math;
 /// Options de l'intégrateur.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Options {
@@ -253,7 +254,7 @@ pub fn solve<S: State>(
         let h1 = if d1 <= 1e-15 && d2 <= 1e-15 {
             f64::max(1e-6, h0 * 1e-3)
         } else {
-            (0.01 / d1.max(d2)).powf(1.0 / 5.0)
+            math::pow(0.01 / d1.max(d2), 1.0 / 5.0)
         };
         f64::min(100.0 * h0, h1)
     };
@@ -326,7 +327,7 @@ pub fn solve<S: State>(
                 let mut factor = if error_norm == 0.0 {
                     MAX_FACTOR
                 } else {
-                    f64::min(MAX_FACTOR, SAFETY * error_norm.powf(ERROR_EXPONENT))
+                    f64::min(MAX_FACTOR, SAFETY * math::pow(error_norm, ERROR_EXPONENT))
                 };
                 if rejected {
                     factor = factor.min(1.0);
@@ -355,7 +356,7 @@ pub fn solve<S: State>(
                 h_abs *= factor;
                 break;
             }
-            h_abs *= f64::max(MIN_FACTOR, SAFETY * error_norm.powf(ERROR_EXPONENT));
+            h_abs *= f64::max(MIN_FACTOR, SAFETY * math::pow(error_norm, ERROR_EXPONENT));
             rejected = true;
         }
     }
@@ -394,11 +395,11 @@ mod tests {
             &opts,
             |s| {
                 let tm = 0.5 * (s.t_old + s.t);
-                worst = worst.max((s.interpolate(tm)[0] - (-2.0 * tm).exp()).abs());
+                worst = worst.max((s.interpolate(tm)[0] - math::exp(-2.0 * tm)).abs());
             },
         )
         .unwrap();
-        assert!((y[0] - (-6.0f64).exp()).abs() < 1e-10);
+        assert!((y[0] - math::exp(-6.0)).abs() < 1e-10);
         assert!(worst < 1e-8, "{worst}");
     }
 

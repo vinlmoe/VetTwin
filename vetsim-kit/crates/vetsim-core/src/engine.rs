@@ -6,6 +6,7 @@
 
 use crate::error::Error;
 use crate::gas::{gas_exchange, po2_from_content, stewart_ph, ArterialGas};
+use crate::math;
 use crate::params::Params;
 
 /// Grandeurs hémodynamiques consommées par l'aval (issues du dernier battement simulé).
@@ -144,7 +145,7 @@ pub fn metabolic_state(p: &Params, h: &HemoInputs) -> Result<MetabolicState, Err
     let do2_0 = h.co * 1000.0 * g0.cao2 / 100.0; // mL/min
     let vo2 = p.vo2 * bw;
     let er = vo2 / do2_0;
-    let lact = p.lact0 + 9.0 / (1.0 + (-(er - 0.55) / 0.06).exp());
+    let lact = p.lact0 + 9.0 / (1.0 + math::exp(-(er - 0.55) / 0.06));
     let g = gas_exchange(p, h.la_mean, lact)?;
     let do2 = h.co * 1000.0 * g.cao2 / 100.0;
     // --- sang veineux mêlé
@@ -154,7 +155,7 @@ pub fn metabolic_state(p: &Params, h: &HemoInputs) -> Result<MetabolicState, Err
     let pvco2 = g.pco2 + dpco2;
     let (phv, hco3v) = stewart_ph(p, pvco2, lact)?;
     // --- rein
-    let co_ref = 3.29 * (bw / 20.0).powf(0.75);
+    let co_ref = 3.29 * math::pow(bw / 20.0, 0.75);
     let by_map = ((h.map - 40.0) / 35.0).clamp(0.0, 1.0);
     let by_co = ((h.co / co_ref - 0.5) / 0.5).clamp(0.0, 1.0);
     let perf = by_map.min(by_co).max(0.25);
@@ -166,7 +167,7 @@ pub fn metabolic_state(p: &Params, h: &HemoInputs) -> Result<MetabolicState, Err
         lactate: lact,
         glucose: p.glucose,
         creat: p.creat0 / gfr_ratio,
-        urea: p.urea0 / gfr_ratio.powf(0.8),
+        urea: p.urea0 / math::pow(gfr_ratio, 0.8),
         phos: p.phos,
         alb: p.alb * 10.0,
         alt: p.alt,

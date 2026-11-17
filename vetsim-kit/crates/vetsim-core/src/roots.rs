@@ -123,7 +123,7 @@ mod tests {
     fn finds_roots() {
         let r = brentq(|x| x * x - 2.0, 0.0, 2.0).unwrap();
         assert!((r - 2f64.sqrt()).abs() < 1e-11);
-        let r = brentq(|x| x.cos() - x, 0.0, 1.0).unwrap();
+        let r = brentq(|x| crate::math::cos(x) - x, 0.0, 1.0).unwrap();
         assert!((r - 0.739_085_133_215_160_6).abs() < 1e-11);
         assert_eq!(brentq(|x| x - 1.0, 1.0, 3.0), Ok(1.0));
     }

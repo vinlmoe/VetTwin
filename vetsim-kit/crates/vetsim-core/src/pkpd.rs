@@ -12,6 +12,7 @@
 use crate::case::{apply_modifiers, evaluate_effects};
 use crate::dsl::Env;
 use crate::error::Error;
+use crate::math;
 use crate::modules::{DrugModule, PdKind};
 use crate::ode::{solve, Options};
 use crate::params::Params;
@@ -66,8 +67,8 @@ pub struct PkConstants {
 pub fn pk_constants(drug: &DrugModule, p: &Params) -> PkConstants {
     let k = &drug.pk;
     let bw = p.bw;
-    let f = (bw / 20.0).powf(0.75);
-    let cl_scale = p.nephron_mass.powf(k.renal_exp) * p.hepatic_fn.powf(k.hep_exp);
+    let f = math::pow(bw / 20.0, 0.75);
+    let cl_scale = math::pow(p.nephron_mass, k.renal_exp) * math::pow(p.hepatic_fn, k.hep_exp);
     PkConstants {
         cl: k.cl_ml_min_kg * 1e-3 * 60.0 * 20.0 * f * cl_scale,
         vc: k.vc_l_kg * bw,
@@ -79,8 +80,8 @@ pub fn pk_constants(drug: &DrugModule, p: &Params) -> PkConstants {
 /// Effet Emax normalisé : `E = emax·C^h/(EC50^h + C^h)`, concentration négative ramenée à 0.
 pub fn emax_effect(drug: &DrugModule, conc_mg_l: f64) -> f64 {
     let pd = &drug.pd;
-    let c = conc_mg_l.max(0.0).powf(pd.hill);
-    pd.emax * c / (pd.ec50_mg_l.powf(pd.hill) + c)
+    let c = math::pow(conc_mg_l.max(0.0), pd.hill);
+    pd.emax * c / (math::pow(pd.ec50_mg_l, pd.hill) + c)
 }
 
 /// Paramètres modifiés par les concentrations plasmatiques `conc` (mg/L) et par l'état de

@@ -11,6 +11,7 @@
 //!   un dépassement flottant (`inf`) est refusé ici alors que Python le laisse passer.
 
 use crate::error::{EvalError, Issue};
+use crate::math;
 use serde_json::Value as Json;
 
 /// Valeur d'une expression : nombre ou booléen (résultat d'une comparaison).
@@ -364,7 +365,7 @@ impl Expr {
                         if x == 0.0 && y < 0.0 {
                             return Err(EvalError::DivisionByZero("pow"));
                         }
-                        finite(x.powf(y), "pow")?
+                        finite(math::pow(x, y), "pow")?
                     }
                     BinOp::Lt => Value::Bool(x < y),
                     BinOp::Le => Value::Bool(x <= y),
@@ -378,13 +379,13 @@ impl Expr {
                     UnOp::Not => Value::Bool(!v.truthy()),
                     UnOp::Neg => Value::Num(-v.as_f64()),
                     UnOp::Abs => Value::Num(v.as_f64().abs()),
-                    UnOp::Exp => finite(v.as_f64().exp(), "exp")?,
+                    UnOp::Exp => finite(math::exp(v.as_f64()), "exp")?,
                     UnOp::Log => {
                         let x = v.as_f64();
                         if x <= 0.0 {
                             return Err(EvalError::LogDomain(x));
                         }
-                        Value::Num(x.ln())
+                        Value::Num(math::ln(x))
                     }
                 }
             }

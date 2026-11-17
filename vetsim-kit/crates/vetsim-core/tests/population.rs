@@ -72,9 +72,9 @@ fn variability_has_mean_one_and_module_cv() {
         })
         .collect();
     let m = ratios.iter().sum::<f64>() / n as f64;
-    let cv = (ratios.iter().map(|r| (r - m).powi(2)).sum::<f64>() / n as f64).sqrt() / m;
+    let cv = (ratios.iter().map(|r| (r - m) * (r - m)).sum::<f64>() / n as f64).sqrt() / m;
     // alt : sd lognormal 0,25 dans healthy_dog.json → CV = √(e^{σ²} − 1) ≈ 0,254
-    let expected_cv = (0.25f64.powi(2).exp() - 1.0).sqrt();
+    let expected_cv = (vetsim_core::math::exp(0.25 * 0.25) - 1.0).sqrt();
     assert!((m - 1.0).abs() < 0.015, "moyenne {m}");
     assert!(
         (cv - expected_cv).abs() < 0.015,

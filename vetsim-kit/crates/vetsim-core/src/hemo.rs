@@ -8,6 +8,7 @@
 //! (régurgitation).
 
 use crate::error::Error;
+use crate::math;
 use crate::ode::{solve, Options};
 use crate::params::Params;
 
@@ -16,9 +17,9 @@ use crate::params::Params;
 pub fn activation(t: f64, period: f64, ts: f64, tr: f64) -> f64 {
     let tc = t % period;
     if tc < ts {
-        0.5 * (1.0 - (std::f64::consts::PI * tc / ts).cos())
+        0.5 * (1.0 - math::cos(std::f64::consts::PI * tc / ts))
     } else if tc < ts + tr {
-        0.5 * (1.0 + (std::f64::consts::PI * (tc - ts) / tr).cos())
+        0.5 * (1.0 + math::cos(std::f64::consts::PI * (tc - ts) / tr))
     } else {
         0.0
     }
@@ -27,13 +28,13 @@ pub fn activation(t: f64, period: f64, ts: f64, tr: f64) -> f64 {
 /// Pression ventriculaire : `e·Ees·(V − V0) + (1 − e)·a·(exp(clip(b(V − V0), −20, 8)) − 1)`.
 pub fn ventricular_pressure(v: f64, e: f64, ees: f64, v0: f64, a: f64, b: f64) -> f64 {
     let x = (b * (v - v0)).clamp(-20.0, 8.0);
-    e * ees * (v - v0) + (1.0 - e) * a * (x.exp() - 1.0)
+    e * ees * (v - v0) + (1.0 - e) * a * (math::exp(x) - 1.0)
 }
 
 /// Débit valvulaire (diode lisse) : `σ = ½(1 + tanh(Δp/0,3))`,
 /// `Q = σ·Δp/r + (1 − σ)·g·Δp` (`g` = conductance de fuite rétrograde).
 pub fn valve_flow(dp: f64, r_forward: f64, g_back: f64) -> f64 {
-    let s = 0.5 * (1.0 + (dp / 0.3).tanh());
+    let s = 0.5 * (1.0 + math::tanh(dp / 0.3));
     s * dp / r_forward + (1.0 - s) * g_back * dp
 }
 
@@ -125,8 +126,8 @@ pub fn flows(v: &[f64; 6], t: f64, p: &Params, tm: &Timing) -> (Pressures, Flows
 pub fn initial_volumes(p: &Params) -> [f64; 6] {
     let vtot = 85.0 * p.bw;
     [
-        p.v0_lv + (1.0 + 8.0 / p.a_lv).ln() / p.b_lv,
-        p.v0_rv + (1.0 + 4.0 / p.a_rv).ln() / p.b_rv,
+        p.v0_lv + math::ln(1.0 + 8.0 / p.a_lv) / p.b_lv,
+        p.v0_rv + math::ln(1.0 + 4.0 / p.a_rv) / p.b_rv,
         p.v0_ao + p.c_ao * 100.0,
         p.v0_sv + p.c_sv * 4.0 + (p.bvf - 1.0) * vtot + p.vol_shift,
         p.v0_pa + p.c_pa * 14.0,

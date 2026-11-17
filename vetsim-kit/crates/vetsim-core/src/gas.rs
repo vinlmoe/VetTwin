@@ -2,6 +2,7 @@
 //! `po2_from_content`, `stewart_ph`, `base_excess`, `gas_exchange`). MODEL_SPEC §5.
 
 use crate::error::Error;
+use crate::math;
 use crate::params::Params;
 use crate::roots::{brentq, RootError};
 
@@ -18,7 +19,7 @@ fn root_err(what: &'static str, lo: f64, hi: f64) -> impl Fn(RootError) -> Error
 /// PO2 est plancher à 1e-3 mmHg comme dans la référence.
 pub fn hb_o2_sat(po2: f64, p50: f64, n: f64) -> f64 {
     let po2 = po2.max(1e-3);
-    po2.powf(n) / (po2.powf(n) + p50.powf(n))
+    math::pow(po2, n) / (math::pow(po2, n) + math::pow(p50, n))
 }
 
 /// Contenu en O2 (mL O2/dL) : O2 lié `1,34·Hb·S` + O2 dissous `0,003·PO2`.
@@ -44,7 +45,7 @@ pub fn po2_from_content(c: f64, hb: f64, p50: f64, n: f64) -> Result<f64, Error>
 
 /// Bicarbonate (mmol/L) par Henderson-Hasselbalch : `0,0307·PCO2·10^(pH − 6,1)`.
 pub fn hco3(pco2: f64, ph: f64) -> f64 {
-    0.0307 * pco2 * 10f64.powf(ph - 6.1)
+    0.0307 * pco2 * math::pow10(ph - 6.1)
 }
 
 /// pH par l'équilibre de charges de Stewart, et HCO3 correspondant.
@@ -58,8 +59,8 @@ pub fn stewart_ph(p: &Params, pco2: f64, lactate: f64) -> Result<(f64, f64), Err
     let sid = p.na + p.k - p.cl - lactate - p.xa;
     let alb_gl = p.alb * 10.0;
     let f = |ph: f64| {
-        let h = 1e3 * 10f64.powf(-ph);
-        let a_alb = alb_gl * (0.28 + 0.469 / (1.0 + 10f64.powf(7.77 - ph)));
+        let h = 1e3 * math::pow10(-ph);
+        let a_alb = alb_gl * (0.28 + 0.469 / (1.0 + math::pow10(7.77 - ph)));
         let a_pi = p.phos * (0.309 * ph - 0.469);
         sid + h - hco3(pco2, ph) - a_alb - a_pi
     };
@@ -121,7 +122,7 @@ pub fn gas_exchange(p: &Params, la_mean: f64, lactate: f64) -> Result<ArterialGa
                 let va = va0
                     * p.vent_drive
                     * f64::max(0.12, 1.0 + 0.08 * (pco2 - 37.0))
-                    * (-2.5 * (ph - 7.4)).exp()
+                    * math::exp(-2.5 * (ph - 7.4))
                     * (1.0 + 0.03 * f64::max(0.0, 70.0 - pao2));
                 pco2 - 0.863 * vco2 / va.max(1e-3)
             }
@@ -143,7 +144,7 @@ pub fn gas_exchange(p: &Params, la_mean: f64, lactate: f64) -> Result<ArterialGa
         out = Some((pco2, ph, hco3, va, aa));
     }
     let (pco2, ph, hco3, va, aa) = out.expect("3 itérations");
-    let p50 = p.p50 * 10f64.powf(0.37 * (7.4 - ph));
+    let p50 = p.p50 * math::pow10(0.37 * (7.4 - ph));
     Ok(ArterialGas {
         pco2,
         ph,
