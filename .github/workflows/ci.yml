@@ -45,6 +45,12 @@ jobs:
         run: python tests/make_m4_fixture.py && cargo test --release -p vetsim-core --test pkpd
       - name: Rust == Python autonome, VFC, ECG, PCG en rejouant les tirages NumPy (fixture M6 régénérée)
         run: python tests/make_m6_fixture.py && cargo test --release -p vetsim-core --test signals
+      - name: Couche de conduction : comportements émergents et contrôles d'échec (référence Python)
+        run: python tests/check_rhythm.py
+      - name: Rust == Python conduction (rejeu des tirages, fixture régénérée)
+        run: python tests/make_rhythm_fixture.py && cargo test --release -p vetsim-core --test rhythm
+      - name: Rust == Python hémodynamique battement par battement (fixture régénérée)
+        run: python tests/make_beats_fixture.py && cargo test --release -p vetsim-core --test beats
       - name: Rust == Python décompensation et toxicité (fixture régénérée)
         run: python tests/make_tox_fixture.py && cargo test --release -p vetsim-core --test decompensation
       - name: Banc de calibration Rust contre la référence Python (M5, VFC M6)

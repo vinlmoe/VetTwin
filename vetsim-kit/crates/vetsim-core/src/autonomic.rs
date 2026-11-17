@@ -43,7 +43,7 @@ pub struct AutonomicInputs {
 impl From<&Evaluation> for AutonomicInputs {
     fn from(e: &Evaluation) -> Self {
         Self {
-            hr: e.params.hr,
+            hr: e.sinus_hr, // nœud sinusal (params.hr = FC ventriculaire)
             s_eff: e.autonomic.s_eff,
             v_eff: e.autonomic.v_eff,
             map: e.hemo.summary.map,

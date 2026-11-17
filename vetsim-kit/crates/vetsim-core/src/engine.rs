@@ -235,6 +235,12 @@ pub struct Evaluation {
     pub autonomic: Autonomic,
     /// Nombre de passages du baroréflexe effectués (1–5).
     pub baro_iterations: usize,
+    /// FC sinusale (/min) ; `params.hr` est la FC ventriculaire.
+    pub sinus_hr: f64,
+    /// Séquence de conduction (rythme non trivial), sinon `None` (sinusal 1:1).
+    pub conduction: Option<crate::rhythm::Conduction>,
+    /// Indicateurs battement par battement (rythme non trivial).
+    pub beats: Vec<crate::hemo::BeatMetrics>,
     /// Facteurs de couplage de décompensation retenus.
     pub decomp: Decompensation,
     /// Issue clinique mécanistique (stable ou décompensé ; le décès est une erreur `NonViable`).
@@ -258,7 +264,7 @@ pub struct Decompensation {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Mechanism {
     /// Identifiant (`acidemia_depression`, `hypoxic_depression`, `coronary_ischemia`,
-    /// `hypokalemic_weakness`, `hyperkalemic_bradycardia`, `anaerobic_metabolism`,
+    /// `hypokalemic_weakness`, `atrial_standstill`, `conduction_block`, `anaerobic_metabolism`,
     /// `pulmonary_edema`, `renal_hypoperfusion`, `baroreflex_exhausted`).
     pub id: &'static str,
     /// Valeur de la variable qui le déclenche.
@@ -305,6 +311,52 @@ impl Evaluation {
     }
 }
 
+/// Rythme non trivial : séquence de conduction sur `RHYTHM_T_END` s, moyennes après
+/// `RHYTHM_WARM` s ; aléa SplitMix64 à graine fixe, identique à la référence Python.
+pub const RHYTHM_T_END: f64 = 30.0;
+/// Chauffe de la simulation battement par battement (s).
+pub const RHYTHM_WARM: f64 = 10.0;
+/// Graine fixe de l'aléa de conduction du moteur.
+pub const RHYTHM_SEED: u64 = 0;
+
+type RhythmHemo = (
+    crate::hemo::HemoResult,
+    Option<crate::rhythm::Conduction>,
+    Vec<crate::hemo::BeatMetrics>,
+);
+
+/// Hémodynamique d'une passe : périodique si la conduction est sinusale 1:1 à PR constant (PR de
+/// la conduction), sinon battement par battement (miroir de `physio._hemo_with_rhythm`).
+fn hemo_with_rhythm(q: &Params, v_eff: f64, n_beats: usize) -> Result<RhythmHemo, Error> {
+    use crate::hemo::{simulate_hemo_beats, simulate_hemo_pr};
+    use crate::rhythm::{is_trivial, simulate_conduction, steady_pr};
+    if !(q.hr.is_finite() && q.hr > 0.0) {
+        return Err(Error::InvalidInput(format!("FC {} /min", q.hr)));
+    }
+    let ts = 60.0 / q.hr;
+    if is_trivial(q, v_eff, ts) {
+        let h = simulate_hemo_pr(q, n_beats, steady_pr(q, v_eff, ts))?;
+        return Ok((h, None, Vec::new()));
+    }
+    let mut rng = crate::rhythm::SplitMix64::new(RHYTHM_SEED);
+    let cond = simulate_conduction(q, v_eff, ts, RHYTHM_T_END, &mut || rng.random(), None);
+    if cond
+        .ventricular
+        .iter()
+        .filter(|b| b.t >= RHYTHM_WARM)
+        .count()
+        < 3
+    {
+        return Err(Error::NonViable {
+            cause: "cardiac_arrest",
+            last: None,
+        });
+    }
+    let b = simulate_hemo_beats(q, &cond, RHYTHM_T_END, RHYTHM_WARM, ts)?;
+    let beats = b.beats.clone();
+    Ok((b.into_hemo_result(q), Some(cond), beats))
+}
+
 /// Une passe : baroréflexe en régime permanent puis aval métabolique (MODEL_SPEC §3).
 ///
 /// À chaque passage, la commande `d` (> 0 en hypotension) augmente le tonus sympathique et
@@ -312,7 +364,7 @@ impl Evaluation {
 /// 6 mmol/L), l'inotropisme, la résistance systémique et le recrutement du volume non contraint.
 /// Arrêt si `|d_t − d| < 0,04`, sinon `d ← ½(d + d_t)`, au plus 5 passages.
 fn evaluate_once(base: &Params) -> Result<Evaluation, Error> {
-    use crate::hemo::{simulate_hemo, N_BEATS};
+    use crate::hemo::N_BEATS;
     let mut d = 0.0;
     let mut last = None;
     let mut iterations = 0;
@@ -322,23 +374,26 @@ fn evaluate_once(base: &Params) -> Result<Evaluation, Error> {
         let v_tot = (base.v0 + base.vagal_add - 0.6 * d).clamp(0.0, 1.0);
         let s_eff = s_tot * (1.0 - base.beta_block);
         let v_eff = v_tot * (1.0 - base.vagal_block);
-        let kfac = f64::max(0.4, 1.0 - 0.30 * f64::max(0.0, base.k - 6.0));
         let mut q = base.clone();
-        q.hr = base.hr * hr_factor(s_eff, v_eff, base) / hr_factor(S_REF, V_REF, base) * kfac;
+        // FC sinusale ; K⁺ agit par la conduction (rhythm), plus par un frein multiplicatif
+        q.hr = base.hr * hr_factor(s_eff, v_eff, base) / hr_factor(S_REF, V_REF, base);
         q.ees_lv = base.ees_lv * (1.0 + 0.4 * (s_eff - base.s0));
         q.ees_rv = base.ees_rv * (1.0 + 0.4 * (s_eff - base.s0));
         q.r_sys = base.r_sys * (1.0 + 0.5 * (s_tot - base.s0));
         q.vol_shift = base.vol_shift + 0.20 * 85.0 * base.bw * (s_tot - base.s0);
-        let h = simulate_hemo(&q, N_BEATS)?;
+        let (h, cond, beats) = hemo_with_rhythm(&q, v_eff, N_BEATS)?;
         let d_t = (base.baro_gain * (base.map_set - h.summary.map) / 45.0).clamp(-1.0, 1.0);
         let done = (d_t - d).abs() < BARO_TOL;
-        last = Some((q, h, s_tot, v_tot, s_eff, v_eff));
+        last = Some((q, h, s_tot, v_tot, s_eff, v_eff, cond, beats));
         if done {
             break;
         }
         d = 0.5 * d + 0.5 * d_t;
     }
-    let (mut q, h, s_tot, v_tot, s_eff, v_eff) = last.expect("au moins un passage");
+    let (mut q, h, s_tot, v_tot, s_eff, v_eff, conduction, beats) =
+        last.expect("au moins un passage");
+    let sinus_hr = q.hr;
+    q.hr = 60.0 / h.timing.period; // FC rapportée : FC ventriculaire
     q.sympathetic = s_tot;
     let hs = &h.summary;
     let metabolic = metabolic_state(
@@ -363,6 +418,9 @@ fn evaluate_once(base: &Params) -> Result<Evaluation, Error> {
         metabolic,
         autonomic,
         baro_iterations: iterations,
+        sinus_hr,
+        conduction,
+        beats,
         decomp: Decompensation {
             f_contract: 1.0,
             f_rsys: 1.0,
@@ -492,7 +550,6 @@ fn finish(
     f_hyp: f64,
     f_cor: f64,
 ) -> Evaluation {
-    let kfac = f64::max(0.4, 1.0 - 0.30 * f64::max(0.0, p0.k - 6.0));
     let hs = &e.hemo.summary;
     let mut mech = Vec::new();
     let mut push = |id, value, threshold, factor| {
@@ -525,8 +582,16 @@ fn finish(
     if f_vent < 1.0 {
         push("hypokalemic_weakness", p0.k, p0.k_weak, f_vent);
     }
-    if kfac < 1.0 {
-        push("hyperkalemic_bradycardia", p0.k, 6.0, kfac);
+    if p0.k >= p0.k_atrial_standstill {
+        push("atrial_standstill", p0.k, p0.k_atrial_standstill, 1.0);
+    }
+    if e.params.hr < 0.98 * e.sinus_hr {
+        push(
+            "conduction_block",
+            e.params.hr,
+            e.sinus_hr,
+            e.params.hr / e.sinus_hr,
+        );
     }
     if e.metabolic.er > ER_ANAEROBIC {
         push("anaerobic_metabolism", e.metabolic.er, ER_ANAEROBIC, 1.0);

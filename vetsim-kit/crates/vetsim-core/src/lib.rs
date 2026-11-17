@@ -23,6 +23,7 @@ pub mod params;
 pub mod patient;
 pub mod pcg;
 pub mod pkpd;
+pub mod rhythm;
 pub mod rng;
 pub mod roots;
 pub mod signals;

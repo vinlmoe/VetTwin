@@ -35,7 +35,7 @@ def main(argv=None):
     diseases.KM['zsd'] = 0.0
     pt = Patient(a.bw, seed=0, variability=False); pt.rng = _Stub()
     for d in a.disease:
-        name, s = d.split(':'); pt.add_disease({'mmvd': 'MMVD', 'ckd': 'CKD', 'addison': 'Addison', 'pneumonia': 'Pneumonie'}[name], severity=float(s))
+        name, s = d.split(':'); pt.add_disease({'mmvd': 'MMVD', 'ckd': 'CKD', 'addison': 'Addison', 'pneumonia': 'Pneumonie', 'atrial_fibrillation': 'FA', 'av_block': 'BAV', 'ventricular_premature': 'ESV', 'sick_sinus': 'SSS'}[name], severity=float(s))
     if a.cmd == 'eval':
         conc = {kv.split('=')[0]: float(kv.split('=')[1]) for kv in a.conc}
         r = pt.state(conc, a.D, a.U, signals=False)

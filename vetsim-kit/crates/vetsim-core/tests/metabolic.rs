@@ -22,10 +22,19 @@ fn read(rel: &str) -> String {
 
 fn catalog() -> Catalog {
     let patient = PatientModule::from_json(&read("modules/healthy_dog.json"), "p").unwrap();
-    let diseases = ["mmvd", "ckd", "addison", "pneumonia"]
-        .iter()
-        .map(|d| DiseaseModule::from_json(&read(&format!("modules/diseases/{d}.json")), d).unwrap())
-        .collect();
+    let diseases = [
+        "mmvd",
+        "ckd",
+        "addison",
+        "pneumonia",
+        "atrial_fibrillation",
+        "av_block",
+        "ventricular_premature",
+        "sick_sinus",
+    ]
+    .iter()
+    .map(|d| DiseaseModule::from_json(&read(&format!("modules/diseases/{d}.json")), d).unwrap())
+    .collect();
     let drugs = [
         "atropine",
         "betabloquant",
@@ -117,7 +126,7 @@ fn golden_gas_and_chemistry_with_reference_hemodynamics() {
         worst.0,
         worst.1
     );
-    assert_eq!(cases, 15);
+    assert_eq!(cases, 27); // 15 + 4 troubles du rythme × 3 sévérités
     assert!(bad.is_empty(), "{} écarts\n{}", bad.len(), bad.join("\n"));
 }
 

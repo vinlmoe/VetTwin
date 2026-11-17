@@ -12,12 +12,15 @@ const S = {
   ctl: null, tab: 'patient',
   inputs: { bw: 20, disease: null, stage: null, seed: 1, plan: null, atH: null },
   res: null,
-  ausc: { hr: null, site: 'base', r: null, spec: null, window: 8, start: 0, cursor: null, playing: false, audio: null, src: null, loop: false, zoomOnly: false, played: false },
+  ausc: { hr: null, site: 'base', r: null, spec: null, window: 8, start: 0, cursor: null, playing: false, audio: null, src: null, loop: false, zoomOnly: false, played: false, gain: 1, gainNode: null },
   treat: { regimens: [], days: 3, r: null, cursor: 0, shown: ['hr', 'map', 'k'], ref: null, editing: null, open: null },
   model: { selected: null },
 };
 
 // ------------------------------------------------------------------ données d'affichage
+// Échelle unique de l'ECG (mV) : amplitudes comparables d'un patient à l'autre (onde T ample,
+// QRS large d'un battement ventriculaire…), sans mise à l'échelle automatique.
+const ECG_MIN = -1.5, ECG_MAX = 2.5;
 const HEMO = [['hr', 'FC', '/min', 0], ['sap', 'PAS', 'mmHg', 0], ['dap', 'PAD', 'mmHg', 0], ['map', 'PAM', 'mmHg', 0],
   ['co', 'Débit cardiaque', 'L/min', 2], ['ef', 'FE', '%', 0, 100], ['reg_fraction', 'Fraction régurgitée', '%', 0, 100],
   ['la_mean', 'POG moyenne', 'mmHg', 1], ['pap_mean', 'PAP moyenne', 'mmHg', 1], ['cvp', 'PVC', 'mmHg', 1]];
@@ -126,7 +129,8 @@ const MECH_FR = {
   hypoxic_depression: 'dépression myocardique par hypoxie tissulaire',
   coronary_ischemia: 'ischémie myocardique (pression de perfusion coronaire basse)',
   hypokalemic_weakness: 'faiblesse des muscles respiratoires (hypokaliémie)',
-  hyperkalemic_bradycardia: 'bradycardie hyperkaliémique',
+  atrial_standstill: "arrêt atrial hyperkaliémique (pas d'onde P ni de contraction atriale)",
+  conduction_block: 'trouble de conduction (FC ventriculaire inférieure à la FC sinusale)',
   anaerobic_metabolism: "métabolisme anaérobie (extraction d'O₂ élevée, lactate)",
   pulmonary_edema: 'œdème pulmonaire (POG élevée)',
   renal_hypoperfusion: 'hypoperfusion rénale (PAM basse)',
@@ -173,12 +177,12 @@ function renderPatient(v) {
     return;
   }
   const pr = sg.pressures;
-  v.innerHTML = card(`ECG, dérivation II (${Math.round(sg.ecg.length / sg.ecg_fs)} s, ${fmt(st.hr, 0)} /min)`, canvas('c-ecg', 150))
+  v.innerHTML = card(`ECG, dérivation II (${Math.round(sg.ecg.length / sg.ecg_fs)} s, ${fmt(st.hr, 0)} /min ; échelle fixe −1,5 à +2,5 mV)`, canvas('c-ecg', 150))
     + card('Pressions sur deux battements (mmHg) : aorte, VG, OG', canvas('c-pr', 170) + legend([['Aorte', COLORS.ao], ['VG', COLORS.lv], ['OG', COLORS.la]]) + `<div class="note">PCG : ${sg.pcg_features.grade ? `souffle ${sg.pcg_features.murmur}, grade ${sg.pcg_features.grade}/6` : 'pas de souffle'}</div>`)
     + `<div class="grid3">${card('Hémodynamique', valuesTable(HEMO, st))}${card('Gaz du sang', valuesTable(GASES, st))}${card('Biochimie', valuesTable(CHEM, st))}</div>`
     + card('Signes émergents', st.emergent_signs.length ? st.emergent_signs.map((s) => `<div>• ${esc(s.label_fr)}<div class="note">&nbsp;&nbsp;${esc(s.source)}</div></div>`).join('') : '<div class="note">Aucun signe dérivé au-delà des seuils sourcés.</div>');
   const dur = sg.ecg.length / sg.ecg_fs;
-  timeChart($('#c-ecg'), { series: [{ y: sg.ecg, dt: 1 / sg.ecg_fs, color: COLORS.ecg }], x0: 0, x1: dur, paper: true });
+  timeChart($('#c-ecg'), { series: [{ y: sg.ecg, dt: 1 / sg.ecg_fs, color: COLORS.ecg }], x0: 0, x1: dur, paper: true, yMin: ECG_MIN, yMax: ECG_MAX });
   const two = (a) => [...a, ...a];
   const p = pr.dt * pr.ao.length * 2;
   timeChart($('#c-pr'), { series: [two(pr.ao), two(pr.lv), two(pr.la)].map((y, i) => ({ y, dt: pr.dt, color: [COLORS.ao, COLORS.lv, COLORS.la][i] })), x0: 0, x1: p, yMin: 0 });
@@ -293,6 +297,7 @@ function renderAuscultation(v) {
     <div class="row"><button class="primary" id="play">${A.playing ? '■ Arrêter' : A.played ? '↻ Rejouer' : '▶ Écouter'}</button>
       <label style="flex-direction:row;align-items:center"><input type="checkbox" id="loop" ${A.loop ? 'checked' : ''}> en boucle</label>
       <label style="flex-direction:row;align-items:center"><input type="checkbox" id="zoomonly" ${A.zoomOnly ? 'checked' : ''}> fenêtre affichée seulement</label>
+      <label style="flex-direction:row;align-items:center;gap:6px">Volume <input id="vol" type="range" min="1" max="8" step="0.5" value="${A.gain}" style="width:120px"> <b id="voll">×${fmt(A.gain, 1)}</b></label>
       <span>FC ${fmt(r.hr, 0)} /min · ${r.beats.length} battements · ${r.grade ? `souffle ${r.murmur}, grade ${r.grade}/6 (indicatif)` : 'pas de souffle'}${r.s3 ? ' · B3' : ''} · site ${r.site}</span></div>
     <div class="sliders"><label><span>Fenêtre : <b id="wl">${fmt(A.window, 1)}</b> s</span><input id="win" type="range" min="0.5" max="${dur}" step="0.1" value="${A.window}"></label>
       <label><span>Début : <b id="sl">${fmt(A.start, 2)}</b> s</span><input id="start" type="range" min="0" max="${Math.max(0.001, dur - A.window)}" step="0.01" value="${A.start}"></label></div>`
@@ -311,6 +316,10 @@ function renderAuscultation(v) {
   $('#play').onclick = () => (A.playing ? stopAusc() : play());
   $('#loop').onchange = (e) => { A.loop = e.target.checked; if (A.src) A.src.loop = A.loop; };
   $('#zoomonly').onchange = (e) => { A.zoomOnly = e.target.checked; };
+  $('#vol').oninput = (e) => {
+    A.gain = +e.target.value; $('#voll').textContent = '×' + fmt(A.gain, 1);
+    if (A.gainNode) A.gainNode.gain.value = A.gain;
+  };
   drawAusc();
 }
 
@@ -318,7 +327,7 @@ function drawAusc() {
   const A = S.ausc, r = A.r, x0 = A.start, x1 = A.start + A.window;
   timeChart($('#a-pcg'), { series: [{ y: r.samples, dt: 1 / r.fs, color: COLORS.accent }], x0, x1, yMin: -1, yMax: 1, cursor: A.cursor });
   spectrogram($('#a-spec'), A.spec, x0, x1, A.cursor);
-  timeChart($('#a-ecg'), { series: [{ y: r.ecg, dt: 1 / r.ecg_fs, color: COLORS.ecg }], x0, x1, cursor: A.cursor });
+  timeChart($('#a-ecg'), { series: [{ y: r.ecg, dt: 1 / r.ecg_fs, color: COLORS.ecg }], x0, x1, cursor: A.cursor, yMin: ECG_MIN, yMax: ECG_MAX });
   const p = r.pressures, hi = Math.max(...p.ao, ...p.lv) * 1.05;
   timeChart($('#a-pr'), { series: [p.ao, p.lv, p.la].map((y, i) => ({ y, dt: 1 / p.fs, color: [COLORS.ao, COLORS.lv, COLORS.la][i] })), x0, x1, yMin: 0, yMax: hi, cursor: A.cursor });
 }
@@ -332,7 +341,13 @@ function play() {
   if (ctx.state === 'suspended') ctx.resume();
   const buf = ctx.createBuffer(1, r.samples.length, r.fs);
   buf.copyToChannel(r.samples, 0);
-  const src = ctx.createBufferSource(); src.buffer = buf; src.connect(ctx.destination);
+  // amplification réglable ; limiteur de crête seulement (seuil −1 dBFS, ratio élevé, attaque
+  // et relâchement rapides) : sous le seuil, le signal n'est pas modifié (timbre conservé)
+  const src = ctx.createBufferSource(); src.buffer = buf;
+  const g = ctx.createGain(); g.gain.value = A.gain; A.gainNode = g;
+  const lim = ctx.createDynamicsCompressor();
+  lim.threshold.value = -1; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.001; lim.release.value = 0.05;
+  src.connect(g); g.connect(lim); lim.connect(ctx.destination);
   const off = A.zoomOnly ? A.start : 0, len = A.zoomOnly ? Math.min(A.window, r.duration_s - off) : r.duration_s;
   src.loop = A.loop; src.loopStart = off; src.loopEnd = off + len;
   const t0 = ctx.currentTime + 0.05;
@@ -382,7 +397,7 @@ function renderTreatment(v) {
     + T.regimens.map((r, i) => {
       const om = Object.values(r.overrides || {}).filter((x) => x === 0).length;
       let s = `<div class="row"><i style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${COLORS.drugs[i % 5]}"></i>
-        ${esc(dname(r.drug))} : ${r.mgPerKg} mg/kg ${r.route === 'po' ? 'per os' : 'IV'}, toutes les ${r.intervalH} h × ${r.count} (de ${dayLabel(r.startH)} à ${dayLabel(r.startH + (r.count - 1) * r.intervalH)})${om ? ` ; ${om} omise(s)` : ''}
+        ${esc(dname(r.drug))} : <button data-step="${i}:-1" title="−10 %">−</button><input data-mg="${i}" type="number" step="any" min="0" style="width:72px" value="${r.mgPerKg}"><button data-step="${i}:1" title="+10 %">+</button> mg/kg ${r.route === 'po' ? 'per os' : 'IV'}, toutes les ${r.intervalH} h × ${r.count} (de ${dayLabel(r.startH)} à ${dayLabel(r.startH + (r.count - 1) * r.intervalH)})${om ? ` ; ${om} omise(s)` : ''}
         <button data-ed="${i}">Modifier</button><button data-op="${i}">${T.open === i ? 'Masquer les prises' : 'Prises individuelles'}</button><button data-rm="${i}">Retirer</button></div>`;
       if (T.open === i) {
         s += '<div class="note">Dose de chaque prise (mg/kg) ; 0 = prise omise</div><div class="row">'
@@ -391,7 +406,7 @@ function renderTreatment(v) {
       return s;
     }).join('')
     + `<div class="row">Durée simulée : <b id="t-dl">${T.days}</b> j <input id="t-days" type="range" min="1" max="14" step="1" value="${T.days}" style="width:240px">
-       <button class="primary" id="t-sim" ${T.regimens.length ? '' : 'disabled'}>Simuler le traitement</button></div>`);
+       <span class="note">${T.regimens.length ? 'simulation mise à jour à chaque changement' : 'ajouter un schéma pour simuler'}</span></div>`);
   const r = T.r;
   if (r) {
     const h = r.plan.horizonH, i = nearest(r.t, T.cursor);
@@ -416,35 +431,43 @@ function renderTreatment(v) {
       html += card(`${ind[1]}${ind[2] ? ` (${ind[2]})` : ''} : ${fmt(r.states[k][j] * (ind[4] || 1), Math.max(ind[3], 2))} à ${dayLabel(r.state_t[j])}`, canvas('ti-' + k, 90));
     }
   }
+  const focus = focusKey();
   v.innerHTML = html;
+  restoreFocus(v, focus);
   // événements
+  const setRegimen = (i, reg) => { T.regimens = T.regimens.map((x, j) => (j === i ? reg : x)); resimulate(); };
+  const setDose = (i, val) => {
+    if (!(val >= 0)) return;
+    const old = T.regimens[i];
+    // les prises individuelles qui suivaient la dose nominale la suivent ; les autres restent modifiées
+    const overrides = Object.fromEntries(Object.entries(old.overrides || {}).filter(([, x]) => x !== val));
+    setRegimen(i, { ...old, mgPerKg: val, overrides });
+  };
   $('#t-add').onclick = () => {
     const reg = { drug: $('#t-drug').value, mgPerKg: +$('#t-dose').value, route: $('#t-route').value, intervalH: +$('#t-int').value, count: Math.round(+$('#t-n').value), startH: +$('#t-start').value || 0, overrides: {} };
     if (!(reg.mgPerKg >= 0 && reg.intervalH > 0 && reg.count >= 1 && reg.count <= 200)) return;
     if (T.editing === null) T.regimens = [...T.regimens, reg];
     else { const old = T.regimens[T.editing]; reg.overrides = Object.fromEntries(Object.entries(old.overrides || {}).filter(([k]) => +k < reg.count)); T.regimens = T.regimens.map((x, j) => (j === T.editing ? reg : x)); T.editing = null; }
-    render();
+    resimulate();
   };
   if ($('#t-cancel')) $('#t-cancel').onclick = () => { T.editing = null; render(); };
   for (const b of v.querySelectorAll('[data-ed]')) b.onclick = () => { T.editing = +b.dataset.ed; render(); };
   for (const b of v.querySelectorAll('[data-op]')) b.onclick = () => { T.open = T.open === +b.dataset.op ? null : +b.dataset.op; render(); };
-  for (const b of v.querySelectorAll('[data-rm]')) b.onclick = () => { T.regimens = T.regimens.filter((_, j) => j !== +b.dataset.rm); T.editing = null; T.open = null; render(); };
+  for (const b of v.querySelectorAll('[data-rm]')) b.onclick = () => { T.regimens = T.regimens.filter((_, j) => j !== +b.dataset.rm); T.editing = null; T.open = null; resimulate(); };
+  for (const inp of v.querySelectorAll('[data-mg]')) inp.onchange = () => setDose(+inp.dataset.mg, parseFloat(inp.value));
+  for (const b of v.querySelectorAll('[data-step]')) b.onclick = () => {
+    const [i, dir] = b.dataset.step.split(':').map(Number), x = T.regimens[i].mgPerKg;
+    setDose(i, x > 0 ? +(x * (dir > 0 ? 1.1 : 1 / 1.1)).toPrecision(3) : 0);
+  };
   for (const inp of v.querySelectorAll('[data-dose]')) inp.onchange = () => {
     const [i, k] = inp.dataset.dose.split(':').map(Number), val = parseFloat(inp.value);
     if (!(val >= 0)) return;
     const reg = { ...T.regimens[i], overrides: { ...(T.regimens[i].overrides || {}) } };
     if (val === reg.mgPerKg) delete reg.overrides[k]; else reg.overrides[k] = val;
-    T.regimens = T.regimens.map((x, j) => (j === i ? reg : x)); render();
+    setRegimen(i, reg);
   };
   $('#t-days').oninput = (e) => { T.days = +e.target.value; $('#t-dl').textContent = T.days; };
-  $('#t-sim').onclick = () => {
-    try {
-      T.r = S.ctl.treatment(S.inputs, { regimens: T.regimens, horizonH: T.days * 24 });
-      T.cursor = Math.min(T.cursor, T.days * 24);
-      if (!T.ref || !(T.ref in T.r.conc_mg_L)) T.ref = Object.keys(T.r.conc_mg_L)[0];
-      render();
-    } catch (e) { showError(e); }
-  };
+  $('#t-days').onchange = () => resimulate();
   if (!r) return;
   const setCursor = (t) => { T.cursor = Math.max(0, Math.min(r.plan.horizonH, t)); render(); };
   $('#t-cur').oninput = (e) => { T.cursor = +e.target.value; drawTreatment(); };
@@ -467,6 +490,45 @@ function renderTreatment(v) {
     setCursor(((e.clientX - rect.left - left) / (rect.width - left)) * r.plan.horizonH);
   };
   drawTreatment();
+}
+
+/**
+ * Resimule le traitement après tout changement de schéma ou de durée (plus de bouton « Simuler »).
+ * Si le patient est déjà examiné sous ce traitement, l'examen suit le nouveau schéma au même instant.
+ * Différé d'une tâche : sur Tab, « change » part avant que le focus n'atteigne le champ suivant,
+ * qu'on retrouve ainsi après le re-rendu.
+ */
+function resimulate() {
+  clearTimeout(S.treat.timer);
+  S.treat.timer = setTimeout(resimulateNow, 0);
+}
+function resimulateNow() {
+  const T = S.treat;
+  if (!T.regimens.length) { T.r = null; render(); return; }
+  try {
+    T.r = S.ctl.treatment(S.inputs, { regimens: T.regimens, horizonH: T.days * 24 });
+    T.cursor = Math.min(T.cursor, T.days * 24);
+    if (!T.ref || !(T.ref in T.r.conc_mg_L)) T.ref = Object.keys(T.r.conc_mg_L)[0];
+  } catch (e) { showError(e); render(); return; }
+  if (S.inputs.plan && S.inputs.atH !== null) {
+    const r = T.r, dead = r.death_t_h !== null && r.death_t_h !== undefined;
+    const cause = dead ? r.outcomes.find((x) => x.state === 'dead').cause : null;
+    S.inputs.plan = r.plan; S.inputs.atH = Math.min(S.inputs.atH, r.plan.horizonH);
+    S.inputs.death = dead ? { t_h: r.death_t_h, cause, label_fr: DEATH_FR[cause] || 'décès' } : null;
+    evaluate();
+  } else render();
+}
+
+/** Champ qui a le focus (identifié par id ou data-*), pour le retrouver après un re-rendu. */
+function focusKey() {
+  const f = document.activeElement;
+  if (!f || f === document.body) return null;
+  for (const a of ['id', 'data-mg', 'data-dose', 'data-step']) if (f.hasAttribute(a)) return `[${a}="${f.getAttribute(a)}"]`;
+  return null;
+}
+function restoreFocus(v, key) {
+  const el = key && v.querySelector(key);
+  if (el) { el.focus(); if (el.select && el.type === 'number') el.select(); }
 }
 
 /** Issue à l'instant du curseur et instant du décès éventuel. */

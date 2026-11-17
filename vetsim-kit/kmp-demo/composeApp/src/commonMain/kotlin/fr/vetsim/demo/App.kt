@@ -147,6 +147,8 @@ fun App(
                     if (r != null && tab == 4) {
                         TreatmentView(controller, inputs, onExamine = { plan, t, death ->
                             inputs = inputs.copy(plan = plan, atH = t, death = death); run(); tab = 0
+                        }, onReplan = { plan, death ->
+                            inputs = inputs.copy(plan = plan, atH = inputs.atH?.coerceAtMost(plan.horizonH), death = death); run()
                         })
                     }
                     if (r != null && tab == 3) {
@@ -156,8 +158,9 @@ fun App(
                     }
                     if (r != null && tab == 0 && r.outcome.dead) DeadView("ECG ni de pression pulsée")
                     if (r != null && tab == 0 && !r.outcome.dead) {
-                        Panel("ECG, dérivation II (${(r.ecg.size / r.ecgFs).toInt()} s, ${"%.0f".fmt(r.values["hr"] ?: 0.0)} /min)") {
-                            Trace(listOf(r.ecg to EcgGreen), paper = true, height = 150)
+                        Panel("ECG, dérivation II (${(r.ecg.size / r.ecgFs).toInt()} s, ${"%.0f".fmt(r.values["hr"] ?: 0.0)} /min ; échelle fixe −1,5 à +2,5 mV)") {
+                            // échelle unique de l'ECG (−1,5 à +2,5 mV) : amplitudes comparables entre patients
+                            Trace(listOf(r.ecg to EcgGreen), paper = true, height = 150, yMin = -1.5f, yMax = 2.5f)
                         }
                         Panel("Pressions sur deux battements (mmHg) : aorte, VG, OG") {
                             val two = { a: FloatArray -> a + a }
@@ -287,7 +290,7 @@ private fun Legend(label: String, color: Color) {
 
 /** Tracé de séries régulièrement échantillonnées (même durée), échelle commune. */
 @Composable
-private fun Trace(series: List<Pair<FloatArray, Color>>, height: Int, paper: Boolean = false, yMin: Float? = null) {
+private fun Trace(series: List<Pair<FloatArray, Color>>, height: Int, paper: Boolean = false, yMin: Float? = null, yMax: Float? = null) {
     Canvas(Modifier.fillMaxWidth().height(height.dp).background(if (paper) Paper else Color.White)) {
         if (paper) {
             val step = size.width / 40f
@@ -299,7 +302,7 @@ private fun Trace(series: List<Pair<FloatArray, Color>>, height: Int, paper: Boo
         val all = series.flatMap { it.first.asIterable() }
         if (all.isEmpty()) return@Canvas
         val lo = yMin ?: all.min()
-        val hi = all.max()
+        val hi = yMax ?: all.max()
         val span = (hi - lo).takeIf { it > 1e-6f } ?: 1f
         val pad = 6f
         for ((v, color) in series) {

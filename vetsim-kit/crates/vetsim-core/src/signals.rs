@@ -39,26 +39,23 @@ pub struct EcgFeatures {
 }
 
 /// Effets de la kaliémie (paliers continus) :
-/// - hyperkaliémie > 5,5 mmol/L : T ample, pointue et étroite ; au-delà de 6, P s'aplatit et PR
-///   s'allonge ; au-delà de 6,5, le QRS s'élargit ; au-delà de 7,8, P disparaît (rythme
-///   sinoventriculaire, stase atriale) ;
+/// - hyperkaliémie > 5,5 mmol/L : T ample, pointue et étroite, QT raccourci (placeholder D) ;
+///   au-delà de 6, P s'aplatit et PR s'allonge ; au-delà de 6,5, le QRS s'élargit. La
+///   disparition de P (arrêt atrial) est décidée par la conduction (`rhythm`) ;
 /// - hypokaliémie < 3,2 mmol/L : T aplatie, QT allongé.
 pub fn ecg_features(p: &Params) -> EcgFeatures {
     let k = p.k;
     let (mut pr, mut qrs, mut qt) = (p.pr, p.qrs, p.qt);
     let (mut p_amp, mut t_amp, r_amp) = (p.p_amp, p.t_amp, p.r_amp);
     let mut t_w = 0.045;
-    let mut p_visible = true;
     if k > 5.5 {
         let d = k - 5.5;
         t_amp *= 1.0 + 0.45 * d;
         t_w = f64::max(0.025, 0.045 - 0.006 * d);
+        qt *= f64::max(0.8, 1.0 - 0.04 * d);
         p_amp *= f64::max(0.0, 1.0 - 0.25 * f64::max(0.0, k - 6.0));
         pr *= 1.0 + 0.07 * f64::max(0.0, k - 6.0);
         qrs *= 1.0 + 0.12 * f64::max(0.0, k - 6.5);
-        if k > 7.8 {
-            p_visible = false;
-        }
     } else if k < 3.2 {
         let d = 3.2 - k;
         t_amp *= f64::max(0.2, 1.0 - 0.3 * d);
@@ -68,7 +65,7 @@ pub fn ecg_features(p: &Params) -> EcgFeatures {
         pr,
         qrs,
         qt,
-        p_amp: if p_visible { p_amp } else { 0.0 },
+        p_amp,
         t_amp,
         r_amp,
         t_w,
@@ -140,6 +137,109 @@ pub fn make_ecg(
         features: f,
         r_times: t_r,
     }
+}
+
+/// Facteur de largeur du QRS d'un battement ventriculaire (placeholder D).
+pub const WIDE_QRS: f64 = 2.2;
+/// Facteur d'amplitude de son onde R (placeholder D).
+pub const WIDE_R: f64 = 1.2;
+/// Onde T discordante d'un battement ventriculaire (facteur de `t_amp`, placeholder D).
+pub const WIDE_T: f64 = -1.5;
+/// Amplitude des ondes f de la FA (facteur de `p_amp`, placeholder D).
+pub const F_WAVE: f64 = 0.3;
+
+/// ECG construit depuis la séquence de conduction (miroir de `signals.make_ecg_conducted`) :
+/// onde P à chaque activation atriale organisée (aucune en arrêt atrial), ondes f en FA, QRS à
+/// chaque activation ventriculaire après le PR de ce battement, QRS large et T discordante pour
+/// un battement ventriculaire, QT corrigé par le RR précédent (Fridericia).
+pub fn make_ecg_conducted(
+    p: &Params,
+    cond: &crate::rhythm::Conduction,
+    hr: f64,
+    duration_s: f64,
+    fs: f64,
+    noise: &mut dyn NoiseSource,
+) -> Ecg {
+    let f = ecg_features(p);
+    let t = arange(0.0, duration_s, 1.0 / fs);
+    let mut sig = vec![0.0; t.len()];
+    let mut add = |c: f64, a: f64, w: f64| {
+        for (s, ti) in sig.iter_mut().zip(&t) {
+            let z = (ti - c) / w;
+            *s += a * math::exp(-0.5 * (z * z));
+        }
+    };
+    for a in &cond.atrial {
+        if a.t > duration_s + 0.5 {
+            break;
+        }
+        if a.organized {
+            add(a.t + 0.5 * 0.03, f.p_amp, 0.022); // P
+        } else {
+            add(a.t, F_WAVE * p.p_amp, 0.012); // onde f
+        }
+    }
+    let mut prev: Option<f64> = None;
+    let mut r_times = Vec::new();
+    for b in &cond.ventricular {
+        let tv = b.t;
+        if tv > duration_s + 0.5 {
+            break;
+        }
+        let rr = prev.map_or(60.0 / hr, |q| tv - q);
+        prev = Some(tv);
+        if tv < duration_s {
+            r_times.push(tv);
+        }
+        let qt = f.qt * math::pow(95.0 / f64::max(60.0 / rr, 30.0), 1.0 / 3.0);
+        if b.wide {
+            let qrs = f.qrs * WIDE_QRS;
+            let qrs_w = qrs / 5.0;
+            add(tv, WIDE_R * f.r_amp, qrs_w);
+            add(tv + 0.55 * qrs, -0.35 * f.r_amp, qrs_w * 0.9);
+            add(
+                tv - 0.5 * qrs + qt - 2.2 * f.t_w,
+                WIDE_T * f.t_amp,
+                1.5 * f.t_w,
+            );
+        } else {
+            let qrs = f.qrs;
+            let qrs_w = qrs / 5.0;
+            add(tv - 0.55 * qrs, -0.12 * f.r_amp, qrs_w * 0.8);
+            add(tv, f.r_amp, qrs_w);
+            add(tv + 0.55 * qrs, -0.20 * f.r_amp, qrs_w * 0.9);
+            add(tv - 0.5 * qrs + qt - 2.2 * f.t_w, f.t_amp, f.t_w);
+        }
+    }
+    for (s, ti) in sig.iter_mut().zip(&t) {
+        *s += 0.01 * noise.standard_normal() + 0.02 * math::sin(2.0 * PI * 0.25 * ti);
+    }
+    Ecg {
+        t,
+        v: sig,
+        features: f,
+        r_times,
+    }
+}
+
+/// Séquence de conduction des signaux : décharges sinusales du modèle autonome (variabilité
+/// respiratoire) propagées par la couche de conduction ; aléa `SplitMix64(seed)` (miroir de
+/// `signals.patient_conduction`).
+pub fn patient_conduction(
+    ev: &Evaluation,
+    sinus_times: &[f64],
+    seed: u64,
+) -> crate::rhythm::Conduction {
+    let mut g = crate::rhythm::SplitMix64::new(seed);
+    let t_end = sinus_times.last().copied().unwrap_or(0.0);
+    crate::rhythm::simulate_conduction(
+        &ev.params,
+        ev.autonomic.v_eff,
+        60.0 / ev.sinus_hr,
+        t_end,
+        &mut || g.random(),
+        Some(sinus_times),
+    )
 }
 
 // ------------------------------------------------------------------------------------- PCG
@@ -445,6 +545,8 @@ pub mod streams {
     pub const PCG: u64 = 3;
     /// Bruit du module auscultation (pcg.rs).
     pub const AUSCULTATION: u64 = 4;
+    /// Aléa de la conduction des signaux (FA, ectopie) ; le moteur utilise SplitMix64 (rhythm.rs).
+    pub const RHYTHM: u64 = 5;
 }
 
 /// Options des signaux d'un patient.
@@ -491,19 +593,13 @@ pub fn patient_signals(ev: &Evaluation, opts: &SignalOptions, seed: u64) -> Pati
         &au_opts,
         &mut SimRng::for_stream(seed, streams::AUTONOMIC),
     );
-    let r_times: Vec<f64> = au
-        .beats
-        .iter()
-        .copied()
-        .filter(|b| *b < opts.duration_s)
-        .collect();
-    let ecg = make_ecg(
+    let cond = patient_conduction(ev, &au.beats, seed.wrapping_add(streams::RHYTHM));
+    let ecg = make_ecg_conducted(
         &ev.params,
+        &cond,
         ev.params.hr,
-        ev.metabolic.art.rr,
         opts.duration_s,
         opts.ecg_fs,
-        Some(&r_times),
         &mut SimRng::for_stream(seed, streams::ECG),
     );
     let pcg = make_pcg(

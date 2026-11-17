@@ -9,6 +9,9 @@ def add(cid, args):
 for bw in (5, 20, 40): add(f'healthy_{bw}kg', ['eval', '--bw', str(bw)])
 for d in ('mmvd', 'ckd', 'addison', 'pneumonia'):
     for s in (0.2, 0.5, 0.8): add(f'{d}_s{s}', ['eval', '--bw', '20', '--disease', f'{d}:{s}'])
+# troubles du rythme (conduction ; aléa SplitMix64 identique en Python et en Rust)
+for d in ('atrial_fibrillation', 'av_block', 'ventricular_premature', 'sick_sinus'):
+    for s in (0.2, 0.5, 0.8): add(f'{d}_s{s}', ['eval', '--bw', '20', '--disease', f'{d}:{s}'])
 add('mmvd_s0.8_pimobendan', ['eval', '--disease', 'mmvd:0.8', '--conc', 'pimobendan=0.03'])
 for dr, c in [('pimobendan', 0.03), ('atropine', 0.004), ('betabloquant', 0.15), ('opioide', 0.015)]:
     add(f'healthy_{dr}', ['eval', '--conc', f'{dr}={c}'])

@@ -8,6 +8,7 @@ from multiprocessing import Pool
 from patient import Patient
 from autonomic import simulate_autonomic
 import pkpd
+import physio
 
 BSA20 = 10.1 * 20000 ** (2 / 3) / 1e4      # m2, formule de Meeh (k=10,1)
 
@@ -95,7 +96,10 @@ def _dis(args):
     name, stage, seed = args
     pt = Patient(20.0, seed=seed)
     pt.add_disease(name, stage=stage)
-    r = pt.state(signals=False)
+    try:
+        r = pt.state(signals=False)
+    except physio.NonViable as e:
+        return dict(dead=e.cause)            # décès mécanistique : compté à part, hors moyennes
     return dict(la=r['hemo']['la_mean'], rf=r['hemo']['reg_fraction'], map=r['hemo']['map'], co=r['hemo']['co'],
                 creat=r['chem']['creat'], k=r['chem']['k'], na=r['chem']['na'], hco3=r['art']['hco3'], ph=r['art']['ph'],
                 pao2=r['art']['pao2'], hr=r['p']['hr'], urea=r['chem']['urea'])
@@ -106,17 +110,22 @@ def disease_checks(n=24):
                                           ('Addison', ['discret', 'modere', 'crise'])] for s in ss for i in range(n)]
     with Pool(2) as P:
         res = P.map(_dis, jobs)
-    out = {}
+    out, deaths = {}, {}
     for (d, s, _), r in zip(jobs, res):
-        out.setdefault((d, s), []).append(r)
-    return out
+        out.setdefault((d, s), [])
+        if 'dead' in r:
+            deaths.setdefault(f'{d}|{s}', []).append(r['dead'])
+        else:
+            out[(d, s)].append(r)
+    return out, deaths
 
 
 if __name__ == '__main__':
     rows = healthy_cohort(50)
     pk = pk_checks()
-    dis = disease_checks(24)
-    json.dump(dict(healthy=rows, pk=pk, disease={f'{a}|{b}': v for (a, b), v in dis.items()}), open('out/calibration.json', 'w'), indent=1, default=float)
+    dis, deaths = disease_checks(24)
+    json.dump(dict(healthy=rows, pk=pk, disease={f'{a}|{b}': v for (a, b), v in dis.items()}, deaths=deaths),
+              open('out/calibration.json', 'w'), indent=1, default=float)
     for r in rows:
         print(f"{r['module'][:14]:14s} {r['var'][:18]:18s} cible {r['target']:8.2f} ±{r['tol']:<6.2f} modèle {r['model_mean']:8.2f} (ET {r['model_sd']:.2f}) {'OK' if r['ok'] else '--'} {100*r['frac_in']:.0f}%")
     for r in pk:

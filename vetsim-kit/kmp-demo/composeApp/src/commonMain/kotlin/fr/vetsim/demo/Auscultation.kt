@@ -85,6 +85,15 @@ fun AuscultationView(
     var loop by remember { mutableStateOf(false) }
     var zoomOnly by remember { mutableStateOf(false) }
     var played by remember { mutableStateOf(false) }
+    var gain by remember { mutableStateOf(1f) }
+
+    /** Amplification réglable. Gain 1 : signal inchangé. Au-delà, mise à l'échelle linéaire et
+     *  limitation des seules crêtes au-dessus de 0,9 (genou doux), pour conserver le timbre. */
+    fun amplified(x: FloatArray): FloatArray = FloatArray(x.size) {
+        val y = gain * x[it]
+        val a = kotlin.math.abs(y)
+        if (a <= 0.9f) y else kotlin.math.sign(y) * (0.9f + 0.1f * kotlin.math.tanh((a - 0.9f) / 0.1f))
+    }
     // segment joué (s) : tout l'enregistrement, ou la fenêtre affichée
     var segStart by remember { mutableStateOf(0f) }
     var segLen by remember { mutableStateOf(0f) }
@@ -97,7 +106,7 @@ fun AuscultationView(
         segLen = if (zoomOnly) minOf(window, dur - segStart) else dur
         val a = (segStart * r.fs).toInt().coerceIn(0, r.samples.size)
         val b = ((segStart + segLen) * r.fs).toInt().coerceIn(a, r.samples.size)
-        playAudio(r.samples.copyOfRange(a, b), r.fs)
+        playAudio(amplified(r.samples.copyOfRange(a, b)), r.fs)
         if (!zoomOnly) start = 0f
         played = true
         playing = true
@@ -123,7 +132,7 @@ fun AuscultationView(
                     val r = result ?: break
                     val a = (segStart * r.fs).toInt().coerceIn(0, r.samples.size)
                     val b = ((segStart + segLen) * r.fs).toInt().coerceIn(a, r.samples.size)
-                    playAudio(r.samples.copyOfRange(a, b), r.fs)
+                    playAudio(amplified(r.samples.copyOfRange(a, b)), r.fs)
                     if (!zoomOnly) start = 0f
                     mark = TimeSource.Monotonic.markNow()
                 } else {
@@ -159,6 +168,8 @@ fun AuscultationView(
                 Checkbox(zoomOnly, { zoomOnly = it })
                 Text("fenêtre affichée seulement", color = Ink, fontSize = 13.sp)
             }
+            Text("Volume ×${"%.1f".fmt(gain.toDouble())}", color = Ink, fontSize = 13.sp)
+            Slider(value = gain, onValueChange = { gain = it }, valueRange = 1f..8f, modifier = Modifier.width(140.dp))
             Text(
                 "FC ${"%.0f".fmt(r.hr)} /min · ${r.beats.size} battements · " +
                     (if (r.grade == 0) "pas de souffle" else "souffle ${r.murmur}, grade ${r.grade}/6 (indicatif)") +
@@ -187,7 +198,7 @@ fun AuscultationView(
         }
         TimePanel("Spectrogramme 0–500 Hz (dB)", t0, t1, cursor, height = 110) { w, h -> drawSpectrogram(r.spectrogram, t0, t1, w, h) }
         TimePanel("ECG, dérivation II (mêmes battements que le son)", t0, t1, cursor, height = 110) { w, h ->
-            drawMinMax(r.ecg, r.ecgFs, t0, t1, w, h, EcgGreen, null, null)
+            drawMinMax(r.ecg, r.ecgFs, t0, t1, w, h, EcgGreen, -1.5f, 2.5f) // échelle unique de l'ECG (mV)
         }
         TimePanel("Pressions (mmHg) : aorte, VG, OG", t0, t1, cursor, height = 150, legend = listOf("Aorte" to AoRed, "VG" to LvBlue, "OG" to LaAmber)) { w, h ->
             val hi = maxOf(r.ao.maxOrNull() ?: 1f, r.lv.maxOrNull() ?: 1f) * 1.05f

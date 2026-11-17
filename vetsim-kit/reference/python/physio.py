@@ -23,14 +23,23 @@ def _valve(dp, r_f, g_b, eps=0.3):
     return s * dp / r_f + (1 - s) * g_b * dp
 
 
-def _flows(V, t, p, T, ts, tr):
+def _atrial_act(t, T, p, pr=None):
+    """Activation atriale : débute PR avant l'activation ventriculaire du même battement
+    (PR de la conduction si fourni, sinon le paramètre `pr`)."""
+    return _act(t + (p['pr'] if pr is None else pr), T, p['ta_atr'], p['tra_atr'])
+
+
+def _flows(V, t, p, T, ts, tr, pr=None):
     lv, rv, ao, sv, pa, pv = V
     e = _act(t, T, ts, tr)
+    ea = _atrial_act(t, T, p, pr)
+    # oreillettes contractiles : élastance active proportionnelle à la pression passive
+    # (pv = OG + veines pulmonaires, sv = OD + veines systémiques) ; k = 0 : oreillettes passives
     P = dict(
         lv=_vent_p(lv, e, p['ees_lv'], p['v0_lv'], p['a_lv'], p['b_lv']),
         rv=_vent_p(rv, e, p['ees_rv'], p['v0_rv'], p['a_rv'], p['b_rv']),
-        ao=(ao - p['v0_ao']) / p['c_ao'], sv=(sv - p['v0_sv']) / p['c_sv'],
-        pa=(pa - p['v0_pa']) / p['c_pa'], pv=(pv - p['v0_pv']) / p['c_pv'])
+        ao=(ao - p['v0_ao']) / p['c_ao'], sv=(1 + p['k_ra'] * ea) * (sv - p['v0_sv']) / p['c_sv'],
+        pa=(pa - p['v0_pa']) / p['c_pa'], pv=(1 + p['k_la'] * ea) * (pv - p['v0_pv']) / p['c_pv'])
     rf = p['r_valve']
     Q = dict(
         mi=_valve(P['pv'] - P['lv'], rf, p['g_mr']),
@@ -54,15 +63,16 @@ def _initial_volumes(p):
     return np.array([lv, rv, ao, sv, pa, pv])
 
 
-def simulate_hemo(p, n_beats=11, dt=0.002):
-    """Simule la circulation ; renvoie séries temporelles du dernier cycle et indices."""
+def simulate_hemo(p, n_beats=11, dt=0.002, pr=None):
+    """Simule la circulation (rythme régulier) ; renvoie séries temporelles du dernier cycle et
+    indices. `pr` : délai oreillette → ventricule de la conduction (défaut : paramètre `pr`)."""
     T = 60.0 / p['hr']
     ts = 0.37 * math.sqrt(T)
     tr = 0.4 * ts
     V0 = _initial_volumes(p)
 
     def rhs(t, V):
-        _, Q, _ = _flows(V, t, p, T, ts, tr)
+        _, Q, _ = _flows(V, t, p, T, ts, tr, pr)
         return [Q['mi'] - Q['ao'], Q['tr'] - Q['pu'], Q['ao'] - Q['sys'],
                 Q['sys'] - Q['tr'], Q['pu'] - Q['pul'], Q['pul'] - Q['mi']]
 
@@ -72,7 +82,7 @@ def simulate_hemo(p, n_beats=11, dt=0.002):
                     rtol=1e-6, atol=1e-6, max_step=0.004)
     V = sol.y
     t = sol.t
-    P, Q, e = _flows(V, t, p, T, ts, tr)
+    P, Q, e = _flows(V, t, p, T, ts, tr, pr)
     nb = int(round(T / dt))
     last = slice(len(t) - nb, len(t))
     prev = slice(len(t) - 2 * nb, len(t) - nb)
@@ -96,6 +106,12 @@ def simulate_hemo(p, n_beats=11, dt=0.002):
         la_mean=P['pv'][last].mean(), la_max=P['pv'][last].max(),
         pap_mean=P['pa'][last].mean(), cvp=P['sv'][last].mean(),
         lv_edp=P['lv'][last][0], converged=abs(sv_tot - sv_prev) / max(sv_tot, 1e-6) < 0.03)
+    # flux mitral : pic protodiastolique E (hors activation atriale) et pic télédiastolique A (pendant)
+    ea = _atrial_act(t[last], T, p, pr)
+    qf = np.maximum(qmi, 0.0)
+    out['mitral_e'] = float(qf[ea <= 0.0].max()) if np.any(ea <= 0.0) else 0.0
+    out['mitral_a'] = float(qf[ea > 0.0].max()) if np.any(ea > 0.0) else 0.0
+    out['hr_v'] = 60.0 / T
     return out
 
 
@@ -173,6 +189,28 @@ def hr_factor(s, v, p):
     return (1 + p['a_s'] * s) * (1 - p['a_v'] * v)
 
 
+# Rythme non trivial : séquence de conduction simulée sur RHYTHM_T_END secondes, indicateurs
+# moyennés après RHYTHM_WARM secondes ; aléa (FA, ectopie, blocs) : SplitMix64 à graine fixe,
+# identique au bit près en Rust (rhythm::SplitMix64).
+RHYTHM_SEED = 0
+RHYTHM_T_END = 30.0
+RHYTHM_WARM = 10.0
+
+
+def _hemo_with_rhythm(q, v_eff, n_beats):
+    """Hémodynamique d'une passe : périodique si la conduction est sinusale 1:1 à PR constant
+    (PR de la conduction), sinon battement par battement sur la séquence de conduction."""
+    import rhythm
+    T_s = 60.0 / q['hr']
+    if rhythm.is_trivial(q, v_eff, T_s):
+        return simulate_hemo(q, n_beats, pr=rhythm.steady_pr(q, v_eff, T_s)), None
+    rng = rhythm.SplitMix64(RHYTHM_SEED)
+    cond = rhythm.simulate_conduction(q, v_eff, T_s, RHYTHM_T_END, rng.random)
+    if sum(1 for b in cond['ventricular'] if b['t'] >= RHYTHM_WARM) < 3:
+        raise NonViable('cardiac_arrest')        # asystolie : aucune activation ventriculaire
+    return simulate_hemo_beats(q, cond, RHYTHM_T_END, RHYTHM_WARM, T_s), cond
+
+
 def _evaluate_once(p, n_beats=11):
     """Une passe : baroréflexe, hémodynamique, aval métabolique (paramètres déjà couplés)."""
     base = dict(p)
@@ -182,19 +220,21 @@ def _evaluate_once(p, n_beats=11):
         v_tot = float(np.clip(base['v0'] + base['vagal_add'] - 0.6 * d, 0.0, 1.0))
         s_eff = s_tot * (1 - base['beta_block'])          # voie chronotrope/inotrope bloquable
         v_eff = v_tot * (1 - base['vagal_block'])         # voie vagale bloquable (atropine)
-        kfac = max(0.4, 1 - 0.30 * max(0.0, base['k'] - 6.0))
         q = dict(base)
-        q['hr'] = base['hr'] * hr_factor(s_eff, v_eff, base) / hr_factor(S_REF, V_REF, base) * kfac
+        # FC sinusale (nœud sinusal) ; K⁺ agit par la conduction (rhythm), plus par un frein ici
+        q['hr'] = base['hr'] * hr_factor(s_eff, v_eff, base) / hr_factor(S_REF, V_REF, base)
         q['ees_lv'] = base['ees_lv'] * (1 + 0.4 * (s_eff - base['s0']))
         q['ees_rv'] = base['ees_rv'] * (1 + 0.4 * (s_eff - base['s0']))
         q['r_sys'] = base['r_sys'] * (1 + 0.5 * (s_tot - base['s0']))
         q['vol_shift'] = base['vol_shift'] + 0.20 * 85.0 * base['bw'] * (s_tot - base['s0'])   # recrutement du volume non contraint
-        h = simulate_hemo(q, n_beats)
+        h, cond = _hemo_with_rhythm(q, v_eff, n_beats)
         d_t = float(np.clip(base['baro_gain'] * (base['map_set'] - h['map']) / 45.0, -1, 1))
         if abs(d_t - d) < 0.04:
             break
         d = 0.5 * d + 0.5 * d_t
     p = q
+    p['hr_sinus'] = q['hr']
+    p['hr'] = h['hr_v']                       # FC rapportée : FC ventriculaire
     p['sympathetic'] = s_tot
     auto = dict(s=s_tot, v=v_tot, s_eff=s_eff, v_eff=v_eff, d=d, map=h['map'])
     bw = p['bw']
@@ -304,7 +344,6 @@ def evaluate(p, n_beats=11):
         fr = 0.5 * fr + 0.5 * tr
     if not converged:
         raise NonViable('vicious_circle', last)
-    kfac = max(0.4, 1 - 0.30 * max(0.0, p0['k'] - 6.0))
     mech = []
     if f_acid < 1.0:
         mech.append(dict(id='acidemia_depression', value=res['art']['ph'], threshold=p0['acid_ph0'], factor=f_acid))
@@ -314,8 +353,10 @@ def evaluate(p, n_beats=11):
         mech.append(dict(id='coronary_ischemia', value=res['hemo']['dap'] - res['hemo']['lv_edp'], threshold=p0['cpp_min'], factor=f_cor))
     if f_vent < 1.0:
         mech.append(dict(id='hypokalemic_weakness', value=p0['k'], threshold=p0['k_weak'], factor=f_vent))
-    if kfac < 1.0:
-        mech.append(dict(id='hyperkalemic_bradycardia', value=p0['k'], threshold=6.0, factor=kfac))
+    if p0['k'] >= p0['k_atrial_standstill']:
+        mech.append(dict(id='atrial_standstill', value=p0['k'], threshold=p0['k_atrial_standstill'], factor=1.0))
+    if res['p']['hr'] < 0.98 * res['p']['hr_sinus']:
+        mech.append(dict(id='conduction_block', value=res['p']['hr'], threshold=res['p']['hr_sinus'], factor=res['p']['hr'] / res['p']['hr_sinus']))
     if res['er'] > ER_ANAEROBIC:
         mech.append(dict(id='anaerobic_metabolism', value=res['er'], threshold=ER_ANAEROBIC, factor=1.0))
     if res['hemo']['la_mean'] > LA_EDEMA:
@@ -327,3 +368,119 @@ def evaluate(p, n_beats=11):
     res['decomp'] = dict(f_contract=fc, f_rsys=fr, f_vent=f_vent, iterations=it + 1)
     res['outcome'] = dict(state='decompensated' if mech else 'stable', mechanisms=mech)
     return res
+
+
+# ------------------------------------------------------------------ hémodynamique battement par battement
+def _act1(tau, ts, tr):
+    """Activation d'un battement isolé, `tau` secondes après son début (même forme que _act)."""
+    return np.where((tau >= 0) & (tau < ts), 0.5 * (1 - np.cos(np.pi * tau / ts)),
+                    np.where((tau >= ts) & (tau < ts + tr), 0.5 * (1 + np.cos(np.pi * (tau - ts) / tr)), 0.0))
+
+
+def beat_schedule(cond, period0):
+    """Battements ventriculaires (t, ts, tr) et activations atriales organisées (t) d'une séquence
+    de conduction (rhythm.simulate_conduction). Durée de systole du battement i : 0,37·√RR_i,
+    RR_i = intervalle qui le précède (période nominale pour le premier)."""
+    tv = [b['t'] for b in cond['ventricular']]
+    beats = []
+    for i, t in enumerate(tv):
+        rr = t - tv[i - 1] if i > 0 else period0
+        ts = 0.37 * math.sqrt(rr)
+        beats.append((t, ts, 0.4 * ts))
+    atr = [t for t, organized in cond['atrial'] if organized]
+    return beats, atr
+
+
+def _activations(t, beats, atr, p):
+    """Activation ventriculaire (max des deux derniers battements, pour qu'un battement prématuré
+    survienne pendant la relaxation du précédent) et activation atriale à l'instant t."""
+    import bisect
+    tv = beat_starts = [b[0] for b in beats]
+    i = bisect.bisect_right(beat_starts, t) - 1
+    e = 0.0
+    for j in (i - 1, i):
+        if 0 <= j < len(beats):
+            t0, ts, tr = beats[j]
+            e = max(e, float(_act1(t - t0, ts, tr)))
+    k = bisect.bisect_right(atr, t) - 1
+    ea = 0.0
+    for j in (k - 1, k):
+        if 0 <= j < len(atr):
+            ea = max(ea, float(_act1(t - atr[j], p['ta_atr'], p['tra_atr'])))
+    return e, ea
+
+
+def _flows_beats(V, t, p, beats, atr):
+    lv, rv, ao, sv, pa, pv = V
+    e, ea = _activations(t, beats, atr, p)
+    P = dict(
+        lv=_vent_p(lv, e, p['ees_lv'], p['v0_lv'], p['a_lv'], p['b_lv']),
+        rv=_vent_p(rv, e, p['ees_rv'], p['v0_rv'], p['a_rv'], p['b_rv']),
+        ao=(ao - p['v0_ao']) / p['c_ao'], sv=(1 + p['k_ra'] * ea) * (sv - p['v0_sv']) / p['c_sv'],
+        pa=(pa - p['v0_pa']) / p['c_pa'], pv=(1 + p['k_la'] * ea) * (pv - p['v0_pv']) / p['c_pv'])
+    rf = p['r_valve']
+    Q = dict(
+        mi=_valve(P['pv'] - P['lv'], rf, p['g_mr']), ao=_valve(P['lv'] - P['ao'], rf, p['g_ar']),
+        tr=_valve(P['sv'] - P['rv'], rf, p['g_tr']), pu=_valve(P['rv'] - P['pa'], rf, p['g_pr']),
+        sys=(P['ao'] - P['sv']) / p['r_sys'], pul=(P['pa'] - P['pv']) / p['r_pul'])
+    return P, Q, e, ea
+
+
+def simulate_hemo_beats(p, cond, t_end, warm, period0, dt=0.002):
+    """Simule la circulation sur une séquence de battements quelconque (rythme irrégulier, blocs,
+    extrasystoles, FA). Indicateurs moyennés sur les battements complets après `warm` secondes ;
+    chaque battement garde son VES, sa PAS et sa PAD (déficit de pouls, alternance)."""
+    beats, atr = beat_schedule(cond, period0)
+    V0 = _initial_volumes(p)
+
+    def rhs(t, V):
+        _, Q, _, _ = _flows_beats(V, t, p, beats, atr)
+        return [Q['mi'] - Q['ao'], Q['tr'] - Q['pu'], Q['ao'] - Q['sys'],
+                Q['sys'] - Q['tr'], Q['pu'] - Q['pul'], Q['pul'] - Q['mi']]
+
+    t_eval = np.arange(warm, t_end, dt)
+    sol = solve_ivp(rhs, (0, t_end), V0, method='LSODA', t_eval=t_eval, rtol=1e-6, atol=1e-6, max_step=0.004)
+    V, t = sol.y, sol.t
+    rows = [_flows_beats(V[:, j], t[j], p, beats, atr) for j in range(len(t))]
+    P = {k: np.array([r[0][k] for r in rows]) for k in rows[0][0]}
+    Q = {k: np.array([r[1][k] for r in rows]) for k in rows[0][1]}
+    ea = np.array([r[3] for r in rows])
+    # battements complets dans la fenêtre
+    starts = [b[0] for b in beats if b[0] >= warm]
+    # contraction précédente terminée au début du battement (sinon la « télédiastole » n'existe pas)
+    relaxed = {b1[0]: (b1[0] - b0[0] >= b0[1] + b0[2]) for b0, b1 in zip(beats[:-1], beats[1:])}
+    per_beat = []
+    for a, b in zip(starts[:-1], starts[1:]):
+        m = (t >= a) & (t < b)
+        if m.sum() < 3:
+            continue
+        vl = V[0][m]
+        qmi, qao = Q['mi'][m], Q['ao'][m]
+        qf = np.maximum(qmi, 0.0)
+        per_beat.append(dict(t=a, rr=b - a, relaxed=relaxed.get(a, True), edv=vl.max(), esv=vl.min(), sv=vl.max() - vl.min(),
+                             sap=P['ao'][m].max(), dap=P['ao'][m].min(), lv_edp=P['lv'][m][0],
+                             v_reg=(-np.minimum(qmi, 0).sum() - np.minimum(qao, 0).sum()) * dt,
+                             mitral_e=float(qf[ea[m] <= 0].max()) if np.any(ea[m] <= 0) else 0.0,
+                             mitral_a=float(qf[ea[m] > 0].max()) if np.any(ea[m] > 0) else 0.0))
+    if not per_beat:
+        raise ValueError('aucun battement complet dans la fenêtre')
+    win = (t >= starts[0]) & (t < starts[-1])
+    mean = lambda k: float(np.mean([x[k] for x in per_beat]))
+    sv_tot = sum(x['sv'] for x in per_beat)
+    rr_mean = mean('rr')
+    out = dict(t=t, beats=per_beat, T=rr_mean,
+               map=float(P['ao'][win].mean()), sap=mean('sap'), dap=mean('dap'),
+               co=float(Q['sys'][win].mean()) * 60 / 1000.0,
+               edv=mean('edv'), esv=mean('esv'), sv=mean('sv'), ef=mean('sv') / mean('edv'),
+               reg_fraction=sum(x['v_reg'] for x in per_beat) / sv_tot if sv_tot > 0 else 0.0,
+               la_mean=float(P['pv'][win].mean()), la_max=float(P['pv'][win].max()),
+               pap_mean=float(P['pa'][win].mean()), cvp=float(P['sv'][win].mean()),
+               lv_edp=float(np.mean([x['lv_edp'] for x in per_beat if x['relaxed']] or [math.nan])),
+               mitral_e=mean('mitral_e'), mitral_a=mean('mitral_a'),
+               hr_v=60.0 / rr_mean, converged=True)
+    for k, v in P.items():
+        out['P_' + k] = v
+    for k, v in Q.items():
+        out['Q_' + k] = v
+    out['V_lv'] = V[0]
+    return out

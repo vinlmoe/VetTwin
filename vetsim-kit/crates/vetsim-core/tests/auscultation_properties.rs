@@ -81,7 +81,8 @@ fn deterministic_for_a_seed_and_seed_dependent() {
 
 #[test]
 fn beats_are_those_of_the_autonomic_model() {
-    // L'écart-type des RR est celui du module autonome : le module audio ne le modifie pas.
+    // Battements du son = activations ventriculaires de la conduction des décharges sinusales du
+    // modèle autonome (rythme sinusal 1:1) : décharge sinusale + PR, sans autre modification.
     let c = cfg();
     let ev = dog(Some(90.0), None);
     let au = simulate_autonomic(
@@ -92,14 +93,27 @@ fn beats_are_those_of_the_autonomic_model() {
         },
         &mut SimRng::for_stream(5, streams::AUTONOMIC),
     );
-    let expected: Vec<f64> = au
-        .beats
-        .iter()
-        .copied()
-        .filter(|b| *b < 8.0 - c.end_margin_s)
-        .collect();
     let r = patient_pcg(&ev, &c, &PcgOptions::default(), 5).unwrap();
-    assert_eq!(r.beats, expected);
+    assert!(!r.beats.is_empty());
+    for (b, s) in r.beats.iter().zip(&au.beats) {
+        let pr = b - s;
+        assert!(
+            (0.08..0.2).contains(&pr),
+            "battement {b} / décharge {s} : PR {pr}"
+        );
+    }
+    // PR dépendant de la récupération nodale : plus l'intervalle sinusal précédent est court,
+    // plus le PR est long (corrélation négative avec l'arythmie respiratoire)
+    let prs: Vec<f64> = r.beats.iter().zip(&au.beats).map(|(b, s)| b - s).collect();
+    let rr: Vec<f64> = au.beats.windows(2).map(|w| w[1] - w[0]).collect();
+    let n = prs.len().min(rr.len() + 1) - 1;
+    let (x, y) = (&rr[..n], &prs[1..=n]);
+    let (mx, my) = (
+        x.iter().sum::<f64>() / n as f64,
+        y.iter().sum::<f64>() / n as f64,
+    );
+    let cov: f64 = x.iter().zip(y).map(|(a, b)| (a - mx) * (b - my)).sum();
+    assert!(cov < 0.0, "PR {prs:?} / RR {rr:?}");
 }
 
 #[test]
@@ -117,13 +131,23 @@ fn mild_mmvd_has_a_visible_holosystolic_murmur_and_s1_not_below_healthy() {
         mmvd.features.s1,
         healthy.features.s1
     );
-    // « visible » : en systole, l'énergie du signal entre B1 et B2 dépasse nettement celle du sain
-    let systolic_rms = |r: &vetsim_core::pcg::PcgResult| {
+    // « visible » : en systole, l'énergie du signal entre la fin de B1 et A2 dépasse nettement
+    // celle du sain. Fenêtre de chaque battement : de t_mc + durée de B1 (configuration) à
+    // l'instant de A2 de CE battement, t_mc + (t_ac − t_mc)·(RR/période)^systole_rr_exp − 0,02 s
+    // (même loi que la synthèse). L'ancienne fenêtre fixe (t_mc + 0,06 s à t_ac − 0,02 s)
+    // contenait la fin de B1 et, sur les RR courts, A2 : corrigé le 17/11/2026 après que
+    // l'oreillette contractile a raccourci les RR de l'arythmie respiratoire (A2 dans la fenêtre).
+    let a = serde_json::from_str::<serde_json::Value>(&read("modules/auscultation.json")).unwrap();
+    let s1_dur = a["s1"]["duration_s"].as_f64().unwrap();
+    let rr_exp = a["s2"]["systole_rr_exp"].as_f64().unwrap();
+    let systolic_rms = |r: &vetsim_core::pcg::PcgResult, period: f64| {
         let mut acc = (0.0, 0usize);
-        for b in &r.beats {
+        for (i, b) in r.beats.iter().enumerate() {
+            let rr = r.beats.get(i + 1).map_or(period, |n| n - b);
+            let a2 = r.t_mc + (r.t_ac - r.t_mc) * vetsim_core::math::pow(rr / period, rr_exp);
             let (i0, i1) = (
-                ((b + r.t_mc + 0.06) * r.fs) as usize,
-                ((b + r.t_ac - 0.02) * r.fs) as usize,
+                ((b + r.t_mc + s1_dur) * r.fs) as usize,
+                ((b + a2 - 0.02) * r.fs) as usize,
             );
             for x in &r.samples[i0.min(r.samples.len())..i1.min(r.samples.len())] {
                 acc.0 += x * x;
@@ -132,7 +156,10 @@ fn mild_mmvd_has_a_visible_holosystolic_murmur_and_s1_not_below_healthy() {
         }
         (acc.0 / acc.1 as f64).sqrt()
     };
-    let (h, m) = (systolic_rms(&healthy), systolic_rms(&mmvd));
+    let (h, m) = (
+        systolic_rms(&healthy, dog(None, None).hemo.timing.period),
+        systolic_rms(&mmvd, dog(None, Some(0.3)).hemo.timing.period),
+    );
     assert!(m > 3.0 * h, "énergie systolique MMVD {m} / sain {h}");
 }
 
