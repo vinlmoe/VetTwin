@@ -80,7 +80,7 @@ val INDICATORS = listOf(
 fun TreatmentView(
     controller: DemoController,
     inputs: DemoInputs,
-    onExamine: (TreatmentPlan, Double) -> Unit,
+    onExamine: (TreatmentPlan, Double, Death?) -> Unit,
     initialPlan: TreatmentPlan? = null,
     initialCursorH: Double? = null,
     autoSimulate: Boolean = false,
@@ -210,7 +210,7 @@ fun TreatmentView(
                     SmallPicker("repère : ${drugs.first { it.id == ref }.name}", r.conc.keys.map { it to drugs.first { d -> d.id == it }.name }) { refDrug = it }
                 }
                 Button(
-                    onClick = { onExamine(r.plan, cursor) },
+                    onClick = { onExamine(r.plan, cursor, r.death) },
                     colors = ButtonDefaults.buttonColors(containerColor = CursorColor),
                 ) { Text("Examiner le patient à cet instant") }
             }
@@ -222,19 +222,35 @@ fun TreatmentView(
                 },
                 color = Muted, fontSize = 12.sp,
             )
+            r.death?.let { d ->
+                Text("Décès du patient virtuel à ${dayLabel(d.tH)} (t = ${"%.2f".fmt(d.tH)} h, grille d'états) : ${d.label}.", color = Color(0xFFC0392B), fontSize = 13.sp)
+            }
+            val j = nearest(r.stateT, cursor)
+            when (r.outcomes.getOrNull(j)) {
+                "dead" -> Text("À cet instant : patient décédé.", color = Color(0xFF8A3B12), fontSize = 12.sp)
+                "decompensated" -> Text("À cet instant : décompensé (${r.mechanisms[j].joinToString(" ; ") { MECH_FR[it] ?: it }}).", color = Color(0xFF8A3B12), fontSize = 12.sp)
+                else -> {}
+            }
+            Text("Bandes : orange = décompensé, rouge = décès (placeholders D).", color = Muted, fontSize = 11.sp)
+        }
+        // bandes d'état sur la grille des états (milieux entre instants)
+        val bands = r.stateT.indices.filter { r.outcomes[it] != "stable" }.map { i ->
+            val t0 = if (i > 0) (r.stateT[i - 1] + r.stateT[i]) / 2 else r.stateT[i]
+            val t1 = if (i < r.stateT.size - 1) (r.stateT[i] + r.stateT[i + 1]) / 2 else r.stateT[i]
+            Triple(t0, t1, if (r.outcomes[i] == "dead") Color(0x38C0392B) else Color(0x2EF0A03C))
         }
         // --- courbes PK/PD
         r.conc.forEach { (d, c) ->
             val info = drugs.first { it.id == d }
             TimeChart(
                 "Concentration plasmatique : ${info.name} (mg/L) ; pointillés : CE50 = ${info.ec50} mg/L",
-                r.t, listOf(c to drugColor(d)), horizon, cursor, doseMarks, refLines = listOf(info.ec50.toFloat()), height = 120,
+                r.t, listOf(c to drugColor(d)), horizon, cursor, doseMarks, refLines = listOf(info.ec50.toFloat()), height = 120, bands = bands,
             ) { cursor = it }
         }
-        TimeChart("Effet pharmacodynamique E(t) (0 à 1)", r.t, r.effect.map { (d, e) -> e to drugColor(d) }, horizon, cursor, doseMarks, yMin = 0f, yMax = 1f, height = 100) { cursor = it }
+        TimeChart("Effet pharmacodynamique E(t) (0 à 1)", r.t, r.effect.map { (d, e) -> e to drugColor(d) }, horizon, cursor, doseMarks, yMin = 0f, yMax = 1f, height = 100, bands = bands) { cursor = it }
         if (r.deficitMl.any { it != 0f }) {
-            TimeChart("Diurétique : déficit de volume sanguin D (mL)", r.t, listOf(r.deficitMl to Color(0xFF0B5E7A)), horizon, cursor, doseMarks, height = 90) { cursor = it }
-            TimeChart("Diurétique : diurèse induite cumulée avec récupération U (mL/kg)", r.t, listOf(r.diuresisMlKg to Color(0xFF5B8C2A)), horizon, cursor, doseMarks, height = 90) { cursor = it }
+            TimeChart("Diurétique : déficit de volume sanguin D (mL)", r.t, listOf(r.deficitMl to Color(0xFF0B5E7A)), horizon, cursor, doseMarks, height = 90, bands = bands) { cursor = it }
+            TimeChart("Diurétique : diurèse induite cumulée avec récupération U (mL/kg)", r.t, listOf(r.diuresisMlKg to Color(0xFF5B8C2A)), horizon, cursor, doseMarks, height = 90, bands = bands) { cursor = it }
             Text(
                 "Débit urinaire induit u(t) = 0,25 · E(C) mL/kg/min (supplément dû au médicament ; la diurèse de base n'est pas modélisée). " +
                     "U(t) = ∫ 60 u(s) e^(−(t−s)/24 h) ds : volume induit cumulé avec oubli exponentiel (τ = 24 h). Ce n'est pas le volume " +
@@ -262,7 +278,7 @@ fun TreatmentView(
             val i = nearest(r.stateT, cursor)
             TimeChart(
                 "${ind.label}${if (ind.unit.isNotEmpty()) " (${ind.unit})" else ""} : ${"%.2f".fmt(scaled[i].toDouble())} à ${dayLabel(r.stateT[i])}",
-                r.stateT, listOf(scaled to Ink), horizon, cursor, doseMarks, height = 90, points = true,
+                r.stateT, listOf(scaled to Ink), horizon, cursor, doseMarks, height = 90, points = true, bands = bands,
             ) { cursor = it }
         }
     }
@@ -316,6 +332,7 @@ private fun TimeChart(
     yMax: Float? = null,
     height: Int = 100,
     points: Boolean = false,
+    bands: List<Triple<Double, Double, Color>> = emptyList(),
     onTap: (Double) -> Unit,
 ) {
     val measurer = rememberTextMeasurer()
@@ -330,13 +347,15 @@ private fun TimeChart(
             val axis = 14f
             val w = size.width - left
             val h = size.height - axis
-            val all = series.flatMap { it.first.asIterable() } + refLines
+            // valeurs non finies (après le décès) : ignorées
+            val all = series.flatMap { it.first.asIterable() }.filter { it.isFinite() } + refLines
             if (all.isEmpty()) return@Canvas
             val lo = yMin ?: all.min()
             val hi = yMax ?: all.max()
             val span = (hi - lo).takeIf { it > 1e-9f } ?: 1f
             fun x(tt: Double) = left + (tt / horizon).toFloat() * w
             fun y(v: Float) = 4f + (1f - (v - lo) / span) * (h - 8f)
+            bands.forEach { (b0, b1, c) -> drawRect(c, Offset(x(b0), 0f), androidx.compose.ui.geometry.Size(kotlin.math.max(1f, x(b1) - x(b0)), h)) }
             // graduations : 6 h si ≤ 2 jours, sinon 1 jour
             val step = if (horizon <= 48) 6.0 else 24.0
             var g = 0.0
@@ -357,9 +376,14 @@ private fun TimeChart(
             doseMarks.forEach { (times, c) -> times.forEach { tt -> drawLine(c.copy(alpha = 0.35f), Offset(x(tt), h - 10f), Offset(x(tt), h), strokeWidth = 3f) } }
             for ((v, c) in series) {
                 val path = Path()
-                v.forEachIndexed { i, value -> if (i == 0) path.moveTo(x(t[i]), y(value)) else path.lineTo(x(t[i]), y(value)) }
+                var pen = false
+                v.forEachIndexed { i, value ->
+                    if (!value.isFinite()) { pen = false; return@forEachIndexed }
+                    if (!pen) path.moveTo(x(t[i]), y(value)) else path.lineTo(x(t[i]), y(value))
+                    pen = true
+                }
                 drawPath(path, c, style = Stroke(width = 1.8f))
-                if (points) v.forEachIndexed { i, value -> drawCircle(c, 2f, Offset(x(t[i]), y(value))) }
+                if (points) v.forEachIndexed { i, value -> if (value.isFinite()) drawCircle(c, 2f, Offset(x(t[i]), y(value))) }
             }
             drawLine(CursorColor, Offset(x(cursor), 0f), Offset(x(cursor), h), strokeWidth = 2f)
         }

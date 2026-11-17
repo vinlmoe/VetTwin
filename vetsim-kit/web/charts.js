@@ -56,6 +56,11 @@ export function timeChart(canvas, opts) {
   }
   if (!isFinite(lo) || !isFinite(hi)) return;
   const ys = hi - lo > 1e-9 ? hi - lo : 1;
+  // bandes d'état (décompensation, décès) sous les courbes
+  for (const b of opts.bands || []) {
+    ctx.fillStyle = b.color;
+    ctx.fillRect(X(Math.max(x0, b.t0)), 0, Math.max(1, X(Math.min(x1, b.t1)) - X(Math.max(x0, b.t0))), H);
+  }
   const Y = (v) => 4 + (1 - (v - lo) / ys) * (H - 8);
   // graduations
   ctx.font = '10px system-ui, sans-serif'; ctx.fillStyle = COLORS.muted; ctx.strokeStyle = COLORS.grid; ctx.lineWidth = 1;
@@ -114,10 +119,11 @@ function countVisible(s, x0, x1) {
 }
 
 function forVisible(s, x0, x1, f) {
-  if (s.t) { for (let i = 0; i < s.y.length; i++) if (s.t[i] >= x0 && s.t[i] <= x1) f(s.t[i], s.y[i]); return; }
+  // valeurs non finies (patient décédé à cet instant) : ignorées
+  if (s.t) { for (let i = 0; i < s.y.length; i++) if (s.t[i] >= x0 && s.t[i] <= x1 && Number.isFinite(s.y[i])) f(s.t[i], s.y[i]); return; }
   const dt = s.dt, t0 = s.t0 || 0;
   const i0 = Math.max(0, Math.floor((x0 - t0) / dt)), i1 = Math.min(s.y.length - 1, Math.ceil((x1 - t0) / dt));
-  for (let i = i0; i <= i1; i++) f(t0 + i * dt, s.y[i]);
+  for (let i = i0; i <= i1; i++) if (Number.isFinite(s.y[i])) f(t0 + i * dt, s.y[i]);
 }
 
 /** Spectrogramme : s = {frames, bins, db (Float32Array), hopS, minDb, maxDb}. */

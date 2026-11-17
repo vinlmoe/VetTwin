@@ -10,9 +10,9 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 
 const S = {
   ctl: null, tab: 'patient',
-  inputs: { bw: 20, disease: null, stage: null, conc: {}, seed: 1, plan: null, atH: null },
+  inputs: { bw: 20, disease: null, stage: null, seed: 1, plan: null, atH: null },
   res: null,
-  ausc: { hr: null, site: 'base', r: null, spec: null, window: 8, start: 0, cursor: null, playing: false, audio: null },
+  ausc: { hr: null, site: 'base', r: null, spec: null, window: 8, start: 0, cursor: null, playing: false, audio: null, src: null, loop: false, zoomOnly: false, played: false },
   treat: { regimens: [], days: 3, r: null, cursor: 0, shown: ['hr', 'map', 'k'], ref: null, editing: null, open: null },
   model: { selected: null },
 };
@@ -42,15 +42,8 @@ async function main() {
   const cat = S.ctl.catalog;
   $('#api').textContent = 'API ' + S.ctl.apiVersion;
   $('#disease').innerHTML = '<option value="">Aucune (sain)</option>' + cat.diseases.map((d) => `<option value="${d.id}">${esc(d.name)} [${d.evidence}]</option>`).join('');
-  $('#drug').innerHTML = cat.drugs.map((d) => `<option value="${d.id}">${esc(d.name)} [${d.evidence}]</option>`).join('');
-  $('#conc').value = cat.drugs[0].ec50_mg_L;
-  $('#drug').onchange = () => { $('#conc').value = cat.drugs.find((d) => d.id === $('#drug').value).ec50_mg_L; };
   $('#disease').onchange = () => { fillStages(); };
   $('#evaluate').onclick = () => evaluate();
-  $('#add-drug').onclick = () => {
-    const v = parseFloat($('#conc').value);
-    if (v >= 0) { S.inputs.conc = { ...S.inputs.conc, [$('#drug').value]: v }; evaluate(); }
-  };
   for (const b of document.querySelectorAll('#tabs button')) b.onclick = () => { S.tab = b.dataset.tab; render(); };
   window.addEventListener('resize', () => render());
   fillStages();
@@ -60,7 +53,7 @@ async function main() {
 }
 
 /**
- * Cas partageable par l'adresse (#...) : bw, disease, stage, tab, conc=drogue:mg/L,...,
+ * Cas partageable par l'adresse (#...) : bw, disease, stage, tab,
  * plan=drogue:mg/kg:voie:intervalle h:nb prises[:début h],... ; days ; t (curseur, h) ; sim=1.
  * Ex. : #disease=mmvd&stage=C&tab=treatment&plan=furosemide:2:po:12:14,pimobendan:0.25:po:12:14&days=7&sim=1
  */
@@ -70,7 +63,6 @@ function applyHash() {
   if (q.get('disease')) { $('#disease').value = q.get('disease'); fillStages(); }
   if (q.get('stage')) $('#stage').value = q.get('stage');
   if (q.get('tab')) S.tab = q.get('tab');
-  if (q.get('conc')) S.inputs.conc = Object.fromEntries(q.get('conc').split(',').map((x) => { const [d, c] = x.split(':'); return [d, +c]; }));
   if (q.get('plan')) {
     S.treat.regimens = q.get('plan').split(',').map((x) => {
       const [drug, mg, route, iv, n, st] = x.split(':');
@@ -94,7 +86,7 @@ function evaluate() {
   try {
     $('#error').hidden = true;
     S.res = S.ctl.evaluate(S.inputs);
-    S.ausc.r = null; // nouvelle auscultation pour ce patient
+    stopAusc(false); S.ausc.r = null; S.ausc.played = false; // nouvelle auscultation pour ce patient
   } catch (e) { showError(e); }
   render();
 }
@@ -107,7 +99,6 @@ function caseLabel() {
   let s = d && k ? `${d.name}, stade ${k.stage} (s = ${fmt(k.severity, 2)})` : 'Chien sain';
   s += `, ${S.inputs.bw} kg`;
   if (S.inputs.plan && S.inputs.atH !== null) s += ` · sous traitement, examiné à ${dayLabel(S.inputs.atH)} (t = ${fmt(S.inputs.atH, 1)} h)`;
-  else if (Object.keys(S.inputs.conc).length) s += ' + ' + Object.entries(S.inputs.conc).map(([k, v]) => `${k} ${v} mg/L`).join(', ');
   return s;
 }
 
@@ -119,16 +110,51 @@ function render() {
   const tb = $('#treatment-banner');
   tb.hidden = !(S.inputs.plan && S.inputs.atH !== null);
   if (!tb.hidden) {
-    tb.innerHTML = `Traitement en cours : patient examiné à ${dayLabel(S.inputs.atH)}. Les concentrations fixes sont ignorées.
+    tb.innerHTML = `Traitement en cours : patient examiné à ${dayLabel(S.inputs.atH)}.
       <div class="row" style="margin-top:6px"><button id="tb-edit">Modifier</button><button id="tb-stop">Arrêter</button></div>`;
     $('#tb-edit').onclick = () => { S.tab = 'treatment'; render(); };
-    $('#tb-stop').onclick = () => { S.inputs.plan = null; S.inputs.atH = null; evaluate(); };
+    $('#tb-stop').onclick = () => { S.inputs.plan = null; S.inputs.atH = null; S.inputs.death = null; evaluate(); };
   }
-  $('#drug-list').innerHTML = Object.entries(S.inputs.conc).map(([k, v]) => `<li>${k} : ${v} mg/L <button data-k="${k}">retirer</button></li>`).join('');
-  for (const b of document.querySelectorAll('#drug-list button')) b.onclick = () => { const c = { ...S.inputs.conc }; delete c[b.dataset.k]; S.inputs.conc = c; evaluate(); };
+  renderOutcome(S.res.st.outcome);
   const v = $('#view');
   ({ patient: renderPatient, respiration: renderRespiration, model: renderModel, auscultation: renderAuscultation, treatment: renderTreatment })[S.tab](v);
 }
+
+// ------------------------------------------------------------------ Issue (décompensation, décès)
+const MECH_FR = {
+  acidemia_depression: 'dépression myocardique et vasoplégie par acidémie',
+  hypoxic_depression: 'dépression myocardique par hypoxie tissulaire',
+  coronary_ischemia: 'ischémie myocardique (pression de perfusion coronaire basse)',
+  hypokalemic_weakness: 'faiblesse des muscles respiratoires (hypokaliémie)',
+  hyperkalemic_bradycardia: 'bradycardie hyperkaliémique',
+  anaerobic_metabolism: "métabolisme anaérobie (extraction d'O₂ élevée, lactate)",
+  pulmonary_edema: 'œdème pulmonaire (POG élevée)',
+  renal_hypoperfusion: 'hypoperfusion rénale (PAM basse)',
+  baroreflex_exhausted: 'baroréflexe épuisé (tonus sympathique maximal)',
+};
+const DEATH_FR = {
+  cardiac_arrest: 'arrêt cardiaque', circulatory_collapse: 'effondrement circulatoire',
+  oxygen_debt: "dette d'oxygène (consommation > apport)", no_steady_state: 'aucun état stationnaire viable',
+  vicious_circle: 'spirale de décompensation non résolue',
+};
+const isDead = () => S.res && S.res.st.outcome && S.res.st.outcome.state === 'dead';
+
+function renderOutcome(o) {
+  const b = $('#outcome-banner');
+  b.className = '';
+  if (!o || o.state === 'stable') { b.hidden = true; return; }
+  b.hidden = false;
+  b.classList.add(o.state);
+  const D = '<div class="note">Mécanismes physiologiques du modèle ; seuils et pentes : placeholders (evidence D), ordres de grandeur pédagogiques.</div>';
+  if (o.state === 'dead') {
+    b.innerHTML = `<b>Décès du patient virtuel : ${esc(o.label_fr)}${o.absorbing_from_h !== undefined ? ` (survenu à ${dayLabel(o.absorbing_from_h)})` : ''}</b>`
+      + `<div>Aucun état physiologique viable n'existe pour ce patient. ${'map' in S.res.st ? 'Les valeurs affichées sont celles de la dernière passe viable avant l\'effondrement.' : ''}</div>` + D;
+  } else {
+    b.innerHTML = `<b>Patient décompensé</b>` + o.mechanisms.map((m) => `<div>• ${esc(m.label_fr)} : ${num(m.value)} (seuil ${num(m.threshold)})${m.factor < 1 ? `, facteur ${fmt(m.factor, 2)}` : ''}</div>`).join('') + D;
+  }
+}
+
+const deadView = (what) => `<div class="card dead-view">Patient décédé : pas de ${what}.</div>`;
 
 const card = (title, inner = '', extra = '') => `<div class="card" ${extra}><h3>${title}</h3>${inner}</div>`;
 const canvas = (id, h) => `<canvas id="${id}" style="height:${h}px"></canvas>`;
@@ -140,7 +166,13 @@ function valuesTable(rows, st) {
 
 // ------------------------------------------------------------------ Patient
 function renderPatient(v) {
-  const st = S.res.st, sg = st.signals, pr = sg.pressures;
+  const st = S.res.st, sg = st.signals;
+  if (!sg) {
+    v.innerHTML = deadView('ECG ni de pression pulsée')
+      + ('map' in st ? `<div class="grid3">${card('Hémodynamique (dernière passe viable)', valuesTable(HEMO, st))}${card('Gaz du sang', valuesTable(GASES, st))}${card('Biochimie', valuesTable(CHEM, st))}</div>` : '');
+    return;
+  }
+  const pr = sg.pressures;
   v.innerHTML = card(`ECG, dérivation II (${Math.round(sg.ecg.length / sg.ecg_fs)} s, ${fmt(st.hr, 0)} /min)`, canvas('c-ecg', 150))
     + card('Pressions sur deux battements (mmHg) : aorte, VG, OG', canvas('c-pr', 170) + legend([['Aorte', COLORS.ao], ['VG', COLORS.lv], ['OG', COLORS.la]]) + `<div class="note">PCG : ${sg.pcg_features.grade ? `souffle ${sg.pcg_features.murmur}, grade ${sg.pcg_features.grade}/6` : 'pas de souffle'}</div>`)
     + `<div class="grid3">${card('Hémodynamique', valuesTable(HEMO, st))}${card('Gaz du sang', valuesTable(GASES, st))}${card('Biochimie', valuesTable(CHEM, st))}</div>`
@@ -154,6 +186,7 @@ function renderPatient(v) {
 
 // ------------------------------------------------------------------ Respiration
 function renderRespiration(v) {
+  if (!S.res.st.signals) { v.innerHTML = deadView('respiration'); return; }
   const rs = S.res.st.signals.respiration, dt = 1 / rs.fs, dur = rs.volume_mL.length * dt;
   const avg = (a) => a.reduce((x, y) => x + y, 0) / a.length;
   v.innerHTML = `<div class="note" style="font-size:13px">FR ${fmt(rs.rr_per_min, 0)} /min · volume courant alvéolaire ${fmt(rs.vt_alv_mL, 0)} mL (VA/FR ; l'espace mort n'est pas modélisé) · inspiration sur 40 % du cycle</div>`
@@ -248,6 +281,7 @@ function num(x) { const a = Math.abs(x); return fmt(x, a === 0 ? 0 : a >= 100 ? 
 // ------------------------------------------------------------------ Auscultation
 function renderAuscultation(v) {
   const A = S.ausc;
+  if (isDead()) { v.innerHTML = deadView('bruit cardiaque : silence à l\'auscultation'); return; }
   if (!A.r) {
     try { A.r = S.ctl.auscultate(S.inputs, A.hr, A.site); A.spec = computeSpectrogram(A.r.samples, A.r.fs); A.cursor = null; A.start = 0; A.window = Math.min(A.window, A.r.duration_s); }
     catch (e) { showError(e); return; }
@@ -256,7 +290,9 @@ function renderAuscultation(v) {
   const chip = (lab, on, act) => `<button class="${on ? 'on' : ''}" data-act="${act}">${lab}</button>`;
   v.innerHTML = `<div class="row">FC : ${chip('Patient', A.hr === null, 'hr:')} ${chip('Repos 72', A.hr === 72, 'hr:72')} ${chip('90', A.hr === 90, 'hr:90')}
       &nbsp; Site : ${chip('Base', A.site === 'base', 'site:base')} ${chip('Apex (non calibré)', A.site === 'apex', 'site:apex')}</div>
-    <div class="row"><button class="primary" id="play" ${A.playing ? 'disabled' : ''}>${A.playing ? 'Lecture…' : '▶ Écouter'}</button>
+    <div class="row"><button class="primary" id="play">${A.playing ? '■ Arrêter' : A.played ? '↻ Rejouer' : '▶ Écouter'}</button>
+      <label style="flex-direction:row;align-items:center"><input type="checkbox" id="loop" ${A.loop ? 'checked' : ''}> en boucle</label>
+      <label style="flex-direction:row;align-items:center"><input type="checkbox" id="zoomonly" ${A.zoomOnly ? 'checked' : ''}> fenêtre affichée seulement</label>
       <span>FC ${fmt(r.hr, 0)} /min · ${r.beats.length} battements · ${r.grade ? `souffle ${r.murmur}, grade ${r.grade}/6 (indicatif)` : 'pas de souffle'}${r.s3 ? ' · B3' : ''} · site ${r.site}</span></div>
     <div class="sliders"><label><span>Fenêtre : <b id="wl">${fmt(A.window, 1)}</b> s</span><input id="win" type="range" min="0.5" max="${dur}" step="0.1" value="${A.window}"></label>
       <label><span>Début : <b id="sl">${fmt(A.start, 2)}</b> s</span><input id="start" type="range" min="0" max="${Math.max(0.001, dur - A.window)}" step="0.01" value="${A.start}"></label></div>`
@@ -268,11 +304,13 @@ function renderAuscultation(v) {
   for (const b of v.querySelectorAll('button[data-act]')) b.onclick = () => {
     const [k, val] = b.dataset.act.split(':');
     if (k === 'hr') A.hr = val ? Number(val) : null; else A.site = val;
-    A.r = null; render();
+    stopAusc(false); A.r = null; A.played = false; render();
   };
   $('#win').oninput = (e) => { A.window = +e.target.value; A.start = Math.min(A.start, Math.max(0, dur - A.window)); drawAusc(); $('#wl').textContent = fmt(A.window, 1); $('#start').max = Math.max(0.001, dur - A.window); };
   $('#start').oninput = (e) => { A.start = +e.target.value; $('#sl').textContent = fmt(A.start, 2); drawAusc(); };
-  $('#play').onclick = play;
+  $('#play').onclick = () => (A.playing ? stopAusc() : play());
+  $('#loop').onchange = (e) => { A.loop = e.target.checked; if (A.src) A.src.loop = A.loop; };
+  $('#zoomonly').onchange = (e) => { A.zoomOnly = e.target.checked; };
   drawAusc();
 }
 
@@ -286,24 +324,45 @@ function drawAusc() {
 }
 
 /** Lecture Web Audio ; le curseur suit l'horloge audio et la fenêtre suit le curseur. */
+/** Lecture (ou relecture) : tout l'enregistrement, ou la fenêtre affichée ; en boucle si demandé. */
 function play() {
   const A = S.ausc, r = A.r;
+  stopAusc(false);
   const ctx = A.audio || (A.audio = new AudioContext());
+  if (ctx.state === 'suspended') ctx.resume();
   const buf = ctx.createBuffer(1, r.samples.length, r.fs);
   buf.copyToChannel(r.samples, 0);
   const src = ctx.createBufferSource(); src.buffer = buf; src.connect(ctx.destination);
+  const off = A.zoomOnly ? A.start : 0, len = A.zoomOnly ? Math.min(A.window, r.duration_s - off) : r.duration_s;
+  src.loop = A.loop; src.loopStart = off; src.loopEnd = off + len;
   const t0 = ctx.currentTime + 0.05;
-  src.start(t0); A.playing = true; A.start = 0; $('#play').disabled = true; $('#play').textContent = 'Lecture…';
+  if (A.loop) src.start(t0, off); else src.start(t0, off, len);
+  A.src = src; A.playing = true; A.played = true;
+  if (!A.zoomOnly) A.start = 0;
+  const me = src;
+  src.onended = () => { if (A.src !== me) return; A.playing = false; A.src = null; if (S.tab === 'auscultation') render(); };
+  render();
   const tick = () => {
-    if (S.tab !== 'auscultation' || !A.playing) return;
-    const t = ctx.currentTime - t0;
-    A.cursor = Math.max(0, t);
-    if (t > A.start + 0.9 * A.window) A.start = Math.min(Math.max(0, r.duration_s - A.window), t - 0.1 * A.window);
-    drawAusc();
-    if (t < r.duration_s) requestAnimationFrame(tick); else { A.playing = false; render(); }
+    if (A.src !== me || !A.playing) return;
+    if (S.tab === 'auscultation' && $('#a-pcg')) {
+      const el = ctx.currentTime - t0;
+      const t = off + (A.loop ? ((el % len) + len) % len : Math.min(el, len));
+      A.cursor = Math.max(0, t);
+      if (!A.zoomOnly && t > A.start + 0.9 * A.window) A.start = Math.min(Math.max(0, r.duration_s - A.window), t - 0.1 * A.window);
+      if (!A.zoomOnly && t < A.start) A.start = Math.max(0, t - 0.1 * A.window);
+      drawAusc();
+    }
+    requestAnimationFrame(tick);
   };
-  src.onended = () => { A.playing = false; };
   requestAnimationFrame(tick);
+}
+
+/** Arrête la lecture en cours. */
+function stopAusc(rerender = true) {
+  const A = S.ausc;
+  if (A.src) { const s = A.src; A.src = null; try { s.stop(); } catch (e) { /* déjà arrêté */ } }
+  A.playing = false;
+  if (rerender && S.tab === 'auscultation') render();
 }
 
 // ------------------------------------------------------------------ Traitement (PK/PD)
@@ -341,7 +400,8 @@ function renderTreatment(v) {
         <select id="t-ref">${Object.keys(r.conc_mg_L).map((d) => `<option value="${d}" ${d === T.ref ? 'selected' : ''}>repère : ${esc(dname(d))}</option>`).join('')}</select>` : ''}
         <button class="danger" id="t-exam">Examiner le patient à cet instant</button></div>
         <input id="t-cur" type="range" min="0" max="${h}" step="0.05" value="${T.cursor}">
-        <div class="note">${Object.keys(r.conc_mg_L).map((d) => `${esc(dname(d))} : ${fmt(r.conc_mg_L[d][i], 4)} mg/L, E = ${fmt(r.effect[d][i], 2)}`).join(' &nbsp; ')}</div>`);
+        <div class="note">${Object.keys(r.conc_mg_L).map((d) => `${esc(dname(d))} : ${fmt(r.conc_mg_L[d][i], 4)} mg/L, E = ${fmt(r.effect[d][i], 2)}`).join(' &nbsp; ')}</div>
+        ${outcomeNote(r)}`);
     for (const d of Object.keys(r.conc_mg_L)) html += card(`Concentration plasmatique : ${esc(dname(d))} (mg/L) ; pointillés : CE50 = ${cat.drugs.find((x) => x.id === d).ec50_mg_L} mg/L`, canvas('tc-' + d, 120));
     html += card('Effet pharmacodynamique E(t) (0 à 1)', canvas('t-eff', 100));
     if (r.D.some((x) => x !== 0)) {
@@ -394,7 +454,13 @@ function renderTreatment(v) {
     $('#t-peak').onclick = () => setCursor(extremum(r.t, r.conc_mg_L[T.ref], T.cursor, true, true));
     $('#t-ref').onchange = (e) => { T.ref = e.target.value; };
   }
-  $('#t-exam').onclick = () => { S.inputs.plan = r.plan; S.inputs.atH = T.cursor; S.tab = 'patient'; evaluate(); };
+  $('#t-exam').onclick = () => {
+    const dead = r.death_t_h !== null && r.death_t_h !== undefined;
+    const cause = dead ? r.outcomes.find((x) => x.state === 'dead').cause : null;
+    S.inputs.plan = r.plan; S.inputs.atH = T.cursor;
+    S.inputs.death = dead ? { t_h: r.death_t_h, cause, label_fr: DEATH_FR[cause] || 'décès' } : null;
+    S.tab = 'patient'; evaluate();
+  };
   for (const b of v.querySelectorAll('[data-ind]')) b.onclick = () => { const k = b.dataset.ind; T.shown = T.shown.includes(k) ? T.shown.filter((x) => x !== k) : [...T.shown, k]; render(); };
   for (const c of v.querySelectorAll('canvas')) c.onclick = (e) => {
     const rect = c.getBoundingClientRect(), left = 44;
@@ -403,11 +469,33 @@ function renderTreatment(v) {
   drawTreatment();
 }
 
+/** Issue à l'instant du curseur et instant du décès éventuel. */
+function outcomeNote(r) {
+  const T = S.treat, o = r.outcomes[nearest(r.state_t, T.cursor)];
+  let s = '';
+  if (r.death_t_h !== null && r.death_t_h !== undefined) s += `<div class="banner">Décès du patient virtuel à ${dayLabel(r.death_t_h)} (t = ${fmt(r.death_t_h, 2)} h, grille d'états) : ${esc(DEATH_FR[r.outcomes.find((x) => x.state === 'dead').cause] || 'décès')}.</div>`;
+  if (o && o.state === 'decompensated') s += `<div class="warn">À cet instant : décompensé (${o.mechanisms.map((m) => esc(MECH_FR[m] || m)).join(' ; ')}).</div>`;
+  if (o && o.state === 'dead') s += '<div class="warn">À cet instant : patient décédé.</div>';
+  return s + '<div class="note">Bandes : orange = décompensé, rouge = décès (placeholders D).</div>';
+}
+
+/** Intervalles de la grille d'états où le patient est décompensé ou décédé. */
+function outcomeBands(r) {
+  const out = [], t = r.state_t;
+  for (let i = 0; i < t.length; i++) {
+    const st = r.outcomes[i].state;
+    if (st === 'stable') continue;
+    const t0 = i ? (t[i - 1] + t[i]) / 2 : t[0], t1 = i < t.length - 1 ? (t[i] + t[i + 1]) / 2 : t[i];
+    out.push({ t0, t1, color: st === 'dead' ? 'rgba(192,57,43,0.22)' : 'rgba(240,160,60,0.18)' });
+  }
+  return out;
+}
+
 function drawTreatment() {
   const T = S.treat, r = T.r, h = r.plan.horizonH;
   const marks = r.plan.regimens.flatMap((reg, i) => planDoses({ regimens: [reg] }).map((d) => ({ t: d.t_h, color: COLORS.drugs[i % 5] })));
   const col = (d) => COLORS.drugs[Math.max(0, r.plan.regimens.findIndex((x) => x.drug === d)) % 5];
-  const base = { x0: 0, x1: h, cursor: T.cursor, marks, ticks: 'treatment' };
+  const base = { x0: 0, x1: h, cursor: T.cursor, marks, ticks: 'treatment', bands: outcomeBands(r) };
   for (const d of Object.keys(r.conc_mg_L)) {
     const c = document.getElementById('tc-' + d);
     if (c) timeChart(c, { ...base, series: [{ y: r.conc_mg_L[d], t: r.t, color: col(d) }], refLines: [S.ctl.catalog.drugs.find((x) => x.id === d).ec50_mg_L] });

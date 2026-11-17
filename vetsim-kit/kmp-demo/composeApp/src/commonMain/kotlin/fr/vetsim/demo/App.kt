@@ -63,8 +63,6 @@ fun App(
     var bwText by remember { mutableStateOf(initial.bw.toString()) }
     var result by remember { mutableStateOf<DemoResult?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
-    var drugId by remember { mutableStateOf(controller.catalog.drugs.first().id) }
-    var concText by remember { mutableStateOf(controller.catalog.drugs.first().ec50.toString()) }
 
     fun run() {
         try {
@@ -106,30 +104,19 @@ fun App(
                     if (plan != null && inputs.atH != null) {
                         Text(
                             "Traitement en cours (${plan.regimens.size} schéma${if (plan.regimens.size > 1) "s" else ""}) : " +
-                                "patient examiné à ${dayLabel(inputs.atH!!)}. Les concentrations fixes ci-dessous sont ignorées.",
+                                "patient examiné à ${dayLabel(inputs.atH!!)}.",
                             color = Color(0xFFC0392B), fontSize = 12.sp,
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             OutlinedButton(onClick = { tab = 4 }) { Text("Modifier", fontSize = 12.sp) }
-                            OutlinedButton(onClick = { inputs = inputs.copy(plan = null, atH = null); run() }) { Text("Arrêter", fontSize = 12.sp) }
+                            OutlinedButton(onClick = { inputs = inputs.copy(plan = null, atH = null, death = null); run() }) { Text("Arrêter", fontSize = 12.sp) }
                         }
                     }
-                    Text("Médicament (concentration plasmatique fixe)", fontWeight = FontWeight.SemiBold, color = Ink)
-                    Picker("Médicament", controller.catalog.drugs.first { it.id == drugId }.name,
-                        controller.catalog.drugs.map { it.id to "${it.name} [${it.evidence}]" }) { id ->
-                        drugId = id!!
-                        concText = controller.catalog.drugs.first { it.id == id }.ec50.toString()
-                    }
-                    OutlinedTextField(concText, { concText = it }, label = { Text("mg/L") }, singleLine = true)
-                    OutlinedButton(onClick = {
-                        concText.replace(',', '.').toDoubleOrNull()?.let {
-                            inputs = inputs.copy(conc = inputs.conc + (drugId to it)); run()
-                        }
-                    }, modifier = Modifier.fillMaxWidth()) { Text("Ajouter le médicament") }
-                    if (inputs.conc.isNotEmpty()) {
-                        Text(inputs.conc.entries.joinToString("\n") { "• ${it.key} : ${it.value} mg/L" }, color = Muted, fontSize = 13.sp)
-                        OutlinedButton(onClick = { inputs = inputs.copy(conc = emptyMap()); run() }) { Text("Retirer les médicaments") }
-                    }
+                    Text(
+                        "Médicaments : « Traitement répété (PK/PD) », puis « Examiner le patient à cet instant ». " +
+                            "Les concentrations découlent toujours des doses (PK/PD).",
+                        color = Muted, fontSize = 12.sp,
+                    )
                     OutlinedButton(onClick = { tab = 4 }, enabled = result != null, modifier = Modifier.fillMaxWidth()) {
                         Text("Traitement répété (PK/PD)")
                     }
@@ -152,20 +139,23 @@ fun App(
                         Text("Choisir un patient puis « Évaluer ».", color = Muted)
                     } else {
                         Text(r.caseLabel, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                        OutcomeBanner(r.outcome)
                         Tabs(listOf("Patient", "Respiration", "Schéma du modèle", "Auscultation", "Traitement (PK/PD)"), tab) { tab = it }
                     }
-                    if (r != null && tab == 1) RespirationView(r)
+                    if (r != null && tab == 1) { if (r.outcome.dead) DeadView("respiration") else RespirationView(r) }
                     if (tab == 2) ModelView(controller.catalog, r, initialBlock)
                     if (r != null && tab == 4) {
-                        TreatmentView(controller, inputs, onExamine = { plan, t ->
-                            inputs = inputs.copy(plan = plan, atH = t); run(); tab = 0
+                        TreatmentView(controller, inputs, onExamine = { plan, t, death ->
+                            inputs = inputs.copy(plan = plan, atH = t, death = death); run(); tab = 0
                         })
                     }
                     if (r != null && tab == 3) {
                         // clé : nouvelle synthèse quand le patient change
-                        androidx.compose.runtime.key(inputs) { AuscultationView(controller, inputs) }
+                        if (r.outcome.dead) DeadView("bruit cardiaque : silence à l'auscultation")
+                        else androidx.compose.runtime.key(inputs) { AuscultationView(controller, inputs) }
                     }
-                    if (r != null && tab == 0) {
+                    if (r != null && tab == 0 && r.outcome.dead) DeadView("ECG ni de pression pulsée")
+                    if (r != null && tab == 0 && !r.outcome.dead) {
                         Panel("ECG, dérivation II (${(r.ecg.size / r.ecgFs).toInt()} s, ${"%.0f".fmt(r.values["hr"] ?: 0.0)} /min)") {
                             Trace(listOf(r.ecg to EcgGreen), paper = true, height = 150)
                         }
@@ -194,6 +184,37 @@ fun App(
             }
         }
     }
+}
+
+/** Bandeau d'issue : décompensation (mécanismes) ou décès (cause). Seuils et pentes : placeholders D. */
+@Composable
+fun OutcomeBanner(o: Outcome) {
+    if (o.state == "stable") return
+    val dead = o.dead
+    Column(
+        Modifier.fillMaxWidth()
+            .background(if (dead) Color(0xFF3A1114) else Color(0xFFFFF4E5), androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        val fg = if (dead) Color(0xFFFBE9EA) else Color(0xFF6B3D00)
+        if (dead) {
+            Text("Décès du patient virtuel : ${o.label ?: "décès"}" + (o.sinceH?.let { " (survenu à ${dayLabel(it)})" } ?: ""), color = fg, fontWeight = FontWeight.SemiBold)
+            Text("Aucun état physiologique viable n'existe pour ce patient.", color = fg, fontSize = 13.sp)
+        } else {
+            Text("Patient décompensé", color = fg, fontWeight = FontWeight.SemiBold)
+            o.mechanisms.forEach { m ->
+                Text("• ${m.label} : ${"%.2f".fmt(m.value)} (seuil ${"%.2f".fmt(m.threshold)})" + if (m.factor < 1) ", facteur ${"%.2f".fmt(m.factor)}" else "", color = fg, fontSize = 13.sp)
+            }
+        }
+        Text("Mécanismes physiologiques du modèle ; seuils et pentes : placeholders (evidence D).", color = fg, fontSize = 11.sp)
+    }
+}
+
+/** Vue d'un patient décédé (pas de signaux). */
+@Composable
+fun DeadView(what: String) {
+    Panel("Patient décédé") { Text("Pas de $what.", color = Muted) }
 }
 
 private data class Row3(val key: String, val label: String, val unit: String, val fmt: String, val scale: Double = 1.0)

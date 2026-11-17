@@ -6,6 +6,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
@@ -30,6 +31,9 @@ expect fun createEngine(): VetsimEngine
 
 /** Joue un signal audio mono (PCG), normalisé dans [-1, 1]. */
 expect fun playAudio(samples: FloatArray, sampleRate: Int)
+
+/** Arrête le son en cours (sans effet s'il n'y en a pas). */
+expect fun stopAudio()
 
 data class StageInfo(val name: String, val lo: Double, val hi: Double)
 /** Effet déclaré par un module : paramètre ciblé, opération, blocs du modèle concernés. */
@@ -90,19 +94,54 @@ data class DemoInputs(
     val bw: Double = 20.0,
     val diseaseId: String? = null,
     val stage: String? = null,
-    val conc: Map<String, Double> = emptyMap(),
     val seed: Long = 1,
-    /** Traitement en cours et instant d'examen (h) : remplacent `conc` quand ils sont définis. */
+    /** Traitement en cours et instant d'examen (h) : seule voie d'exposition aux médicaments (PK/PD). */
     val plan: TreatmentPlan? = null,
     val atH: Double? = null,
+    /** Décès daté par la simulation du traitement (absorbant pour tout examen postérieur). */
+    val death: Death? = null,
 ) {
-    /** Options d'exposition au médicament pour state/pcg : schéma à l'instant t, ou concentrations fixes. */
+    /** Options d'exposition pour state/pcg : schéma à l'instant t ; sans traitement, aucun médicament. */
     fun exposureJson(): String = if (plan != null && atH != null && plan.regimens.isNotEmpty()) {
         """"doses": ${plan.dosesJson()}, "at_h": $atH"""
     } else {
-        """"conc": {${conc.entries.joinToString(", ") { (k, v) -> "\"$k\": $v" }}}"""
+        """"conc": {}"""
     }
+
+    /** Patient examiné après le décès daté par la simulation : il reste décédé. */
+    val deadAtExam: Boolean get() = death != null && atH != null && atH >= death.tH
 }
+
+/** Décès daté par une simulation de traitement. */
+data class Death(val tH: Double, val cause: String, val label: String)
+
+/** Mécanisme de décompensation actif (seuils et pentes : placeholders D). */
+data class Mechanism(val id: String, val label: String, val value: Double, val threshold: Double, val factor: Double)
+
+/** Issue mécanistique : « stable », « decompensated » ou « dead ». */
+data class Outcome(val state: String, val mechanisms: List<Mechanism> = emptyList(), val cause: String? = null, val label: String? = null, val sinceH: Double? = null) {
+    val dead: Boolean get() = state == "dead"
+}
+
+/** Libellés des mécanismes et causes de décès (identiques à l'API). */
+val MECH_FR = mapOf(
+    "acidemia_depression" to "dépression myocardique et vasoplégie par acidémie",
+    "hypoxic_depression" to "dépression myocardique par hypoxie tissulaire",
+    "coronary_ischemia" to "ischémie myocardique (pression de perfusion coronaire basse)",
+    "hypokalemic_weakness" to "faiblesse des muscles respiratoires (hypokaliémie)",
+    "hyperkalemic_bradycardia" to "bradycardie hyperkaliémique",
+    "anaerobic_metabolism" to "métabolisme anaérobie (extraction d'O₂ élevée, lactate)",
+    "pulmonary_edema" to "œdème pulmonaire (POG élevée)",
+    "renal_hypoperfusion" to "hypoperfusion rénale (PAM basse)",
+    "baroreflex_exhausted" to "baroréflexe épuisé (tonus sympathique maximal)",
+)
+val DEATH_FR = mapOf(
+    "cardiac_arrest" to "arrêt cardiaque",
+    "circulatory_collapse" to "effondrement circulatoire",
+    "oxygen_debt" to "dette d'oxygène (consommation > apport)",
+    "no_steady_state" to "aucun état stationnaire viable",
+    "vicious_circle" to "spirale de décompensation non résolue",
+)
 
 /** Libellé d'instant : « J2 14 h » (J0 = jour de la première prise). */
 fun dayLabel(h: Double): String {
@@ -121,7 +160,14 @@ class TreatmentResult(
     val deficitMl: FloatArray,
     val diuresisMlKg: FloatArray,
     val stateT: DoubleArray,
+    /** Indicateurs aux instants `stateT` ; NaN après le décès (absorbant). */
     val states: Map<String, FloatArray>,
+    /** Issue à chaque instant de `stateT` : « stable », « decompensated », « dead ». */
+    val outcomes: List<String>,
+    /** Mécanismes actifs à chaque instant de `stateT`. */
+    val mechanisms: List<List<String>>,
+    /** Premier instant de décès (h) et sa cause, ou null. */
+    val death: Death?,
     val plan: TreatmentPlan,
 )
 
@@ -142,6 +188,8 @@ data class DemoResult(
     val changes: List<ParamChange>,
     val diseaseId: String?,
     val drugIds: List<String>,
+    /** Issue mécanistique ; si décès, pas de signaux (tableaux vides). */
+    val outcome: Outcome,
 )
 
 /** Auscultation : son, ECG et pressions sur le même axe de temps. */
@@ -240,16 +288,28 @@ class DemoController(private val engine: VetsimEngine = createEngine()) {
         val r = check(engine.timecourse(id, """{"doses": ${plan.dosesJson()}, "t_end_h": $h, "t_eval_h": [$grid], "state_times_h": [$sgrid]}"""))
         val series = { o: JsonObject -> o.mapValues { it.value.floats() } }
         val states = r["states_at"]!!.jsonArray.map { it.jsonObject }
-        // toutes les variables numériques du modèle (clés de `eval`), pour choisir les indicateurs
-        val keys = states.firstOrNull()?.keys?.filter { states[0][it] is JsonPrimitive && states[0][it]!!.jsonPrimitive.doubleOrNull != null } ?: emptyList()
+        // toutes les variables numériques du modèle (clés de `eval`), pour choisir les indicateurs ;
+        // les entrées « décès » n'ont pas de variables : NaN
+        val num = { o: JsonObject, k: String -> (o[k] as? JsonPrimitive)?.takeIf { it.booleanOrNull == null && !it.isString }?.doubleOrNull }
+        val keys = states.flatMap { o -> o.keys.filter { num(o, it) != null } }.distinct()
+        val outcomes = states.map { it["outcome"]?.jsonPrimitive?.contentOrNull ?: "stable" }
+        val firstDead = outcomes.indexOf("dead")
+        val stateT = r["state_t"]!!.jsonArray.map { it.d() }.toDoubleArray()
+        val death = if (firstDead >= 0) {
+            val c = states[firstDead]["cause"]?.jsonPrimitive?.contentOrNull ?: ""
+            Death(stateT[firstDead], c, DEATH_FR[c] ?: "décès")
+        } else null
         return TreatmentResult(
             t = r["t"]!!.jsonArray.map { it.d() }.toDoubleArray(),
             conc = series(r["conc_mg_L"]!!.jsonObject),
             effect = series(r["effect"]!!.jsonObject),
             deficitMl = r["D"]!!.floats(),
             diuresisMlKg = r["U"]!!.floats(),
-            stateT = r["state_t"]!!.jsonArray.map { it.d() }.toDoubleArray(),
-            states = keys.associateWith { k -> FloatArray(states.size) { i -> states[i][k]!!.d().toFloat() } },
+            stateT = stateT,
+            states = keys.associateWith { k -> FloatArray(states.size) { i -> num(states[i], k)?.toFloat() ?: Float.NaN } },
+            outcomes = outcomes,
+            mechanisms = states.map { o -> (o["mechanisms"] as? JsonArray)?.map { it.jsonPrimitive.content } ?: emptyList() },
+            death = death,
             plan = plan,
         )
     }
@@ -305,24 +365,40 @@ class DemoController(private val engine: VetsimEngine = createEngine()) {
             caseLabel = "$name, stade ${c.str("stage")} (s = ${"%.2f".fmt(c["severity"]!!.d())})"
         }
         val st = check(engine.state(id, """{${inp.exposureJson()}, "signals": true, "duration_s": $ecgSeconds, "seed": ${inp.seed}}"""))
-        val values = st.filterValues { it is JsonPrimitive && it.jsonPrimitive.doubleOrNull != null && it.jsonPrimitive.booleanOrNull == null }
-            .mapValues { it.value.d() }
-        val signs = st["emergent_signs"]!!.jsonArray.map {
-            val o = it.jsonObject
-            Sign(o.str("label_fr"), o.str("source"))
+        val o = st["outcome"]!!.jsonObject
+        // Décès absorbant : `state` est instantané ; un décès daté avant l'instant examiné persiste.
+        val outcome = if (inp.deadAtExam) {
+            Outcome("dead", cause = inp.death!!.cause, label = inp.death.label, sinceH = inp.death.tH)
+        } else {
+            Outcome(
+                state = o.str("state"),
+                mechanisms = (o["mechanisms"] as? JsonArray)?.map {
+                    val m = it.jsonObject
+                    Mechanism(m.str("id"), m.str("label_fr"), m["value"]!!.d(), m["threshold"]!!.d(), m["factor"]!!.d())
+                } ?: emptyList(),
+                cause = o["cause"]?.jsonPrimitive?.contentOrNull,
+                label = o["label_fr"]?.jsonPrimitive?.contentOrNull,
+            )
         }
-        val sg = st["signals"]!!.jsonObject
-        val pf = sg["pcg_features"]!!.jsonObject
-        val grade = pf["grade"]?.jsonPrimitive?.intOrNull ?: 0
-        val murmur = pf.str("murmur")
-        val pr = sg["pressures"]!!.jsonObject
-        val rs = sg["respiration"]!!.jsonObject
+        val values = if (inp.deadAtExam) emptyMap() else st.filterValues { it is JsonPrimitive && it.jsonPrimitive.doubleOrNull != null && it.jsonPrimitive.booleanOrNull == null }
+            .mapValues { it.value.d() }
+        val signs = if (outcome.dead) emptyList() else st["emergent_signs"]!!.jsonArray.map {
+            val so = it.jsonObject
+            Sign(so.str("label_fr"), so.str("source"))
+        }
+        val sg = if (outcome.dead) null else st["signals"] as? JsonObject
+        val pf = sg?.get("pcg_features")?.jsonObject
+        val grade = pf?.get("grade")?.jsonPrimitive?.intOrNull ?: 0
+        val murmur = pf?.str("murmur") ?: ""
+        val pr = sg?.get("pressures")?.jsonObject
+        val rs = sg?.get("respiration")?.jsonObject
+        val empty = FloatArray(0)
         // Paramètres du patient comparés à ceux du chien sain de même poids.
         val hp = check(engine.newPatient("""{"bw": ${inp.bw}, "variability": false}""")).str("patient_id")
         val healthy = check(engine.state(hp, "{}"))["params"]!!.jsonObject
         val current = st["params"]!!.jsonObject
         val disease = catalog.diseases.firstOrNull { it.id == inp.diseaseId }
-        val drugIds = if (inp.plan != null && inp.atH != null) inp.plan.regimens.map { it.drugId }.toSet() else inp.conc.keys
+        val drugIds = if (inp.plan != null && inp.atH != null) inp.plan.regimens.map { it.drugId }.toSet() else emptySet()
         val drugs = catalog.drugs.filter { it.id in drugIds }
         val changes = current.keys.mapNotNull { k ->
             val a = healthy[k]!!.d()
@@ -336,28 +412,32 @@ class DemoController(private val engine: VetsimEngine = createEngine()) {
             values = values,
             caseLabel = caseLabel + when {
                 inp.plan != null && inp.atH != null -> " · sous traitement, examiné à ${dayLabel(inp.atH)} (t = ${"%.1f".fmt(inp.atH)} h)"
-                inp.conc.isEmpty() -> ""
-                else -> " + " + inp.conc.entries.joinToString { "${it.key} ${it.value} mg/L" }
+                else -> ""
             },
             signs = signs,
-            ecg = sg["ecg"]!!.floats(),
-            ecgFs = sg["ecg_fs"]!!.d(),
-            pcg = sg["pcg"]!!.floats(),
-            pcgFs = sg["pcg_fs"]!!.d().toInt(),
+            ecg = sg?.get("ecg")?.floats() ?: empty,
+            ecgFs = sg?.get("ecg_fs")?.d() ?: 500.0,
+            pcg = sg?.get("pcg")?.floats() ?: empty,
+            pcgFs = sg?.get("pcg_fs")?.d()?.toInt() ?: 4000,
             pcgLabel = if (grade == 0) "pas de souffle" else "souffle $murmur, grade $grade/6",
-            pressureDt = pr["dt"]!!.d(),
-            ao = pr["ao"]!!.floats(),
-            lv = pr["lv"]!!.floats(),
-            la = pr["la"]!!.floats(),
-            respiration = Respiration(
-                fs = rs["fs"]!!.d(), rrPerMin = rs["rr_per_min"]!!.d(), vtAlvMl = rs["vt_alv_mL"]!!.d(),
-                volume = rs["volume_mL"]!!.floats(), flow = rs["flow_mL_s"]!!.floats(),
-                hr = rs["hr"]!!.floats(), map = rs["map"]!!.floats(),
-                sap = rs["sap"]!!.floats(), dap = rs["dap"]!!.floats(),
-            ),
+            pressureDt = pr?.get("dt")?.d() ?: 0.002,
+            ao = pr?.get("ao")?.floats() ?: empty,
+            lv = pr?.get("lv")?.floats() ?: empty,
+            la = pr?.get("la")?.floats() ?: empty,
+            respiration = if (rs == null) {
+                Respiration(fs = 1.0, rrPerMin = 0.0, vtAlvMl = 0.0, volume = empty, flow = empty, hr = empty, map = empty, sap = empty, dap = empty)
+            } else {
+                Respiration(
+                    fs = rs["fs"]!!.d(), rrPerMin = rs["rr_per_min"]!!.d(), vtAlvMl = rs["vt_alv_mL"]!!.d(),
+                    volume = rs["volume_mL"]!!.floats(), flow = rs["flow_mL_s"]!!.floats(),
+                    hr = rs["hr"]!!.floats(), map = rs["map"]!!.floats(),
+                    sap = rs["sap"]!!.floats(), dap = rs["dap"]!!.floats(),
+                )
+            },
             changes = changes,
             diseaseId = inp.diseaseId,
             drugIds = drugs.map { it.id },
+            outcome = outcome,
         )
     }
 }

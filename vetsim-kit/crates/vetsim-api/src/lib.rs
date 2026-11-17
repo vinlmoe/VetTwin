@@ -546,7 +546,13 @@ impl Engine {
                 let tcs = timecourse(&s.patient.params, &c.drugs, &ds, t_end, &times)?;
                 let mut states = Vec::with_capacity(tcs.t.len());
                 let mut death: Option<f64> = None;
+                let mut cause = Json::Null;
                 for i in 0..tcs.t.len() {
+                    // décès absorbant : plus d'évaluation après le premier instant de décès
+                    if death.is_some() {
+                        states.push(dead_entry(&cause));
+                        continue;
+                    }
                     let conc_i: Vec<(String, f64)> =
                         tcs.conc.iter().map(|(d, v)| (d.clone(), v[i])).collect();
                     let p = apply_drug_effects(
@@ -557,8 +563,9 @@ impl Engine {
                         tcs.u[i],
                     )?;
                     let st = state_entry(&p)?;
-                    if death.is_none() && st["outcome"] == "dead" {
+                    if st["outcome"] == "dead" {
                         death = Some(tcs.t[i]);
+                        cause = st["cause"].clone();
                     }
                     states.push(st);
                 }
@@ -568,12 +575,21 @@ impl Engine {
             }
             if with_states {
                 let mut states = Vec::with_capacity(tc.t.len());
+                let mut cause: Option<Json> = None;
                 for i in 0..tc.t.len() {
+                    if let Some(c) = &cause {
+                        states.push(dead_entry(c));
+                        continue;
+                    }
                     let conc_i: Vec<(String, f64)> =
                         tc.conc.iter().map(|(d, v)| (d.clone(), v[i])).collect();
                     let p =
                         apply_drug_effects(&s.patient.params, &c.drugs, &conc_i, tc.d[i], tc.u[i])?;
-                    states.push(state_entry(&p)?);
+                    let st = state_entry(&p)?;
+                    if st["outcome"] == "dead" {
+                        cause = Some(st["cause"].clone());
+                    }
+                    states.push(st);
                 }
                 out["states"] = Json::Array(states);
             }
@@ -874,10 +890,13 @@ fn alive(p: &vetsim_core::Params) -> Result<Evaluation, ApiError> {
     }
 }
 
-/// Entrée d'une série d'états : valeurs plates (dernière passe viable en cas de décès),
-/// `outcome` (état), `mechanisms` (identifiants) et `cause` si décès.
+/// Entrée d'une série d'états : valeurs plates (absentes en cas de décès), `outcome` (état),
+/// `mechanisms` (identifiants) et `cause` si décès.
 fn state_entry(p: &vetsim_core::Params) -> Result<Json, ApiError> {
     let (ev, outcome) = assess(p)?;
+    if outcome["state"] == "dead" {
+        return Ok(dead_entry(&outcome["cause"]));
+    }
     let mut st = Map::new();
     if let Some(ev) = &ev {
         for (k, v) in ev.to_flat() {
@@ -894,6 +913,11 @@ fn state_entry(p: &vetsim_core::Params) -> Result<Json, ApiError> {
         st.insert("cause".into(), outcome["cause"].clone());
     }
     Ok(Json::Object(st))
+}
+
+/// Entrée d'une série d'états après le décès (absorbant) : pas de valeurs physiologiques.
+fn dead_entry(cause: &Json) -> Json {
+    json!({ "outcome": "dead", "mechanisms": [], "cause": cause })
 }
 
 fn emergent_signs(ev: &Evaluation) -> Vec<Json> {
@@ -1226,6 +1250,9 @@ mod tests {
         assert_eq!(sa[0]["outcome"], "stable");
         assert_eq!(sa[1]["outcome"], "dead");
         assert_eq!(tc["death_t_h"], 1.05);
+        // décès absorbant : à 6 h la concentration a baissé mais le patient reste décédé
+        assert_eq!(sa[2]["outcome"], "dead");
+        assert!(sa[2].get("map").is_none());
     }
 
     #[test]

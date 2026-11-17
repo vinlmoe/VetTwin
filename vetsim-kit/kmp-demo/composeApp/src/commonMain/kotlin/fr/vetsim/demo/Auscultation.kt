@@ -13,10 +13,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -80,40 +82,83 @@ fun AuscultationView(
     }
     if (result == null && error == null) LaunchedEffect(inputs) { generate() }
 
-    // Curseur synchronisé : temps écoulé depuis le lancement du son ; la fenêtre suit le curseur.
-    LaunchedEffect(playing) {
+    var loop by remember { mutableStateOf(false) }
+    var zoomOnly by remember { mutableStateOf(false) }
+    var played by remember { mutableStateOf(false) }
+    // segment joué (s) : tout l'enregistrement, ou la fenêtre affichée
+    var segStart by remember { mutableStateOf(0f) }
+    var segLen by remember { mutableStateOf(0f) }
+    var playId by remember { mutableStateOf(0) }
+
+    fun startPlayback() {
+        val r = result ?: return
+        val dur = r.durationS.toFloat()
+        segStart = if (zoomOnly) start else 0f
+        segLen = if (zoomOnly) minOf(window, dur - segStart) else dur
+        val a = (segStart * r.fs).toInt().coerceIn(0, r.samples.size)
+        val b = ((segStart + segLen) * r.fs).toInt().coerceIn(a, r.samples.size)
+        playAudio(r.samples.copyOfRange(a, b), r.fs)
+        if (!zoomOnly) start = 0f
+        played = true
+        playing = true
+        playId++
+    }
+    fun stopPlayback() { stopAudio(); playing = false }
+    DisposableEffect(Unit) { onDispose { stopAudio() } }
+
+    // Curseur synchronisé : temps écoulé depuis le lancement du son ; la fenêtre suit le curseur ;
+    // en boucle, le segment est relancé à la fin.
+    LaunchedEffect(playing, playId) {
         if (!playing) return@LaunchedEffect
-        val mark = TimeSource.Monotonic.markNow()
+        var mark = TimeSource.Monotonic.markNow()
         val dur = result?.durationS?.toFloat() ?: 0f
         while (playing) {
             withFrameNanos { }
-            val t = mark.elapsedNow().inWholeMilliseconds / 1000f
+            val el = mark.elapsedNow().inWholeMilliseconds / 1000f
+            val t = segStart + minOf(el, segLen)
             cursor = t
-            if (t > start + 0.9f * window) start = (t - 0.1f * window).coerceIn(0f, maxOf(0f, dur - window))
-            if (t >= dur) playing = false
+            if (!zoomOnly && t > start + 0.9f * window) start = (t - 0.1f * window).coerceIn(0f, maxOf(0f, dur - window))
+            if (el >= segLen) {
+                if (loop) {
+                    val r = result ?: break
+                    val a = (segStart * r.fs).toInt().coerceIn(0, r.samples.size)
+                    val b = ((segStart + segLen) * r.fs).toInt().coerceIn(a, r.samples.size)
+                    playAudio(r.samples.copyOfRange(a, b), r.fs)
+                    if (!zoomOnly) start = 0f
+                    mark = TimeSource.Monotonic.markNow()
+                } else {
+                    playing = false
+                }
+            }
         }
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("FC :", color = Muted, fontSize = 13.sp)
-            Chip("Patient", hrChoice == null) { hrChoice = null; generate() }
-            Chip("Repos 72", hrChoice == 72.0) { hrChoice = 72.0; generate() }
-            Chip("90", hrChoice == 90.0) { hrChoice = 90.0; generate() }
+            Chip("Patient", hrChoice == null) { stopPlayback(); played = false; hrChoice = null; generate() }
+            Chip("Repos 72", hrChoice == 72.0) { stopPlayback(); played = false; hrChoice = 72.0; generate() }
+            Chip("90", hrChoice == 90.0) { stopPlayback(); played = false; hrChoice = 90.0; generate() }
             Text("   Site :", color = Muted, fontSize = 13.sp)
-            Chip("Base", site == "base") { site = "base"; generate() }
-            Chip("Apex (non calibré)", site == "apex") { site = "apex"; generate() }
+            Chip("Base", site == "base") { stopPlayback(); played = false; site = "base"; generate() }
+            Chip("Apex (non calibré)", site == "apex") { stopPlayback(); played = false; site = "apex"; generate() }
         }
         val r = result
         error?.let { Text("Erreur : $it", color = Color(0xFFB00020)) }
         if (r == null) return@Column
         val dur = r.durationS.toFloat()
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Button(onClick = {
-                playAudio(r.samples, r.fs)
-                start = 0f
-                playing = true
-            }, enabled = !playing) { Text(if (playing) "Lecture…" else "▶ Écouter") }
+            Button(onClick = { if (playing) stopPlayback() else startPlayback() }) {
+                Text(if (playing) "■ Arrêter" else if (played) "↻ Rejouer" else "▶ Écouter")
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(loop, { loop = it })
+                Text("en boucle", color = Ink, fontSize = 13.sp)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(zoomOnly, { zoomOnly = it })
+                Text("fenêtre affichée seulement", color = Ink, fontSize = 13.sp)
+            }
             Text(
                 "FC ${"%.0f".fmt(r.hr)} /min · ${r.beats.size} battements · " +
                     (if (r.grade == 0) "pas de souffle" else "souffle ${r.murmur}, grade ${r.grade}/6 (indicatif)") +

@@ -8,6 +8,8 @@ import androidx.compose.ui.unit.dp
 import java.io.File
 import org.jetbrains.skia.EncodedImageFormat
 import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /** Rendu hors écran de la démo (critère M7) : MMVD stade C, ECG, pressions, gaz du sang. */
@@ -73,7 +75,7 @@ class ScreenshotTest {
                 androidx.compose.ui.Modifier.background(androidx.compose.ui.graphics.Color(0xFFF6F7F8)).padding(16.dp),
             ) {
                 androidx.compose.material3.MaterialTheme {
-                    TreatmentView(controller, inputs, onExamine = { _, _ -> }, initialPlan = plan, initialCursorH = 61.0, autoSimulate = true)
+                    TreatmentView(controller, inputs, onExamine = { _, _, _ -> }, initialPlan = plan, initialCursorH = 61.0, autoSimulate = true)
                 }
             }
         }
@@ -103,9 +105,31 @@ class ScreenshotTest {
     }
 
     @Test
+    fun renderOverdoseDeath() {
+        val c = DemoController()
+        val inputs = DemoInputs()
+        val plan = TreatmentPlan(listOf(Regimen("opioide", 20.0, "iv", 24.0, 1, startH = 2.0)), horizonH = 24.0)
+        val r = c.treatment(inputs, plan)
+        val death = assertNotNull(r.death, "surdosage d'opioïde : décès attendu")
+        assertEquals("oxygen_debt", death.cause)
+        // décès absorbant : plus aucun instant « vivant » après le décès
+        val i = r.stateT.indexOfFirst { it >= death.tH }
+        assertTrue(r.outcomes.drop(i).all { it == "dead" })
+        assertTrue(r.states.getValue("map").drop(i).all { it.isNaN() })
+        // examen postérieur au décès : le patient reste décédé
+        val ex = c.evaluate(inputs.copy(plan = plan, atH = 12.0, death = death))
+        assertTrue(ex.outcome.dead)
+        assertTrue(ex.ecg.isEmpty())
+        capture("deces_opioide", inputs.copy(plan = plan, atH = 12.0, death = death), tab = 0)
+    }
+
+    @Test
     fun renderModelDiagram() = capture(
         "modele_mmvd_C_pimobendane",
-        DemoInputs(diseaseId = "mmvd", stage = "C", conc = mapOf("pimobendan" to 0.03)),
+        DemoInputs(
+            diseaseId = "mmvd", stage = "C",
+            plan = TreatmentPlan(listOf(Regimen("pimobendan", 0.25, "po", 12.0, 2)), horizonH = 24.0), atH = 2.0,
+        ),
         tab = 2, block = "left_heart", height = 1500,
     )
 }

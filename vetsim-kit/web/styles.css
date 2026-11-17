@@ -23,6 +23,11 @@ button:disabled { opacity: 0.5; cursor: default; }
 .warn { color: var(--warn); font-size: 12px; }
 .banner { color: var(--red); font-size: 12px; border: 1px solid #f1c7c0; border-radius: 8px; padding: 8px; background: #fdf3f1; }
 .error { color: #b00020; }
+#outcome-banner { border-radius: 10px; padding: 10px 12px; font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+#outcome-banner.decompensated { background: #fff4e5; border: 1px solid #f0b46a; color: #6b3d00; }
+#outcome-banner.dead { background: #3a1114; border: 1px solid #7a2229; color: #fbe9ea; }
+#outcome-banner .note { color: inherit; opacity: 0.8; }
+.dead-view { padding: 24px; text-align: center; color: var(--muted); }
 #tabs { display: flex; gap: 6px; flex-wrap: wrap; }
 .card { background: var(--card); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
 .card h3 { margin: 0; font-size: 14px; }

@@ -35,21 +35,28 @@ export class Controller {
     return { id, kase };
   }
 
-  /** Exposition aux médicaments : schéma examiné à t, ou concentrations fixes. */
+  /** Exposition aux médicaments : toujours par la PK/PD (schéma examiné à l'instant atH). */
   static exposure(inp) {
     if (inp.plan && inp.plan.regimens.length && inp.atH !== null && inp.atH !== undefined) {
       return { doses: planDoses(inp.plan), at_h: inp.atH };
     }
-    return { conc: inp.conc || {} };
+    return {};
   }
 
   evaluate(inp, ecgSeconds = 8) {
     const { id, kase } = this.patient(inp);
     const st = this.call('state', id, JSON.stringify({ ...Controller.exposure(inp), signals: true, duration_s: ecgSeconds, seed: inp.seed }));
+    // Décès absorbant : `state` est instantané ; si la simulation du traitement a daté un décès
+    // avant l'instant examiné, le patient reste décédé (pas de variables, pas de signaux).
+    if (inp.death && inp.atH !== null && inp.atH !== undefined && inp.atH >= inp.death.t_h) {
+      for (const k of Object.keys(st)) if (typeof st[k] === 'number') delete st[k];
+      st.outcome = { state: 'dead', cause: inp.death.cause, label_fr: inp.death.label_fr, mechanisms: [], absorbing_from_h: inp.death.t_h };
+      st.signals = null; st.emergent_signs = [];
+    }
     // paramètres comparés au chien sain de même poids (schéma du modèle)
     const hp = this.call('newPatient', JSON.stringify({ bw: inp.bw, variability: false })).patient_id;
     const healthy = this.call('state', hp, '{}').params;
-    const drugIds = inp.plan && inp.atH !== null && inp.atH !== undefined ? new Set(inp.plan.regimens.map((r) => r.drug)) : new Set(Object.keys(inp.conc || {}));
+    const drugIds = inp.plan && inp.atH !== null && inp.atH !== undefined ? new Set(inp.plan.regimens.map((r) => r.drug)) : new Set();
     const disease = this.catalog.diseases.find((d) => d.id === inp.disease);
     const drugs = this.catalog.drugs.filter((d) => drugIds.has(d.id));
     const changes = Object.keys(st.params).filter((k) => {
@@ -84,9 +91,13 @@ export class Controller {
     const sStep = Math.max(1, Math.ceil(h / 96));
     const sgrid = Array.from({ length: Math.floor(h / sStep) + 1 }, (_, i) => i * sStep);
     const r = this.call('timecourse', id, JSON.stringify({ doses: planDoses(plan), t_end_h: h, t_eval_h: grid, state_times_h: sgrid }));
+    // séries d'indicateurs ; instants sans valeur (décès sans passe viable) : NaN
+    const keys = new Set();
+    for (const s of r.states_at) for (const [k, v] of Object.entries(s)) if (typeof v === 'number') keys.add(k);
     const states = {};
-    for (const k of Object.keys(r.states_at[0] || {})) states[k] = r.states_at.map((s) => s[k]);
-    return { ...r, states, plan };
+    for (const k of keys) states[k] = r.states_at.map((s) => (typeof s[k] === 'number' ? s[k] : NaN));
+    const outcomes = r.states_at.map((s) => ({ state: s.outcome, mechanisms: s.mechanisms || [], cause: s.cause }));
+    return { ...r, states, outcomes, plan };
   }
 }
 

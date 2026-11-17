@@ -19,17 +19,33 @@ fun main() = application {
     }
 }
 
+@Volatile
+private var currentLine: javax.sound.sampled.SourceDataLine? = null
+
 actual fun playAudio(samples: FloatArray, sampleRate: Int) {
+    stopAudio()
+    val pcm = ByteArray(samples.size * 2)
+    samples.forEachIndexed { i, s ->
+        val v = (s.coerceIn(-1f, 1f) * 0.9f * Short.MAX_VALUE).toInt()
+        pcm[2 * i] = (v and 0xFF).toByte()
+        pcm[2 * i + 1] = ((v shr 8) and 0xFF).toByte()
+    }
+    val fmt = AudioFormat(sampleRate.toFloat(), 16, 1, true, false)
+    val line = AudioSystem.getSourceDataLine(fmt)
+    currentLine = line
     thread(isDaemon = true) {
-        val pcm = ByteArray(samples.size * 2)
-        samples.forEachIndexed { i, s ->
-            val v = (s.coerceIn(-1f, 1f) * 0.9f * Short.MAX_VALUE).toInt()
-            pcm[2 * i] = (v and 0xFF).toByte()
-            pcm[2 * i + 1] = ((v shr 8) and 0xFF).toByte()
-        }
-        val fmt = AudioFormat(sampleRate.toFloat(), 16, 1, true, false)
-        AudioSystem.getSourceDataLine(fmt).apply {
-            open(fmt); start(); write(pcm, 0, pcm.size); drain(); close()
+        try {
+            line.open(fmt); line.start(); line.write(pcm, 0, pcm.size); line.drain()
+        } catch (_: Exception) {
+            // ligne fermée par stopAudio
+        } finally {
+            line.close()
+            if (currentLine === line) currentLine = null
         }
     }
+}
+
+actual fun stopAudio() {
+    currentLine?.let { it.stop(); it.flush(); it.close() }
+    currentLine = null
 }

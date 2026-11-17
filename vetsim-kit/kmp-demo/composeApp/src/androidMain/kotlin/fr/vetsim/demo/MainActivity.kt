@@ -18,7 +18,15 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+private var currentTrack: AudioTrack? = null
+
+actual fun stopAudio() {
+    currentTrack?.let { runCatching { it.stop() }; it.release() }
+    currentTrack = null
+}
+
 actual fun playAudio(samples: FloatArray, sampleRate: Int) {
+    stopAudio()
     val pcm = ShortArray(samples.size) { (samples[it].coerceIn(-1f, 1f) * 0.9f * Short.MAX_VALUE).toInt().toShort() }
     val track = AudioTrack.Builder()
         .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).build())
@@ -30,5 +38,6 @@ actual fun playAudio(samples: FloatArray, sampleRate: Int) {
         .setBufferSizeInBytes(pcm.size * 2)
         .build()
     track.write(pcm, 0, pcm.size)
+    currentTrack = track
     track.play()
 }

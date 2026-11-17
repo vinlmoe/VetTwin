@@ -15,14 +15,12 @@
     <label id="stage-wrap">Stade<select id="stage"></select></label>
     <button id="evaluate" class="primary">Évaluer</button>
     <div id="treatment-banner" class="banner" hidden></div>
-    <h2>Concentration plasmatique fixe</h2>
-    <div class="row"><select id="drug"></select><input id="conc" type="number" step="any" min="0"><span>mg/L</span></div>
-    <button id="add-drug">Ajouter le médicament</button>
-    <ul id="drug-list"></ul>
+    <p class="note">Médicaments : onglet « Traitement (PK/PD) », puis « Examiner le patient à cet instant ». Les concentrations découlent toujours des doses (PK/PD).</p>
     <p class="warn">Outil pédagogique : ne jamais utiliser pour décider d'une dose ou d'un traitement réel. Les niveaux de preuve [A–D] sont ceux des modules ; D = placeholder.</p>
   </aside>
   <main>
     <div id="error" class="error" hidden></div>
+    <div id="outcome-banner" hidden></div>
     <h2 id="case-label">Chargement du moteur…</h2>
     <nav id="tabs">
       <button data-tab="patient" class="on">Patient</button>
