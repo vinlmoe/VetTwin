@@ -47,3 +47,21 @@ pub fn cos(x: f64) -> f64 {
 pub fn sin(x: f64) -> f64 {
     libm::sin(x)
 }
+
+/// Tangente.
+#[inline]
+pub fn tan(x: f64) -> f64 {
+    libm::tan(x)
+}
+
+/// Arc tangente à deux arguments.
+#[inline]
+pub fn atan2(y: f64, x: f64) -> f64 {
+    libm::atan2(y, x)
+}
+
+/// Hypoténuse √(x² + y²) sans dépassement intermédiaire.
+#[inline]
+pub fn hypot(x: f64, y: f64) -> f64 {
+    libm::hypot(x, y)
+}

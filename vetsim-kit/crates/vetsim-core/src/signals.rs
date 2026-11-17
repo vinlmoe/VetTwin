@@ -199,6 +199,8 @@ pub struct PcgInputs {
     pub p_pv: Vec<f64>,
     /// Période cardiaque (s).
     pub period: f64,
+    /// Durée de contraction `ts = 0,37 √T` (s).
+    pub ts: f64,
     /// POG moyenne (mmHg).
     pub la_mean: f64,
 }
@@ -214,6 +216,7 @@ impl From<&HemoResult> for PcgInputs {
             p_ao: w.p_ao.clone(),
             p_pv: w.p_pv.clone(),
             period: h.timing.period,
+            ts: h.timing.ts,
             la_mean: h.summary.la_mean,
         }
     }
@@ -272,17 +275,17 @@ pub struct Pcg {
     pub features: PcgFeatures,
 }
 
-struct BeatEvents {
-    i_mc: usize,
-    i_ac: usize,
-    dpdt_max: f64,
-    q_early: f64,
-    dp_close: f64,
+pub(crate) struct BeatEvents {
+    pub(crate) i_mc: usize,
+    pub(crate) i_ac: usize,
+    pub(crate) dpdt_max: f64,
+    pub(crate) q_early: f64,
+    pub(crate) dp_close: f64,
 }
 
 /// Événements valvulaires : fermeture mitrale (P_VG dépasse P_OG), fermeture aortique (débit
 /// aortique repasse ≤ 0 après son pic), dP/dt max du VG, remplissage rapide.
-fn beat_events(h: &PcgInputs, dt: f64) -> BeatEvents {
+pub(crate) fn beat_events(h: &PcgInputs, dt: f64) -> BeatEvents {
     let n = h.t.len();
     let d: Vec<f64> = h.p_lv.iter().zip(&h.p_pv).map(|(a, b)| a - b).collect();
     let i_mc = (0..n.saturating_sub(1))

@@ -93,6 +93,14 @@ pub trait NoiseSource {
     fn uniform01(&mut self) -> f64;
     /// Normale centrée réduite.
     fn standard_normal(&mut self) -> f64;
+    /// Lognormale `exp(N(mu, sigma²))` (comme `Generator.lognormal(mu, sigma)`).
+    fn lognormal(&mut self, mu: f64, sigma: f64) -> f64 {
+        crate::math::exp(mu + sigma * self.standard_normal())
+    }
+    /// Uniforme sur [lo, hi) (comme `Generator.uniform(lo, hi)`).
+    fn uniform(&mut self, lo: f64, hi: f64) -> f64 {
+        lo + (hi - lo) * self.uniform01()
+    }
 }
 
 impl NoiseSource for SimRng {
@@ -138,6 +146,14 @@ impl NoiseSource for Replay {
         self.next()
     }
     fn standard_normal(&mut self) -> f64 {
+        self.next()
+    }
+    /// Valeur enregistrée telle quelle (NumPy a déjà appliqué la loi).
+    fn lognormal(&mut self, _mu: f64, _sigma: f64) -> f64 {
+        self.next()
+    }
+    /// Valeur enregistrée telle quelle.
+    fn uniform(&mut self, _lo: f64, _hi: f64) -> f64 {
         self.next()
     }
 }

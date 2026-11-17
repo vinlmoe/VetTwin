@@ -256,6 +256,7 @@ fn pcg_replay_matches_python() {
             p_ao: floats(&h["P_ao"]),
             p_pv: floats(&h["P_pv"]),
             period: h["T"].as_f64().unwrap(),
+            ts: 0.37 * h["T"].as_f64().unwrap().sqrt(),
             la_mean: h["la_mean"].as_f64().unwrap(),
         };
         let mut rp = Replay::new(floats(&case["noise"]));
