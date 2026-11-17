@@ -1,6 +1,9 @@
 # VetTwins : démo Kotlin Multiplatform du moteur vetsim
 
-Application de démonstration (Android + bureau JVM) : choix du poids, d'une maladie et d'un stade, ajout d'un médicament par sa concentration plasmatique, tracés ECG et pressions (aorte, VG, OG), tableau des gaz du sang, de l'hémodynamique et de la biochimie, signes émergents sourcés, écoute du PCG.
+Application de démonstration (Android + bureau JVM) : choix du poids, d'une maladie et d'un stade, ajout d'un médicament par sa concentration plasmatique. Trois onglets :
+- **Patient** : tracés ECG et pressions (aorte, VG, OG), gaz du sang, hémodynamique, biochimie, signes émergents sourcés, écoute du PCG.
+- **Respiration** : volume pulmonaire au-dessus de la fin d'expiration (profil du modèle autonome × volume courant alvéolaire VA/FR ; espace mort non modélisé), débit, FC et PAM instantanées (arythmie sinusale respiratoire, variation respiratoire de la PA), sur la même fenêtre que l'ECG.
+- **Schéma du modèle** : blocs du moteur et couplages codés ; blocs touchés par la maladie (rouge) et les médicaments (bleu), d'après les paramètres qui diffèrent du chien sain de même poids ; un clic sur un bloc montre ses paramètres (sain → patient, module source) et ses couplages. Le rattachement paramètre → bloc vient du moteur (`vetsim_core::blocks`).
 
 **Usage pédagogique uniquement : ne jamais utiliser pour décider d'une dose ou d'un traitement réel.**
 
@@ -26,5 +29,5 @@ Tout le natif est construit par Gradle (tâches `cargoBuildHost`, `cargoBuildAnd
 
 ## Vérifications faites (jalon M7)
 - `EngineFfiTest` : session complète par la FFI ; sorties de `state` identiques **au bit près** à `vetsim-cli eval` (MMVD 0,8, Addison 0,9, MRC 0,6).
-- `ScreenshotTest` : rendu hors écran de l'écran MMVD stade C (ECG, pressions, gaz du sang) dans `composeApp/build/screenshots/mmvd_stage_C.png`.
+- `ScreenshotTest` : rendu hors écran des trois onglets (MMVD stade C, et + pimobendane pour le schéma) dans `composeApp/build/screenshots/`.
 - APK : `lib/arm64-v8a` et `lib/x86_64` contiennent `libvetsim_ffi.so` et `libjnidispatch.so`. Non exécuté sur appareil ni émulateur (aucune image système installée).

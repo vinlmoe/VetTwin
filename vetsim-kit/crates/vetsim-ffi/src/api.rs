@@ -8,6 +8,7 @@
 
 use serde_json::{json, Map, Value as Json};
 use std::collections::BTreeMap;
+use vetsim_core::blocks::{blocks_of, Block};
 use vetsim_core::case::{Case, DrawSource, NoNoise};
 use vetsim_core::pkpd::{apply_drug_effects, timecourse, Dose, Route};
 use vetsim_core::rng::NoiseSource;
@@ -210,7 +211,7 @@ impl Engine {
                         .map(|s| json!({ "name": s.name, "lo": s.lo, "hi": s.hi, "prior": s.prior }))
                         .collect();
                     json!({ "id": d.id, "name": d.name.get("fr"), "evidence": d.evidence.as_str(),
-                            "stages": stages, "refs": d.refs })
+                            "stages": stages, "refs": d.refs, "effects": effects_json(&d.effects) })
                 })
                 .collect();
             let drugs: Vec<Json> = c
@@ -222,11 +223,23 @@ impl Engine {
                         vetsim_core::modules::PdKind::Diuretic { .. } => "diuretic",
                     };
                     json!({ "id": d.id, "name": d.name.get("fr"), "evidence": d.evidence.as_str(),
-                            "pd_type": kind, "ec50_mg_L": d.pd.ec50_mg_l, "refs": d.refs })
+                            "pd_type": kind, "ec50_mg_L": d.pd.ec50_mg_l, "refs": d.refs,
+                            "effects": effects_json(&d.pd.effects) })
+                })
+                .collect();
+            let blocks: Vec<Json> = Block::ALL
+                .iter()
+                .map(|b| {
+                    let params: Vec<&str> = Params::NAMES
+                        .iter()
+                        .copied()
+                        .filter(|n| blocks_of(n).contains(b))
+                        .collect();
+                    json!({ "id": b.id(), "label_fr": b.label_fr(), "params": params })
                 })
                 .collect();
             Ok(json!({ "ok": true, "patient": { "id": c.patient.id, "version": c.patient.version },
-                       "diseases": diseases, "drugs": drugs,
+                       "diseases": diseases, "drugs": drugs, "blocks": blocks,
                        "warning": "Usage pédagogique uniquement : ne jamais utiliser pour décider d'une dose ou d'un traitement réel." }))
         })
     }
@@ -368,6 +381,13 @@ impl Engine {
                 Json::Array(s.patient.cases.iter().map(case_json).collect()),
             );
             out.insert("emergent_signs".into(), Json::Array(emergent_signs(&ev)));
+            // Paramètres d'entrée du modèle (après maladies et médicaments, avant baroréflexe).
+            let params: Map<String, Json> = p
+                .to_vec()
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), Json::from(v)))
+                .collect();
+            out.insert("params".into(), Json::Object(params));
             if with_signals {
                 out.insert("signals".into(), signals_json(&ev, &m, s.seed)?);
             }
@@ -482,6 +502,16 @@ impl Engine {
     }
 }
 
+fn effects_json(effects: &[vetsim_core::modules::Effect]) -> Vec<Json> {
+    effects
+        .iter()
+        .map(|e| {
+            let blocks: Vec<&str> = blocks_of(e.param).iter().map(|b| b.id()).collect();
+            json!({ "param": e.param, "op": e.op.as_str(), "conditional": e.when.is_some(), "blocks": blocks })
+        })
+        .collect()
+}
+
 fn case_json(c: &Case) -> Json {
     let flags: Map<String, Json> = c
         .flags
@@ -493,7 +523,16 @@ fn case_json(c: &Case) -> Json {
         .iter()
         .map(|(k, v)| (k.clone(), Json::from(*v)))
         .collect();
-    json!({ "disease": c.disease, "severity": c.severity, "stage": c.stage, "flags": flags, "draws": draws })
+    let modifiers: Vec<Json> = c
+        .modifiers
+        .iter()
+        .map(|m| {
+            let blocks: Vec<&str> = blocks_of(m.param).iter().map(|b| b.id()).collect();
+            json!({ "param": m.param, "op": m.op.as_str(), "value": m.value, "blocks": blocks })
+        })
+        .collect();
+    json!({ "disease": c.disease, "severity": c.severity, "stage": c.stage, "flags": flags,
+            "draws": draws, "modifiers": modifiers })
 }
 
 /// Source de bruit nulle (caractéristiques du PCG sans tirage).
@@ -581,6 +620,28 @@ fn signals_json(
     });
     let f32s =
         |v: &[f64]| -> Vec<Json> { v.iter().map(|x| Json::from(*x as f32 as f64)).collect() };
+    // Respiration (modèle autonome, 20 Hz) sur la même fenêtre que l'ECG : volume pulmonaire
+    // au-dessus de la fin d'expiration = profil normalisé × volume courant alvéolaire (VA/FR ;
+    // l'espace mort n'est pas modélisé), débit = dérivée du volume, FC et PAM instantanées.
+    let au = &s.autonomic;
+    let n_resp = au.t.iter().take_while(|t| **t < duration_s).count();
+    let vt_alv_ml = ev.metabolic.art.va / ev.metabolic.art.rr * 1000.0;
+    let volume: Vec<f64> = au.rho[..n_resp].iter().map(|r| r * vt_alv_ml).collect();
+    let fs_resp = if au.t.len() > 1 {
+        1.0 / (au.t[1] - au.t[0])
+    } else {
+        20.0
+    };
+    let flow: Vec<f64> = (0..n_resp)
+        .map(|i| {
+            let (a, b) = (i.saturating_sub(1), (i + 1).min(n_resp - 1));
+            if b > a {
+                (volume[b] - volume[a]) / ((b - a) as f64) * fs_resp
+            } else {
+                0.0
+            }
+        })
+        .collect();
     Ok(json!({
         "ecg": f32s(&s.ecg.v), "ecg_fs": fs, "r_times": s.ecg.r_times,
         "ecg_features": { "pr": f.pr, "qrs": f.qrs, "qt": f.qt, "p_amp": f.p_amp, "t_amp": f.t_amp, "r_amp": f.r_amp },
@@ -591,6 +652,9 @@ fn signals_json(
                        "ao": f32s(&w.p_ao), "lv": f32s(&w.p_lv), "la": f32s(&w.p_pv),
                        "pa": f32s(&w.p_pa), "rv": f32s(&w.p_rv) },
         "hrv": hrv,
+        "respiration": { "fs": fs_resp, "rr_per_min": ev.metabolic.art.rr, "vt_alv_mL": vt_alv_ml,
+                         "volume_mL": f32s(&volume), "flow_mL_s": f32s(&flow),
+                         "hr": f32s(&au.hr[..n_resp]), "map": f32s(&au.map[..n_resp]) },
     }))
 }
 
@@ -635,6 +699,25 @@ mod tests {
         let id = p["patient_id"].as_str().unwrap().to_string();
         let c = j(&e.add_disease(&id, r#"{"id": "mmvd", "severity": 0.8}"#));
         assert_eq!(c["case"]["stage"], "C");
+        // Modificateurs calculés et blocs où ils interviennent.
+        let m0 = &c["case"]["modifiers"][0];
+        assert_eq!(
+            (m0["param"].as_str(), m0["op"].as_str()),
+            (Some("g_mr"), Some("add"))
+        );
+        assert_eq!(m0["blocks"][0], "valves");
+        assert_eq!(l["blocks"].as_array().unwrap().len(), 15);
+        let ckd = l["diseases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|d| d["id"] == "ckd")
+            .unwrap();
+        assert!(ckd["effects"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|e| e["conditional"] == true));
         let st = j(&e.state(&id, "{}"));
         // Mêmes valeurs que le golden du CLI (mmvd_s0.8) à la tolérance près.
         let g: Json = serde_json::from_str(
@@ -658,6 +741,8 @@ mod tests {
                 "{k}: {a} / {b}"
             );
         }
+        assert!(st["params"]["g_mr"].as_f64().unwrap() > 1.0);
+        assert_eq!(st["params"].as_object().unwrap().len(), Params::NAMES.len());
         let signs: Vec<&str> = st["emergent_signs"]
             .as_array()
             .unwrap()
@@ -670,6 +755,25 @@ mod tests {
         );
         let sg = j(&e.signals(&id, r#"{"duration_s": 4}"#));
         assert_eq!(sg["ok"], true);
+        // Respiration : 4 s à 20 Hz, volume entre 0 et le volume courant alvéolaire.
+        let r = &sg["respiration"];
+        let vol: Vec<f64> = r["volume_mL"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_f64().unwrap())
+            .collect();
+        assert_eq!(vol.len(), 80);
+        assert_eq!(r["hr"].as_array().unwrap().len(), 80);
+        let vt = r["vt_alv_mL"].as_f64().unwrap();
+        assert!(
+            vol.iter().all(|v| *v >= -1e-3 && *v <= vt + 1e-3),
+            "{vt} {vol:?}"
+        );
+        assert!(
+            vol.iter().copied().fold(0.0, f64::max) > 0.9 * vt,
+            "au moins une inspiration complète"
+        );
         assert_eq!(sg["ecg"].as_array().unwrap().len(), 2000);
         assert!(sg["pcg_features"]["grade"].as_u64().unwrap() >= 5);
         let tc = j(&e.timecourse(

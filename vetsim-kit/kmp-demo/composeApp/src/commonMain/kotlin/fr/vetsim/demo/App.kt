@@ -55,7 +55,10 @@ fun App(
     controller: DemoController,
     initial: DemoInputs = DemoInputs(),
     autoEvaluate: Boolean = false,
+    initialTab: Int = 0,
+    initialBlock: String? = null,
 ) {
+    var tab by remember { mutableStateOf(initialTab) }
     var inputs by remember { mutableStateOf(initial) }
     var bwText by remember { mutableStateOf(initial.bw.toString()) }
     var result by remember { mutableStateOf<DemoResult?>(null) }
@@ -134,6 +137,11 @@ fun App(
                         Text("Choisir un patient puis « Évaluer ».", color = Muted)
                     } else {
                         Text(r.caseLabel, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                        Tabs(listOf("Patient", "Respiration", "Schéma du modèle"), tab) { tab = it }
+                    }
+                    if (r != null && tab == 1) RespirationView(r)
+                    if (tab == 2) ModelView(controller.catalog, r, initialBlock)
+                    if (r != null && tab == 0) {
                         Panel("ECG, dérivation II (${(r.ecg.size / r.ecgFs).toInt()} s, ${"%.0f".fmt(r.values["hr"] ?: 0.0)} /min)") {
                             Trace(listOf(r.ecg to EcgGreen), paper = true, height = 150)
                         }
@@ -184,6 +192,22 @@ private val CHEM = listOf(
     Row3("creat", "Créatinine", "µmol/L", "%.0f"), Row3("urea", "Urée", "mmol/L", "%.1f"),
     Row3("phos", "Phosphate", "mmol/L", "%.2f"), Row3("alb", "Albumine", "g/L", "%.1f"), Row3("hct", "Hématocrite", "%", "%.0f"),
 )
+
+@Composable
+private fun Tabs(titles: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        titles.forEachIndexed { i, t ->
+            val on = i == selected
+            OutlinedButton(
+                onClick = { onSelect(i) },
+                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                    containerColor = if (on) Color(0xFF0B5E7A) else Color.Transparent,
+                    contentColor = if (on) Color.White else Color(0xFF0B5E7A),
+                ),
+            ) { Text(t) }
+        }
+    }
+}
 
 @Composable
 private fun ValuesTable(title: String, rows: List<Row3>, values: Map<String, Double>) {

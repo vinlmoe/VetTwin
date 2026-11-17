@@ -189,7 +189,14 @@ compose.desktop {
     }
 }
 
+val cargoBuildCli by tasks.registering(Exec::class) {
+    description = "Compile vetsim-cli (référence native du test d'identité au bit près)."
+    workingDir = kitDir
+    commandLine(cargo, "build", "--release", "-p", "vetsim-cli")
+}
+
 tasks.withType<Test>().configureEach {
+    dependsOn(cargoBuildCli)
     // Dossier de sortie des captures d'écran du test de rendu.
     systemProperty("vetsim.screenshots", layout.buildDirectory.dir("screenshots").get().asFile.path)
     systemProperty("vetsim.kit", kitDir.path)
