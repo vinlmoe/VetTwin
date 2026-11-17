@@ -119,10 +119,10 @@ fun App(
                         OutlinedButton(onClick = { inputs = inputs.copy(conc = emptyMap()); run() }) { Text("Retirer les médicaments") }
                     }
                     OutlinedButton(
-                        onClick = { result?.let { playAudio(it.pcg, it.pcgFs) } },
+                        onClick = { tab = 3 },
                         enabled = result != null,
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Écouter le PCG") }
+                    ) { Text("Ausculter (son, ECG, pressions)") }
                     Text(
                         "Outil pédagogique : ne jamais utiliser pour décider d'une dose ou d'un traitement réel. " +
                             "Les niveaux de preuve [A–D] sont ceux des modules ; D = placeholder.",
@@ -137,10 +137,14 @@ fun App(
                         Text("Choisir un patient puis « Évaluer ».", color = Muted)
                     } else {
                         Text(r.caseLabel, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Ink)
-                        Tabs(listOf("Patient", "Respiration", "Schéma du modèle"), tab) { tab = it }
+                        Tabs(listOf("Patient", "Respiration", "Schéma du modèle", "Auscultation"), tab) { tab = it }
                     }
                     if (r != null && tab == 1) RespirationView(r)
                     if (tab == 2) ModelView(controller.catalog, r, initialBlock)
+                    if (r != null && tab == 3) {
+                        // clé : nouvelle synthèse quand le patient change
+                        androidx.compose.runtime.key(inputs) { AuscultationView(controller, inputs) }
+                    }
                     if (r != null && tab == 0) {
                         Panel("ECG, dérivation II (${(r.ecg.size / r.ecgFs).toInt()} s, ${"%.0f".fmt(r.values["hr"] ?: 0.0)} /min)") {
                             Trace(listOf(r.ecg to EcgGreen), paper = true, height = 150)

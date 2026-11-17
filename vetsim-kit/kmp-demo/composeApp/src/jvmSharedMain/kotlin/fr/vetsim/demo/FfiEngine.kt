@@ -13,6 +13,7 @@ class FfiEngine : VetsimEngine {
     override fun signals(patientId: String, optionsJson: String) = e.signals(patientId, optionsJson)
     override fun timecourse(patientId: String, dosesJson: String) = e.timecourse(patientId, dosesJson)
     override fun listModules() = e.listModules()
+    override fun pcg(patientId: String, optionsJson: String) = e.pcg(patientId, optionsJson)
 }
 
 actual fun createEngine(): VetsimEngine = FfiEngine()

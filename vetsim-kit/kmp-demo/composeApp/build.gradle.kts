@@ -87,6 +87,7 @@ val modulesBundle by tasks.registering {
         fun list(dir: String) = modules.resolve(dir).listFiles { f -> f.extension == "json" }!!
             .sortedBy { it.name }.joinToString(",\n") { it.readText().trim() }
         val bundle = "{\"patient\": ${modules.resolve("healthy_dog.json").readText().trim()},\n" +
+            "\"auscultation\": ${modules.resolve("auscultation.json").readText().trim()},\n" +
             "\"diseases\": [\n${list("diseases")}],\n\"drugs\": [\n${list("drugs")}]}"
         // Chaîne brute Kotlin : seul « $ » doit être protégé.
         val escaped = bundle.replace("$", "\${'$'}")

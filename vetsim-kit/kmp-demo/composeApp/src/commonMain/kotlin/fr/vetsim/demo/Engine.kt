@@ -22,6 +22,7 @@ interface VetsimEngine {
     fun signals(patientId: String, optionsJson: String): String
     fun timecourse(patientId: String, dosesJson: String): String
     fun listModules(): String
+    fun pcg(patientId: String, optionsJson: String): String
 }
 
 /** Moteur natif (Rust via UniFFI sur Android et JVM). */
@@ -84,6 +85,28 @@ data class DemoResult(
     val drugIds: List<String>,
 )
 
+/** Auscultation : son, ECG et pressions sur le même axe de temps. */
+class AuscultationResult(
+    val samples: FloatArray,
+    val fs: Int,
+    val durationS: Double,
+    val grade: Int,
+    val murmur: String,
+    val s3: Boolean,
+    val hr: Double,
+    val site: String,
+    val beats: DoubleArray,
+    val ecg: FloatArray,
+    val ecgFs: Double,
+    val pressureFs: Double,
+    val ao: FloatArray,
+    val lv: FloatArray,
+    val la: FloatArray,
+) {
+    /** Spectrogramme (puissance en dB) : [trame][classe], 0–[maxHz] Hz, trames de [hop] échantillons. */
+    val spectrogram: Spectrogram by lazy { Spectrogram.of(samples, fs, nfft = 512, hop = 64, maxHz = 500.0) }
+}
+
 class EngineError(message: String) : Exception(message)
 
 private fun JsonElement.d(): Double = jsonPrimitive.doubleOrNull ?: Double.NaN
@@ -137,6 +160,46 @@ class DemoController(private val engine: VetsimEngine = createEngine()) {
             throw EngineError(msg)
         }
         return o
+    }
+
+    /** Auscultation du patient décrit par [inp] (FC imposée si [hr] non nul, site d'auscultation). */
+    @OptIn(kotlin.io.encoding.ExperimentalEncodingApi::class)
+    fun auscultate(inp: DemoInputs, hr: Double?, site: String, durationS: Double = 8.0): AuscultationResult {
+        val p = check(engine.newPatient("""{"bw": ${inp.bw}, "seed": ${inp.seed}, "variability": false}"""))
+        val id = p.str("patient_id")
+        if (inp.diseaseId != null) {
+            val stage = inp.stage?.let { ""","stage": "$it"""" } ?: ""
+            check(engine.addDisease(id, """{"id": "${inp.diseaseId}"$stage}"""))
+        }
+        val conc = inp.conc.entries.joinToString(", ") { (k, v) -> "\"$k\": $v" }
+        val hrOpt = hr?.let { ""","hr": $it""" } ?: ""
+        val r = check(engine.pcg(id, """{"conc": {$conc}, "site": "$site", "seed": ${inp.seed}, "duration_s": $durationS,
+            "with_ecg": true, "with_pressures": true$hrOpt}"""))
+        val wav = kotlin.io.encoding.Base64.decode(r.str("wav_base64"))
+        val n = (wav.size - 44) / 2
+        val samples = FloatArray(n) { i ->
+            val lo = wav[44 + 2 * i].toInt() and 0xFF
+            val hi = wav[45 + 2 * i].toInt()
+            ((hi shl 8) or lo).toShort() / 32767f
+        }
+        val pr = r["pressures"]!!.jsonObject
+        return AuscultationResult(
+            samples = samples,
+            fs = r["fs"]!!.d().toInt(),
+            durationS = r["duration_s"]!!.d(),
+            grade = r["grade"]?.jsonPrimitive?.intOrNull ?: 0,
+            murmur = r.str("murmur"),
+            s3 = r["s3"]?.jsonPrimitive?.booleanOrNull == true,
+            hr = r["hr"]!!.d(),
+            site = r.str("site"),
+            beats = r["beats"]!!.jsonArray.map { it.d() }.toDoubleArray(),
+            ecg = r["ecg"]!!.floats(),
+            ecgFs = r["ecg_fs"]!!.d(),
+            pressureFs = pr["fs"]!!.d(),
+            ao = pr["ao"]!!.floats(),
+            lv = pr["lv"]!!.floats(),
+            la = pr["la"]!!.floats(),
+        )
     }
 
     /** Évalue un patient déterministe (sans variabilité) avec maladie et concentrations. */
@@ -216,4 +279,58 @@ fun String.fmt(x: Double): String {
     val sign = if (x < 0 && scaled != 0L) "-" else ""
     val int = (scaled / f).toString()
     return if (decimals == 0) sign + int else sign + int + "," + (scaled % f).toString().padStart(decimals, '0')
+}
+
+/** Spectrogramme par transformée de Fourier à court terme (fenêtre de Hann). */
+class Spectrogram(val frames: Int, val bins: Int, val db: FloatArray, val hopS: Double, val binHz: Double, val minDb: Float, val maxDb: Float) {
+    operator fun get(frame: Int, bin: Int): Float = db[frame * bins + bin]
+
+    companion object {
+        fun of(x: FloatArray, fs: Int, nfft: Int, hop: Int, maxHz: Double): Spectrogram {
+            val binHz = fs.toDouble() / nfft
+            val bins = minOf(nfft / 2, (maxHz / binHz).toInt() + 1)
+            val frames = maxOf(0, (x.size - nfft) / hop + 1)
+            val win = DoubleArray(nfft) { 0.5 - 0.5 * kotlin.math.cos(2 * kotlin.math.PI * it / nfft) }
+            val out = FloatArray(frames * bins)
+            val re = DoubleArray(nfft)
+            val im = DoubleArray(nfft)
+            for (f in 0 until frames) {
+                for (i in 0 until nfft) { re[i] = x[f * hop + i] * win[i]; im[i] = 0.0 }
+                fft(re, im)
+                for (b in 0 until bins) {
+                    val p = re[b] * re[b] + im[b] * im[b]
+                    out[f * bins + b] = (10 * kotlin.math.log10(p + 1e-12)).toFloat()
+                }
+            }
+            val maxDb = out.maxOrNull() ?: 0f
+            return Spectrogram(frames, bins, out, hop.toDouble() / fs, binHz, maxDb - 60f, maxDb)
+        }
+
+        /** FFT radix 2 en place (n puissance de 2). */
+        private fun fft(re: DoubleArray, im: DoubleArray) {
+            val n = re.size
+            var j = 0
+            for (i in 1 until n) {
+                var bit = n shr 1
+                while (j and bit != 0) { j = j xor bit; bit = bit shr 1 }
+                j = j xor bit
+                if (i < j) { val tr = re[i]; re[i] = re[j]; re[j] = tr; val ti = im[i]; im[i] = im[j]; im[j] = ti }
+            }
+            var len = 2
+            while (len <= n) {
+                val ang = -2 * kotlin.math.PI / len
+                for (i in 0 until n step len) {
+                    for (k in 0 until len / 2) {
+                        val c = kotlin.math.cos(ang * k); val s = kotlin.math.sin(ang * k)
+                        val ur = re[i + k]; val ui = im[i + k]
+                        val vr = re[i + k + len / 2] * c - im[i + k + len / 2] * s
+                        val vi = re[i + k + len / 2] * s + im[i + k + len / 2] * c
+                        re[i + k] = ur + vr; im[i + k] = ui + vi
+                        re[i + k + len / 2] = ur - vr; im[i + k + len / 2] = ui - vi
+                    }
+                }
+                len = len shl 1
+            }
+        }
+    }
 }

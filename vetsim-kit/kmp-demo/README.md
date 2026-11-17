@@ -1,8 +1,9 @@
 # VetTwins : démo Kotlin Multiplatform du moteur vetsim
 
-Application de démonstration (Android + bureau JVM) : choix du poids, d'une maladie et d'un stade, ajout d'un médicament par sa concentration plasmatique. Trois onglets :
+Application de démonstration (Android + bureau JVM) : choix du poids, d'une maladie et d'un stade, ajout d'un médicament par sa concentration plasmatique. Quatre onglets :
 - **Patient** : tracés ECG et pressions (aorte, VG, OG), gaz du sang, hémodynamique, biochimie, signes émergents sourcés, écoute du PCG.
 - **Respiration** : volume pulmonaire au-dessus de la fin d'expiration (profil du modèle autonome × volume courant alvéolaire VA/FR ; espace mort non modélisé), débit, FC et PAM instantanées (arythmie sinusale respiratoire, variation respiratoire de la PA), sur la même fenêtre que l'ECG.
+- **Auscultation** : son du module `pcg.rs` (bouton « Écouter »), forme d'onde, spectrogramme 0–500 Hz, ECG et pressions (aorte, VG, OG) sur le même axe de temps ; curseur synchronisé avec le son (la fenêtre suit la lecture) ; zoom (durée de fenêtre) et défilement ; choix de la FC (patient, repos 72, 90) et du site (base, apex non calibré). Pressions : battement simulé posé à chaque battement (forme non recalculée battement par battement).
 - **Schéma du modèle** : blocs du moteur et couplages codés ; blocs touchés par la maladie (rouge) et les médicaments (bleu), d'après les paramètres qui diffèrent du chien sain de même poids ; un clic sur un bloc montre ses paramètres (sain → patient, module source) et ses couplages. Le rattachement paramètre → bloc vient du moteur (`vetsim_core::blocks`).
 
 **Usage pédagogique uniquement : ne jamais utiliser pour décider d'une dose ou d'un traitement réel.**
