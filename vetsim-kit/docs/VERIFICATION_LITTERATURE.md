@@ -197,7 +197,7 @@ Observations sur le modèle (accès **dépôt**, `modules/diseases/ckd.json`) :
 - **L'acidose vient uniquement des anions indosés** (`xa` + 6·s²), avec un phosphate en hausse. Elle est donc à trou anionique élevé, sans composante hyperchlorémique.
 - Le **calcium** n'est pas modélisé.
 
-La comparaison de cet ionogramme à la littérature (K⁺, Na⁺, Cl⁻, acidose, phosphate, calcium par stade IRIS) fait l'objet d'une recherche dédiée, en cours. Elle sera ajoutée dans la section 6.
+La comparaison de cet ionogramme à la littérature figure dans la section 6.
 
 ### Addison
 
@@ -222,6 +222,41 @@ La comparaison de cet ionogramme à la littérature (K⁺, Na⁺, Cl⁻, acidose
 
 Statut DFG : **OK**, en haut de l'intervalle.
 
+## 6. Ionogramme et acide-base de la MRC par stade IRIS
+
+Recherche dédiée faite à la demande de l'utilisateur. Le modèle est évalué au milieu de chaque plage de stade du module (mode déterministe) :
+
+| Stade | *s* | Créatinine (µmol/L) |
+|---|---|---|
+| 1 | 0,15 | 110 |
+| 2 | 0,375 | 189 |
+| 3 | 0,625 | 345 |
+| 4 | 0,85 | 592 |
+
+Conversion du phosphate : 1 mmol/L = 3,097 mg/dL.
+
+| Grandeur | Modèle (stades 1 / 2 / 3 / 4) | Littérature | Accès | Statut |
+|---|---|---|---|---|
+| K⁺ (mmol/L) | 4,10 / 4,10 / 4,10 / 4,10 (puis jusqu'à 6,1 au-delà de *s* = 0,85) | MRC 4,8 (3,3–6,1) contre sains 4,3 (3,6–5,2), P < 0,0001, 50 chiens surtout stade 2 (PMC12881969, JVIM 2026) ; hyperkaliémie au moins une fois chez 47 % de 152 chiens, > 6,5 chez 16 % (Segev 2010, sous régime rénal) | lu / résumé | **Écart** : le modèle n'a ni la hausse modérée du K⁺ dès le stade 2 ni sa variabilité ; l'hyperkaliémie n'apparaît qu'en toute fin de stade 4 |
+| Hypokaliémie | impossible dans le modèle | aucune prévalence canine par stade trouvée | — | Non vérifié |
+| Na⁺ (mmol/L) | 150 constant | 146,8 chez les vivants comme chez les décédés (PMC13218285) ; aucune différence MRC/sains rapportée | lu | OK (constance) |
+| Cl⁻ (mmol/L) | 113,6 constant | MRC 111,7 (102,5–118,8) contre sains 113,1 (108,3–119,2), P = 0,02 | lu | Écart faible (−1,4 non reproduit) |
+| HCO₃⁻ < 22 mmol/L | 23,5 / 22,9 / 21,3 / 19,0 : déficit seulement à partir du stade 3 | 43 % / 67 % / 78 % / 76 % des chiens selon le stade (Lippi 2023, n = 277) ; médiane 19 (4–38) | lu | **Écart** : acidose trop tardive et trop faible aux stades 1–2 |
+| HCO₃⁻ ≤ 18 (acidose) | jamais (minimum 18,8 à *s* = 1) | 21 % au stade 2, 67 % aux stades 3–4 (PMC12881969) | lu | **Écart** |
+| Type d'acidose | trou anionique élevé seulement (TA 17 → 21,5) | aucune donnée canine par stade trouvée | — | Non vérifié |
+| Phosphate (mg/dL) | 4,5 / 5,1 / 6,3 / 8,0 | médianes 3,7 / 3,7 / 4,9 / 8,2 (n = 10 / 9 / 12 / 6, Parker 2017) ; hyperphosphatémie (> 5,5) de 18 % au stade 1 à 100 % au stade 4 (Cortadellas 2010) | lu / résumé | Stades 1–3 au-dessus de la médiane mais dans l'étendue ; stade 4 OK. Le phosphate du chien sain (1,42 mmol/L = 4,4 mg/dL) est déjà au-dessus des médianes des stades 1–2 |
+| Calcium total / ionisé | non modélisé | total stable (10,6–11,1 mg/dL) ; ionisé bas chez 4/37 (Parker 2017) ; hypocalcémie ionisée chez 10–56 % (revue secondaire, PMC13314447) | lu | Absent du modèle |
+| Hématocrite (%) | 44,1 / 41,4 / 37,2 / 32,7 | médianes stades 2 / 3 / 4 : 37,6 / 32,1 / 27,3 ; anémie 47 % / 71 % / 82 % (Lippi 2021) | lu | **Écart** : anémie trop faible de 4 à 5 points d'Ht |
+| Albumine (g/L) | 37,1 / 36,3 / 35,3 / 34,5 | 30 (26–35), surtout stade 2 (PMC13218285) | lu | Écart (cohorte unique) |
+
+Implications pour l'ionogramme du patient virtuel :
+
+1. Na⁺, Cl⁻ et K⁺ ne réagissent pas à la sévérité avant la toute fin du stade 4. Un étudiant ne voit donc ni la tendance hyperkaliémique ni la légère baisse du Cl⁻.
+2. L'acidose métabolique est trop tardive : HCO₃⁻ < 22 seulement à partir du stade 3, jamais ≤ 18. Le trou anionique augmente seul.
+3. L'hyperphosphatémie est présente mais commence trop haut.
+4. Le calcium est absent.
+5. Le modèle n'a pas de bilan rénal de K⁺, Na⁺, Cl⁻ ni H⁺ : les valeurs sont des décalages fixés par sévérité. Le futur modèle urinaire (excrétion fractionnelle, ammoniogenèse) serait l'endroit mécanistique pour les faire émerger.
+
 ## Synthèse des écarts à arbitrer
 
 1. **PK du furosémide**
@@ -237,7 +272,10 @@ Statut DFG : **OK**, en haut de l'intervalle.
 5. **Seuil d'œdème** : 18 mmHg contre 20–24 dans les sources.
 6. **Pimobendane** : T_max trop précoce.
 7. **MRC**
-   - Na⁺, Cl⁻ et K⁺ sont constants jusqu'au stade 4, et l'acidose est uniquement à trou anionique élevé (comparaison en cours, section 6).
+   - Na⁺, Cl⁻ et K⁺ sont constants jusqu'au stade 4, alors que les sources rapportent K⁺ 4,8 contre 4,3 dès le stade 2.
+   - L'acidose (HCO₃⁻ < 22) n'apparaît qu'au stade 3, contre 67 % des chiens dès le stade 2.
+   - L'hématocrite est trop haute de 4 à 5 points.
+   - Le calcium est absent (section 6).
    - La créatinine du haut de la plage IRIS1 tombe déjà en stade 2.
 
 Toute correction touche la référence normative et attend la décision de l'utilisateur.
@@ -262,6 +300,10 @@ Une source bloquée n'est pas une preuve d'absence.
   - Guyton & Lindsey 1959 (original) ;
   - texte intégral d'Oyama 2004 ;
   - textes intégraux d'Oliveira 2012, Grosso 2021 et Moïse 2021.
+- **Bloqués aussi (ionogramme de la MRC) :**
+  - texte intégral de Cortadellas 2010 (Cloudflare 403) ;
+  - réponses vides de BioC (contournées par Europe PMC) ;
+  - revues de Polzin et Bartges 2012 non atteintes.
 - **Non cherchés :** Crosara 2010, essais LOOK-Mitral, EPIC et QUEST, Yuchi 2024 (POG et débit par stade possibles).
 
 ## Références (DOI vérifiés dans OpenAlex le 17/11/2026)
@@ -294,4 +336,10 @@ Une source bloquée n'est pas une preuve d'absence.
 - Troìa R et al. Fractional excretion of electrolytes in volume-responsive and intrinsic acute kidney injury in dogs. J Vet Intern Med 2018. doi:10.1111/jvim.15146
 - Rudinsky AJ et al. Variability of first morning urine specific gravity in 103 healthy dogs. J Vet Intern Med 2019;33:2133–2137. doi:10.1111/jvim.15592
 - van Vonderen IK, Kooistra HS, Rijnberk A. Intra- and interindividual variation in urine osmolality and urine specific gravity in healthy pet dogs of various ages. J Vet Intern Med 1997;11(1):30–35. doi:10.1111/j.1939-1676.1997.tb00070.x
+- Segev G, Fascetti AJ, Weeth LP, Cowgill LD. Correction of hyperkalemia in dogs with chronic kidney disease consuming commercial renal therapeutic diets by a potassium-reduced home-prepared diet. J Vet Intern Med 2010;24:546–550. doi:10.1111/j.1939-1676.2010.0488.x
+- Lippi I et al. Serum bicarbonate deficiency in dogs with acute and chronic kidney disease. Vet Sci 2023;10:363. doi:10.3390/vetsci10050363
+- Parker VJ et al. Association of vitamin D metabolites with parathyroid hormone, fibroblast growth factor-23, calcium, and phosphorus in dogs with various stages of chronic kidney disease. J Vet Intern Med 2017;31:791–798. doi:10.1111/jvim.14653
+- Cortadellas O et al. Calcium and phosphorus homeostasis in dogs with spontaneous chronic kidney disease at different stages of severity. J Vet Intern Med 2010;24:73–79. doi:10.1111/j.1939-1676.2009.0415.x
+- Lippi I et al. Erythrogram patterns in dogs with chronic kidney disease. Vet Sci 2021;8:123. doi:10.3390/vetsci8070123
+- PMC12881969 et PMC13218285 (J Vet Intern Med 2026, excrétion d'ammoniac dans la MRC canine) et PMC13314447 (Front Vet Sci 2026) : **auteurs et DOI non vérifiés**.
 - Roche-Catholy M et al. Clinical relevance of serum electrolytes in dogs and cats with acute heart failure. J Vet Intern Med 2021;35(4):1652–1662. PMC8295692. **Non vérifié dans OpenAlex.**
