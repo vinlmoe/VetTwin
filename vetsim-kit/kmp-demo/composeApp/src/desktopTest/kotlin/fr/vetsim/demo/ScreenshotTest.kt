@@ -89,6 +89,17 @@ class ScreenshotTest {
         assertTrue(r.caseLabel.contains("J2 13 h"), r.caseLabel)
         assertTrue(r.changes.any { it.param == "vol_shift" }, "effet du diurétique (D) attendu")
         assertTrue(controller.auscultate(exam, null, "base").samples.size == 32000)
+        // Prise omise et prise doublée : la cinétique en tient compte
+        val pim = plan.regimens[1]
+        val edited = plan.copy(regimens = listOf(plan.regimens[0], pim.copy(overrides = mapOf(4 to 0.0, 6 to 0.5))))
+        val base = controller.treatment(inputs, plan)
+        val ed = controller.treatment(inputs, edited)
+        val c0 = base.conc.getValue("pimobendan")
+        val c1 = ed.conc.getValue("pimobendan")
+        fun at(r: TreatmentResult, h: Double) = r.t.indices.minBy { kotlin.math.abs(r.t[it] - h) }
+        assertTrue(c1[at(ed, 49.0)] < 0.05f * c0[at(base, 49.0)], "prise de 48 h omise")
+        assertTrue(c1[at(ed, 73.0)] > 1.8f * c0[at(base, 73.0)], "prise de 72 h doublée")
+        assertTrue(edited.dosesJson().split("pimobendan").size - 1 == 13, "13 prises effectives")
     }
 
     @Test

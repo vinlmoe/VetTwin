@@ -100,6 +100,8 @@ fun TreatmentView(
     var interval by remember { mutableStateOf("12") }
     var count by remember { mutableStateOf("6") }
     var start by remember { mutableStateOf("0") }
+    var editing by remember { mutableStateOf<Int?>(null) }
+    var expanded by remember { mutableStateOf<Int?>(null) }
 
     fun simulate() {
         try {
@@ -134,18 +136,56 @@ fun TreatmentView(
                 Button(onClick = {
                     val r = Regimen(drugId, dose.num() ?: return@Button, route, interval.num() ?: return@Button,
                         count.num()?.toInt() ?: return@Button, start.num() ?: 0.0)
-                    if (r.mgPerKg >= 0 && r.intervalH > 0 && r.count in 1..200) regimens = regimens + r
-                }) { Text("Ajouter") }
+                    if (r.mgPerKg >= 0 && r.intervalH > 0 && r.count in 1..200) {
+                        val i = editing
+                        regimens = if (i == null) regimens + r else regimens.mapIndexed { j, old ->
+                            // garde les ajustements des prises qui existent encore
+                            if (j == i) r.copy(overrides = old.overrides.filterKeys { it < r.count }) else old
+                        }
+                        editing = null
+                    }
+                }) { Text(if (editing == null) "Ajouter" else "Enregistrer") }
+                if (editing != null) OutlinedButton(onClick = { editing = null }) { Text("Annuler") }
             }
             regimens.forEachIndexed { i, r ->
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Box(Modifier.width(12.dp).height(12.dp).background(DrugColors[i % DrugColors.size], RoundedCornerShape(3.dp)))
                     Text(
                         "${drugs.first { it.id == r.drugId }.name} : ${r.mgPerKg} mg/kg ${if (r.route == "po") "per os" else "IV"}, " +
-                            "toutes les ${r.intervalH} h × ${r.count} (de ${dayLabel(r.startH)} à ${dayLabel(r.doseTimes().last())})",
+                            "toutes les ${r.intervalH} h × ${r.count} (de ${dayLabel(r.startH)} à ${dayLabel(r.doseTimes().last())})" +
+                            (r.overrides.count { it.value == 0.0 }.takeIf { it > 0 }?.let { " ; $it omise(s)" } ?: ""),
                         color = Ink, fontSize = 13.sp,
                     )
-                    OutlinedButton(onClick = { regimens = regimens.filterIndexed { j, _ -> j != i } }) { Text("Retirer", fontSize = 12.sp) }
+                    OutlinedButton(onClick = {
+                        editing = i; drugId = r.drugId; dose = r.mgPerKg.toString(); route = r.route
+                        interval = r.intervalH.toString(); count = r.count.toString(); start = r.startH.toString()
+                    }) { Text("Modifier", fontSize = 12.sp) }
+                    OutlinedButton(onClick = { expanded = if (expanded == i) null else i }) {
+                        Text(if (expanded == i) "Masquer les prises" else "Prises individuelles", fontSize = 12.sp)
+                    }
+                    OutlinedButton(onClick = { regimens = regimens.filterIndexed { j, _ -> j != i }; editing = null; expanded = null }) { Text("Retirer", fontSize = 12.sp) }
+                    if (r.overrides.isNotEmpty()) Text("${r.overrides.size} prise(s) ajustée(s)", color = Warn, fontSize = 12.sp)
+                }
+                if (expanded == i) {
+                    Text("Dose de chaque prise (mg/kg) ; 0 = prise omise", color = Muted, fontSize = 12.sp)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        r.doseTimes().forEachIndexed { k, t ->
+                            var txt by remember(i, k, r.doseAt(k)) { mutableStateOf(r.doseAt(k).toString()) }
+                            OutlinedTextField(
+                                txt,
+                                { v ->
+                                    txt = v
+                                    v.num()?.takeIf { it >= 0 }?.let { mg ->
+                                        val ov = if (mg == r.mgPerKg) r.overrides - k else r.overrides + (k to mg)
+                                        regimens = regimens.mapIndexed { j, old -> if (j == i) old.copy(overrides = ov) else old }
+                                    }
+                                },
+                                label = { Text(dayLabel(t), fontSize = 10.sp) },
+                                singleLine = true,
+                                modifier = Modifier.width(96.dp),
+                            )
+                        }
+                    }
                 }
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -157,7 +197,7 @@ fun TreatmentView(
         error?.let { Text("Erreur : $it", color = Color(0xFFB00020)) }
         val r = result ?: return@Column
         val horizon = r.plan.horizonH
-        val doseMarks = r.plan.regimens.mapIndexed { i, rg -> rg.doseTimes().filter { it <= horizon } to DrugColors[i % DrugColors.size] }
+        val doseMarks = r.plan.regimens.mapIndexed { i, rg -> rg.administrations().map { it.first }.filter { it <= horizon } to DrugColors[i % DrugColors.size] }
         val drugColor = { id: String -> DrugColors[r.plan.regimens.indexOfFirst { it.drugId == id }.coerceAtLeast(0) % DrugColors.size] }
         // --- curseur d'examen
         Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(12.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {

@@ -59,6 +59,8 @@ Chaque entrée indique le commit, ce qui a été fait, la vérification qui fait
 \commit{832437a} & Pressions & PAS et PAD instantanées = PAM instantanée $\pm$ écart du battement simulé. \ecart{Pression pulsée supposée constante.}\\
 \commit{b7cccee}--\commit{790bdab} & Auscultation (a--d) & Port fidèle de \texttt{signals\_pcg\_v5.py} (signal à $4\times10^{-15}$ près), configuration JSON avec provenance, critères mesurés par \texttt{pcg\_metrics.py}, FFI, onglet Auscultation (son, spectrogramme, ECG et pressions alignés, zoom, curseur). Calage sur deux enregistrements \citep{tiho}. \ecart{Écarts de la référence conservés : B1$\to$B2 0,275\,s à FC 90, B2 $>$ B1 dans 75\,\% des paires, diastole/systole 1,24 et 1,60.} 100 graines au lieu de 20 (appariement B1/B2 instable).\\
 \commit{9d3f7b7}, \commit{e59a51c} & PK/PD répétée & Examen à un instant quelconque d'un schéma ; effets E(t) ; indicateurs au choix sur 1 à 14 jours. \ecart{Furosémide 2\,mg/kg per os toutes les 12\,h : K$^+$ de 4,1 à environ 2,4--3,0\,mmol/L (PD placeholder du module).}\\
+\commit{8ffcfac} & Journal & Création de ce journal et de la bibliographie vérifiée.\\
+(à venir) & Édition des doses & Modification d'un schéma existant ; ajustement prise par prise (dose modifiée, prise omise = 0). Vérifié : prise omise à 48\,h $\Rightarrow$ concentration $<5$\,\% du pic habituel ; prise doublée à 72\,h $\Rightarrow$ pic $>1{,}8\times$.\\
 \bottomrule
 \end{longtable}
 

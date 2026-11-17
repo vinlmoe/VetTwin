@@ -66,14 +66,23 @@ data class Regimen(
     val intervalH: Double,
     val count: Int,
     val startH: Double = 0.0,
+    /** Ajustements prise par prise : indice → mg/kg (0 = prise omise). */
+    val overrides: Map<Int, Double> = emptyMap(),
 ) {
     fun doseTimes(): List<Double> = List(count) { startH + it * intervalH }
+
+    /** Dose de la prise [i] (mg/kg), après ajustement éventuel. */
+    fun doseAt(i: Int): Double = overrides[i] ?: mgPerKg
+
+    /** Prises effectives (instant, mg/kg), sans les prises omises. */
+    fun administrations(): List<Pair<Double, Double>> =
+        doseTimes().mapIndexed { i, t -> t to doseAt(i) }.filter { it.second > 0.0 }
 }
 
 /** Traitement : un ou plusieurs schémas, simulés sur [horizonH] heures. */
 data class TreatmentPlan(val regimens: List<Regimen>, val horizonH: Double) {
     fun dosesJson(): String = regimens.flatMap { r ->
-        r.doseTimes().map { t -> """{"t_h": $t, "drug": "${r.drugId}", "mg_per_kg": ${r.mgPerKg}, "route": "${r.route}"}""" }
+        r.administrations().map { (t, mg) -> """{"t_h": $t, "drug": "${r.drugId}", "mg_per_kg": $mg, "route": "${r.route}"}""" }
     }.joinToString(", ", "[", "]")
 }
 
