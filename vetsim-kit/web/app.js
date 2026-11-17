@@ -397,7 +397,7 @@ function renderTreatment(v) {
     + T.regimens.map((r, i) => {
       const om = Object.values(r.overrides || {}).filter((x) => x === 0).length;
       let s = `<div class="row"><i style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${COLORS.drugs[i % 5]}"></i>
-        ${esc(dname(r.drug))} : ${r.mgPerKg} mg/kg ${r.route === 'po' ? 'per os' : 'IV'}, toutes les ${r.intervalH} h × ${r.count} (de ${dayLabel(r.startH)} à ${dayLabel(r.startH + (r.count - 1) * r.intervalH)})${om ? ` ; ${om} omise(s)` : ''}
+        ${esc(dname(r.drug))} : <button data-step="${i}:-1" title="−10 %">−</button><input data-mg="${i}" type="number" step="any" min="0" style="width:72px" value="${r.mgPerKg}"><button data-step="${i}:1" title="+10 %">+</button> mg/kg ${r.route === 'po' ? 'per os' : 'IV'}, toutes les ${r.intervalH} h × ${r.count} (de ${dayLabel(r.startH)} à ${dayLabel(r.startH + (r.count - 1) * r.intervalH)})${om ? ` ; ${om} omise(s)` : ''}
         <button data-ed="${i}">Modifier</button><button data-op="${i}">${T.open === i ? 'Masquer les prises' : 'Prises individuelles'}</button><button data-rm="${i}">Retirer</button></div>`;
       if (T.open === i) {
         s += '<div class="note">Dose de chaque prise (mg/kg) ; 0 = prise omise</div><div class="row">'
@@ -406,7 +406,7 @@ function renderTreatment(v) {
       return s;
     }).join('')
     + `<div class="row">Durée simulée : <b id="t-dl">${T.days}</b> j <input id="t-days" type="range" min="1" max="14" step="1" value="${T.days}" style="width:240px">
-       <button class="primary" id="t-sim" ${T.regimens.length ? '' : 'disabled'}>Simuler le traitement</button></div>`);
+       <span class="note">${T.regimens.length ? 'simulation mise à jour à chaque changement' : 'ajouter un schéma pour simuler'}</span></div>`);
   const r = T.r;
   if (r) {
     const h = r.plan.horizonH, i = nearest(r.t, T.cursor);
@@ -431,35 +431,43 @@ function renderTreatment(v) {
       html += card(`${ind[1]}${ind[2] ? ` (${ind[2]})` : ''} : ${fmt(r.states[k][j] * (ind[4] || 1), Math.max(ind[3], 2))} à ${dayLabel(r.state_t[j])}`, canvas('ti-' + k, 90));
     }
   }
+  const focus = focusKey();
   v.innerHTML = html;
+  restoreFocus(v, focus);
   // événements
+  const setRegimen = (i, reg) => { T.regimens = T.regimens.map((x, j) => (j === i ? reg : x)); resimulate(); };
+  const setDose = (i, val) => {
+    if (!(val >= 0)) return;
+    const old = T.regimens[i];
+    // les prises individuelles qui suivaient la dose nominale la suivent ; les autres restent modifiées
+    const overrides = Object.fromEntries(Object.entries(old.overrides || {}).filter(([, x]) => x !== val));
+    setRegimen(i, { ...old, mgPerKg: val, overrides });
+  };
   $('#t-add').onclick = () => {
     const reg = { drug: $('#t-drug').value, mgPerKg: +$('#t-dose').value, route: $('#t-route').value, intervalH: +$('#t-int').value, count: Math.round(+$('#t-n').value), startH: +$('#t-start').value || 0, overrides: {} };
     if (!(reg.mgPerKg >= 0 && reg.intervalH > 0 && reg.count >= 1 && reg.count <= 200)) return;
     if (T.editing === null) T.regimens = [...T.regimens, reg];
     else { const old = T.regimens[T.editing]; reg.overrides = Object.fromEntries(Object.entries(old.overrides || {}).filter(([k]) => +k < reg.count)); T.regimens = T.regimens.map((x, j) => (j === T.editing ? reg : x)); T.editing = null; }
-    render();
+    resimulate();
   };
   if ($('#t-cancel')) $('#t-cancel').onclick = () => { T.editing = null; render(); };
   for (const b of v.querySelectorAll('[data-ed]')) b.onclick = () => { T.editing = +b.dataset.ed; render(); };
   for (const b of v.querySelectorAll('[data-op]')) b.onclick = () => { T.open = T.open === +b.dataset.op ? null : +b.dataset.op; render(); };
-  for (const b of v.querySelectorAll('[data-rm]')) b.onclick = () => { T.regimens = T.regimens.filter((_, j) => j !== +b.dataset.rm); T.editing = null; T.open = null; render(); };
+  for (const b of v.querySelectorAll('[data-rm]')) b.onclick = () => { T.regimens = T.regimens.filter((_, j) => j !== +b.dataset.rm); T.editing = null; T.open = null; resimulate(); };
+  for (const inp of v.querySelectorAll('[data-mg]')) inp.onchange = () => setDose(+inp.dataset.mg, parseFloat(inp.value));
+  for (const b of v.querySelectorAll('[data-step]')) b.onclick = () => {
+    const [i, dir] = b.dataset.step.split(':').map(Number), x = T.regimens[i].mgPerKg;
+    setDose(i, x > 0 ? +(x * (dir > 0 ? 1.1 : 1 / 1.1)).toPrecision(3) : 0);
+  };
   for (const inp of v.querySelectorAll('[data-dose]')) inp.onchange = () => {
     const [i, k] = inp.dataset.dose.split(':').map(Number), val = parseFloat(inp.value);
     if (!(val >= 0)) return;
     const reg = { ...T.regimens[i], overrides: { ...(T.regimens[i].overrides || {}) } };
     if (val === reg.mgPerKg) delete reg.overrides[k]; else reg.overrides[k] = val;
-    T.regimens = T.regimens.map((x, j) => (j === i ? reg : x)); render();
+    setRegimen(i, reg);
   };
   $('#t-days').oninput = (e) => { T.days = +e.target.value; $('#t-dl').textContent = T.days; };
-  $('#t-sim').onclick = () => {
-    try {
-      T.r = S.ctl.treatment(S.inputs, { regimens: T.regimens, horizonH: T.days * 24 });
-      T.cursor = Math.min(T.cursor, T.days * 24);
-      if (!T.ref || !(T.ref in T.r.conc_mg_L)) T.ref = Object.keys(T.r.conc_mg_L)[0];
-      render();
-    } catch (e) { showError(e); }
-  };
+  $('#t-days').onchange = () => resimulate();
   if (!r) return;
   const setCursor = (t) => { T.cursor = Math.max(0, Math.min(r.plan.horizonH, t)); render(); };
   $('#t-cur').oninput = (e) => { T.cursor = +e.target.value; drawTreatment(); };
@@ -482,6 +490,45 @@ function renderTreatment(v) {
     setCursor(((e.clientX - rect.left - left) / (rect.width - left)) * r.plan.horizonH);
   };
   drawTreatment();
+}
+
+/**
+ * Resimule le traitement après tout changement de schéma ou de durée (plus de bouton « Simuler »).
+ * Si le patient est déjà examiné sous ce traitement, l'examen suit le nouveau schéma au même instant.
+ * Différé d'une tâche : sur Tab, « change » part avant que le focus n'atteigne le champ suivant,
+ * qu'on retrouve ainsi après le re-rendu.
+ */
+function resimulate() {
+  clearTimeout(S.treat.timer);
+  S.treat.timer = setTimeout(resimulateNow, 0);
+}
+function resimulateNow() {
+  const T = S.treat;
+  if (!T.regimens.length) { T.r = null; render(); return; }
+  try {
+    T.r = S.ctl.treatment(S.inputs, { regimens: T.regimens, horizonH: T.days * 24 });
+    T.cursor = Math.min(T.cursor, T.days * 24);
+    if (!T.ref || !(T.ref in T.r.conc_mg_L)) T.ref = Object.keys(T.r.conc_mg_L)[0];
+  } catch (e) { showError(e); render(); return; }
+  if (S.inputs.plan && S.inputs.atH !== null) {
+    const r = T.r, dead = r.death_t_h !== null && r.death_t_h !== undefined;
+    const cause = dead ? r.outcomes.find((x) => x.state === 'dead').cause : null;
+    S.inputs.plan = r.plan; S.inputs.atH = Math.min(S.inputs.atH, r.plan.horizonH);
+    S.inputs.death = dead ? { t_h: r.death_t_h, cause, label_fr: DEATH_FR[cause] || 'décès' } : null;
+    evaluate();
+  } else render();
+}
+
+/** Champ qui a le focus (identifié par id ou data-*), pour le retrouver après un re-rendu. */
+function focusKey() {
+  const f = document.activeElement;
+  if (!f || f === document.body) return null;
+  for (const a of ['id', 'data-mg', 'data-dose', 'data-step']) if (f.hasAttribute(a)) return `[${a}="${f.getAttribute(a)}"]`;
+  return null;
+}
+function restoreFocus(v, key) {
+  const el = key && v.querySelector(key);
+  if (el) { el.focus(); if (el.select && el.type === 'number') el.select(); }
 }
 
 /** Issue à l'instant du curseur et instant du décès éventuel. */

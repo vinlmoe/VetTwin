@@ -42,6 +42,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
+import kotlin.math.pow
 
 private val Ink = Color(0xFF1B2A35)
 private val Muted = Color(0xFF5B6B77)
@@ -81,6 +83,8 @@ fun TreatmentView(
     controller: DemoController,
     inputs: DemoInputs,
     onExamine: (TreatmentPlan, Double, Death?) -> Unit,
+    /** Patient déjà examiné sous traitement : le schéma modifié lui est réappliqué (même instant). */
+    onReplan: (TreatmentPlan, Death?) -> Unit = { _, _ -> },
     initialPlan: TreatmentPlan? = null,
     initialCursorH: Double? = null,
     autoSimulate: Boolean = false,
@@ -104,17 +108,31 @@ fun TreatmentView(
     var expanded by remember { mutableStateOf<Int?>(null) }
 
     fun simulate() {
+        if (regimens.isEmpty()) { result = null; return }
         try {
             error = null
             val plan = TreatmentPlan(regimens, days * 24.0)
-            result = controller.treatment(inputs, plan)
+            val r = controller.treatment(inputs, plan)
+            result = r
             cursor = cursor.coerceIn(0.0, plan.horizonH)
             if (refDrug !in regimens.map { it.drugId }) refDrug = regimens.firstOrNull()?.drugId
+            if (inputs.plan != null && inputs.atH != null) onReplan(r.plan, r.death)
         } catch (e: Exception) {
             error = e.message
         }
     }
-    if (autoSimulate) LaunchedEffect(Unit) { simulate() }
+    // Resimulation automatique à chaque changement de schéma ou de durée (plus de bouton « Simuler ») ;
+    // le court délai regroupe les frappes successives dans un champ.
+    var first by remember { mutableStateOf(true) }
+    LaunchedEffect(regimens, days) {
+        if (first) { first = false; if (!autoSimulate) return@LaunchedEffect } else delay(250)
+        simulate()
+    }
+    fun setDose(i: Int, mg: Double) {
+        if (mg < 0) return
+        // les prises individuelles qui suivaient la dose nominale la suivent ; les autres restent modifiées
+        regimens = regimens.mapIndexed { j, old -> if (j == i) old.copy(mgPerKg = mg, overrides = old.overrides.filterValues { it != mg }) else old }
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
@@ -150,8 +168,21 @@ fun TreatmentView(
             regimens.forEachIndexed { i, r ->
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Box(Modifier.width(12.dp).height(12.dp).background(DrugColors[i % DrugColors.size], RoundedCornerShape(3.dp)))
+                    Text("${drugs.first { it.id == r.drugId }.name} :", color = Ink, fontSize = 13.sp)
+                    OutlinedButton(onClick = { setDose(i, step(r.mgPerKg, -1)) }) { Text("−", fontSize = 12.sp) }
+                    // texte local : ne se recale que si la dose change ailleurs (± ou Modifier), pas pendant la frappe
+                    var mgTxt by remember(i) { mutableStateOf(r.mgPerKg.toString()) }
+                    LaunchedEffect(r.mgPerKg) { if (mgTxt.num() != r.mgPerKg) mgTxt = r.mgPerKg.toString() }
+                    OutlinedTextField(
+                        mgTxt,
+                        { v -> mgTxt = v; v.num()?.let { setDose(i, it) } },
+                        label = { Text("mg/kg", fontSize = 10.sp) },
+                        singleLine = true,
+                        modifier = Modifier.width(90.dp),
+                    )
+                    OutlinedButton(onClick = { setDose(i, step(r.mgPerKg, 1)) }) { Text("+", fontSize = 12.sp) }
                     Text(
-                        "${drugs.first { it.id == r.drugId }.name} : ${r.mgPerKg} mg/kg ${if (r.route == "po") "per os" else "IV"}, " +
+                        "${if (r.route == "po") "per os" else "IV"}, " +
                             "toutes les ${r.intervalH} h × ${r.count} (de ${dayLabel(r.startH)} à ${dayLabel(r.doseTimes().last())})" +
                             (r.overrides.count { it.value == 0.0 }.takeIf { it > 0 }?.let { " ; $it omise(s)" } ?: ""),
                         color = Ink, fontSize = 13.sp,
@@ -170,7 +201,8 @@ fun TreatmentView(
                     Text("Dose de chaque prise (mg/kg) ; 0 = prise omise", color = Muted, fontSize = 12.sp)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         r.doseTimes().forEachIndexed { k, t ->
-                            var txt by remember(i, k, r.doseAt(k)) { mutableStateOf(r.doseAt(k).toString()) }
+                            var txt by remember(i, k) { mutableStateOf(r.doseAt(k).toString()) }
+                            LaunchedEffect(r.doseAt(k)) { if (txt.num() != r.doseAt(k)) txt = r.doseAt(k).toString() }
                             OutlinedTextField(
                                 txt,
                                 { v ->
@@ -191,7 +223,7 @@ fun TreatmentView(
             FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Durée simulée : ${"%.0f".fmt(days)} j", color = Muted, fontSize = 13.sp)
                 Slider(value = days.toFloat(), onValueChange = { days = kotlin.math.round(it).toDouble() }, valueRange = 1f..14f, steps = 12, modifier = Modifier.width(260.dp))
-                Button(onClick = { simulate() }, enabled = regimens.isNotEmpty()) { Text("Simuler le traitement") }
+                Text(if (regimens.isEmpty()) "ajouter un schéma pour simuler" else "simulation mise à jour à chaque changement", color = Muted, fontSize = 12.sp)
             }
         }
         error?.let { Text("Erreur : $it", color = Color(0xFFB00020)) }
@@ -300,6 +332,15 @@ private fun extremum(t: DoubleArray, c: FloatArray, from: Double, forward: Boole
         if (isExt) return t[i]
     }
     return from
+}
+
+/** Pas de ±10 % sur la dose nominale, arrondi à 3 chiffres significatifs. */
+private fun step(mg: Double, dir: Int): Double {
+    if (mg <= 0.0) return 0.0
+    val x = if (dir > 0) mg * 1.1 else mg / 1.1
+    val d = (2 - kotlin.math.floor(kotlin.math.log10(x))).toInt()
+    val p = 10.0.pow(kotlin.math.abs(d))
+    return if (d >= 0) kotlin.math.round(x * p) / p else kotlin.math.round(x / p) * p
 }
 
 @Composable

@@ -147,6 +147,8 @@ fun App(
                     if (r != null && tab == 4) {
                         TreatmentView(controller, inputs, onExamine = { plan, t, death ->
                             inputs = inputs.copy(plan = plan, atH = t, death = death); run(); tab = 0
+                        }, onReplan = { plan, death ->
+                            inputs = inputs.copy(plan = plan, atH = inputs.atH?.coerceAtMost(plan.horizonH), death = death); run()
                         })
                     }
                     if (r != null && tab == 3) {
