@@ -286,9 +286,19 @@ fn run(argv: &[String]) -> Result<Json, Failure> {
             for (id, _) in &a.conc {
                 check_drug(&cat, id)?;
             }
-            Err(Failure::NotYet(
-                "eval : l'hémodynamique et les gaz du sang ne sont pas encore implémentés (jalons M2-M3)",
-            ))
+            if !a.conc.is_empty() || a.d.is_some_and(|x| x != 0.0) || a.u.is_some_and(|x| x != 0.0)
+            {
+                return Err(Failure::NotYet(
+                    "eval : les effets des médicaments (--conc, --D, --U) arrivent au jalon M4",
+                ));
+            }
+            let ev =
+                vetsim_core::evaluate(&pt.params).map_err(|e| Failure::Engine(e.to_string()))?;
+            let mut m = Map::new();
+            for (k, v) in ev.to_flat() {
+                m.insert(k.to_string(), Json::from(v));
+            }
+            Ok(Json::Object(m))
         }
         "pk" => {
             check_drug(&cat, a.drug.as_deref().unwrap_or_default())?;
