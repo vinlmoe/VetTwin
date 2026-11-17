@@ -156,7 +156,7 @@ fun AuscultationView(
             Chip("90", hrChoice == 90.0) { stopPlayback(); played = false; hrChoice = 90.0; generate() }
             Text("     Site", color = Muted, fontSize = 12.sp, modifier = Modifier.align(Alignment.CenterVertically))
             Chip("Base", site == "base") { stopPlayback(); played = false; site = "base"; generate() }
-            Chip("Apex (non calibré)", site == "apex") { stopPlayback(); played = false; site = "apex"; generate() }
+            Chip("Apex", site == "apex") { stopPlayback(); played = false; site = "apex"; generate() }
         }
         val r = result
         error?.let { Text("Erreur : $it", color = Color(0xFFB00020)) }

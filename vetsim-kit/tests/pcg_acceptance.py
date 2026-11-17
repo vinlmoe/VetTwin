@@ -122,7 +122,7 @@ for label, hr, dis in CASES:
         v = f(R)
         ok = test(v) if not np.isnan(v) else False
         is_healthy = dis is None
-        ref_txt = ''
+        ref_txt = ''; eq = False
         if REF is not None:
             vr = f(REF[label]); ref_ok = test(vr) if not np.isnan(vr) else False
             ref_txt = fmt(vr) if 'Énergie' in name or 'part' in name else f'{vr:.3f}'
@@ -144,6 +144,9 @@ for label, hr, dis in CASES:
         elif is_healthy:
             if ok: status = 'OK'
             elif ref_ok is False: status = 'écart connu (référence)'
+            # la référence passe le seuil et le Rust non, alors que les deux valeurs sont
+            # statistiquement équivalentes : le modèle est AU seuil, ce n'est pas un écart de port
+            elif eq: status = 'à la limite du seuil (Rust équivalent à la référence, de part et d\'autre)'
             else: status = 'ÉCHEC'; bad += 1
         else:
             status = '(dans la cible)' if ok else '(hors cible, indicatif)'

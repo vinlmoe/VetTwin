@@ -185,6 +185,8 @@
    "required": [
     "f0_hz",
     "tau_s",
+    "split_s",
+    "second_amp",
     "duration_s",
     "base_amp",
     "dpdt_ref",
@@ -229,6 +231,14 @@
     },
     "calibre_sur": {
      "type": "string"
+    },
+    "split_s": {
+     "type": "number",
+     "minimum": 0
+    },
+    "second_amp": {
+     "type": "number",
+     "minimum": 0
     }
    }
   },
@@ -383,6 +393,7 @@
     "band_hz",
     "filter_order",
     "amp",
+    "flow_exp",
     "flow_threshold",
     "jitter",
     "source",
@@ -432,6 +443,10 @@
     },
     "calibre_sur": {
      "type": "string"
+    },
+    "flow_exp": {
+     "type": "number",
+     "exclusiveMinimum": 0
     }
    }
   },

@@ -3,16 +3,19 @@
 //!
 //! Par battement (instants du module autonome, donc avec l'arythmie sinusale respiratoire) :
 //! - **B1** à la fermeture mitrale : 3 sinusoïdes amorties de fréquences voisines (spectre
-//!   large), attaque de 4 ms, phases aléatoires ; amplitude liée au dP/dt max du VG ;
+//!   large), attaque de 4 ms, phases aléatoires ; amplitude liée au dP/dt max du VG ; une
+//!   seconde composante (tricuspidienne) retardée donne à B1 sa durée mesurée ;
 //! - **B2** aortique puis pulmonaire, dédoublé à l'inspiration ; la systole raccourcit peu
 //!   quand le RR diminue ; amplitude liée à la pression de fermeture aortique ;
 //! - **B3** si la POG dépasse 15 mmHg (remplissage rapide) ;
-//! - **souffle** : bruit filtré dont l'enveloppe suit √(débit régurgitant simulé) ;
+//! - **souffle** : bruit filtré ; niveau = (débit régurgitant maximal)^flow_exp, forme dans le
+//!   battement = √(débit / débit maximal) ;
 //! - variabilité battement à battement, modulation respiratoire, bruit de fond de contact.
 //!
 //! Toutes les constantes viennent de `modules/auscultation.json` ([`AuscultationConfig`]).
-//! Calage fondé sur DEUX enregistrements (bibliothèque TiHo, CC BY-NC-ND 4.0, aucun
-//! enregistrement embarqué) : limite de validité, voir docs/AUSCULTATION.md.
+//! Calage sur les enregistrements de la bibliothèque TiHo (CC BY-NC-ND 4.0, aucun
+//! enregistrement embarqué) : mesures et limites dans docs/VERIFICATION_PCG.md et
+//! docs/AUSCULTATION.md.
 
 use crate::autonomic::{arange, interp};
 use crate::dsp::{butter_bandpass, interp_right, std};
@@ -69,6 +72,8 @@ pub struct AuscultationConfig {
     // s1
     pub s1_f0: f64,
     pub s1_tau: f64,
+    pub s1_split: f64,
+    pub s1_second_amp: f64,
     pub s1_duration: f64,
     pub s1_base: f64,
     pub s1_dpdt_ref: f64,
@@ -101,6 +106,7 @@ pub struct AuscultationConfig {
     pub murmur_band: (f64, f64),
     pub murmur_order: usize,
     pub murmur_amp: f64,
+    pub murmur_flow_exp: f64,
     pub murmur_flow_threshold: f64,
     pub murmur_jitter: (f64, f64),
     // variability
@@ -331,9 +337,11 @@ impl AuscultationConfig {
             rest_hr: r.pos("presets", "rest_hr"),
             guard_systole_frac: r.num("events", "guard_systole_frac"),
             components,
-            attack_tau_s: r.pos("sound", "attack_tau_s"),
             s1_f0: r.pos("s1", "f0_hz"),
+            attack_tau_s: r.pos("sound", "attack_tau_s"),
             s1_tau: r.pos("s1", "tau_s"),
+            s1_split: r.num("s1", "split_s"),
+            s1_second_amp: r.num("s1", "second_amp"),
             s1_duration: r.pos("s1", "duration_s"),
             s1_base: r.num("s1", "base_amp"),
             s1_dpdt_ref: r.pos("s1", "dpdt_ref"),
@@ -363,6 +371,7 @@ impl AuscultationConfig {
             murmur_band: r.pair("murmur", "band_hz"),
             murmur_order: r.order("murmur", "filter_order"),
             murmur_amp: r.num("murmur", "amp"),
+            murmur_flow_exp: r.pos("murmur", "flow_exp"),
             murmur_flow_threshold: r.num("murmur", "flow_threshold"),
             murmur_jitter: r.pair("murmur", "jitter"),
             gain_sd: r.num("variability", "gain_lognormal_sd"),
@@ -512,7 +521,7 @@ fn put(sig: &mut [f64], t0: f64, fs: f64, x: &[f64]) {
 /// Synthèse du PCG (`make_pcg` de la référence). `beat_times` : instants des battements du
 /// module autonome ; à défaut, battements réguliers de période `T` à partir de
 /// `first_beat_s`. Ordre des tirages de `noise` : bruit du souffle (N normales), puis par
-/// battement 2 lognormales, 3 + 3 + 3 phases uniformes, [1 uniforme si souffle], enfin bruit
+/// battement 2 lognormales, 3 + 3 phases (B1) et 3 + 3 phases (B2) uniformes, [1 uniforme si souffle], enfin bruit
 /// de fond (N normales).
 pub fn synthesize_pcg(
     h: &PcgInputs,
@@ -575,7 +584,7 @@ pub fn synthesize_pcg(
         0.0
     };
     let m_amp = if peak_reg > cfg.murmur_flow_threshold {
-        site.murmur_gain * cfg.murmur_amp * peak_reg.sqrt()
+        site.murmur_gain * cfg.murmur_amp * math::pow(peak_reg, cfg.murmur_flow_exp)
     } else {
         0.0
     };
@@ -596,8 +605,19 @@ pub fn synthesize_pcg(
         // la systole raccourcit peu quand le RR diminue
         let ts = (t_ac - t_mc) * math::pow(rr / period, cfg.s2_systole_rr_exp);
         beat_t_ac.push(t_mc + ts);
-        let b1 = s_sound(n1, fs, cfg.s1_f0, cfg.s1_tau, s1_amp * g1, cfg, noise);
-        put(&mut sig, b + t_mc, fs, &b1);
+        // B1 : composante mitrale puis composante tricuspidienne retardée
+        let m1 = s_sound(n1, fs, cfg.s1_f0, cfg.s1_tau, s1_amp * g1, cfg, noise);
+        put(&mut sig, b + t_mc, fs, &m1);
+        let t1 = s_sound(
+            n1,
+            fs,
+            cfg.s1_f0,
+            cfg.s1_tau,
+            s1_amp * g1 * cfg.s1_second_amp,
+            cfg,
+            noise,
+        );
+        put(&mut sig, b + t_mc + cfg.s1_split, fs, &t1);
         // inspiration : dédoublement physiologique de B2
         let insp = f64::max(0.0, math::sin(2.0 * PI * resp_hz * b));
         let split = cfg.s2_split_base + cfg.s2_split_insp * insp;
@@ -707,7 +727,7 @@ pub struct PcgBeat {
 /// ses propres événements mécaniques (fermetures mitrale et aortique, dP/dt, débit régurgitant,
 /// remplissage rapide), donc ses propres B1, B2, B3 et souffle. Les gains aléatoires (contact du
 /// stéthoscope) et la modulation respiratoire sont ceux de `synthesize_pcg`. Ordre des tirages :
-/// bruit du souffle (N normales), par battement 2 lognormales, 3 + 3 + 3 phases, [1 uniforme si
+/// bruit du souffle (N normales), par battement 2 lognormales, 3 + 3 phases (B1), 3 + 3 phases (B2), [1 uniforme si
 /// souffle], puis bruit de fond (N normales).
 pub fn synthesize_pcg_beats(
     beats: &[PcgBeat],
@@ -784,8 +804,19 @@ pub fn synthesize_pcg_beats(
         let resp = 1.0 + cfg.resp_mod * math::sin(2.0 * PI * resp_hz * b);
         let g1 = resp * noise.lognormal(0.0, cfg.gain_sd);
         let g2 = resp * noise.lognormal(0.0, cfg.gain_sd);
-        let b1 = s_sound(n1, fs, cfg.s1_f0, cfg.s1_tau, s1_amp * g1, cfg, noise);
-        put(&mut sig, b + t_mc, fs, &b1);
+        // B1 : composante mitrale puis composante tricuspidienne retardée
+        let m1 = s_sound(n1, fs, cfg.s1_f0, cfg.s1_tau, s1_amp * g1, cfg, noise);
+        put(&mut sig, b + t_mc, fs, &m1);
+        let t1 = s_sound(
+            n1,
+            fs,
+            cfg.s1_f0,
+            cfg.s1_tau,
+            s1_amp * g1 * cfg.s1_second_amp,
+            cfg,
+            noise,
+        );
+        put(&mut sig, b + t_mc + cfg.s1_split, fs, &t1);
         let insp = f64::max(0.0, math::sin(2.0 * PI * resp_hz * b));
         let split = cfg.s2_split_base + cfg.s2_split_insp * insp;
         let a2 = s_sound(
@@ -819,13 +850,21 @@ pub fn synthesize_pcg_beats(
                 .collect();
             let env = interp_right(&grid, &h.t, &qr, 0.0);
             let jitter = noise.uniform(cfg.murmur_jitter.0, cfg.murmur_jitter.1);
+            // niveau : k × (débit régurgitant maximal du battement)^flow_exp ;
+            // forme dans le battement : √(débit / débit maximal)
+            let pk = qr.iter().copied().fold(0.0, f64::max);
+            let level = if pk > 0.0 {
+                k_m * math::pow(pk, cfg.murmur_flow_exp) * resp * jitter
+            } else {
+                0.0
+            };
             let i0 = (b * fs) as usize;
             for (k, e) in env.iter().enumerate() {
                 let idx = i0 + k;
                 if idx >= n {
                     break;
                 }
-                sig[idx] += e.max(0.0).sqrt() * k_m * resp * jitter * mnoise[idx];
+                sig[idx] += (e.max(0.0) / pk.max(1e-9)).sqrt() * level * mnoise[idx];
             }
         }
     }

@@ -42,7 +42,7 @@ def signal_beats(p, cond, period0, warm, dur, end_margin):
 
 def make_pcg_beats(beats, la_mean, rng, fs=4000, dur=8.0, resp_hz=0.35, site='base'):
     """Synthèse battement par battement. Ordre des tirages : bruit du souffle (N normales), par
-    battement 2 lognormales, 3 + 3 + 3 phases, [1 uniforme si souffle], bruit de fond (N normales)."""
+    battement 2 lognormales, 3 + 3 phases (B1 mitral, tricuspidien), 3 + 3 phases (B2), [1 uniforme si souffle], bruit de fond (N normales)."""
     c = CFG
     st = c['sites'][site]
     N = int(dur * fs)
@@ -73,7 +73,10 @@ def make_pcg_beats(beats, la_mean, rng, fs=4000, dur=8.0, resp_hz=0.35, site='ba
         resp = 1.0 + c['variability']['resp_modulation'] * np.sin(2 * np.pi * resp_hz * b)
         g1 = resp * rng.lognormal(0, c['variability']['gain_lognormal_sd'])
         g2 = resp * rng.lognormal(0, c['variability']['gain_lognormal_sd'])
-        put(b + t_mc, V._s_sound(int(c['s1']['duration_s'] * fs), fs, c['s1']['f0_hz'], c['s1']['tau_s'], s1_amp * g1, rng))
+        n1 = int(c['s1']['duration_s'] * fs)
+        put(b + t_mc, V._s_sound(n1, fs, c['s1']['f0_hz'], c['s1']['tau_s'], s1_amp * g1, rng))
+        put(b + t_mc + c['s1']['split_s'], V._s_sound(n1, fs, c['s1']['f0_hz'], c['s1']['tau_s'],
+                                                      s1_amp * g1 * c['s1']['second_amp'], rng))
         insp = max(0.0, np.sin(2 * np.pi * resp_hz * b))
         split = c['s2']['split_base_s'] + c['s2']['split_insp_s'] * insp
         n2 = int(c['s2']['duration_s'] * fs)
@@ -87,7 +90,10 @@ def make_pcg_beats(beats, la_mean, rng, fs=4000, dur=8.0, resp_hz=0.35, site='ba
         if murmur_on:
             env = np.interp(np.arange(int(h['T'] * fs)) / fs, h['t'], q_reg(h), right=0.0)
             jitter = rng.uniform(*c['murmur']['jitter'])
-            env = np.sqrt(np.maximum(env, 0.0)) * k_m * resp * jitter
+            # niveau : k × (débit maximal du battement)^flow_exp ; forme : √(débit / débit maximal)
+            pk = max(float(q_reg(h).max()), 0.0)
+            level = k_m * pk ** c['murmur']['flow_exp'] * resp * jitter if pk > 0 else 0.0
+            env = np.sqrt(np.maximum(env, 0.0) / max(pk, 1e-9)) * level
             i0 = int(b * fs); seg = sig[i0:i0 + len(env)]
             sig[i0:i0 + len(seg)] += env[:len(seg)] * noise[i0:i0 + len(seg)]
     bgc = c['background']

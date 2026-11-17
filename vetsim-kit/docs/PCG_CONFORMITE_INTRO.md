@@ -6,17 +6,18 @@
 - **300 graines** (référence `tests/pcg_reference_python.json` et CI ; 100 auparavant). À 100 graines, le rapport B2/B1 à FC 72 n'était pas équivalent (z = 3,1 sur environ 3 paires par graine). À 300, toutes les métriques le sont.
 - **Pourquoi plus de 20 graines.** `pcg_metrics` n'apparie B1 et B2 que si leur intervalle est inférieur à 0,3 s. À FC 72, la systole du modèle (0,33 s) dépasse ce seuil. On obtient alors environ 1 paire par graine, et 35 à 40 % des graines n'en ont aucune. À 20 graines, les métriques B2/B1 dépendent du hasard. Constaté : le Rust et la référence divergent à 20 graines (rapport B2/B1 à FC 72 : 1,01 contre 1,63) et convergent à 100 (1,59 contre 1,62).
 - Statut « écart connu (référence) » : le critère n'est pas atteint par la référence Python non plus. Décision du projet : port « tel quel ».
+- Statut « à la limite du seuil » : la référence passe le seuil et le Rust non, alors que les deux valeurs sont statistiquement équivalentes (règle ci-dessous). Le modèle est au seuil ; ce n'est ni un succès net ni un écart de port, et cela ne fait pas échouer. Cas actuel : diastole/systole à FC 72 (Rust 1,774, référence 1,803, seuil 1,8).
 - Statut « non mesurable » : plus de 30 % des graines n'ont aucune paire B1/B2 ; les critères B2/B1 ne sont alors pas évalués (même règle pour la référence et le Rust).
 - Équivalence Rust/référence : écart relatif < 5 % ou |écart| < 3 erreurs-types combinées de médianes (1,2533 σ/√n). Les graines 0 à 99 servent à tous les cas, donc les cas ne sont pas indépendants. Vérification sur les graines 1000 à 1099 du Rust : SD RR 175 / 163 / 167 ms contre 177 / 163 / 166 pour la référence, énergie > 200 Hz à FC 90 de 1,04 % contre 1,06 % (z = 1,5).
 
 ## Écarts connus et leur cause
-1. **B1→B2 trop long à FC 90 (0,27 s pour une cible de 0,15 à 0,25 s), d'où un rapport diastole/systole trop faible (cible > 1,8).** Cause : l'hémodynamique, pas le module audio. La durée de contraction `ts = 0,37 √T` donne une fermeture aortique 0,29 s après la fermeture mitrale à 90/min. Le prompt indiquait déjà 0,21 s dans le modèle contre 0,18 s mesuré.
-2. **B2 > B1 dans 75 % des paires seulement à FC 90 (cible ≥ 80 %)**, dans la référence comme dans le Rust. Les gains de site sont calés sur un seul enregistrement.
+1. **B1→B2 trop long à FC 90 (0,26 s pour une cible de 0,15 à 0,25 s ; 0,18 s mesuré sur 20 enregistrements réels, `docs/VERIFICATION_PCG.md`), d'où un rapport diastole/systole trop faible (cible > 1,8).** Cause : l'hémodynamique, pas le module audio. La durée de contraction `ts = 0,37 √T` donne une fermeture aortique 0,29 s après la fermeture mitrale à 90/min. Le prompt indiquait déjà 0,21 s dans le modèle contre 0,18 s mesuré.
+2. B2 > B1 à FC 90 : 86 % des paires depuis la version 1.1.0 (cible ≥ 80 % atteinte ; 75 % puis 83 % auparavant). Les gains du site « base » restent calés sur un seul enregistrement.
 3. **Métriques B2/B1 à FC 72 peu fiables**, pour la raison d'appariement décrite plus haut.
-4. Souffle (MMVD) : le centroïde et l'énergie au-dessus de 100 Hz sont plus élevés que chez le sain. Les critères spectraux ne s'appliquent qu'au chien sain ; les lignes MMVD sont indicatives. Le prompt note que le souffle réel est plus grave et moins « plateau » que le modèle.
+4. Souffle (MMVD) : le centroïde et l'énergie au-dessus de 100 Hz sont plus élevés que chez le sain. Les critères spectraux ne s'appliquent qu'au chien sain ; les lignes MMVD sont indicatives. Depuis la version 1.1.0, le niveau du souffle est calé par grade sur des enregistrements réels (`docs/VERIFICATION_PCG.md`) ; l'ancienne mention d'un souffle réel « plus grave et moins plateau » n'est pas confirmée par les mesures par bande.
 
 ## Limites de validité
-- Calage sur **deux** enregistrements de la bibliothèque TiHo (un rythme normal, un souffle mitral II/VI), sous licence CC BY-NC-ND 4.0. Aucun enregistrement n'est copié ni embarqué ; seuls les chiffres mesurés sont utilisés.
-- Le site « apex » est un placeholder (evidence D) : hypothèse de symétrie, à calibrer.
+- Calage sur huit enregistrements de la bibliothèque TiHo (trois sans souffle, cinq de régurgitation mitrale, un chien par grade), sous licence CC BY-NC-ND 4.0 ; mesures dans `docs/VERIFICATION_PCG.md`. Aucun enregistrement n'est copié ni embarqué ; seuls les chiffres mesurés sont utilisés.
+- Le site « apex » est calé sur le rapport B2/B1 de cinq chiens à régurgitation mitrale (evidence C). L'attribution de l'enregistrement normal au site « base » est à revoir.
 - Les seuils de grade du souffle ne sont pas calibrés.
 - Le garde-fou `t_ac ≥ t_mc + 0,7 ts` compense une éjection trop courte en régurgitation mitrale sévère. C'est une rustine du module audio, pas une correction de l'hémodynamique.

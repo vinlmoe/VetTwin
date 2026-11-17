@@ -1,9 +1,9 @@
 {
  "schema_version": "1.0.0",
  "id": "auscultation",
- "version": "1.0.0",
+ "version": "1.1.0",
  "description": {
-  "fr": "Synthèse des bruits du cœur du chien (B1, B2 dédoublé, B3, souffle, bruit de fond) à partir de l'hémodynamique simulée et des instants de battement du module autonome. Valeurs reprises de reference/python/signals_pcg_v5.py (référence normative). Calage sur DEUX enregistrements de la bibliothèque TiHo (un rythme normal, un souffle mitral II/VI), sous licence CC BY-NC-ND 4.0 : aucun enregistrement n'est copié ni embarqué, seuls les chiffres mesurés sont utilisés."
+  "fr": "Synthèse des bruits du cœur du chien (B1, B2 dédoublé, B3, souffle, bruit de fond) à partir de l'hémodynamique simulée et des instants de battement du module autonome. Valeurs reprises de reference/python/signals_pcg_v5.py (référence normative). Calage sur la bibliothèque TiHo (Heartsound Library, Hanovre) : version 1.0.0 sur deux enregistrements ; version 1.1.0 (17/11/2026) recalée sur les mesures de docs/VERIFICATION_PCG.md (durée de B1, bruit de fond, souffle mitral par grade, site apex). Licence CC BY-NC-ND 4.0 : aucun enregistrement n'est copié ni embarqué, seuls les chiffres mesurés sont utilisés."
  },
  "defaults": {
   "fs": 4000,
@@ -37,13 +37,15 @@
  "s1": {
   "f0_hz": 70.0,
   "tau_s": 0.020,
+  "split_s": 0.022,
+  "second_amp": 0.9,
   "duration_s": 0.12,
   "base_amp": 0.5,
   "dpdt_ref": 1800.0,
   "cap": 2.0,
-  "source": "signals_pcg_v5.py : B1 à la fermeture mitrale, amplitude 0,5 × min(2, dP/dt max / 1800)",
+  "source": "signals_pcg_v5.py : B1 à la fermeture mitrale, amplitude 0,5 × min(2, dP/dt max / 1800) ; seconde composante (tricuspidienne) retardée de split_s, d'amplitude relative second_amp",
   "evidence": "C",
-  "calibre_sur": "enregistrement normal TiHo"
+  "calibre_sur": "enregistrement normal TiHo (spectre) ; split_s et second_amp ajustés sur la durée de B1 de 8 enregistrements TiHo (largeur à mi-hauteur de l'enveloppe 44 ms, montée 18,6 ms, descente 21,5 ms ; docs/VERIFICATION_PCG.md)"
  },
  "s2": {
   "f0_aortic_hz": 96.0,
@@ -78,14 +80,15 @@
   "calibre_sur": "aucun enregistrement"
  },
  "murmur": {
-  "band_hz": [60.0, 250.0],
-  "filter_order": 3,
-  "amp": 0.016,
+  "band_hz": [60.0, 200.0],
+  "filter_order": 2,
+  "amp": 0.00054,
+  "flow_exp": 1.15,
   "flow_threshold": 3.0,
   "jitter": [0.7, 1.2],
-  "source": "signals_pcg_v5.py : bruit gaussien filtré (Butterworth passe-bande), enveloppe √(q_reg/q_reg max), amplitude 0,016 × √(q_reg max) si q_reg max > 3 mL/s, facteur par battement uniforme(0,7 ; 1,2)",
+  "source": "signals_pcg_v5.py : bruit gaussien filtré (Butterworth passe-bande), enveloppe √(q_reg/q_reg max), amplitude amp × (q_reg max)^flow_exp si q_reg max > 3 mL/s, facteur par battement uniforme(0,7 ; 1,2)",
   "evidence": "C",
-  "calibre_sur": "enregistrement TiHo d'un souffle mitral II/VI ; le souffle réel est plus grave et moins « plateau » que le modèle"
+  "calibre_sur": "4 enregistrements TiHo de régurgitation mitrale à l'apex gauche (grades 2, 3, 4 et 5/6) : niveau systolique par bande (100–200, 200–400, 400–800 Hz) rapporté à B1, bruit de fond diastolique retiré ; écart quadratique moyen d'environ 3 dB (docs/VERIFICATION_PCG.md). Un chien par grade ; la correspondance grade ↔ débit reste celle, non calibrée, du groupe grade"
  },
  "variability": {
   "gain_lognormal_sd": 0.18,
@@ -95,15 +98,15 @@
   "calibre_sur": "variabilité battement à battement de l'enregistrement normal TiHo"
  },
  "background": {
-  "band_hz": [35.0, 220.0],
-  "filter_order": 2,
-  "amp": 0.010,
+  "band_hz": [40.0, 155.0],
+  "filter_order": 4,
+  "amp": 0.014,
   "swell_base": 0.6,
   "swell_amp": 0.4,
   "swell_phase": 1.0,
-  "source": "signals_pcg_v5.py : bruit de contact filtré (Butterworth passe-bande), amplitude 0,010, modulé par la respiration (0,6 + 0,4 sin²(2π f_resp t + 1))",
-  "evidence": "D",
-  "calibre_sur": "écoute de l'enregistrement normal TiHo (qualitatif)"
+  "source": "signals_pcg_v5.py : bruit de contact filtré (Butterworth passe-bande), modulé par la respiration (0,6 + 0,4 sin²(2π f_resp t + 1))",
+  "evidence": "C",
+  "calibre_sur": "niveau diastolique par bande de 3 enregistrements TiHo sans souffle, rapporté à B1 : 50–100 Hz −20,3 dB, 100–200 Hz −21,8 dB, 200–400 Hz −39,3 dB (médianes ; docs/VERIFICATION_PCG.md). La modulation respiratoire reste qualitative"
  },
  "grade": {
   "thresholds_ml_s": [10, 25, 50, 80, 120],
@@ -120,15 +123,15 @@
    "murmur_gain": 0.7,
    "source": "signals_pcg_v5.py : gains de site calés pour B2 médian = 1,9 × B1 (B2 > B1 dans 97 % des paires)",
    "evidence": "C",
-   "calibre_sur": "UN enregistrement normal de la bibliothèque TiHo (foyer de la base : B2 > B1)"
+   "calibre_sur": "UN enregistrement normal de la bibliothèque TiHo (B2/B1 = 1,93, le plus élevé des 23 enregistrements mesurés ; la bibliothèque le décrit comme pris à l'apex gauche : attribution au site « base » à revoir, docs/VERIFICATION_PCG.md). Gain du souffle à la base : aucun enregistrement"
   },
   "apex": {
-   "s1_gain": 2.48,
-   "s2_gain": 0.875,
+   "s1_gain": 1.5,
+   "s2_gain": 3.1,
    "murmur_gain": 0.7,
-   "source": "PLACEHOLDER : hypothèse de symétrie (rapport B1/B2 à l'apex = rapport B2/B1 à la base, soit gains de base échangés et ramenés aux amplitudes de B1 et B2 : 3,1 × 0,4/0,5 et 0,7 × 0,5/0,4) ; souffle inchangé",
-   "evidence": "D",
-   "calibre_sur": "aucun enregistrement : à calibrer (PROMPT_AUSCULTATION.md)"
+   "source": "gains ajustés pour un rapport B2/B1 d'environ 0,8 chez le chien atteint de MMVD (B2 comme à la base, B1 renforcé)",
+   "evidence": "C",
+   "calibre_sur": "5 enregistrements TiHo de régurgitation mitrale à l'apex gauche (grades 1 à 5/6) : rapport B2/B1 médian 0,82 (0,53 à 0,92) ; docs/VERIFICATION_PCG.md. Le souffle (murmur.amp) est calé à ce site"
   }
  }
 }
