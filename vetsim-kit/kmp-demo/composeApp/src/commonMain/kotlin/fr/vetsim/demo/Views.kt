@@ -67,7 +67,18 @@ fun RespirationView(r: DemoResult) {
         TracePanel("Volume pulmonaire au-dessus de la fin d'expiration (mL), $seconds s", rs.volume, Color(0xFF0B5E7A), unit = "mL")
         TracePanel("Débit respiratoire (mL/s) : > 0 inspiration, < 0 expiration", rs.flow, Color(0xFF5B8C2A), unit = "mL/s", zeroLine = true)
         TracePanel("Fréquence cardiaque instantanée (/min) : arythmie sinusale respiratoire", rs.hr, Color(0xFF0B7A55), unit = "/min")
-        TracePanel("Pression artérielle moyenne instantanée (mmHg) : variation respiratoire", rs.map, DiseaseRed, unit = "mmHg")
+        TracePanel(
+            "Pressions artérielles instantanées (mmHg) : systolique, moyenne, diastolique",
+            listOf(rs.sap to DiseaseRed, rs.map to Color(0xFF7A3E9D), rs.dap to DrugBlue),
+            unit = "mmHg", height = 160,
+            legend = listOf("PAS" to DiseaseRed, "PAM" to Color(0xFF7A3E9D), "PAD" to DrugBlue),
+        )
+        Text(
+            "PAS et PAD = PAM instantanée du modèle autonome ± écart du battement simulé " +
+                "(PAS ${"%.0f".fmt(rs.sap.average())}, PAD ${"%.0f".fmt(rs.dap.average())} mmHg en moyenne) : " +
+                "la pression pulsée est supposée constante, le modèle ne simule pas les battements un par un.",
+            color = Muted, fontSize = 12.sp,
+        )
         Text(
             "Mêmes instants que l'ECG : à l'inspiration, le tonus vagal central est inhibé (porte respiratoire), " +
                 "la FC monte ; la PA varie avec le volume pulmonaire et, avec retard, par le baroréflexe.",
@@ -77,14 +88,32 @@ fun RespirationView(r: DemoResult) {
 }
 
 @Composable
-private fun TracePanel(title: String, v: FloatArray, color: Color, unit: String, zeroLine: Boolean = false) {
+private fun TracePanel(title: String, v: FloatArray, color: Color, unit: String, zeroLine: Boolean = false) =
+    TracePanel(title, listOf(v to color), unit, zeroLine = zeroLine)
+
+@Composable
+private fun TracePanel(
+    title: String,
+    series: List<Pair<FloatArray, Color>>,
+    unit: String,
+    zeroLine: Boolean = false,
+    height: Int = 110,
+    legend: List<Pair<String, Color>> = emptyList(),
+) {
     val measurer = rememberTextMeasurer()
     Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(12.dp)).padding(12.dp)) {
-        Text(title, fontWeight = FontWeight.SemiBold, color = Ink, fontSize = 14.sp)
-        Canvas(Modifier.fillMaxWidth().height(110.dp)) {
-            if (v.isEmpty()) return@Canvas
-            val lo = v.min()
-            val hi = v.max()
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(title, fontWeight = FontWeight.SemiBold, color = Ink, fontSize = 14.sp)
+            legend.forEach { (l, c) ->
+                Box(Modifier.width(16.dp).height(3.dp).background(c))
+                Text(l, color = Muted, fontSize = 12.sp)
+            }
+        }
+        Canvas(Modifier.fillMaxWidth().height(height.dp)) {
+            val all = series.flatMap { it.first.asIterable() }
+            if (all.isEmpty()) return@Canvas
+            val lo = all.min()
+            val hi = all.max()
             val span = (hi - lo).takeIf { it > 1e-6f } ?: 1f
             val left = 56f
             val w = size.width - left
@@ -95,12 +124,14 @@ private fun TracePanel(title: String, v: FloatArray, color: Color, unit: String,
                 drawLine(Color(0xFFE6EAEE), Offset(left, y(tick)), Offset(size.width, y(tick)))
             }
             if (zeroLine && lo < 0f && hi > 0f) drawLine(EdgeGray, Offset(left, y(0f)), Offset(size.width, y(0f)))
-            val path = Path()
-            v.forEachIndexed { i, x ->
-                val px = left + i.toFloat() / (v.size - 1).coerceAtLeast(1) * w
-                if (i == 0) path.moveTo(px, y(x)) else path.lineTo(px, y(x))
+            for ((v, color) in series) {
+                val path = Path()
+                v.forEachIndexed { i, x ->
+                    val px = left + i.toFloat() / (v.size - 1).coerceAtLeast(1) * w
+                    if (i == 0) path.moveTo(px, y(x)) else path.lineTo(px, y(x))
+                }
+                drawPath(path, color, style = Stroke(width = 2f))
             }
-            drawPath(path, color, style = Stroke(width = 2f))
         }
     }
 }

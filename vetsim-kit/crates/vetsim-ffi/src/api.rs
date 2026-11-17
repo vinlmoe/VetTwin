@@ -642,6 +642,18 @@ fn signals_json(
             }
         })
         .collect();
+    // PAS et PAD instantanées : PAM instantanée du modèle autonome décalée de l'écart PAS − PAM
+    // et PAD − PAM du battement simulé (pression pulsée supposée constante sur la fenêtre :
+    // le modèle hémodynamique ne simule pas les battements un par un).
+    let hs = &ev.hemo.summary;
+    let sap: Vec<f64> = au.map[..n_resp]
+        .iter()
+        .map(|m| m + (hs.sap - hs.map))
+        .collect();
+    let dap: Vec<f64> = au.map[..n_resp]
+        .iter()
+        .map(|m| m + (hs.dap - hs.map))
+        .collect();
     Ok(json!({
         "ecg": f32s(&s.ecg.v), "ecg_fs": fs, "r_times": s.ecg.r_times,
         "ecg_features": { "pr": f.pr, "qrs": f.qrs, "qt": f.qt, "p_amp": f.p_amp, "t_amp": f.t_amp, "r_amp": f.r_amp },
@@ -654,7 +666,8 @@ fn signals_json(
         "hrv": hrv,
         "respiration": { "fs": fs_resp, "rr_per_min": ev.metabolic.art.rr, "vt_alv_mL": vt_alv_ml,
                          "volume_mL": f32s(&volume), "flow_mL_s": f32s(&flow),
-                         "hr": f32s(&au.hr[..n_resp]), "map": f32s(&au.map[..n_resp]) },
+                         "hr": f32s(&au.hr[..n_resp]), "map": f32s(&au.map[..n_resp]),
+                         "sap": f32s(&sap), "dap": f32s(&dap) },
     }))
 }
 
@@ -765,6 +778,12 @@ mod tests {
             .collect();
         assert_eq!(vol.len(), 80);
         assert_eq!(r["hr"].as_array().unwrap().len(), 80);
+        let (sap0, dap0, map0) = (
+            r["sap"][0].as_f64().unwrap(),
+            r["dap"][0].as_f64().unwrap(),
+            r["map"][0].as_f64().unwrap(),
+        );
+        assert!(sap0 > map0 && map0 > dap0, "{sap0} {map0} {dap0}");
         let vt = r["vt_alv_mL"].as_f64().unwrap();
         assert!(
             vol.iter().all(|v| *v >= -1e-3 && *v <= vt + 1e-3),

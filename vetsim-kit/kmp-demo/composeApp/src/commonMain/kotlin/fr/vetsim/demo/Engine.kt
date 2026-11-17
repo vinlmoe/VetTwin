@@ -51,6 +51,8 @@ data class Respiration(
     val flow: FloatArray,
     val hr: FloatArray,
     val map: FloatArray,
+    val sap: FloatArray,
+    val dap: FloatArray,
 )
 
 data class Sign(val label: String, val source: String)
@@ -193,6 +195,7 @@ class DemoController(private val engine: VetsimEngine = createEngine()) {
                 fs = rs["fs"]!!.d(), rrPerMin = rs["rr_per_min"]!!.d(), vtAlvMl = rs["vt_alv_mL"]!!.d(),
                 volume = rs["volume_mL"]!!.floats(), flow = rs["flow_mL_s"]!!.floats(),
                 hr = rs["hr"]!!.floats(), map = rs["map"]!!.floats(),
+                sap = rs["sap"]!!.floats(), dap = rs["dap"]!!.floats(),
             ),
             changes = changes,
             diseaseId = inp.diseaseId,
