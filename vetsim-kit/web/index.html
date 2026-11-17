@@ -19,17 +19,19 @@
     <p class="warn">Outil pédagogique : ne jamais utiliser pour décider d'une dose ou d'un traitement réel. Les niveaux de preuve [A–D] sont ceux des modules ; D = placeholder.</p>
   </aside>
   <main>
-    <div id="error" class="error" hidden></div>
-    <div id="outcome-banner" hidden></div>
-    <h2 id="case-label">Chargement du moteur…</h2>
-    <nav id="tabs">
-      <button data-tab="patient" class="on">Patient</button>
-      <button data-tab="respiration">Respiration</button>
-      <button data-tab="model">Schéma du modèle</button>
-      <button data-tab="auscultation">Auscultation</button>
-      <button data-tab="treatment">Traitement (PK/PD)</button>
-    </nav>
-    <section id="view"></section>
+    <header class="case">
+      <h2 id="case-label">Chargement du moteur…</h2>
+      <nav id="tabs" role="tablist" aria-label="Vues du patient">
+        <button role="tab" data-tab="patient" class="on">Patient</button>
+        <button role="tab" data-tab="respiration">Respiration</button>
+        <button role="tab" data-tab="model">Schéma du modèle</button>
+        <button role="tab" data-tab="auscultation">Auscultation</button>
+        <button role="tab" data-tab="treatment">Traitement (PK/PD)</button>
+      </nav>
+    </header>
+    <div id="error" class="error" role="alert" hidden></div>
+    <div id="outcome-banner" role="status" hidden></div>
+    <section id="view" role="tabpanel"></section>
   </main>
   <script type="module" src="app.js"></script>
 </body>

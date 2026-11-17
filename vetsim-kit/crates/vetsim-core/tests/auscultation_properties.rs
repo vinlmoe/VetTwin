@@ -95,19 +95,36 @@ fn beats_are_those_of_the_autonomic_model() {
     );
     let r = patient_pcg(&ev, &c, &PcgOptions::default(), 5).unwrap();
     assert!(!r.beats.is_empty());
-    for (b, s) in r.beats.iter().zip(&au.beats) {
-        let pr = b - s;
+    // fenêtre des signaux décalée de SIGNAL_WARM_S ; chaque battement suit la dernière décharge
+    // sinusale qui le précède (un battement du début de la fenêtre peut venir d'une décharge
+    // antérieure à la fenêtre)
+    let w = vetsim_core::signals::SIGNAL_WARM_S;
+    let sinus: Vec<f64> = au.beats.iter().map(|b| b - w).collect();
+    let k_of = |b: f64| {
+        sinus
+            .iter()
+            .rposition(|s| *s < b)
+            .expect("décharge précédente")
+    };
+    let mut prs = Vec::new();
+    let mut rr = Vec::new();
+    for &b in &r.beats {
+        let k = k_of(b);
+        let pr = b - sinus[k];
         assert!(
             (0.08..0.2).contains(&pr),
-            "battement {b} / décharge {s} : PR {pr}"
+            "battement {b} / décharge {} : PR {pr}",
+            sinus[k]
         );
+        if k > 0 {
+            prs.push(pr);
+            rr.push(sinus[k] - sinus[k - 1]);
+        }
     }
     // PR dépendant de la récupération nodale : plus l'intervalle sinusal précédent est court,
     // plus le PR est long (corrélation négative avec l'arythmie respiratoire)
-    let prs: Vec<f64> = r.beats.iter().zip(&au.beats).map(|(b, s)| b - s).collect();
-    let rr: Vec<f64> = au.beats.windows(2).map(|w| w[1] - w[0]).collect();
-    let n = prs.len().min(rr.len() + 1) - 1;
-    let (x, y) = (&rr[..n], &prs[1..=n]);
+    let n = prs.len();
+    let (x, y) = (&rr[..], &prs[..]);
     let (mx, my) = (
         x.iter().sum::<f64>() / n as f64,
         y.iter().sum::<f64>() / n as f64,
@@ -132,22 +149,17 @@ fn mild_mmvd_has_a_visible_holosystolic_murmur_and_s1_not_below_healthy() {
         healthy.features.s1
     );
     // « visible » : en systole, l'énergie du signal entre la fin de B1 et A2 dépasse nettement
-    // celle du sain. Fenêtre de chaque battement : de t_mc + durée de B1 (configuration) à
-    // l'instant de A2 de CE battement, t_mc + (t_ac − t_mc)·(RR/période)^systole_rr_exp − 0,02 s
-    // (même loi que la synthèse). L'ancienne fenêtre fixe (t_mc + 0,06 s à t_ac − 0,02 s)
-    // contenait la fin de B1 et, sur les RR courts, A2 : corrigé le 17/11/2026 après que
-    // l'oreillette contractile a raccourci les RR de l'arythmie respiratoire (A2 dans la fenêtre).
+    // celle du sain. Synthèse battement par battement : B1 et A2 sont placés aux fermetures
+    // mitrale et aortique de chaque battement ; fenêtre de t_mc + durée de B1 (configuration) à
+    // t_ac − 0,02 s de CE battement (l'éjection raccourcit sur les RR courts).
     let a = serde_json::from_str::<serde_json::Value>(&read("modules/auscultation.json")).unwrap();
     let s1_dur = a["s1"]["duration_s"].as_f64().unwrap();
-    let rr_exp = a["s2"]["systole_rr_exp"].as_f64().unwrap();
-    let systolic_rms = |r: &vetsim_core::pcg::PcgResult, period: f64| {
+    let systolic_rms = |r: &vetsim_core::pcg::PcgResult| {
         let mut acc = (0.0, 0usize);
-        for (i, b) in r.beats.iter().enumerate() {
-            let rr = r.beats.get(i + 1).map_or(period, |n| n - b);
-            let a2 = r.t_mc + (r.t_ac - r.t_mc) * vetsim_core::math::pow(rr / period, rr_exp);
+        for (k, b) in r.beats.iter().enumerate() {
             let (i0, i1) = (
-                ((b + r.t_mc + s1_dur) * r.fs) as usize,
-                ((b + a2 - 0.02) * r.fs) as usize,
+                ((b + r.beat_t_mc[k] + s1_dur) * r.fs) as usize,
+                ((b + r.beat_t_ac[k] - 0.02) * r.fs) as usize,
             );
             for x in &r.samples[i0.min(r.samples.len())..i1.min(r.samples.len())] {
                 acc.0 += x * x;
@@ -156,10 +168,7 @@ fn mild_mmvd_has_a_visible_holosystolic_murmur_and_s1_not_below_healthy() {
         }
         (acc.0 / acc.1 as f64).sqrt()
     };
-    let (h, m) = (
-        systolic_rms(&healthy, dog(None, None).hemo.timing.period),
-        systolic_rms(&mmvd, dog(None, Some(0.3)).hemo.timing.period),
-    );
+    let (h, m) = (systolic_rms(&healthy), systolic_rms(&mmvd));
     assert!(m > 3.0 * h, "énergie systolique MMVD {m} / sain {h}");
 }
 

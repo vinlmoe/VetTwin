@@ -27,8 +27,22 @@ pub fn activation(t: f64, period: f64, ts: f64, tr: f64) -> f64 {
 
 /// Pression ventriculaire : `e·Ees·(V − V0) + (1 − e)·a·(exp(clip(b(V − V0), −20, 8)) − 1)`.
 pub fn ventricular_pressure(v: f64, e: f64, ees: f64, v0: f64, a: f64, b: f64) -> f64 {
+    ventricular_pressure_beat(v, e, e, ees, v0, a, b)
+}
+
+/// Pression ventriculaire battement par battement : élastance active `e_act·Ees` (amplitude
+/// propre du battement) + raideur passive pondérée par `1 − e` (miroir de `physio._vent_p`).
+pub fn ventricular_pressure_beat(
+    v: f64,
+    e: f64,
+    e_act: f64,
+    ees: f64,
+    v0: f64,
+    a: f64,
+    b: f64,
+) -> f64 {
     let x = (b * (v - v0)).clamp(-20.0, 8.0);
-    e * ees * (v - v0) + (1.0 - e) * a * (math::exp(x) - 1.0)
+    e_act * ees * (v - v0) + (1.0 - e) * a * (math::exp(x) - 1.0)
 }
 
 /// Débit valvulaire (diode lisse) : `σ = ½(1 + tanh(Δp/0,3))`,
@@ -86,10 +100,15 @@ pub struct Timing {
 }
 
 impl Timing {
-    /// Rythme pour une FC (/min).
+    /// Rythme pour une FC (/min), coefficient de systole historique 0,37.
     pub fn from_hr(hr: f64) -> Self {
+        Self::from_hr_coef(hr, 0.37)
+    }
+
+    /// Rythme pour une FC (/min) et une systole `ts = ts_coef·√T`.
+    pub fn from_hr_coef(hr: f64, ts_coef: f64) -> Self {
         let period = 60.0 / hr;
-        let ts = 0.37 * period.sqrt();
+        let ts = ts_coef * period.sqrt();
         Self {
             period,
             ts,
@@ -246,7 +265,7 @@ pub fn simulate_hemo_pr(p: &Params, n_beats: usize, pr: Option<f64>) -> Result<H
     if !(p.hr.is_finite() && p.hr > 0.0) {
         return Err(Error::InvalidInput(format!("FC {} /min", p.hr)));
     }
-    let mut tm = Timing::from_hr(p.hr);
+    let mut tm = Timing::from_hr_coef(p.hr, p.ts_coef);
     tm.pr = pr;
     let t_end = n_beats as f64 * tm.period;
     // Échantillons comme np.arange(t_end − 2T, t_end, dt) (y compris le calcul de numpy :
@@ -391,15 +410,17 @@ mod tests {
 // Miroir de `physio.simulate_hemo_beats` : la séquence de battements vient de la couche de
 // conduction (`rhythm`), chaque battement a son activation propre.
 
-/// Battement ventriculaire : début, durée de systole, durée de relaxation (s).
+/// Battement ventriculaire : début, durée de systole, durée de relaxation (s), amplitude.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Beat {
     /// Début de l'activation (s).
     pub t: f64,
-    /// Systole `0,37·√RR` (RR = intervalle qui précède).
+    /// Systole `ts_coef·√T·(RR/T)^ts_restitution` (T = période moyenne, RR = intervalle qui précède).
     pub ts: f64,
     /// Relaxation `0,4·ts`.
     pub tr: f64,
+    /// Amplitude d'élastance active (relation force-intervalle × dyssynchronie ; 1 en régime établi).
+    pub c: f64,
 }
 
 /// Activation d'un battement isolé, `tau` secondes après son début.
@@ -413,22 +434,47 @@ pub fn activation_single(tau: f64, ts: f64, tr: f64) -> f64 {
     }
 }
 
-/// Battements ventriculaires et activations atriales organisées d'une séquence de conduction.
-pub fn beat_schedule(cond: &crate::rhythm::Conduction, period0: f64) -> (Vec<Beat>, Vec<f64>) {
-    let tv: Vec<f64> = cond.ventricular.iter().map(|b| b.t).collect();
-    let beats = tv
-        .iter()
-        .enumerate()
-        .map(|(i, &t)| {
-            let rr = if i > 0 { t - tv[i - 1] } else { period0 };
-            let ts = 0.37 * rr.sqrt();
-            Beat {
-                t,
-                ts,
-                tr: 0.4 * ts,
-            }
-        })
-        .collect();
+/// Battements ventriculaires et activations atriales organisées d'une séquence de conduction
+/// (miroir de `physio.beat_schedule`).
+///
+/// Amplitude `c` : modèle de recirculation du Ca²⁺ à deux compartiments du réticulum. Depuis la
+/// fin de la systole précédente, le compartiment de captation (contenu `u`) se vide vers celui de
+/// libération avec la constante `ca_tau` ; le battement libère `u·(1 − exp(−d/ca_tau))` ; une
+/// fraction `ca_recirc` du Ca²⁺ libéré est recaptée, l'entrée transsarcolemmale apporte
+/// `1 − ca_recirc`. Régime établi : libération 1 à toute fréquence. Battement prématuré : moins
+/// de Ca²⁺ (restitution) ; battement suivant : Ca²⁺ resté en attente (potentialisation).
+/// QRS large (activation hors Purkinje) : amplitude × `ees_wide`.
+pub fn beat_schedule(
+    cond: &crate::rhythm::Conduction,
+    period0: f64,
+    p: &Params,
+) -> (Vec<Beat>, Vec<f64>) {
+    let ts0 = p.ts_coef * period0.sqrt();
+    let (tau, rho) = (p.ca_tau, p.ca_recirc);
+    let mut u = 1.0 / (1.0 - math::exp(-(period0 - ts0) / tau));
+    let mut ts_prev = ts0;
+    let mut beats = Vec::with_capacity(cond.ventricular.len());
+    for (i, vb) in cond.ventricular.iter().enumerate() {
+        let t = vb.t;
+        let rr = if i > 0 {
+            t - cond.ventricular[i - 1].t
+        } else {
+            period0
+        };
+        // systole adaptée à la fréquence moyenne, restitution modeste au RR précédent
+        let ts = p.ts_coef * period0.sqrt() * math::pow(rr / period0, p.ts_restitution);
+        let x = math::exp(-f64::max(0.0, rr - ts_prev) / tau);
+        let rel = u * (1.0 - x);
+        u = u * x + rho * rel + (1.0 - rho);
+        let c = rel * if vb.wide { p.ees_wide } else { 1.0 };
+        beats.push(Beat {
+            t,
+            ts,
+            tr: 0.4 * ts,
+            c,
+        });
+        ts_prev = ts;
+    }
     let atr = cond
         .atrial
         .iter()
@@ -438,14 +484,18 @@ pub fn beat_schedule(cond: &crate::rhythm::Conduction, period0: f64) -> (Vec<Bea
     (beats, atr)
 }
 
-/// Activation ventriculaire (max des deux derniers battements) et atriale à l'instant `t`.
-fn activations_at(t: f64, beats: &[Beat], atr: &[f64], p: &Params) -> (f64, f64) {
+/// Activation ventriculaire (max des deux derniers battements), activation active (max des
+/// activations pondérées par l'amplitude de chaque battement) et atriale à l'instant `t`.
+fn activations_at(t: f64, beats: &[Beat], atr: &[f64], p: &Params) -> (f64, f64, f64) {
     let i = beats.partition_point(|b| b.t <= t) as isize - 1;
     let mut e: f64 = 0.0;
+    let mut e_act: f64 = 0.0;
     for j in [i - 1, i] {
         if j >= 0 && (j as usize) < beats.len() {
             let b = beats[j as usize];
-            e = e.max(activation_single(t - b.t, b.ts, b.tr));
+            let a = activation_single(t - b.t, b.ts, b.tr);
+            e = e.max(a);
+            e_act = e_act.max(b.c * a);
         }
     }
     let k = atr.partition_point(|&a| a <= t) as isize - 1;
@@ -455,7 +505,7 @@ fn activations_at(t: f64, beats: &[Beat], atr: &[f64], p: &Params) -> (f64, f64)
             ea = ea.max(activation_single(t - atr[j as usize], p.ta_atr, p.tra_atr));
         }
     }
-    (e, ea)
+    (e, e_act, ea)
 }
 
 fn flows_beats(
@@ -466,10 +516,10 @@ fn flows_beats(
     atr: &[f64],
 ) -> (Pressures, Flows, f64, f64) {
     let [lv, rv, ao, sv, pa, pv] = *v;
-    let (e, ea) = activations_at(t, beats, atr, p);
+    let (e, e_act, ea) = activations_at(t, beats, atr, p);
     let pr = Pressures {
-        lv: ventricular_pressure(lv, e, p.ees_lv, p.v0_lv, p.a_lv, p.b_lv),
-        rv: ventricular_pressure(rv, e, p.ees_rv, p.v0_rv, p.a_rv, p.b_rv),
+        lv: ventricular_pressure_beat(lv, e, e_act, p.ees_lv, p.v0_lv, p.a_lv, p.b_lv),
+        rv: ventricular_pressure_beat(rv, e, e_act, p.ees_rv, p.v0_rv, p.a_rv, p.b_rv),
         ao: (ao - p.v0_ao) / p.c_ao,
         sv: (1.0 + p.k_ra * ea) * (sv - p.v0_sv) / p.c_sv,
         pa: (pa - p.v0_pa) / p.c_pa,
@@ -496,6 +546,10 @@ pub struct BeatMetrics {
     pub rr: f64,
     /// Contraction précédente terminée au début du battement.
     pub relaxed: bool,
+    /// Durée de systole de ce battement (s).
+    pub ts: f64,
+    /// Amplitude d'élastance active du battement (1 en régime établi).
+    pub c: f64,
     /// VTD, VTS, VES (mL).
     pub edv: f64,
     /// VTS (mL).
@@ -538,7 +592,7 @@ pub fn simulate_hemo_beats(
     warm: f64,
     period0: f64,
 ) -> Result<BeatsResult, Error> {
-    let (beats, atr) = beat_schedule(cond, period0);
+    let (beats, atr) = beat_schedule(cond, period0, p);
     let n = ((t_end - warm) / DT).ceil() as usize;
     let delta = (warm + DT) - warm;
     let t_eval: Vec<f64> = (0..n).map(|i| warm + i as f64 * delta).collect();
@@ -611,8 +665,30 @@ pub fn simulate_hemo_beats(
         let fold = |f: &dyn Fn(usize) -> f64, init: f64, op: fn(f64, f64) -> f64| {
             idx.iter().map(|&i| f(i)).fold(init, op)
         };
-        let edv = fold(&|i| w.v_lv[i], f64::NEG_INFINITY, f64::max);
-        let esv = fold(&|i| w.v_lv[i], f64::INFINITY, f64::min);
+        let bt = beats.iter().find(|bt| bt.t == a).copied();
+        let ts_a = bt.map_or(p.ts_coef * (b - a).sqrt(), |bt| bt.ts);
+        let tr_a = bt.map_or(0.4 * ts_a, |bt| bt.tr);
+        // volumes mesurés sur SA contraction : VTS = minimum, VTD = maximum avant ce minimum
+        // (le remplissage de la diastole qui suit appartient au battement suivant)
+        let mut vs: Vec<f64> = idx
+            .iter()
+            .filter(|&&i| w.t[i] < a + ts_a + tr_a)
+            .map(|&i| w.v_lv[i])
+            .collect();
+        if vs.len() < 3 {
+            vs = idx.iter().map(|&i| w.v_lv[i]).collect();
+        }
+        let mut j_es = 0;
+        for (j, &v) in vs.iter().enumerate() {
+            if v < vs[j_es] {
+                j_es = j;
+            }
+        }
+        let esv = vs[j_es];
+        let edv = vs[..=j_es]
+            .iter()
+            .copied()
+            .fold(f64::NEG_INFINITY, f64::max);
         let v_reg = (-idx.iter().map(|&i| w.q_mi[i].min(0.0)).sum::<f64>()
             - idx.iter().map(|&i| w.q_ao[i].min(0.0)).sum::<f64>())
             * DT;
@@ -632,6 +708,8 @@ pub fn simulate_hemo_beats(
             t: a,
             rr: b - a,
             relaxed: relaxed_at(a),
+            ts: ts_a,
+            c: bt.map_or(1.0, |bt| bt.c),
             edv,
             esv,
             sv: edv - esv,
@@ -717,7 +795,7 @@ impl BeatsResult {
             q_pul: pick(&w.q_pul),
             v_lv: pick(&w.v_lv),
         };
-        let mut timing = Timing::from_hr(self.hr_v);
+        let mut timing = Timing::from_hr_coef(self.hr_v, p.ts_coef);
         timing.pr = Some(p.pr);
         HemoResult {
             timing,

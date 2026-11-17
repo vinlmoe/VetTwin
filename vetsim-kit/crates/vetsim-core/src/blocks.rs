@@ -10,7 +10,8 @@
 pub enum Block {
     /// Patient (poids, allométrie).
     Patient,
-    /// Système nerveux autonome et baroréflexe (FC, tonus, RSA).
+    /// Système nerveux autonome, baroréflexe et conduction cardiaque (nœud sinusal, nœud AV,
+    /// His-Purkinje, échappements, foyers ectopiques, FA) : FC, tonus, RSA, rythme.
     Autonomic,
     /// Ventricule gauche (élastance, relation télédiastolique).
     LeftHeart,
@@ -85,7 +86,7 @@ impl Block {
     pub fn label_fr(self) -> &'static str {
         match self {
             Block::Patient => "Patient (poids, allométrie)",
-            Block::Autonomic => "Système autonome et baroréflexe",
+            Block::Autonomic => "Système autonome, baroréflexe et conduction",
             Block::LeftHeart => "Ventricule gauche",
             Block::RightHeart => "Ventricule droit",
             Block::Valves => "Valves",
@@ -145,6 +146,9 @@ pub fn blocks_of(name: &str) -> &'static [Block] {
         "k_la" => &[PulmonaryCirculation, LeftHeart],
         "k_ra" => &[SystemicCirculation, RightHeart],
         "ta_atr" | "tra_atr" => &[PulmonaryCirculation, SystemicCirculation],
+        "ts_restitution" | "ts_coef" => &[LeftHeart, RightHeart],
+        // relation force-intervalle et dyssynchronie : amplitude d'élastance battement par battement
+        "ca_tau" | "ca_recirc" | "ees_wide" => &[LeftHeart, RightHeart],
         // conduction (rhythm) : génération et propagation de l'influx → FC, ECG, oreillettes
         "sa_block" | "af" | "af_cycle" | "af_cv" | "hv" | "av_erp" | "av_beta" | "av_tau"
         | "av_conceal" | "av_vagal" | "hp_conduction" | "junct_rate" | "vent_escape_rate"

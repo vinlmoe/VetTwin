@@ -231,6 +231,16 @@ define_params! {
     ta_atr,
     /// Durée de relaxation atriale (s).
     tra_atr,
+    /// Restitution de la systole au RR précédent (exposant, battement par battement).
+    ts_restitution,
+    /// Transfert du Ca²⁺ captation → libération du réticulum (constante, s).
+    ca_tau,
+    /// Fraction du Ca²⁺ libéré recaptée par le réticulum.
+    ca_recirc,
+    /// Amplitude d'élastance d'un battement à QRS large (dyssynchronie).
+    ees_wide,
+    /// Coefficient de la durée de systole `ts = ts_coef·√T`.
+    ts_coef,
     // --- conduction (rhythm) ---
     /// Probabilité de bloc de sortie sino-atrial (maladie du sinus).
     sa_block,
@@ -295,6 +305,6 @@ mod tests {
             assert_eq!(p.get(n), Some(v));
         }
         assert_eq!(p.get("nope"), None);
-        assert_eq!(Params::NAMES.len(), 110); // 73 + 11 décompensation + 4 oreillettes + 22 conduction
+        assert_eq!(Params::NAMES.len(), 115); // 73 + 11 décompensation + 6 oreillettes/systole + 3 force-intervalle + 22 conduction
     }
 }

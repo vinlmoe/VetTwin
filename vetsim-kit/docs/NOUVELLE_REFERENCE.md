@@ -88,6 +88,14 @@ pouvait pas tenir dans les tolérances de l'ancien golden : dès 0,8 % de contri
   - Cohérent avec 9 à 21 % de chiens bradycardes en crise (Chalifoux 2023), mais la forte
     tachycardie compensatrice reste à vérifier.
 - **Chien sain un peu haut** : PAM 106 (Haskins : 103) ; index cardiaque ≈ 4,58 (cible 4,42).
+- **Systole raccourcie (17/11/2026, décision de l'utilisateur)** : `ts_coef` 0,37 → 0,325, calé
+  sur l'intervalle B1→B2 du beagle (236–251 ms, n = 14, PMC9394128) ; B1→B2 ≈ 244 ms à
+  RR 0,57 s.
+  - Conséquences : PAM saine 106 → 109,4 ; le baroréflexe renforce le vagal et LF/HF tombe à
+    0,162 (cible 0,28 ± 0,11, Bogucki 2015).
+  - La cible n'est pas modifiée. LF/HF est déclaré écart connu dans
+    `tests/signal_properties.rs`, dans une borne de ±2 ET ; le test signale s'il redevient conforme.
+  - Correction de fond à faire : recaler la PAM saine sur source.
 - **ECG de l'Addison.**
   - T ample, QT court et P aplatie : conformes à la revue (figure adaptée de l'humain).
   - P disparaît à 8,5 mmol/L (Hariman 1983, chien).

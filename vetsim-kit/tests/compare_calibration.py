@@ -24,6 +24,9 @@ RS = json.loads(subprocess.check_output(shlex.split(a.cmd) + ['calibrate', '--n-
 N_PY_H, N_PY_D, N_PY_HRV = 50, 24, 20
 NAMES = {'MMVD': 'mmvd', 'CKD': 'ckd', 'Addison': 'addison'}
 HRV = {'RR moyen', 'SDNN', 'RMSSD', 'LF/HF'}
+# Écart connu (décision de l'utilisateur du 17/11/2026) : systole calée sur B1→B2 du beagle
+# (ts_coef 0,325) → PAM saine plus haute → LF/HF sous la cible. Même règle que signal_properties.rs.
+KNOWN = {'LF/HF'}
 bad, rels, lines = [], [], []
 
 def verdict(label, m_py, sd_py, n_py, m_rs, sd_rs, n_rs):
@@ -44,8 +47,15 @@ for r in PY['healthy']:
     assert q['target'] == r['target'] and q['tol'] == r['tol'], f"cible différente pour {r['var']}"
     n_py = N_PY_HRV if r['var'] in HRV else N_PY_H
     verdict(f"sain {r['var']}", r['model_mean'], r['model_sd'], n_py, q['model_mean'], q['model_sd'], q['n'])
-    if r['var'] in HRV and not q['ok']:
+    if r['var'] in KNOWN and not q['ok']:
+        # écart connu déclaré (docs/NOUVELLE_REFERENCE.md) : cible inchangée, borne ±2 ET
+        lines.append(f"      ÉCART CONNU {r['var']} : Rust {q['model_mean']:.4f} (cible {r['target']} ± {r['tol']})")
+        if abs(q['model_mean'] - r['target']) > 2 * r['tol']:
+            bad.append(f"{r['var']} au-delà de ±2 ET de la cible publiée (écart connu)")
+    elif r['var'] in HRV and not q['ok']:
         bad.append(f"{r['var']} hors de ±1 ET de la cible publiée")
+    elif r['var'] in KNOWN:
+        lines.append(f"      {r['var']} redevenu conforme côté Rust : retirer l'écart connu")
     if q['ok'] != r['ok']:
         lines.append(f"      verdict de calage différent pour {r['var']} : Python {r['ok']}, Rust {q['ok']}")
 

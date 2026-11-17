@@ -9,16 +9,32 @@ from scipy.signal import butter, sosfilt
 
 
 # ------------------------------------------------------------------ ECG
+# Forme des ondes (docs/VERIFICATION_ECG.md). Chaque onde est une gaussienne ; ses largeurs sont
+# calées pour que les durées VISIBLES (seuil 0,02 mV) soient celles des intervalles publiés :
+# P 45 ms (40–50 ms, Lerdweeraphon 2020 ; 44 ms, Bispo 2025), QRS visible = paramètre `qrs`
+# (Q et S compris), segment ST isoélectrique avant T (Romito 2022 le mesure chez 180 chiens sains).
+P_SIGMA = 0.0105        # largeur de P (s) : 45 ms visibles à 0,2 mV
+P_WIDEN_K = 0.25        # élargissement relatif de P par mmol/L de K au-delà de 6 (placeholder D)
+R_SIGMA = 1.0 / 10      # largeur de R (fraction de `qrs`)
+Q_POS, Q_SIGMA = 0.34, 1.0 / 14   # centre (avant R) et largeur de Q (fractions de `qrs`)
+S_POS, S_SIGMA = 0.34, 1.0 / 13   # centre (après R) et largeur de S
+T_W0 = 0.025            # largeur de T (s) au repos : ST de 47 ms à 88/min (placeholder D, aucune durée de T lue)
+WIDE_R_SIGMA = 1.0 / 8  # battement ventriculaire : largeur de R, centre et largeur de S
+WIDE_S_POS, WIDE_S_SIGMA = 0.40, 1.0 / 11   # (QRS visible = WIDE_QRS · `qrs`)
+
+
 def ecg_features(p):
     """Intervalles et amplitudes effectifs (effet K+ simple, par paliers continus)."""
     k = p['k']
     pr, qrs, qt = p['pr'], p['qrs'], p['qt']
     p_amp, t_amp, r_amp = p['p_amp'], p['t_amp'], p['r_amp']
-    t_w = 0.045
+    t_w = T_W0
+    p_w = P_SIGMA
     if k > 5.5:
         d = k - 5.5
         t_amp *= 1 + 0.45 * d                 # onde T pointue, ample
-        t_w = max(0.025, 0.045 - 0.006 * d)   # et étroite
+        t_w = T_W0 * max(0.025, 0.045 - 0.006 * d) / 0.045   # et étroite (même loi relative)
+        p_w *= 1 + P_WIDEN_K * max(0.0, k - 6.0)              # P plus large et plus petite
         qt *= max(0.8, 1 - 0.04 * d)          # QT raccourci (placeholder D)
         p_amp *= max(0.0, 1 - 0.25 * max(0.0, k - 6.0))
         pr *= 1 + 0.07 * max(0.0, k - 6.0)
@@ -28,7 +44,7 @@ def ecg_features(p):
         d = 3.2 - k
         t_amp *= max(0.2, 1 - 0.3 * d)
         qt *= 1 + 0.08 * d
-    return dict(pr=pr, qrs=qrs, qt=qt, p_amp=p_amp, t_amp=t_amp, r_amp=r_amp, t_w=t_w)
+    return dict(pr=pr, qrs=qrs, qt=qt, p_amp=p_amp, t_amp=t_amp, r_amp=r_amp, t_w=t_w, p_w=p_w)
 
 
 def make_ecg(p, hr, rr_resp, dur=8.0, fs=500, seed=0, r_times=None):
@@ -47,11 +63,11 @@ def make_ecg(p, hr, rr_resp, dur=8.0, fs=500, seed=0, r_times=None):
             tcur += 60.0 / hr * (1 + 0.06 * np.sin(2 * np.pi * (rr_resp / 60.0) * tcur))
     g = lambda c, a, w: a * np.exp(-0.5 * ((t - c) / w) ** 2)
     for tr_ in tR:
-        qrs_w = f['qrs'] / 5.0
-        sig += g(tr_ - f['pr'] + 0.5 * 0.03, f['p_amp'], 0.022)                    # P
-        sig += g(tr_ - 0.55 * f['qrs'], -0.12 * f['r_amp'], qrs_w * 0.8)            # Q
-        sig += g(tr_, f['r_amp'], qrs_w)                                            # R
-        sig += g(tr_ + 0.55 * f['qrs'], -0.20 * f['r_amp'], qrs_w * 0.9)            # S
+        q = f['qrs']
+        sig += g(tr_ - f['pr'] + 0.5 * 0.03, f['p_amp'], f['p_w'])                  # P
+        sig += g(tr_ - Q_POS * q, -0.12 * f['r_amp'], Q_SIGMA * q)                  # Q
+        sig += g(tr_, f['r_amp'], R_SIGMA * q)                                      # R
+        sig += g(tr_ + S_POS * q, -0.20 * f['r_amp'], S_SIGMA * q)                  # S
         t_center = tr_ - 0.5 * f['qrs'] + f['qt'] - 2.2 * f['t_w']
         sig += g(t_center, f['t_amp'], f['t_w'])                                    # T
     sig += 0.01 * rng.standard_normal(len(t)) + 0.02 * np.sin(2 * np.pi * 0.25 * t)
@@ -59,11 +75,15 @@ def make_ecg(p, hr, rr_resp, dur=8.0, fs=500, seed=0, r_times=None):
 
 
 # Battements ventriculaires (ectopique, échappement) : QRS large et onde T discordante ;
-# fibrillation atriale : petites ondes f à chaque activation atriale désorganisée. Placeholders D.
+# fibrillation atriale : petites ondes f à chaque activation atriale désorganisée, d'amplitude
+# proportionnelle au temps de récupération du tissu (intervalle depuis l'activation précédente,
+# rapporté au cycle moyen `af_cycle`, plafonné à F_WAVE_MAX) : la variabilité de l'amplitude
+# vient de celle des cycles de la conduction, sans tirage propre. Placeholders D.
 WIDE_QRS = 2.2          # facteur de largeur du QRS d'un battement ventriculaire
 WIDE_R = 1.2            # facteur d'amplitude de son onde R
 WIDE_T = -1.5           # onde T discordante (facteur de t_amp)
-F_WAVE = 0.3            # amplitude des ondes f (facteur de p_amp)
+F_WAVE = 0.3            # amplitude des ondes f (facteur de p_amp) au cycle moyen
+F_WAVE_MAX = 2.0        # plafond du rapport intervalle / cycle moyen
 
 
 def make_ecg_conducted(p, cond, hr, dur=8.0, fs=500, seed=0):
@@ -76,13 +96,16 @@ def make_ecg_conducted(p, cond, hr, dur=8.0, fs=500, seed=0):
     t = np.arange(0, dur, 1 / fs)
     sig = np.zeros_like(t)
     g = lambda c, a, w: a * np.exp(-0.5 * ((t - c) / w) ** 2)
+    prev_a = None
     for ta, organized in cond['atrial']:
         if ta > dur + 0.5:
             break
         if organized:
-            sig += g(ta + 0.5 * 0.03, f['p_amp'], 0.022)                            # P
+            sig += g(ta + 0.5 * 0.03, f['p_amp'], f['p_w'])                         # P
         else:
-            sig += g(ta, F_WAVE * p['p_amp'], 0.012)                               # onde f
+            rec = 1.0 if prev_a is None else min(F_WAVE_MAX, (ta - prev_a) / p['af_cycle'])
+            sig += g(ta, F_WAVE * p['p_amp'] * rec, 0.012)                         # onde f
+        prev_a = ta
     prev = None
     for b in cond['ventricular']:
         tv = b['t']
@@ -93,19 +116,27 @@ def make_ecg_conducted(p, cond, hr, dur=8.0, fs=500, seed=0):
         qt = f['qt'] * (95.0 / max(60.0 / rr, 30.0)) ** (1.0 / 3.0)
         if b['wide']:
             qrs = f['qrs'] * WIDE_QRS
-            qrs_w = qrs / 5.0
-            sig += g(tv, WIDE_R * f['r_amp'], qrs_w)                                 # R large
-            sig += g(tv + 0.55 * qrs, -0.35 * f['r_amp'], qrs_w * 0.9)              # S
+            sig += g(tv, WIDE_R * f['r_amp'], WIDE_R_SIGMA * qrs)                    # R large
+            sig += g(tv + WIDE_S_POS * qrs, -0.35 * f['r_amp'], WIDE_S_SIGMA * qrs)  # S
             sig += g(tv - 0.5 * qrs + qt - 2.2 * f['t_w'], WIDE_T * f['t_amp'], 1.5 * f['t_w'])
         else:
             qrs = f['qrs']
-            qrs_w = qrs / 5.0
-            sig += g(tv - 0.55 * qrs, -0.12 * f['r_amp'], qrs_w * 0.8)               # Q
-            sig += g(tv, f['r_amp'], qrs_w)                                         # R
-            sig += g(tv + 0.55 * qrs, -0.20 * f['r_amp'], qrs_w * 0.9)               # S
+            sig += g(tv - Q_POS * qrs, -0.12 * f['r_amp'], Q_SIGMA * qrs)            # Q
+            sig += g(tv, f['r_amp'], R_SIGMA * qrs)                                 # R
+            sig += g(tv + S_POS * qrs, -0.20 * f['r_amp'], S_SIGMA * qrs)            # S
             sig += g(tv - 0.5 * qrs + qt - 2.2 * f['t_w'], f['t_amp'], f['t_w'])     # T
     sig += 0.01 * rng.standard_normal(len(t)) + 0.02 * np.sin(2 * np.pi * 0.25 * t)
     return t, sig, f
+
+
+SIGNAL_WARM_S = 5.0     # chauffe avant la fenêtre des signaux (son battement par battement)
+
+
+def shift_conduction(cond, w):
+    """Séquence de conduction décalée : événements de [w, ∞) ramenés à l'origine."""
+    return dict(atrial=[(t - w, o) for t, o in cond['atrial'] if t >= w],
+                ventricular=[dict(b, t=b['t'] - w, t_a=None if b['t_a'] is None else b['t_a'] - w)
+                             for b in cond['ventricular'] if b['t'] >= w])
 
 
 def patient_conduction(r, sinus_times, seed):

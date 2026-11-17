@@ -59,6 +59,12 @@ def healthy_params(bw=20.0):
         #     P = (1 + k·e_a(t))·P_passive, activation PR avant le ventricule ; k = 0 : oreillettes passives
         k_la=1.45, k_ra=0.29,        # gains d'activation atriale : k_la calé sur E/A ≈ 1,39 (E 0,82, A 0,59 m/s, n = 53) ; k_ra = 0,2·k_la (placeholder D)
         ta_atr=0.09, tra_atr=0.06,   # durées de contraction et de relaxation atriales (s ; placeholders D)
+        ts_restitution=0.1,          # restitution de la systole au RR précédent (battement par battement ; placeholder D)
+        # relation force-intervalle (battement par battement, physio.beat_schedule ; placeholders D)
+        ca_tau=0.2,                  # constante de transfert du Ca²⁺ du compartiment de captation vers celui de libération (s)
+        ca_recirc=0.6,               # fraction du Ca²⁺ libéré recaptée par le réticulum (le reste est extrudé)
+        ees_wide=0.8,                # amplitude d'élastance d'un battement à QRS large (activation hors Purkinje, dyssynchronie)
+        ts_coef=0.325,               # durée de systole ts = ts_coef·√T : B1→B2 ≈ 244 ms à RR 0,57 s (beagles 236–251 ms, n = 14)
         # --- conduction (rhythm.py) ; placeholders D sauf mention (docs/PROVENANCE.md)
         sa_block=0.0,                # probabilité de bloc de sortie sino-atrial (maladie du sinus)
         af=0.0, af_cycle=0.12, af_cv=0.3,   # fibrillation atriale : drapeau, cycle atrial moyen (s), CV

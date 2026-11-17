@@ -58,14 +58,33 @@ fn eval_with(c: &Catalog, disease: Option<(&str, f64)>) -> Evaluation {
 fn hrv_targets_within_one_sd_over_20_seeds() {
     let c = catalog();
     let targets = parse_hrv_targets(&read("calibration/targets.json"), "targets.json").unwrap();
+    // Écart connu (décision de l'utilisateur du 17/11/2026, docs/NOUVELLE_REFERENCE.md) : avec la
+    // systole calée sur B1→B2 du beagle (ts_coef 0,325), la PAM saine monte (≈ 109,5) et le
+    // baroréflexe renforce le vagal : LF/HF 0,16 pour 0,28 ± 0,11. La cible n'est pas modifiée ;
+    // l'écart doit rester dans ±2 ET, et le test le signale s'il redevient conforme.
+    const KNOWN: [&str; 1] = ["LF/HF"];
     let rows = hrv_cohort(&c, &targets, 20).unwrap();
     for r in &rows {
         eprintln!(
             "  {:<9} cible {:7.2} ± {:6.2}  modèle {:7.2} (ET {:.2})",
             r.target.var, r.target.target, r.target.tol, r.model_mean, r.model_sd
         );
-        assert!(r.ok, "{} hors de ±1 ET : {}", r.target.var, r.model_mean);
         assert_eq!(r.n, 20);
+        if KNOWN.contains(&r.target.var.as_str()) {
+            if r.ok {
+                eprintln!("    {} redevenu conforme : retirer l'écart connu", r.target.var);
+            } else {
+                eprintln!("    ÉCART CONNU {} : {}", r.target.var, r.model_mean);
+                assert!(
+                    (r.model_mean - r.target.target).abs() <= 2.0 * r.target.tol,
+                    "{} au-delà de ±2 ET : {}",
+                    r.target.var,
+                    r.model_mean
+                );
+            }
+            continue;
+        }
+        assert!(r.ok, "{} hors de ±1 ET : {}", r.target.var, r.model_mean);
     }
     assert_eq!(rows.len(), 4);
 }
@@ -105,12 +124,23 @@ fn ecg_r_peaks_follow_r_times() {
     // Les ondes R de l'ECG sont les activations ventriculaires de la conduction des décharges
     // sinusales de l'autonome : décharge + PR (rythme sinusal 1:1), sur [0, 8 s).
     assert!(!e.r_times.is_empty() && e.r_times.iter().all(|t| *t < 8.0));
-    for (r, b) in e.r_times.iter().zip(&s.autonomic.beats) {
+    // fenêtre des signaux décalée de SIGNAL_WARM_S (chauffe du son battement par battement)
+    let w = vetsim_core::signals::SIGNAL_WARM_S;
+    // Chaque R suit la dernière décharge sinusale qui la précède (une R du début de la fenêtre
+    // peut venir d'une décharge antérieure à la fenêtre).
+    let sinus: Vec<f64> = s.autonomic.beats.iter().map(|b| b - w).collect();
+    for r in &e.r_times {
+        let b = sinus
+            .iter()
+            .copied()
+            .filter(|b| b < r)
+            .fold(f64::NEG_INFINITY, f64::max);
         assert!(
             (0.08..0.2).contains(&(r - b)),
             "R {r} / décharge sinusale {b}"
         );
     }
+    assert!(e.r_times.len() + 1 >= sinus.iter().filter(|b| (0.0..8.0).contains(*b)).count());
     // FC moyenne sur les 120 s de l'autonome proche de la FC de régime permanent (la RSA du
     // chien sain est ample : sur 8 s, la moyenne n'est pas stable).
     let fc = s.autonomic.hrv.unwrap().fc_moy;

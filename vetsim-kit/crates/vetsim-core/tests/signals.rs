@@ -223,6 +223,7 @@ fn ecg_replay_matches_python() {
             ("t_amp", fe.t_amp),
             ("r_amp", fe.r_amp),
             ("t_w", fe.t_w),
+            ("p_w", fe.p_w),
         ] {
             if !close(g, f[k].as_f64().unwrap(), 1e-12) {
                 bad.push(format!("{label} {k} : Rust {g} / Python {}", f[k]));

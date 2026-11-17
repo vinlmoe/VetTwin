@@ -185,6 +185,11 @@ data class DemoResult(
     val ao: FloatArray,
     val lv: FloatArray,
     val la: FloatArray,
+    /** Pressions simulées battement par battement, alignées sur l'ECG (même fenêtre de temps). */
+    val alignedFs: Double,
+    val alignedAo: FloatArray,
+    val alignedLv: FloatArray,
+    val alignedLa: FloatArray,
     val respiration: Respiration,
     val changes: List<ParamChange>,
     val diseaseId: String?,
@@ -393,6 +398,7 @@ class DemoController(private val engine: VetsimEngine = createEngine()) {
         val murmur = pf?.str("murmur") ?: ""
         val pr = sg?.get("pressures")?.jsonObject
         val rs = sg?.get("respiration")?.jsonObject
+        val pal = sg?.get("pressures_aligned") as? JsonObject
         val empty = FloatArray(0)
         // Paramètres du patient comparés à ceux du chien sain de même poids.
         val hp = check(engine.newPatient("""{"bw": ${inp.bw}, "variability": false}""")).str("patient_id")
@@ -425,6 +431,10 @@ class DemoController(private val engine: VetsimEngine = createEngine()) {
             ao = pr?.get("ao")?.floats() ?: empty,
             lv = pr?.get("lv")?.floats() ?: empty,
             la = pr?.get("la")?.floats() ?: empty,
+            alignedFs = pal?.get("fs")?.d() ?: 250.0,
+            alignedAo = pal?.get("ao")?.floats() ?: empty,
+            alignedLv = pal?.get("lv")?.floats() ?: empty,
+            alignedLa = pal?.get("la")?.floats() ?: empty,
             respiration = if (rs == null) {
                 Respiration(fs = 1.0, rrPerMin = 0.0, vtAlvMl = 0.0, volume = empty, flow = empty, hr = empty, map = empty, sap = empty, dap = empty)
             } else {

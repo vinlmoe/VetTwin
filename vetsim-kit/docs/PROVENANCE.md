@@ -9,7 +9,7 @@
 | Acide-base | Constable & Stämpfli 2005, J Vet Intern Med 19:507 (10 chiens sains) | Na, K, Cl, albumine, phosphate; Atot de l'albumine 0,469 mmol/g, pKa 7,77, charge nette 0,42 mEq/g | Coefficient du phosphate encore humain (Figge-Fencl) |
 | Affinité O₂ | Cambier et al. 2004, Res Vet Sci 77:83 | P50 30,0 ± 1,3 mmHg; Δlog P50/ΔpH = −0,370 | — |
 | VFC | Bogucki & Noszczyk-Nowak 2015, Pol J Vet Sci (50 chiens, 60 min) | RR moyen, SDNN, RMSSD, LF/HF | Source unique, valeurs très élevées : à recouper |
-| ECG | Labrador et berger allemand (n = 30, dérivation II) | PR, QRS, QT, amplitudes P, R, T | Paramètres d'entrée, non validés en sortie |
+| ECG | Labrador et berger allemand (n = 30, dérivation II) ; Bispo 2025 (n = 22) ; Romito 2022 (n = 180) | PR, QRS, QT, amplitudes P, R, T ; durée visible de P (45 ms), QRS visible = `qrs`, segment ST présent | Durées et amplitudes mesurées sur le tracé (`docs/VERIFICATION_ECG.md`) ; largeur de T et élargissement de P en hyperkaliémie : placeholders D |
 | PK furosémide | RCP Noah; EMA 1999; BMC Vet Res 2021 | Vss 0,52 L/kg, t½ IV 1–1,5 h, Cmax per os | Biodisponibilité ajustée (0,39) pour reproduire Cmax; sources en désaccord |
 | PK pimobendane | Her et al. 2020, Front Vet Sci 7:423 (0,5 mg/kg per os) | Cmax, AUC, t½ | Tmax mal reproduit; F = 0,5 supposée |
 | IRIS | Staging IRIS | Bornes de créatininémie par stade | — |
@@ -46,6 +46,11 @@ Ces modules n'agissent que sur les paramètres de la conduction. FC, ECG, hémod
   - Effet : `vpc_rate` + 30·s² /min.
   - Comparaison : le chien sain a moins de 20 ESV/24 h dans 86 % des cas (10.1371/journal.pone.0319886).
   - Pause compensatrice rarement complète (ERP nodal court, calé sur la FA) : à recaler.
+  - Caractère productif : il émerge du remplissage écourté et de l'amplitude d'élastance propre au battement (voir « Relation force-intervalle » plus bas). Avec ESV 0,8 : non productive si le couplage est ≤ 0,43 s, productive si le couplage est tardif.
+- **Relation force-intervalle et dyssynchronie** (`ca_tau` 0,2 s, `ca_recirc` 0,6, `ees_wide` 0,8 ; placeholders D, 17/11/2026).
+  - Modèle de recirculation du Ca²⁺ à deux compartiments (structure : 10.1016/s0006-3495(87)83307-6 ; principe : 10.1113/jphysiol.1986.sp016167). Il produit la restitution mécanique et la potentialisation post-extrasystolique (10.1161/01.cir.88.6.2962). En rythme régulier, l'amplitude vaut 1 à toute fréquence.
+  - QRS large (activation hors Purkinje, dyssynchronie ; 10.1016/s0735-1097(99)00068-6) : amplitude × `ees_wide`.
+  - Valeurs non sourcées : à caler sur des courbes canines de dP/dt en fonction de l'intervalle de couplage.
 - **Maladie du sinus** (evidence D).
   - Effets : `sa_block` + 0,45·s ; FC sinusale × (1 − 0,3·s) ; échappements jonctionnel et ventriculaire × (1 − 0,8·s).
   - Pause la plus longue : 4,9 s sur 5 h à s = 0,85, contre 6,9 s (5,5–10,3) sur Holter de 24 h (10.1111/jvim.17071).

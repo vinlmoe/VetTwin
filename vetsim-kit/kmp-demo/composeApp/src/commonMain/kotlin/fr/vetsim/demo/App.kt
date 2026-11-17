@@ -16,15 +16,12 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -36,9 +33,17 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.border
 
 private val Ink = Color(0xFF1B2A35)
 private val Muted = Color(0xFF5B6B77)
@@ -60,9 +65,11 @@ fun App(
 ) {
     var tab by remember { mutableStateOf(initialTab) }
     var inputs by remember { mutableStateOf(initial) }
-    var bwText by remember { mutableStateOf(initial.bw.toString()) }
+    var bwText by remember { mutableStateOf(initial.bw.toString().removeSuffix(".0")) }
     var result by remember { mutableStateOf<DemoResult?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
+    // patient de la dernière évaluation : sert à signaler un formulaire modifié mais non évalué
+    var evaluated by remember { mutableStateOf<DemoInputs?>(null) }
 
     fun run() {
         try {
@@ -70,14 +77,18 @@ fun App(
             val bw = bwText.replace(',', '.').toDoubleOrNull() ?: throw EngineError("poids invalide")
             inputs = inputs.copy(bw = bw)
             result = controller.evaluate(inputs)
+            evaluated = inputs
         } catch (e: Exception) {
             error = e.message
         }
     }
     if (autoEvaluate) LaunchedEffect(Unit) { run() }
+    val dirty = evaluated?.let { e ->
+        bwText.replace(',', '.').toDoubleOrNull() != e.bw || inputs.diseaseId != e.diseaseId || inputs.stage != e.stage
+    } ?: false
 
-    MaterialTheme(colorScheme = lightColorScheme(primary = Color(0xFF0B5E7A))) {
-        Surface(Modifier.fillMaxSize(), color = Color(0xFFF6F7F8)) {
+    VetTheme {
+        Surface(Modifier.fillMaxSize(), color = UiBg) {
             Row(Modifier.fillMaxSize().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 // ---------------------------------------------------------------- commandes
                 Column(
@@ -94,11 +105,16 @@ fun App(
                     ) { id -> inputs = inputs.copy(diseaseId = id, stage = controller.catalog.diseases.firstOrNull { it.id == id }?.stages?.firstOrNull()?.name) }
                     val disease = controller.catalog.diseases.firstOrNull { it.id == inputs.diseaseId }
                     if (disease != null) {
-                        Picker("Stade", inputs.stage ?: "", disease.stages.map { it.name to "${it.name} (s ${it.lo}–${it.hi})" }) {
+                        val stageOptions = disease.stages.map { it.name to "${it.name} (s ${it.lo}–${it.hi})" }
+                        Picker("Stade", stageOptions.firstOrNull { it.first == inputs.stage }?.second ?: inputs.stage ?: "", stageOptions) {
                             inputs = inputs.copy(stage = it)
                         }
                     }
-                    Button(onClick = { run() }, modifier = Modifier.fillMaxWidth()) { Text("Évaluer") }
+                    Button(
+                        onClick = { run() },
+                        modifier = Modifier.fillMaxWidth()
+                            .then(if (dirty) Modifier.border(3.dp, Color(0xFFF0B46A), androidx.compose.foundation.shape.RoundedCornerShape(50)) else Modifier),
+                    ) { Text(if (dirty) "Évaluer ce nouveau patient" else "Évaluer") }
                     Spacer(Modifier.height(4.dp))
                     val plan = inputs.plan
                     if (plan != null && inputs.atH != null) {
@@ -113,18 +129,10 @@ fun App(
                         }
                     }
                     Text(
-                        "Médicaments : « Traitement répété (PK/PD) », puis « Examiner le patient à cet instant ». " +
+                        "Médicaments : onglet « Traitement (PK/PD) », puis « Examiner le patient à cet instant ». " +
                             "Les concentrations découlent toujours des doses (PK/PD).",
                         color = Muted, fontSize = 12.sp,
                     )
-                    OutlinedButton(onClick = { tab = 4 }, enabled = result != null, modifier = Modifier.fillMaxWidth()) {
-                        Text("Traitement répété (PK/PD)")
-                    }
-                    OutlinedButton(
-                        onClick = { tab = 3 },
-                        enabled = result != null,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Ausculter (son, ECG, pressions)") }
                     Text(
                         "Outil pédagogique : ne jamais utiliser pour décider d'une dose ou d'un traitement réel. " +
                             "Les niveaux de preuve [A–D] sont ceux des modules ; D = placeholder.",
@@ -132,16 +140,22 @@ fun App(
                     )
                 }
                 // ---------------------------------------------------------------- résultats
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // en-tête du cas et onglets : hors de la zone qui défile, toujours visibles
+                val r = result
+                if (r == null) {
+                    Text("Choisir un patient puis « Évaluer ».", color = Muted)
+                } else {
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Text(r.caseLabel, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                        if (dirty) Text("  · formulaire modifié, non évalué", fontSize = 13.sp, color = Color(0xFF8A3B12))
+                    }
+                    Tabs(listOf("Patient", "Respiration", "Schéma du modèle", "Auscultation", "Traitement (PK/PD)"), tab) { tab = it }
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(UiLine))
+                }
                 Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     error?.let { Text("Erreur : $it", color = Color(0xFFB00020)) }
-                    val r = result
-                    if (r == null) {
-                        Text("Choisir un patient puis « Évaluer ».", color = Muted)
-                    } else {
-                        Text(r.caseLabel, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Ink)
-                        OutcomeBanner(r.outcome)
-                        Tabs(listOf("Patient", "Respiration", "Schéma du modèle", "Auscultation", "Traitement (PK/PD)"), tab) { tab = it }
-                    }
+                    if (r != null) OutcomeBanner(r.outcome)
                     if (r != null && tab == 1) { if (r.outcome.dead) DeadView("respiration") else RespirationView(r) }
                     if (tab == 2) ModelView(controller.catalog, r, initialBlock)
                     if (r != null && tab == 4) {
@@ -158,13 +172,25 @@ fun App(
                     }
                     if (r != null && tab == 0 && r.outcome.dead) DeadView("ECG ni de pression pulsée")
                     if (r != null && tab == 0 && !r.outcome.dead) {
+                        Vitals(r)
                         Panel("ECG, dérivation II (${(r.ecg.size / r.ecgFs).toInt()} s, ${"%.0f".fmt(r.values["hr"] ?: 0.0)} /min ; échelle fixe −1,5 à +2,5 mV)") {
                             // échelle unique de l'ECG (−1,5 à +2,5 mV) : amplitudes comparables entre patients
-                            Trace(listOf(r.ecg to EcgGreen), paper = true, height = 150, yMin = -1.5f, yMax = 2.5f)
+                            Trace(listOf(r.ecg to EcgGreen), paper = true, height = 150, yMin = -1.5f, yMax = 2.5f, durationS = r.ecg.size / r.ecgFs)
                         }
-                        Panel("Pressions sur deux battements (mmHg) : aorte, VG, OG") {
-                            val two = { a: FloatArray -> a + a }
-                            Trace(listOf(two(r.ao) to AoRed, two(r.lv) to LvBlue, two(r.la) to LaAmber), height = 170, yMin = 0f)
+                        Panel("Pressions (mmHg) : aorte, VG, OG, sur le même temps que l'ECG (simulées battement par battement)") {
+                            if (r.alignedAo.isNotEmpty()) {
+                                // même fenêtre de temps que l'ECG : chaque QRS est suivi de la montée de pression du VG
+                                Trace(
+                                    listOf(r.alignedAo to AoRed, r.alignedLv to LvBlue, r.alignedLa to LaAmber), height = 170, yMin = 0f,
+                                    durationS = r.alignedAo.size / r.alignedFs,
+                                )
+                            } else {
+                                val two = { a: FloatArray -> a + a }
+                                Trace(
+                                    listOf(two(r.ao) to AoRed, two(r.lv) to LvBlue, two(r.la) to LaAmber), height = 170, yMin = 0f,
+                                    durationS = 2.0 * r.ao.size * r.pressureDt,
+                                )
+                            }
                             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                 Legend("Aorte", AoRed); Legend("VG", LvBlue); Legend("OG", LaAmber)
                                 Text("PCG : ${r.pcgLabel}", color = Muted, fontSize = 13.sp)
@@ -178,11 +204,12 @@ fun App(
                         Panel("Signes émergents") {
                             if (r.signs.isEmpty()) Text("Aucun signe dérivé au-delà des seuils sourcés.", color = Muted)
                             r.signs.forEach {
-                                Text("• ${it.label}", color = Ink, fontSize = 14.sp)
+                                Text("• ${it.label}", color = Ink, fontSize = 13.sp)
                                 Text("   ${it.source}", color = Muted, fontSize = 11.sp)
                             }
                         }
                     }
+                }
                 }
             }
         }
@@ -248,6 +275,7 @@ private fun Tabs(titles: List<String>, selected: Int, onSelect: (Int) -> Unit) {
             val on = i == selected
             OutlinedButton(
                 onClick = { onSelect(i) },
+                modifier = Modifier.semantics { role = Role.Tab; this.selected = on },
                 colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
                     containerColor = if (on) Color(0xFF0B5E7A) else Color.Transparent,
                     contentColor = if (on) Color.White else Color(0xFF0B5E7A),
@@ -260,23 +288,45 @@ private fun Tabs(titles: List<String>, selected: Int, onSelect: (Int) -> Unit) {
 @Composable
 private fun ValuesTable(title: String, rows: List<Row3>, values: Map<String, Double>) {
     Panel(title) {
-        rows.forEach { r ->
-            Row(Modifier.fillMaxWidth().padding(vertical = 1.dp)) {
-                Text(r.label, Modifier.weight(1f), color = Muted, fontSize = 13.sp)
-                Text(r.fmt.fmt((values[r.key] ?: Double.NaN) * r.scale), color = Ink, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                Text(" ${r.unit}", Modifier.widthIn(min = 48.dp), color = Muted, fontSize = 11.sp)
+        Column {
+            rows.forEachIndexed { i, r ->
+                if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFEEF1F4)))
+                Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Text(r.label, Modifier.weight(1f), color = Muted, fontSize = 13.sp)
+                    Text(r.fmt.fmt((values[r.key] ?: Double.NaN) * r.scale), color = Ink, fontSize = 13.sp, fontWeight = FontWeight.Medium, style = Tabular)
+                    Text(" ${r.unit}", Modifier.widthIn(min = 52.dp), color = Muted, fontSize = 11.sp)
+                }
             }
         }
     }
 }
 
+/** Chiffres à chasse fixe : colonnes de valeurs alignées. */
+private val Tabular = androidx.compose.ui.text.TextStyle(fontFeatureSettings = "tnum")
+
+/** Constantes clés en tête de l'onglet Patient (valeurs du modèle, sans intervalle de référence). */
+@Composable
+private fun Vitals(r: DemoResult) {
+    val v = { k: String -> r.values[k] ?: Double.NaN }
+    val tiles = listOf(
+        Triple("FC", "%.0f".fmt(v("hr")), "/min"),
+        Triple("PAS / PAD (mmHg)", "${"%.0f".fmt(v("sap"))}/${"%.0f".fmt(v("dap"))}", ""),
+        Triple("PAM", "%.0f".fmt(v("map")), "mmHg"),
+        Triple("FR", "%.0f".fmt(r.values["rr"] ?: r.respiration.rrPerMin), "/min"),
+        Triple("SaO₂", "%.1f".fmt(v("sao2")), "%"),
+        Triple("Débit cardiaque", "%.2f".fmt(v("co")), "L/min"),
+        Triple("Lactate", "%.2f".fmt(v("lactate")), "mmol/L"),
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        tiles.forEach { (k, value, u) -> VitalTile(k, value, u, Modifier.weight(1f)) }
+    }
+}
+
 @Composable
 private fun Panel(title: String, content: @Composable () -> Unit) {
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.fillMaxWidth().background(Color.White).padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(title, fontWeight = FontWeight.SemiBold, color = Ink, fontSize = 14.sp)
-            content()
-        }
+    Column(Modifier.fillMaxWidth().card().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(title, fontWeight = FontWeight.SemiBold, color = Ink, fontSize = 14.sp)
+        content()
     }
 }
 
@@ -288,16 +338,28 @@ private fun Legend(label: String, color: Color) {
     }
 }
 
-/** Tracé de séries régulièrement échantillonnées (même durée), échelle commune. */
+/**
+ * Tracé de séries régulièrement échantillonnées (même durée), échelle commune ; axe vertical
+ * gradué dans la marge gauche et, si `durationS` est donné, axe de temps en secondes.
+ */
 @Composable
-private fun Trace(series: List<Pair<FloatArray, Color>>, height: Int, paper: Boolean = false, yMin: Float? = null, yMax: Float? = null) {
-    Canvas(Modifier.fillMaxWidth().height(height.dp).background(if (paper) Paper else Color.White)) {
+private fun Trace(
+    series: List<Pair<FloatArray, Color>>, height: Int, paper: Boolean = false, yMin: Float? = null, yMax: Float? = null,
+    durationS: Double? = null,
+) {
+    val measurer = rememberTextMeasurer()
+    Canvas(Modifier.fillMaxWidth().height(height.dp)) {
+        val left = 40f
+        val axis = if (durationS != null) 16f else 0f
+        val w = size.width - left
+        val h = size.height - axis
         if (paper) {
-            val step = size.width / 40f
-            var x = 0f
-            while (x < size.width) { drawLine(Grid, Offset(x, 0f), Offset(x, size.height)); x += step }
+            drawRect(Paper, Offset(left, 0f), androidx.compose.ui.geometry.Size(w, h))
+            val step = w / 40f
+            var x = left
+            while (x < size.width) { drawLine(Grid, Offset(x, 0f), Offset(x, h)); x += step }
             var y = 0f
-            while (y < size.height) { drawLine(Grid, Offset(0f, y), Offset(size.width, y)); y += step }
+            while (y < h) { drawLine(Grid, Offset(left, y), Offset(size.width, y)); y += step }
         }
         val all = series.flatMap { it.first.asIterable() }
         if (all.isEmpty()) return@Canvas
@@ -305,12 +367,25 @@ private fun Trace(series: List<Pair<FloatArray, Color>>, height: Int, paper: Boo
         val hi = yMax ?: all.max()
         val span = (hi - lo).takeIf { it > 1e-6f } ?: 1f
         val pad = 6f
+        fun yOf(v: Float) = pad + (1f - (v - lo) / span) * (h - 2 * pad)
+        drawYAxis(measurer, lo, hi, left, size.width, h, ::yOf, grid = !paper)
+        if (durationS != null && durationS > 0) {
+            val stepS = when { durationS <= 1.5 -> 0.25; durationS <= 3 -> 0.5; else -> 1.0 }
+            var t = 0.0
+            while (t <= durationS + 1e-9) {
+                val x = left + (t / durationS).toFloat() * w
+                if (!paper) drawLine(UiGrid, Offset(x, 0f), Offset(x, h))
+                if (x + 36f < size.width) {
+                    drawText(measurer, "${"%.2f".fmt(t).trimEnd('0').trimEnd(',')} s", Offset(x + 2f, h + 1f), TextStyle(fontSize = 9.sp, color = Muted))
+                }
+                t += stepS
+            }
+        }
         for ((v, color) in series) {
             val path = Path()
             v.forEachIndexed { i, y ->
-                val px = i.toFloat() / (v.size - 1).coerceAtLeast(1) * size.width
-                val py = pad + (1f - (y - lo) / span) * (size.height - 2 * pad)
-                if (i == 0) path.moveTo(px, py) else path.lineTo(px, py)
+                val px = left + i.toFloat() / (v.size - 1).coerceAtLeast(1) * w
+                if (i == 0) path.moveTo(px, yOf(y)) else path.lineTo(px, yOf(y))
             }
             drawPath(path, color, style = Stroke(width = 1.6f))
         }

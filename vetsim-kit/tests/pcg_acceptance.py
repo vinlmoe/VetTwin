@@ -7,7 +7,7 @@ reference/python/pcg_metrics.py sur des fichiers WAV 16 bits.
 
 Cas : chien sain 20 kg à FC 72 et 90 (paramètre « hr » imposé avant l'évaluation : réglage
 d'usage, pas la valeur calibrée de 87/min) ; MMVD 0,3 (léger) et 0,5 (modéré).
-Graines : 100 par défaut (le prompt en demande 20). Raison : pcg_metrics n'apparie B1 et B2 que
+Graines : 200 par défaut (le prompt en demande 20 ; 100 jusqu'au 17/11/2026, porté à 200 : à 100 graines le rapport B2/B1 à FC 72 sortait à z 3,1 sur les graines 0–99 et rentrait sur 100–199). Raison : pcg_metrics n'apparie B1 et B2 que
 si leur intervalle est < 0,3 s ; à FC 72 la systole du modèle (0,33 s) dépasse ce seuil, d'où
 ~1 paire par graine et 35-40 % de graines sans paire ; à 20 graines les métriques B2/B1 sont
 dominées par le hasard (vérifié : Rust et référence divergent à 20 graines, convergent à 100).
@@ -28,7 +28,7 @@ import pcg_metrics
 ap = argparse.ArgumentParser()
 g = ap.add_mutually_exclusive_group(required=True)
 g.add_argument('--python', action='store_true'); g.add_argument('--cmd')
-ap.add_argument('--seeds', type=int, default=100); ap.add_argument('--report'); ap.add_argument('--json'); ap.add_argument('--ref-json'); ap.add_argument('--seed0', type=int, default=0)
+ap.add_argument('--seeds', type=int, default=200); ap.add_argument('--report'); ap.add_argument('--json'); ap.add_argument('--ref-json'); ap.add_argument('--seed0', type=int, default=0); ap.add_argument('--v5', action='store_true', help='Python : ancienne synthèse périodique')
 a = ap.parse_args()
 
 def python_wav(hr, disease, seed, path):
@@ -43,11 +43,25 @@ def python_wav(hr, disease, seed, path):
         n, s = disease
         p = D.apply(p, D.REGISTRY[{'mmvd': 'MMVD'}[n]].sample(Stub(), severity=s))
     r = physio.evaluate(p)
-    au = autonomic.simulate_autonomic(r, dur=120.0, seed=seed)
-    beats = au['beats'][au['beats'] < 8.0]
-    t, sig, f = S.make_pcg(r['hemo'], fs=4000, seed=seed, beat_times=beats, resp_hz=r['art']['rr'] / 60.0, dur=8.0)
+    if a.v5:   # ancienne synthèse périodique (battement simulé posé à chaque instant)
+        au = autonomic.simulate_autonomic(r, dur=120.0, seed=seed)
+        beats = au['beats'][au['beats'] < 8.0]
+        t, sig, f = S.make_pcg(r['hemo'], fs=4000, seed=seed, beat_times=beats, resp_hz=r['art']['rr'] / 60.0, dur=8.0)
+        wavfile.write(path, 4000, np.round(sig * 32767).astype(np.int16))
+        return dict(hr=float(r['p']['hr']), beats=beats.tolist(), grade=f['grade'], murmur=f['murmur'], s3=bool(f['s3']), n=len(sig))
+    # Même chaîne que le Rust (pcg::patient_pcg) : autonome, conduction, hémodynamique battement par
+    # battement après SIGNAL_WARM_S de chauffe, synthèse pcg_beats. Générateurs différents (NumPy et
+    # SplitMix64 contre ChaCha8) : comparaison statistique.
+    import pcg_beats as PB, signals as SG
+    dur, warm = 8.0, SG.SIGNAL_WARM_S
+    au = autonomic.simulate_autonomic(r, dur=max(120.0, dur + warm), seed=seed)
+    cond = SG.patient_conduction(r, au['beats'], seed=seed)
+    bts, la_mean = PB.signal_beats(r['p'], cond, 60.0 / r['p']['hr'], warm, dur, PB.CFG['defaults']['end_margin_s'])
+    t, sig, f = PB.make_pcg_beats(bts, la_mean, np.random.default_rng(seed), fs=4000, dur=dur,
+                                  resp_hz=r['art']['rr'] / 60.0)
     wavfile.write(path, 4000, np.round(sig * 32767).astype(np.int16))
-    return dict(hr=float(r['p']['hr']), beats=beats.tolist(), grade=f['grade'], murmur=f['murmur'], s3=bool(f['s3']), n=len(sig))
+    s3 = f['s3_amp'] > PB.CFG['s3']['audible_threshold']
+    return dict(hr=float(r['p']['hr']), beats=[b['t'] for b in bts], grade=f['grade'], murmur=f['murmur'], s3=bool(s3), n=len(sig))
 
 def rust_wav(hr, disease, seed, path):
     args = ['pcg', '--seed', str(seed), '--duration', '8']

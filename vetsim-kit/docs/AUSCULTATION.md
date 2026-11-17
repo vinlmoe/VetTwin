@@ -10,7 +10,7 @@
 - Vérifications :
   - `cargo test --test auscultation` : rejeu des tirages NumPy, identité avec la référence à 4e-15 ;
   - `cargo test --test auscultation_properties` : propriétés du prompt ;
-  - `python tests/pcg_acceptance.py --cmd target/release/vetsim-cli --ref-json tests/pcg_reference_python.json` : critères mesurés par `pcg_metrics.py`. Le rapport est dans `docs/PCG_CONFORMITE.md`.
+  - `python tests/pcg_acceptance.py --cmd target/release/vetsim-cli --seeds 300 --ref-json tests/pcg_reference_python.json` : critères mesurés par `pcg_metrics.py`. Le rapport est dans `docs/PCG_CONFORMITE.md`.
 
 ## Comparaison avec de vrais enregistrements
 `python tests/pcg_compare_real.py --real DOSSIER --cmd target/release/vetsim-cli [--args "--disease mmvd:0.3"]` mesure les enregistrements réels de `DOSSIER` et la synthèse par la même chaîne (mono, 4000 Hz, crête à 1), puis affiche les écarts : spectre et pente, B1→B2, rapport B2/B1, durée des bruits, variabilité d'amplitude, niveau et timbre du bruit de fond, niveau, forme et timbre de l'intervalle systolique (souffle). `DOSSIER` reste hors du dépôt (licence TiHo) ; seuls les chiffres en sortent. Le script mesure ; il ne modifie aucun paramètre.

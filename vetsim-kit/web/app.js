@@ -45,7 +45,9 @@ async function main() {
   const cat = S.ctl.catalog;
   $('#api').textContent = 'API ' + S.ctl.apiVersion;
   $('#disease').innerHTML = '<option value="">Aucune (sain)</option>' + cat.diseases.map((d) => `<option value="${d.id}">${esc(d.name)} [${d.evidence}]</option>`).join('');
-  $('#disease').onchange = () => { fillStages(); };
+  $('#disease').onchange = () => { fillStages(); markDirty(); };
+  $('#stage').onchange = markDirty;
+  $('#bw').oninput = markDirty;
   $('#evaluate').onclick = () => evaluate();
   for (const b of document.querySelectorAll('#tabs button')) b.onclick = () => { S.tab = b.dataset.tab; render(); };
   window.addEventListener('resize', () => render());
@@ -84,6 +86,18 @@ function fillStages() {
   $('#stage').innerHTML = d ? d.stages.map((s) => `<option value="${s.name}">${s.name} (s ${s.lo}–${s.hi})</option>`).join('') : '';
 }
 
+/** Formulaire modifié depuis la dernière évaluation : l'affichage ne correspond plus au formulaire. */
+function isDirty() {
+  return (parseFloat($('#bw').value) || 20) !== S.inputs.bw || ($('#disease').value || null) !== S.inputs.disease
+    || ($('#disease').value && ($('#stage').value || null) !== S.inputs.stage);
+}
+function markDirty() {
+  const d = S.res && isDirty();
+  $('#evaluate').classList.toggle('dirty', !!d);
+  $('#evaluate').textContent = d ? 'Évaluer ce nouveau patient' : 'Évaluer';
+  if (S.res) $('#case-label').innerHTML = esc(caseLabel()) + (d ? ' <span class="stale">· formulaire modifié, non évalué</span>' : '');
+}
+
 function evaluate() {
   S.inputs = { ...S.inputs, bw: parseFloat($('#bw').value) || 20, disease: $('#disease').value || null, stage: $('#stage').value || null };
   try {
@@ -107,8 +121,11 @@ function caseLabel() {
 
 function render() {
   if (!S.res) return;
-  for (const b of document.querySelectorAll('#tabs button')) b.classList.toggle('on', b.dataset.tab === S.tab);
-  $('#case-label').textContent = caseLabel();
+  for (const b of document.querySelectorAll('#tabs button')) {
+    const on = b.dataset.tab === S.tab;
+    b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false');
+  }
+  markDirty();
   // bandeau traitement et liste des concentrations fixes
   const tb = $('#treatment-banner');
   tb.hidden = !(S.inputs.plan && S.inputs.atH !== null);
@@ -177,15 +194,29 @@ function renderPatient(v) {
     return;
   }
   const pr = sg.pressures;
-  v.innerHTML = card(`ECG, dérivation II (${Math.round(sg.ecg.length / sg.ecg_fs)} s, ${fmt(st.hr, 0)} /min ; échelle fixe −1,5 à +2,5 mV)`, canvas('c-ecg', 150))
-    + card('Pressions sur deux battements (mmHg) : aorte, VG, OG', canvas('c-pr', 170) + legend([['Aorte', COLORS.ao], ['VG', COLORS.lv], ['OG', COLORS.la]]) + `<div class="note">PCG : ${sg.pcg_features.grade ? `souffle ${sg.pcg_features.murmur}, grade ${sg.pcg_features.grade}/6` : 'pas de souffle'}</div>`)
+  v.innerHTML = vitals(st) + card(`ECG, dérivation II (${Math.round(sg.ecg.length / sg.ecg_fs)} s, ${fmt(st.hr, 0)} /min ; échelle fixe −1,5 à +2,5 mV)`, canvas('c-ecg', 150))
+    + card(`Pressions (mmHg) : aorte, VG, OG, sur le même temps que l'ECG (simulées battement par battement)`, canvas('c-pr', 170) + legend([['Aorte', COLORS.ao], ['VG', COLORS.lv], ['OG', COLORS.la]]) + `<div class="note">PCG : ${sg.pcg_features.grade ? `souffle ${sg.pcg_features.murmur}, grade ${sg.pcg_features.grade}/6` : 'pas de souffle'}</div>`)
     + `<div class="grid3">${card('Hémodynamique', valuesTable(HEMO, st))}${card('Gaz du sang', valuesTable(GASES, st))}${card('Biochimie', valuesTable(CHEM, st))}</div>`
-    + card('Signes émergents', st.emergent_signs.length ? st.emergent_signs.map((s) => `<div>• ${esc(s.label_fr)}<div class="note">&nbsp;&nbsp;${esc(s.source)}</div></div>`).join('') : '<div class="note">Aucun signe dérivé au-delà des seuils sourcés.</div>');
+    + card('Signes émergents', st.emergent_signs.length ? st.emergent_signs.map((s) => `<div class="sign">• ${esc(s.label_fr)}<div class="note">&nbsp;&nbsp;${esc(s.source)}</div></div>`).join('') : '<div class="note">Aucun signe dérivé au-delà des seuils sourcés.</div>');
   const dur = sg.ecg.length / sg.ecg_fs;
   timeChart($('#c-ecg'), { series: [{ y: sg.ecg, dt: 1 / sg.ecg_fs, color: COLORS.ecg }], x0: 0, x1: dur, paper: true, yMin: ECG_MIN, yMax: ECG_MAX });
-  const two = (a) => [...a, ...a];
-  const p = pr.dt * pr.ao.length * 2;
-  timeChart($('#c-pr'), { series: [two(pr.ao), two(pr.lv), two(pr.la)].map((y, i) => ({ y, dt: pr.dt, color: [COLORS.ao, COLORS.lv, COLORS.la][i] })), x0: 0, x1: p, yMin: 0 });
+  // pressions alignées sur l'ECG : même axe de temps [0, durée) ; repli sur deux battements
+  const pa = sg.pressures_aligned;
+  if (pa) {
+    timeChart($('#c-pr'), { series: [pa.ao, pa.lv, pa.la].map((y, i) => ({ y, dt: 1 / pa.fs, color: [COLORS.ao, COLORS.lv, COLORS.la][i] })), x0: 0, x1: dur, yMin: 0 });
+  } else {
+    const two = (a) => [...a, ...a];
+    timeChart($('#c-pr'), { series: [two(pr.ao), two(pr.lv), two(pr.la)].map((y, i) => ({ y, dt: pr.dt, color: [COLORS.ao, COLORS.lv, COLORS.la][i] })), x0: 0, x1: pr.dt * pr.ao.length * 2, yMin: 0 });
+  }
+}
+
+/** Constantes clés en tête de l'onglet Patient (valeurs du modèle, sans intervalle de référence). */
+function vitals(st) {
+  const rr = st.rr ?? (st.signals && st.signals.respiration && st.signals.respiration.rr_per_min);
+  const tile = (k, v, u) => `<div class="vital"><span class="k">${k}</span><span class="v">${v}<small>${u}</small></span></div>`;
+  return `<div class="vitals">${tile('FC', fmt(st.hr, 0), '/min')}${tile('PAS / PAD', `${fmt(st.sap, 0)}/${fmt(st.dap, 0)}`, 'mmHg')}`
+    + `${tile('PAM', fmt(st.map, 0), 'mmHg')}${tile('FR', fmt(rr, 0), '/min')}${tile('SaO₂', fmt(st.sao2, 1), '%')}`
+    + `${tile('Débit cardiaque', fmt(st.co, 2), 'L/min')}${tile('Lactate', fmt(st.lactate, 2), 'mmol/L')}</div>`;
 }
 
 // ------------------------------------------------------------------ Respiration
@@ -193,7 +224,7 @@ function renderRespiration(v) {
   if (!S.res.st.signals) { v.innerHTML = deadView('respiration'); return; }
   const rs = S.res.st.signals.respiration, dt = 1 / rs.fs, dur = rs.volume_mL.length * dt;
   const avg = (a) => a.reduce((x, y) => x + y, 0) / a.length;
-  v.innerHTML = `<div class="note" style="font-size:13px">FR ${fmt(rs.rr_per_min, 0)} /min · volume courant alvéolaire ${fmt(rs.vt_alv_mL, 0)} mL (VA/FR ; l'espace mort n'est pas modélisé) · inspiration sur 40 % du cycle</div>`
+  v.innerHTML = `<div class="summary">FR ${fmt(rs.rr_per_min, 0)} /min · volume courant alvéolaire ${fmt(rs.vt_alv_mL, 0)} mL (VA/FR ; l'espace mort n'est pas modélisé) · inspiration sur 40 % du cycle</div>`
     + card(`Volume pulmonaire au-dessus de la fin d'expiration (mL), ${Math.round(dur)} s`, canvas('r-vol', 110))
     + card('Débit respiratoire (mL/s) : > 0 inspiration, < 0 expiration', canvas('r-flow', 110))
     + card('Fréquence cardiaque instantanée (/min) : arythmie sinusale respiratoire', canvas('r-hr', 110))
@@ -241,16 +272,19 @@ function renderModel(v) {
     <defs>${['g', 'r', 'b'].map((k) => `<marker id="ah-${k}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${{ g: '#8a99a6', r: COLORS.ao, b: COLORS.lv }[k]}"/></marker>`).join('')}</defs>`;
   const path = (a, b, bend, color, k, dash, bidir) => {
     const c = ctrl(a, b, bend), s = clip(a, c), e = clip(b, c);
-    return { d: `<path d="M${s[0]},${s[1]} Q${c[0]},${c[1]} ${e[0]},${e[1]}" fill="none" stroke="${color}" stroke-width="1.6" ${dash ? 'stroke-dasharray="7 6"' : ''} marker-end="url(#ah-${k})" ${bidir ? `marker-start="url(#ah-${k})"` : ''}/>`, mid: [0.25 * s[0] + 0.5 * c[0] + 0.25 * e[0], 0.25 * s[1] + 0.5 * c[1] + 0.25 * e[1]], len: Math.hypot(e[0] - s[0], e[1] - s[1]) };
+    return { d: `<path d="M${s[0]},${s[1]} Q${c[0]},${c[1]} ${e[0]},${e[1]}" fill="none" stroke="${color}" stroke-width="1.6" ${dash ? 'stroke-dasharray="7 6"' : ''} marker-end="url(#ah-${k})" ${bidir ? `marker-start="url(#ah-${k})"` : ''}/>`, curve: [s, c, e] };
   };
-  let labels = '';
+  const curves = [], toLabel = [];
   for (const [f, t, lab, bidir, bend = 0] of EDGES) {
     const p = path(C(byId[f]), C(byId[t]), bend, '#8a99a6', 'g', false, bidir);
-    svg += p.d;
-    if (!(byId[f][2] === byId[t][2] && p.len < lab.length * 6 + 12)) labels += `<text x="${p.mid[0]}" y="${p.mid[1] + 3}" font-size="10" fill="${COLORS.muted}" text-anchor="middle" paint-order="stroke" stroke="white" stroke-width="4">${esc(lab)}</text>`;
+    svg += p.d; curves.push(p.curve); toLabel.push([p.curve, lab, curves.length - 1]);
   }
-  for (const b of dBlocks) if (byId[b]) svg += path(C(byId.disease), C(byId[b]), 0.08, COLORS.ao, 'r', true).d;
-  for (const b of gBlocks) if (byId[b]) svg += path(C(byId.drugs), C(byId[b]), -0.08, COLORS.lv, 'b', true).d;
+  for (const b of dBlocks) if (byId[b]) { const p = path(C(byId.disease), C(byId[b]), 0.08, COLORS.ao, 'r', true); svg += p.d; curves.push(p.curve); }
+  for (const b of gBlocks) if (byId[b]) { const p = path(C(byId.drugs), C(byId[b]), -0.08, COLORS.lv, 'b', true); svg += p.d; curves.push(p.curve); }
+  const boxes = NODES.map((n) => { const [x, y] = C(n); return [x - nw / 2 - 2, y - nh / 2 - 2, x + nw / 2 + 2, y + nh / 2 + 2]; });
+  const mctx = document.createElement('canvas').getContext('2d'); mctx.font = '10px system-ui, sans-serif';
+  const labels = placeEdgeLabels(toLabel, curves, boxes, (t) => mctx.measureText(t).width, W, H)
+    .map(([x, y, lab]) => `<text x="${x}" y="${y + 3.5}" font-size="10" fill="${COLORS.muted}" text-anchor="middle" paint-order="stroke" stroke="white" stroke-width="4">${esc(lab)}</text>`).join('');
   svg += labels;
   for (const n of NODES) {
     const [x, y] = C(n), id = n[0], k = count[id];
@@ -274,10 +308,59 @@ function renderModel(v) {
     detail = card(esc(blk.label_fr), `<div class="note">Couplages : ${esc(coup)}</div>` + blk.params.map((p) => ch[p] ? `<div><b>• ${p} : ${num(ch[p].healthy)} → ${num(ch[p].patient)}</b> <span class="note">(${esc(ch[p].sources.join(', ') || 'effet indirect')})</span></div>` : `<div class="note">• ${p}</div>`).join(''));
   }
   const table = card('Paramètres modifiés par rapport au chien sain de même poids', r.changes.length
-    ? `<table class="values">${r.changes.map((c) => `<tr><td>${c.param}</td><td>${esc(c.blocks.map((b) => (cat.blocks.find((x) => x.id === b) || {}).label_fr).join(', '))}</td><td class="v">${num(c.healthy)} → ${num(c.patient)}</td><td>${esc(c.sources.join(', '))}</td></tr>`).join('')}</table>`
+    ? `<div class="scroll-x"><table class="values params"><tr><th>Paramètre</th><th>Bloc</th><th class="v">Sain → patient</th><th>Source</th></tr>${r.changes.map((c) => `<tr><td>${c.param}</td><td>${esc(c.blocks.map((b) => (cat.blocks.find((x) => x.id === b) || {}).label_fr).join(', '))}</td><td class="v">${num(c.healthy)} → ${num(c.patient)}</td><td class="src">${esc(c.sources.join(', '))}</td></tr>`).join('')}</table></div>`
     : '<div class="note">Aucun : patient sain.</div>');
   v.innerHTML = `<div class="legend"><span><i style="background:${COLORS.ao}"></i>modifié par la maladie</span><span><i style="background:${COLORS.lv}"></i>modifié par un médicament</span><span>Cliquer un bloc pour ses paramètres.</span></div>` + svg + detail + table;
   for (const g of v.querySelectorAll('g[data-node]')) g.onclick = () => { const id = g.dataset.node; if (cat.blocks.some((b) => b.id === id)) { S.model.selected = S.model.selected === id ? null : id; render(); } };
+}
+
+/** Point et tangente d'une courbe quadratique [s, c, e] au paramètre t. */
+function quad([s, c, e], t) {
+  const u = 1 - t;
+  return { p: [u * u * s[0] + 2 * u * t * c[0] + t * t * e[0], u * u * s[1] + 2 * u * t * c[1] + t * t * e[1]],
+    d: [2 * u * (c[0] - s[0]) + 2 * t * (e[0] - c[0]), 2 * u * (c[1] - s[1]) + 2 * t * (e[1] - c[1])] };
+}
+
+/**
+ * Place les étiquettes des liens sans chevauchement : pour chaque lien, positions candidates le
+ * long de la courbe (milieu d'abord) et de part et d'autre ; une position qui touche un bloc, une
+ * étiquette déjà posée ou le bord est exclue ; parmi les autres, la moins traversée par les autres
+ * liens et la plus proche du milieu. Sans position libre, l'étiquette est omise (couplage détaillé
+ * au clic sur le bloc). Renvoie [[x, y, texte]] (centre de l'étiquette).
+ * Même algorithme que placeEdgeLabels dans kmp-demo (Views.kt).
+ */
+function placeEdgeLabels(items, curves, boxes, measure, W, H) {
+  const samples = curves.map((cv) => Array.from({ length: 33 }, (_, i) => quad(cv, i / 32).p));
+  const hit = (a, b) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
+  const placed = [], out = [];
+  const TS = [0.5, 0.42, 0.58, 0.34, 0.66, 0.26, 0.74, 0.18, 0.82];
+  // positions candidates hors des blocs et du bord, pour chaque étiquette
+  const cands = items.map(([cv, lab]) => {
+    const w = measure(lab) + 8, h = 13, list = [];
+    for (const t of TS) for (const off of [0, 11, -11]) {
+      const { p, d } = quad(cv, t), L = Math.hypot(d[0], d[1]) || 1;
+      const x = p[0] - (d[1] / L) * off, y = p[1] + (d[0] / L) * off;
+      const r = [x - w / 2, y - h / 2, x + w / 2, y + h / 2];
+      if (r[0] < 0 || r[1] < 0 || r[2] > W || r[3] > H || boxes.some((b) => hit(r, b))) continue;
+      list.push({ t, off, x, y, r });
+    }
+    return list;
+  });
+  // les étiquettes les plus contraintes (peu de positions libres) sont posées d'abord
+  const order = items.map((_, i) => i).sort((i, j) => cands[i].length - cands[j].length || i - j);
+  for (const i of order) {
+    const [, lab, own] = items[i];
+    let best = null;
+    for (const { t, off, x, y, r } of cands[i]) {
+      if (placed.some((b) => hit(r, b))) continue;
+      let cross = 0;
+      samples.forEach((pts, j) => { if (j !== own) for (const q of pts) if (q[0] > r[0] && q[0] < r[2] && q[1] > r[1] && q[1] < r[3]) cross++; });
+      const cost = 3 * cross + 20 * Math.abs(t - 0.5) + 0.3 * Math.abs(off);
+      if (!best || cost < best.cost) best = { cost, x, y, r };
+    }
+    if (best) { placed.push(best.r); out.push([best.x, best.y, lab]); }
+  }
+  return out;
 }
 
 function num(x) { const a = Math.abs(x); return fmt(x, a === 0 ? 0 : a >= 100 ? 1 : a >= 10 ? 2 : a >= 1 ? 3 : a >= 0.01 ? 4 : 6); }
@@ -292,15 +375,16 @@ function renderAuscultation(v) {
   }
   const r = A.r, dur = r.duration_s;
   const chip = (lab, on, act) => `<button class="${on ? 'on' : ''}" data-act="${act}">${lab}</button>`;
-  v.innerHTML = `<div class="row">FC : ${chip('Patient', A.hr === null, 'hr:')} ${chip('Repos 72', A.hr === 72, 'hr:72')} ${chip('90', A.hr === 90, 'hr:90')}
-      &nbsp; Site : ${chip('Base', A.site === 'base', 'site:base')} ${chip('Apex (non calibré)', A.site === 'apex', 'site:apex')}</div>
-    <div class="row"><button class="primary" id="play">${A.playing ? '■ Arrêter' : A.played ? '↻ Rejouer' : '▶ Écouter'}</button>
-      <label style="flex-direction:row;align-items:center"><input type="checkbox" id="loop" ${A.loop ? 'checked' : ''}> en boucle</label>
-      <label style="flex-direction:row;align-items:center"><input type="checkbox" id="zoomonly" ${A.zoomOnly ? 'checked' : ''}> fenêtre affichée seulement</label>
-      <label style="flex-direction:row;align-items:center;gap:6px">Volume <input id="vol" type="range" min="1" max="8" step="0.5" value="${A.gain}" style="width:120px"> <b id="voll">×${fmt(A.gain, 1)}</b></label>
-      <span>FC ${fmt(r.hr, 0)} /min · ${r.beats.length} battements · ${r.grade ? `souffle ${r.murmur}, grade ${r.grade}/6 (indicatif)` : 'pas de souffle'}${r.s3 ? ' · B3' : ''} · site ${r.site}</span></div>
+  v.innerHTML = `<div class="toolbar"><div class="row" style="gap:18px">
+      <div class="group"><span class="lab">FC</span>${chip('Patient', A.hr === null, 'hr:')}${chip('Repos 72', A.hr === 72, 'hr:72')}${chip('90', A.hr === 90, 'hr:90')}</div>
+      <div class="group"><span class="lab">Site</span>${chip('Base', A.site === 'base', 'site:base')}${chip('Apex (non calibré)', A.site === 'apex', 'site:apex')}</div></div>
+    <div class="row" style="gap:18px"><button class="primary" id="play">${A.playing ? '■ Arrêter' : A.played ? '↻ Rejouer' : '▶ Écouter'}</button>
+      <label class="inline"><input type="checkbox" id="loop" ${A.loop ? 'checked' : ''}> en boucle</label>
+      <label class="inline"><input type="checkbox" id="zoomonly" ${A.zoomOnly ? 'checked' : ''}> fenêtre affichée seulement</label>
+      <label class="inline">Volume <input id="vol" type="range" min="1" max="8" step="0.5" value="${A.gain}" style="width:120px"> <b id="voll">×${fmt(A.gain, 1)}</b></label></div>
+    <div class="summary">FC ${fmt(r.hr, 0)} /min · ${r.beats.length} battements · ${r.grade ? `souffle ${r.murmur}, grade ${r.grade}/6 (indicatif)` : 'pas de souffle'}${r.s3 ? ' · B3' : ''} · site ${r.site}</div>
     <div class="sliders"><label><span>Fenêtre : <b id="wl">${fmt(A.window, 1)}</b> s</span><input id="win" type="range" min="0.5" max="${dur}" step="0.1" value="${A.window}"></label>
-      <label><span>Début : <b id="sl">${fmt(A.start, 2)}</b> s</span><input id="start" type="range" min="0" max="${Math.max(0.001, dur - A.window)}" step="0.01" value="${A.start}"></label></div>`
+      <label><span>Début : <b id="sl">${fmt(A.start, 2)}</b> s</span><input id="start" type="range" min="0" max="${Math.max(0.001, dur - A.window)}" step="0.01" value="${A.start}"></label></div></div>`
     + card(`Phonocardiogramme (${r.fs} Hz)`, canvas('a-pcg', 120))
     + card('Spectrogramme 0–500 Hz (dB)', canvas('a-spec', 110))
     + card('ECG, dérivation II (mêmes battements que le son)', canvas('a-ecg', 110))
@@ -413,7 +497,7 @@ function renderTreatment(v) {
     html += card(`Instant d'examen : ${dayLabel(T.cursor)} (t = ${fmt(T.cursor, 1)} h)`, `<div class="row">
         ${T.ref ? `<button id="t-trough">◀ creux</button><button id="t-peak">pic ▶</button>
         <select id="t-ref">${Object.keys(r.conc_mg_L).map((d) => `<option value="${d}" ${d === T.ref ? 'selected' : ''}>repère : ${esc(dname(d))}</option>`).join('')}</select>` : ''}
-        <button class="danger" id="t-exam">Examiner le patient à cet instant</button></div>
+        <button class="primary" id="t-exam">Examiner le patient à cet instant</button></div>
         <input id="t-cur" type="range" min="0" max="${h}" step="0.05" value="${T.cursor}">
         <div class="note">${Object.keys(r.conc_mg_L).map((d) => `${esc(dname(d))} : ${fmt(r.conc_mg_L[d][i], 4)} mg/L, E = ${fmt(r.effect[d][i], 2)}`).join(' &nbsp; ')}</div>
         ${outcomeNote(r)}`);
