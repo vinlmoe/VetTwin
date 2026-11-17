@@ -10,7 +10,7 @@
 - Vérifications :
   - `cargo test --test auscultation` : rejeu des tirages NumPy, identité avec la référence à 4e-15 ;
   - `cargo test --test auscultation_properties` : propriétés du prompt ;
-  - `python tests/pcg_acceptance.py --cmd target/release/vetsim-cli --ref-json tests/pcg_reference_python.json` : critères mesurés par `pcg_metrics.py`. Le rapport est dans `docs/PCG_CONFORMITE.md`.
+  - `python tests/pcg_acceptance.py --cmd target/release/vetsim-cli --seeds 300 --ref-json tests/pcg_reference_python.json` : critères mesurés par `pcg_metrics.py`. Le rapport est dans `docs/PCG_CONFORMITE.md`.
 
 ## Limites de validité
 - Calage sur **deux** enregistrements de la bibliothèque TiHo (Hanovre) : un rythme normal et un souffle mitral II/VI. Licence CC BY-NC-ND 4.0 : aucun enregistrement n'est copié, redistribué ni embarqué ; seuls les chiffres mesurés sont utilisés.

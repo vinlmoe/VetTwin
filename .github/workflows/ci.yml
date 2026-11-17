@@ -58,7 +58,7 @@ jobs:
       - name: Banc de calibration Rust contre la référence Python (M5, VFC M6)
         run: python tests/compare_calibration.py --cmd "target/release/vetsim-cli"
       - name: Auscultation, critères mesurés par pcg_metrics.py (référence enregistrée)
-        run: python tests/pcg_acceptance.py --cmd "target/release/vetsim-cli" --ref-json tests/pcg_reference_python.json
+        run: python tests/pcg_acceptance.py --cmd "target/release/vetsim-cli" --seeds 300 --ref-json tests/pcg_reference_python.json
       - name: Conformité golden complète (critère de la feuille de route)
         run: python tests/conformance.py --cmd "target/release/vetsim-cli"
 
