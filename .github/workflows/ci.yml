@@ -26,6 +26,16 @@ jobs:
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
       - run: cargo build --release -p vetsim-cli
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install numpy scipy jsonschema
+      - name: Rust == Python (fixture M1 régénérée avec le Python de la CI)
+        run: python tests/make_m1_fixture.py && cargo test -p vetsim-core --test check_modules
+      - name: CLI Rust == Python (paramètres, M1)
+        run: python tests/check_params_cli.py --cmd "target/release/vetsim-cli"
+      # Activé à partir de M3 (eval) et M4 (pk) :
+      # - run: python tests/conformance.py --cmd "target/release/vetsim-cli"
 
   python-reference:
     runs-on: ubuntu-latest
