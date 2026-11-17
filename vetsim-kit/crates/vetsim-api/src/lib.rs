@@ -1,4 +1,5 @@
-//! API par messages JSON (docs/KMP.md), en Rust pur : testable sans Kotlin.
+//! API par messages JSON (docs/KMP.md), en Rust pur : partagée par la liaison UniFFI
+//! (`vetsim-ffi`, Android/JVM) et la liaison WebAssembly (`vetsim-wasm`, navigateur).
 //!
 //! Chaque méthode reçoit et renvoie une chaîne JSON. Une entrée invalide renvoie
 //! `{"ok": false, "errors": [{"path": ..., "message": ...}]}` ; aucune méthode ne panique

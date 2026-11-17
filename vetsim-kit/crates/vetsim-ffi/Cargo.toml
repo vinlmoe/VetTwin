@@ -12,8 +12,7 @@ crate-type = ["lib", "cdylib", "staticlib"]
 name = "vetsim_ffi"
 
 [dependencies]
-vetsim-core = { path = "../vetsim-core" }
-serde_json.workspace = true
+vetsim-api = { path = "../vetsim-api" }
 uniffi = { version = "=0.29.5" }
 
 [lints]

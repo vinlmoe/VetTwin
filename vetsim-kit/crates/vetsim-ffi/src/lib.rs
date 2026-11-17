@@ -6,7 +6,7 @@
 //!
 //! `unsafe` : aucun dans ce crate ; le code `extern "C"` est généré par UniFFI.
 
-pub mod api;
+pub use vetsim_api as api;
 
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::Mutex;

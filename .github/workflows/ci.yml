@@ -108,3 +108,28 @@ jobs:
           path: |
             vetsim-kit/kmp-demo/composeApp/build/screenshots/
             vetsim-kit/kmp-demo/composeApp/build/outputs/apk/debug/
+
+  web:
+    # Application web : moteur WebAssembly + autotest dans Chrome sans interface (bit à bit avec le natif).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: vetsim-kit
+      - run: cargo install wasm-bindgen-cli --version 0.2.100 --locked
+      - run: sh web/build.sh
+      - name: Autotest dans le navigateur
+        run: |
+          python3 -m http.server -d web 8000 &
+          sleep 2
+          google-chrome --headless=new --disable-gpu --no-sandbox --virtual-time-budget=60000 --dump-dom http://localhost:8000/selftest.html > selftest.html
+          grep -o "SELFTEST [0-9]*/[0-9]*" selftest.html
+          python3 -c "import re,sys; m=re.search(r'SELFTEST (\d+)/(\d+)', open('selftest.html').read()); sys.exit(0 if m and m.group(1)==m.group(2) else 1)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vettwins-web
+          path: vetsim-kit/web/

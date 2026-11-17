@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/vetsim-core", "crates/vetsim-cli", "crates/vetsim-ffi", "crates/uniffi-bindgen"]
+members = ["crates/vetsim-core", "crates/vetsim-cli", "crates/vetsim-api", "crates/vetsim-ffi", "crates/vetsim-wasm", "crates/uniffi-bindgen"]
 
 [workspace.package]
 version = "0.1.0"

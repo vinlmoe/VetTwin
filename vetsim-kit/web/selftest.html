@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>VetTwins : autotest du moteur WebAssembly</title></head>
+<body style="font-family:system-ui;padding:16px">
+<h1>Autotest du moteur WebAssembly</h1>
+<p>Recalcule dans le navigateur les cas <code>eval</code> du golden et compare chaque valeur, au bit près, à la sortie du binaire natif <code>vetsim-cli</code> (fichier <code>selftest.json</code>, produit par <code>build.sh</code>).</p>
+<pre id="out">en cours…</pre>
+<script type="module">
+import init, { Engine } from './pkg/vetsim_wasm.js';
+await init();
+const e = new Engine();
+const call = (m, ...a) => { const r = JSON.parse(e[m](...a)); if (!r.ok) throw new Error(JSON.stringify(r.errors)); return r; };
+call('loadModules', await (await fetch('./modules.json')).text());
+const cases = await (await fetch('./selftest.json')).json();
+let same = 0, total = 0; const bad = [];
+for (const c of cases) {
+  const id = call('newPatient', JSON.stringify({ bw: c.bw, variability: false })).patient_id;
+  for (const [d, s] of c.diseases) call('addDisease', id, JSON.stringify({ id: d, severity: s }));
+  const st = call('state', id, JSON.stringify({ conc: c.conc, D: c.D, U: c.U }));
+  for (const [k, v] of Object.entries(c.expected)) { total++; if (Object.is(st[k], v)) same++; else bad.push(`${c.id} ${k} : wasm ${st[k]} / natif ${v}`); }
+}
+document.getElementById('out').textContent = `SELFTEST ${same}/${total} valeurs identiques au bit près sur ${cases.length} cas\n` + bad.slice(0, 20).join('\n');
+</script></body></html>
