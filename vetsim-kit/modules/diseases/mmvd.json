@@ -1,0 +1,306 @@
+{
+ "schema_version": "1.0.0",
+ "species": [
+  "dog"
+ ],
+ "license": "CC-BY-4.0",
+ "id": "mmvd",
+ "version": "1.0.0",
+ "name": {
+  "fr": "Maladie valvulaire mitrale dégénérative (MMVD)",
+  "en": "Myxomatous mitral valve disease"
+ },
+ "evidence": "C",
+ "description": {
+  "fr": "Stades ACVIM B1, B2, C, D. Régurgitation mitrale croissante, dilatation VG, rétention hydrosodée tardive, déséquilibre autonome (sympathique ↑, vagal ↓, baroréflexe ↓). Les signes (souffle, œdème, hypoxémie, tachycardie) émergent du moteur."
+ },
+ "severity": {
+  "stages": {
+   "B1": [
+    0.05,
+    0.3
+   ],
+   "B2": [
+    0.3,
+    0.6
+   ],
+   "C": [
+    0.6,
+    0.85
+   ],
+   "D": [
+    0.85,
+    1.0
+   ]
+  },
+  "prior": {
+   "B1": 0.35,
+   "B2": 0.3,
+   "C": 0.25,
+   "D": 0.1
+  }
+ },
+ "draws": {
+  "z_g": {
+   "dist": "lognormal_mean1",
+   "sd": 0.25
+  },
+  "z_cpv": {
+   "dist": "lognormal_mean1",
+   "sd": 0.25
+  },
+  "z_bvf": {
+   "dist": "lognormal_mean1",
+   "sd": 0.25
+  }
+ },
+ "let": {
+  "late": {
+   "max": [
+    0,
+    {
+     "div": [
+      {
+       "sub": [
+        "s",
+        0.8
+       ]
+      },
+      0.2
+     ]
+    }
+   ]
+  },
+  "ret": {
+   "max": [
+    0,
+    {
+     "div": [
+      {
+       "sub": [
+        "s",
+        0.55
+       ]
+      },
+      0.45
+     ]
+    }
+   ]
+  },
+  "aut": {
+   "max": [
+    0,
+    {
+     "div": [
+      {
+       "sub": [
+        "s",
+        0.4
+       ]
+      },
+      0.6
+     ]
+    }
+   ]
+  }
+ },
+ "effects": [
+  {
+   "param": "g_mr",
+   "op": "add",
+   "expr": {
+    "mul": [
+     6.07,
+     {
+      "pow": [
+       "s",
+       2.617
+      ]
+     },
+     "z_g"
+    ]
+   }
+  },
+  {
+   "param": "c_pv",
+   "op": "mul",
+   "expr": {
+    "add": [
+     1,
+     {
+      "mul": [
+       0.116,
+       "s",
+       "z_cpv"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "param": "v0_lv",
+   "op": "mul",
+   "expr": {
+    "add": [
+     1,
+     {
+      "mul": [
+       1.115,
+       "s"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "param": "b_lv",
+   "op": "mul",
+   "expr": {
+    "add": [
+     1,
+     {
+      "mul": [
+       -0.2,
+       "s"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "param": "ees_lv",
+   "op": "mul",
+   "expr": {
+    "add": [
+     1,
+     {
+      "mul": [
+       -0.35,
+       "late"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "param": "bvf",
+   "op": "mul",
+   "expr": {
+    "add": [
+     1,
+     {
+      "mul": [
+       0.05,
+       "s"
+      ]
+     },
+     {
+      "mul": [
+       0.149,
+       "ret",
+       "z_bvf"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "param": "s0",
+   "op": "add",
+   "expr": {
+    "mul": [
+     0.5,
+     "aut"
+    ]
+   }
+  },
+  {
+   "param": "v0",
+   "op": "add",
+   "expr": {
+    "mul": [
+     -0.5,
+     "aut"
+    ]
+   }
+  },
+  {
+   "param": "baro_sens",
+   "op": "mul",
+   "expr": {
+    "add": [
+     1,
+     {
+      "mul": [
+       -0.5,
+       "late"
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "targets": [
+  {
+   "stage": "B1",
+   "var": "reg_fraction",
+   "range": [
+    0.0,
+    0.2
+   ],
+   "source": "plausibilité (JVIM 2004 : RF 17-81 % en MR expérimentale)",
+   "kind": "plausibility"
+  },
+  {
+   "stage": "C",
+   "var": "la_mean",
+   "range": [
+    14,
+    24
+   ],
+   "source": "MSD Manual : œdème si POG > ~20 mmHg",
+   "kind": "plausibility"
+  },
+  {
+   "stage": "D",
+   "var": "la_mean",
+   "range": [
+    20,
+    32
+   ],
+   "source": "MSD Manual",
+   "kind": "plausibility"
+  },
+  {
+   "stage": "D",
+   "var": "hr",
+   "range": [
+    140,
+    180
+   ],
+   "source": "choix clinique non sourcé",
+   "kind": "plausibility"
+  }
+ ],
+ "refs": [
+  "MSD Vet Manual — Myxomatous AV valve degeneration",
+  "Echocardiographic estimation of mean LA pressure in a canine model of acute MR, JVIM 2004;18(5)",
+  "ACVIM consensus 2019 (Keene et al.)"
+ ],
+ "presentation": {
+  "difficulty": 2,
+  "owner_complaint": {
+   "fr": [
+    "toux nocturne",
+    "intolérance à l'effort",
+    "souffle découvert fortuitement"
+   ]
+  },
+  "exams": [
+   "auscultation",
+   "radiographie thoracique",
+   "échocardiographie",
+   "NT-proBNP"
+  ]
+ }
+}

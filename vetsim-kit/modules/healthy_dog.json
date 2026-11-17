@@ -1,0 +1,282 @@
+{
+ "schema_version": "1.0.0",
+ "species": [
+  "dog"
+ ],
+ "license": "CC-BY-4.0",
+ "id": "healthy_dog",
+ "version": "1.0.0",
+ "reference_bw_kg": 20.0,
+ "description": {
+  "fr": "Patient sain de référence. Chaque paramètre est une expression de s = bw/20 (allométrie). Variabilité interindividuelle : multiplicateur lognormal de moyenne 1 et d'écart-type (CV) indiqué."
+ },
+ "params": {
+  "bw": "bw",
+  "hr": {
+   "mul": [
+    87.0,
+    {
+     "pow": [
+      "s",
+      -0.25
+     ]
+    }
+   ]
+  },
+  "ees_lv": {
+   "div": [
+    4.543,
+    "s"
+   ]
+  },
+  "v0_lv": {
+   "mul": [
+    4.0,
+    "s"
+   ]
+  },
+  "a_lv": 1.0,
+  "b_lv": {
+   "div": [
+    0.01548,
+    "s"
+   ]
+  },
+  "ees_rv": {
+   "div": [
+    1.6,
+    "s"
+   ]
+  },
+  "v0_rv": {
+   "mul": [
+    6.0,
+    "s"
+   ]
+  },
+  "a_rv": 0.4,
+  "b_rv": {
+   "div": [
+    0.05,
+    "s"
+   ]
+  },
+  "c_ao": {
+   "mul": [
+    0.7,
+    "s"
+   ]
+  },
+  "c_sv": {
+   "mul": [
+    55.0,
+    "s"
+   ]
+  },
+  "c_pa": {
+   "mul": [
+    1.5,
+    "s"
+   ]
+  },
+  "c_pv": {
+   "mul": [
+    5.0,
+    "s"
+   ]
+  },
+  "v0_ao": {
+   "mul": [
+    150.0,
+    "s"
+   ]
+  },
+  "v0_sv": {
+   "mul": [
+    900.0,
+    "s"
+   ]
+  },
+  "v0_pa": {
+   "mul": [
+    60.0,
+    "s"
+   ]
+  },
+  "v0_pv": {
+   "mul": [
+    120.0,
+    "s"
+   ]
+  },
+  "r_sys": {
+   "div": [
+    1.7571999999999999,
+    {
+     "pow": [
+      "s",
+      0.75
+     ]
+    }
+   ]
+  },
+  "r_pul": {
+   "div": [
+    0.156,
+    {
+     "pow": [
+      "s",
+      0.75
+     ]
+    }
+   ]
+  },
+  "r_valve": {
+   "div": [
+    0.03,
+    {
+     "pow": [
+      "s",
+      0.75
+     ]
+    }
+   ]
+  },
+  "g_mr": 0.0005,
+  "g_ar": 0.0002,
+  "g_tr": 0.0002,
+  "g_pr": 0.0002,
+  "bvf": 1.0,
+  "vol_shift": {
+   "mul": [
+    -21.0,
+    "s"
+   ]
+  },
+  "map_set": 103.0,
+  "baro_gain": 1.0,
+  "vo2": {
+   "mul": [
+    5.5,
+    {
+     "pow": [
+      "s",
+      -0.25
+     ]
+    }
+   ]
+  },
+  "vco2": {
+   "mul": [
+    4.6,
+    {
+     "pow": [
+      "s",
+      -0.25
+     ]
+    }
+   ]
+  },
+  "va0": 0.0748,
+  "vent_drive": 1.0,
+  "aagrad": 3.0,
+  "edema_k": 4.0,
+  "fio2": 0.21,
+  "pb": 760.0,
+  "hb": 15.0,
+  "p50": 30.0,
+  "hill_n": 2.7,
+  "rq": 0.84,
+  "na": 150.0,
+  "k": 4.1,
+  "cl": 113.6,
+  "xa": -2.48,
+  "alb": 3.77,
+  "phos": 1.42,
+  "lact0": 1.2,
+  "glucose": 5.2,
+  "alt": 45.0,
+  "nephron_mass": 1.0,
+  "gfr0": 3.5,
+  "creat0": 75.0,
+  "urea0": 5.0,
+  "hepatic_fn": 1.0,
+  "pr": 0.12,
+  "qrs": 0.045,
+  "qt": 0.2,
+  "r_amp": 1.7,
+  "t_amp": 0.3,
+  "p_amp": 0.2,
+  "sympathetic": 0.0,
+  "s0": 0.2,
+  "v0": 0.6,
+  "a_s": 0.4,
+  "a_v": 0.75,
+  "vagal_add": 0.0,
+  "vagal_block": 0.0,
+  "beta_block": 0.0,
+  "rsa_depth": 0.95,
+  "vag_noise": 0.025,
+  "sym_noise": 0.22,
+  "baro_sens": 1.0
+ },
+ "interindividual_variability": {
+  "ees_lv": {
+   "dist": "lognormal_mean1",
+   "sd": 0.08
+  },
+  "r_sys": {
+   "dist": "lognormal_mean1",
+   "sd": 0.08
+  },
+  "c_ao": {
+   "dist": "lognormal_mean1",
+   "sd": 0.1
+  },
+  "hr": {
+   "dist": "lognormal_mean1",
+   "sd": 0.06
+  },
+  "hb": {
+   "dist": "lognormal_mean1",
+   "sd": 0.06
+  },
+  "creat0": {
+   "dist": "lognormal_mean1",
+   "sd": 0.1
+  },
+  "gfr0": {
+   "dist": "lognormal_mean1",
+   "sd": 0.08
+  },
+  "aagrad": {
+   "dist": "lognormal_mean1",
+   "sd": 0.2
+  },
+  "vco2": {
+   "dist": "lognormal_mean1",
+   "sd": 0.05
+  },
+  "na": {
+   "dist": "lognormal_mean1",
+   "sd": 0.006
+  },
+  "k": {
+   "dist": "lognormal_mean1",
+   "sd": 0.05
+  },
+  "cl": {
+   "dist": "lognormal_mean1",
+   "sd": 0.01
+  },
+  "alb": {
+   "dist": "lognormal_mean1",
+   "sd": 0.06
+  },
+  "alt": {
+   "dist": "lognormal_mean1",
+   "sd": 0.25
+  }
+ },
+ "provenance": "Voir docs/PROVENANCE.md et calibration/targets.json"
+}

@@ -1,0 +1,80 @@
+{
+ "schema_version": "1.0.0",
+ "species": [
+  "dog"
+ ],
+ "license": "CC-BY-4.0",
+ "id": "pimobendan",
+ "version": "1.0.0",
+ "name": {
+  "fr": "Pimobendane"
+ },
+ "evidence": "C",
+ "pk": {
+  "vc_L_kg": 2.0,
+  "vp_L_kg": 1.1,
+  "cl_mL_min_kg": 27.9,
+  "q_mL_min_kg": 16.7,
+  "ka_per_h": 1.08,
+  "f": 0.5,
+  "renal_exp": 0.0,
+  "hep_exp": 1.0
+ },
+ "pd": {
+  "type": "emax",
+  "emax": 1.0,
+  "ec50_mg_L": 0.03,
+  "hill": 1.2,
+  "effects": [
+   {
+    "param": "ees_lv",
+    "op": "mul",
+    "expr": {
+     "add": [
+      1,
+      {
+       "mul": [
+        0.35,
+        "E"
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "param": "ees_rv",
+    "op": "mul",
+    "expr": {
+     "add": [
+      1,
+      {
+       "mul": [
+        0.2,
+        "E"
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "param": "r_sys",
+    "op": "mul",
+    "expr": {
+     "add": [
+      1,
+      {
+       "mul": [
+        -0.2,
+        "E"
+       ]
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "refs": [
+  "Her et al. 2020 Front Vet Sci 7:423"
+ ],
+ "notes": "PK calée sur 0,5 mg/kg PO (Tmax mal reproduit; F supposée 0,5). PD placeholder."
+}

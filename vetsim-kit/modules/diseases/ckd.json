@@ -1,0 +1,278 @@
+{
+ "schema_version": "1.0.0",
+ "species": [
+  "dog"
+ ],
+ "license": "CC-BY-4.0",
+ "id": "ckd",
+ "version": "1.0.0",
+ "name": {
+  "fr": "Maladie rénale chronique (IRIS 1-4)",
+  "en": "Chronic kidney disease (IRIS 1-4)"
+ },
+ "evidence": "B",
+ "description": {
+  "fr": "Perte de néphrons exponentielle avec la sévérité (calée sur les bornes de créatininémie IRIS), acidose (xa), hyperphosphatémie, anémie, hypoalbuminémie, hyperkaliémie tardive, hypertension possible."
+ },
+ "severity": {
+  "stages": {
+   "IRIS1": [
+    0.05,
+    0.25
+   ],
+   "IRIS2": [
+    0.25,
+    0.5
+   ],
+   "IRIS3": [
+    0.5,
+    0.75
+   ],
+   "IRIS4": [
+    0.75,
+    0.95
+   ]
+  },
+  "prior": {
+   "IRIS1": 0.2,
+   "IRIS2": 0.35,
+   "IRIS3": 0.3,
+   "IRIS4": 0.15
+  }
+ },
+ "draws": {
+  "z_neph": {
+   "dist": "lognormal_mean1",
+   "sd": 0.25
+  },
+  "z_xa": {
+   "dist": "lognormal_mean1",
+   "sd": 0.25
+  },
+  "z_phos": {
+   "dist": "lognormal_mean1",
+   "sd": 0.25
+  },
+  "z_hb": {
+   "dist": "lognormal_mean1",
+   "sd": 0.25
+  },
+  "z_hyp": {
+   "dist": "lognormal_mean1",
+   "sd": 0.25
+  },
+  "hyper": {
+   "dist": "bernoulli",
+   "p": {
+    "add": [
+     0.2,
+     {
+      "mul": [
+       0.6,
+       "s"
+      ]
+     }
+    ]
+   }
+  }
+ },
+ "effects": [
+  {
+   "param": "nephron_mass",
+   "op": "mul",
+   "expr": {
+    "max": [
+     0.05,
+     {
+      "exp": {
+       "mul": [
+        -2.4,
+        "s",
+        "z_neph"
+       ]
+      }
+     }
+    ]
+   }
+  },
+  {
+   "param": "xa",
+   "op": "add",
+   "expr": {
+    "mul": [
+     6.0,
+     {
+      "pow": [
+       "s",
+       2
+      ]
+     },
+     "z_xa"
+    ]
+   }
+  },
+  {
+   "param": "phos",
+   "op": "add",
+   "expr": {
+    "mul": [
+     1.6,
+     {
+      "pow": [
+       "s",
+       2
+      ]
+     },
+     "z_phos"
+    ]
+   }
+  },
+  {
+   "param": "hb",
+   "op": "mul",
+   "expr": {
+    "add": [
+     1,
+     {
+      "mul": [
+       -0.35,
+       {
+        "pow": [
+         "s",
+         1.5
+        ]
+       },
+       "z_hb"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "param": "alb",
+   "op": "mul",
+   "expr": {
+    "add": [
+     1,
+     {
+      "mul": [
+       -0.1,
+       "s"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "param": "k",
+   "op": "add",
+   "expr": {
+    "mul": [
+     2.0,
+     {
+      "max": [
+       0,
+       {
+        "div": [
+         {
+          "sub": [
+           "s",
+           0.85
+          ]
+         },
+         0.15
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "param": "r_sys",
+   "op": "mul",
+   "expr": {
+    "add": [
+     1,
+     {
+      "mul": [
+       0.3,
+       "s",
+       "z_hyp"
+      ]
+     }
+    ]
+   },
+   "when": "hyper"
+  }
+ ],
+ "meta_flags": {
+  "hypertension": "hyper"
+ },
+ "targets": [
+  {
+   "stage": "IRIS1",
+   "var": "creat",
+   "range": [
+    0,
+    125
+   ],
+   "unit": "µmol/L",
+   "source": "IRIS",
+   "kind": "published_threshold"
+  },
+  {
+   "stage": "IRIS2",
+   "var": "creat",
+   "range": [
+    125,
+    250
+   ],
+   "unit": "µmol/L",
+   "source": "IRIS",
+   "kind": "published_threshold"
+  },
+  {
+   "stage": "IRIS3",
+   "var": "creat",
+   "range": [
+    251,
+    440
+   ],
+   "unit": "µmol/L",
+   "source": "IRIS",
+   "kind": "published_threshold"
+  },
+  {
+   "stage": "IRIS4",
+   "var": "creat",
+   "range": [
+    440,
+    2000
+   ],
+   "unit": "µmol/L",
+   "source": "IRIS",
+   "kind": "published_threshold"
+  }
+ ],
+ "refs": [
+  "IRIS staging of CKD in dogs and cats"
+ ],
+ "presentation": {
+  "difficulty": 1,
+  "owner_complaint": {
+   "fr": [
+    "polyuro-polydipsie",
+    "perte de poids",
+    "vomissements"
+   ]
+  },
+  "exams": [
+   "biochimie",
+   "urines (DU, UPC)",
+   "pression artérielle",
+   "échographie rénale",
+   "SDMA"
+  ]
+ }
+}
