@@ -18,7 +18,8 @@ usage :
   vetsim-cli [--modules DIR] pk     --bw KG --drug ID --dose MG_PER_KG --route iv|po --times T1,T2,... [--disease id:sévérité ...]
   vetsim-cli [--modules DIR] params --bw KG [--disease id:sévérité ...]
   vetsim-cli [--modules DIR] calibrate [--targets FICHIER] [--n-healthy 50] [--n-disease 24] [--seed0 100] [--n-hrv 20]
-  vetsim-cli [--modules DIR] signals --bw KG [--disease id:sévérité ...] [--conc ...] [--seed 0] [--duration 8]";
+  vetsim-cli [--modules DIR] signals --bw KG [--disease id:sévérité ...] [--conc ...] [--seed 0] [--duration 8]
+  vetsim-cli [--modules DIR] pcg --bw KG [--disease ...] [--conc ...] [--hr /min] [--site base|apex] [--fs 4000] [--seed 0] [--duration 8]";
 
 enum Failure {
     Usage(String),
@@ -58,6 +59,9 @@ struct Args {
     n_hrv: Option<usize>,
     seed: Option<u64>,
     duration: Option<f64>,
+    hr: Option<f64>,
+    site: Option<String>,
+    fs: Option<f64>,
 }
 
 fn count(flag: &str, v: &str) -> Result<usize, Failure> {
@@ -148,6 +152,9 @@ fn parse_args(argv: &[String]) -> Result<Args, Failure> {
             "--n-disease" => a.n_disease = Some(count(flag, &value()?)?),
             "--n-hrv" => a.n_hrv = Some(count(flag, &value()?)?),
             "--duration" => a.duration = Some(num(flag, &value()?)?),
+            "--hr" => a.hr = Some(num(flag, &value()?)?),
+            "--fs" => a.fs = Some(num(flag, &value()?)?),
+            "--site" => a.site = Some(value()?),
             "--seed" => {
                 let v = value()?;
                 a.seed = Some(v.trim().parse().map_err(|_| {
@@ -170,6 +177,9 @@ fn parse_args(argv: &[String]) -> Result<Args, Failure> {
         "params" => &["bw", "disease"],
         "calibrate" => &["targets", "n_healthy", "n_disease", "seed0", "n_hrv"],
         "signals" => &["bw", "disease", "conc", "D", "U", "seed", "duration"],
+        "pcg" => &[
+            "bw", "disease", "conc", "D", "U", "seed", "duration", "hr", "site", "fs",
+        ],
         "" => return Err(Failure::Usage("commande manquante".into())),
         other => return Err(Failure::Usage(format!("commande inconnue « {other} »"))),
     };
@@ -188,6 +198,9 @@ fn parse_args(argv: &[String]) -> Result<Args, Failure> {
         ("n_hrv", a.n_hrv.is_some()),
         ("seed", a.seed.is_some()),
         ("duration", a.duration.is_some()),
+        ("hr", a.hr.is_some()),
+        ("site", a.site.is_some()),
+        ("fs", a.fs.is_some()),
         ("bw", a.bw.is_some()),
         ("disease", !a.diseases.is_empty()),
     ];
@@ -326,19 +339,32 @@ fn run(argv: &[String]) -> Result<Json, Failure> {
             }
             Ok(Json::Object(m))
         }
-        "eval" | "signals" => {
+        "eval" | "signals" | "pcg" => {
             let d = a.d.unwrap_or(0.0);
             let u = a.u.unwrap_or(0.0);
+            let mut base = pt.params.clone();
+            // Préréglage de fréquence cardiaque (réglage d'usage) : FC de repos imposée.
+            if let Some(hr) = a.hr {
+                if !(hr > 20.0 && hr < 300.0) {
+                    return Err(Failure::Usage(format!(
+                        "--hr : {hr} hors de ]20, 300[ /min"
+                    )));
+                }
+                base.hr = hr;
+            }
             let params = if a.conc.is_empty() && d == 0.0 && u == 0.0 {
-                pt.params.clone()
+                base.clone()
             } else {
                 for (id, _) in &a.conc {
                     check_drug(&cat, id)?;
                 }
-                vetsim_core::apply_drug_effects(&pt.params, &cat.drugs, &a.conc, d, u)
+                vetsim_core::apply_drug_effects(&base, &cat.drugs, &a.conc, d, u)
                     .map_err(|e| Failure::Engine(e.to_string()))?
             };
             let ev = vetsim_core::evaluate(&params).map_err(|e| Failure::Engine(e.to_string()))?;
+            if a.command == "pcg" {
+                return pcg_json(&dir, &ev, &a);
+            }
             if a.command == "signals" {
                 return Ok(signals_json(
                     &ev,
@@ -393,6 +419,32 @@ fn run(argv: &[String]) -> Result<Json, Failure> {
         "calibrate" => calibrate(&cat, &a),
         _ => unreachable!("commande validée par parse_args"),
     }
+}
+
+/// Auscultation (diagnostic hors contrat) : WAV 16 bits en base64 et caractéristiques.
+fn pcg_json(dir: &Path, ev: &vetsim_core::Evaluation, a: &Args) -> Result<Json, Failure> {
+    use vetsim_core::pcg::{patient_pcg, AuscultationConfig, PcgOptions};
+    let path = dir.join("auscultation.json");
+    let text = std::fs::read_to_string(&path)
+        .map_err(|e| Failure::Modules(format!("{} : lecture impossible ({e})", path.display())))?;
+    let cfg = AuscultationConfig::from_json(&text, &path.display().to_string())
+        .map_err(|e| Failure::Modules(e.to_string()))?;
+    let opts = PcgOptions {
+        fs: a.fs,
+        duration_s: a.duration,
+        resp_hz: None,
+        site: a.site.clone(),
+    };
+    let r = patient_pcg(ev, &cfg, &opts, a.seed.unwrap_or(0))
+        .map_err(|e| Failure::Engine(e.to_string()))?;
+    let wav = vetsim_core::dsp::wav_pcm16(&r.samples, r.fs as u32);
+    let f = r.features;
+    Ok(serde_json::json!({
+        "wav_base64": vetsim_core::dsp::base64(&wav), "fs": r.fs, "grade": f.grade,
+        "murmur": f.murmur.label_fr(), "s3": f.s3, "s1": f.s1, "s2": f.s2,
+        "murmur_peak_flow": f.murmur_peak_flow, "beats": r.beats, "t_mc": r.t_mc, "t_ac": r.t_ac,
+        "hr": ev.params.hr, "site": a.site.clone().unwrap_or_else(|| "base".into()),
+    }))
 }
 
 /// Signaux d'un patient (diagnostic hors contrat) : ECG, PCG, instants R, VFC, caractéristiques.

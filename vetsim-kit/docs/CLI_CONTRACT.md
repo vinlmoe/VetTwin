@@ -36,3 +36,8 @@ Banc de calibration (jalon M5), même structure que `calibration/calibration_run
 vetsim-cli signals --bw 20 [--disease mmvd:0.8 ...] [--conc ...] [--seed 0] [--duration 8]
 ```
 Signaux d'un patient (jalon M6) : ECG à 500 Hz sur `duration` secondes (`ecg.v`, `ecg.r_times`, `ecg.features`), PCG de 4 battements à 4000 Hz (`pcg.v`, `pcg.features` : B1, B2, B3, souffle, grade), indices de VFC sur 120 s. Stochastique mais reproductible (graine, flux ChaCha distincts pour l'autonome, l'ECG et le PCG ; voir `docs/DETERMINISM.md`).
+
+```
+vetsim-cli pcg --bw 20 [--disease mmvd:0.3 ...] [--conc ...] [--hr 72] [--site base|apex] [--fs 4000] [--seed 0] [--duration 8]
+```
+Auscultation (module `pcg.rs`, voir `docs/AUSCULTATION.md`) : `{"wav_base64", "fs", "grade", "murmur", "s3", "s1", "s2", "murmur_peak_flow", "beats", "t_mc", "t_ac", "hr", "site"}`. `--hr` impose la FC de repos (réglage d'usage). Lit `auscultation.json` dans le dossier des modules.

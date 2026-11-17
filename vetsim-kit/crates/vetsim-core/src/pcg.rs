@@ -684,3 +684,39 @@ pub fn synthesize_pcg(
         t_ac,
     })
 }
+
+/// Auscultation d'un patient évalué : simulation autonome (instants des battements avec
+/// l'arythmie sinusale respiratoire, flux `streams::AUTONOMIC`, comme l'ECG), fréquence
+/// respiratoire = FR du modèle / 60, synthèse avec le flux `streams::AUSCULTATION`.
+/// Même graine et même durée : mêmes battements que l'ECG de `signals::patient_signals`.
+pub fn patient_pcg(
+    ev: &crate::engine::Evaluation,
+    cfg: &AuscultationConfig,
+    opts: &PcgOptions,
+    seed: u64,
+) -> Result<PcgResult, Error> {
+    use crate::autonomic::{simulate_autonomic, AutonomicOptions};
+    use crate::rng::SimRng;
+    use crate::signals::streams;
+    let dur = opts.duration_s.unwrap_or(cfg.duration_s);
+    let au = simulate_autonomic(
+        &ev.into(),
+        &AutonomicOptions {
+            duration_s: dur.max(120.0),
+            ..AutonomicOptions::default()
+        },
+        &mut SimRng::for_stream(seed, streams::AUTONOMIC),
+    );
+    let beats: Vec<f64> = au.beats.iter().copied().filter(|b| *b < dur).collect();
+    let o = PcgOptions {
+        resp_hz: opts.resp_hz.or(Some(ev.metabolic.art.rr / 60.0)),
+        ..opts.clone()
+    };
+    synthesize_pcg(
+        &PcgInputs::from(&ev.hemo),
+        Some(&beats),
+        cfg,
+        &o,
+        &mut SimRng::for_stream(seed, streams::AUSCULTATION),
+    )
+}

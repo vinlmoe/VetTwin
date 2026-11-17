@@ -441,8 +441,10 @@ pub mod streams {
     pub const AUTONOMIC: u64 = 1;
     /// Bruit de l'ECG.
     pub const ECG: u64 = 2;
-    /// Bruit du PCG.
+    /// Bruit du PCG (jalon M6).
     pub const PCG: u64 = 3;
+    /// Bruit du module auscultation (pcg.rs).
+    pub const AUSCULTATION: u64 = 4;
 }
 
 /// Options des signaux d'un patient.
