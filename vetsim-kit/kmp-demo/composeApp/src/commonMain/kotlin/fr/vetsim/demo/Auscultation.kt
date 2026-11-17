@@ -85,10 +85,15 @@ fun AuscultationView(
     var loop by remember { mutableStateOf(false) }
     var zoomOnly by remember { mutableStateOf(false) }
     var played by remember { mutableStateOf(false) }
-    var gain by remember { mutableStateOf(3f) }
+    var gain by remember { mutableStateOf(1f) }
 
-    /** Amplification réglable avec limiteur doux (tanh) : pas d'écrêtage brutal. */
-    fun amplified(x: FloatArray): FloatArray = FloatArray(x.size) { kotlin.math.tanh(gain * x[it]) }
+    /** Amplification réglable. Gain 1 : signal inchangé. Au-delà, mise à l'échelle linéaire et
+     *  limitation des seules crêtes au-dessus de 0,9 (genou doux), pour conserver le timbre. */
+    fun amplified(x: FloatArray): FloatArray = FloatArray(x.size) {
+        val y = gain * x[it]
+        val a = kotlin.math.abs(y)
+        if (a <= 0.9f) y else kotlin.math.sign(y) * (0.9f + 0.1f * kotlin.math.tanh((a - 0.9f) / 0.1f))
+    }
     // segment joué (s) : tout l'enregistrement, ou la fenêtre affichée
     var segStart by remember { mutableStateOf(0f) }
     var segLen by remember { mutableStateOf(0f) }

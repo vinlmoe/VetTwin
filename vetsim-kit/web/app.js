@@ -12,7 +12,7 @@ const S = {
   ctl: null, tab: 'patient',
   inputs: { bw: 20, disease: null, stage: null, seed: 1, plan: null, atH: null },
   res: null,
-  ausc: { hr: null, site: 'base', r: null, spec: null, window: 8, start: 0, cursor: null, playing: false, audio: null, src: null, loop: false, zoomOnly: false, played: false, gain: 3, gainNode: null },
+  ausc: { hr: null, site: 'base', r: null, spec: null, window: 8, start: 0, cursor: null, playing: false, audio: null, src: null, loop: false, zoomOnly: false, played: false, gain: 1, gainNode: null },
   treat: { regimens: [], days: 3, r: null, cursor: 0, shown: ['hr', 'map', 'k'], ref: null, editing: null, open: null },
   model: { selected: null },
 };
@@ -337,11 +337,12 @@ function play() {
   if (ctx.state === 'suspended') ctx.resume();
   const buf = ctx.createBuffer(1, r.samples.length, r.fs);
   buf.copyToChannel(r.samples, 0);
-  // amplification réglable puis limiteur doux (pas d'écrêtage brutal aux volumes élevés)
+  // amplification réglable ; limiteur de crête seulement (seuil −1 dBFS, ratio élevé, attaque
+  // et relâchement rapides) : sous le seuil, le signal n'est pas modifié (timbre conservé)
   const src = ctx.createBufferSource(); src.buffer = buf;
   const g = ctx.createGain(); g.gain.value = A.gain; A.gainNode = g;
   const lim = ctx.createDynamicsCompressor();
-  lim.threshold.value = -6; lim.knee.value = 6; lim.ratio.value = 12; lim.attack.value = 0.002; lim.release.value = 0.1;
+  lim.threshold.value = -1; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.001; lim.release.value = 0.05;
   src.connect(g); g.connect(lim); lim.connect(ctx.destination);
   const off = A.zoomOnly ? A.start : 0, len = A.zoomOnly ? Math.min(A.window, r.duration_s - off) : r.duration_s;
   src.loop = A.loop; src.loopStart = off; src.loopEnd = off + len;
