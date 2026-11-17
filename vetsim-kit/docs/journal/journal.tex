@@ -63,6 +63,7 @@ Chaque entrée indique le commit, ce qui a été fait, la vérification qui fait
 \commit{12e0e4a} & Édition des doses & Modification d'un schéma existant ; ajustement prise par prise (dose modifiée, prise omise = 0). Vérifié : prise omise à 48\,h $\Rightarrow$ concentration $<5$\,\% du pic habituel ; prise doublée à 72\,h $\Rightarrow$ pic $>1{,}8\times$.\\
 \commit{1fe10af} & Application web & API JSON déplacée dans \texttt{vetsim-api} (partagée), liaison WebAssembly \texttt{vetsim-wasm} (\texttt{wasm-bindgen} 0.2.100), interface web statique (5 onglets, cas partageables par l'adresse). Vérifié : 882/882 valeurs identiques au bit près entre Chrome (WebAssembly) et le binaire natif ; captures des onglets relues.\\
 \commit{(ce commit)} & Vérification bibliographique & Comparaison chiffrée du modèle à 30 sources (section~\ref{sec:verif}, \texttt{docs/VERIFICATION\_LITTERATURE.md}). Aucun module ni paramètre modifié.\\
+\commit{(ce commit)} & Proposition toxicité & \texttt{docs/PROPOSITION\_TOXICITE.md} : termes toxiques séparés $T$ dans la PD (au lieu de $E>1$, qui ne fait qu'amplifier l'effet thérapeutique), critères de décompensation sourcés, risque de décès par risque instantané (flux ChaCha distinct). En attente de validation, rien d'implémenté.\\
 \bottomrule
 \end{longtable}
 
