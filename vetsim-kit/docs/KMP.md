@@ -25,3 +25,13 @@ interface Engine {
 
 ## Démo KMP minimale
 Un écran : choix du poids, d'une maladie et d'un stade; boutons « évaluer » et « ajouter médicament »; tracés ECG et pressions; tableau des gaz du sang et de la biochimie; lecture du PCG.
+
+## Implémentation (jalon M7)
+- Crate `crates/vetsim-ffi` : `api.rs` (Rust pur, testé par `cargo test`) et `lib.rs` (objet UniFFI `Engine`, `catch_unwind` sur chaque appel). Liaisons générées par `cargo run -p uniffi-bindgen -- generate --library <lib> --language kotlin`.
+- `loadModules` attend `{"patient": <healthy_dog.json>, "diseases": [<module>...], "drugs": [<module>...]}` ; les chemins d'erreur sont relatifs à ce paquet (ex. `/diseases/1/effects/0/op`).
+- `newPatient` : `variability: false` → patient sans bruit (les maladies à sévérité imposée donnent alors exactement les valeurs du CLI `eval`).
+- `addDisease` : `stage` ou `severity` (pas les deux) ; sans l'un ni l'autre, stade tiré selon `prior`.
+- `state` : clés plates du CLI, `case`, `emergent_signs` ; `"signals": true` ajoute la réponse de `signals`.
+- `signals` : `ecg` (500 Hz par défaut), `pcg` (4000 Hz), `r_times`, et en plus `ecg_features`, `pcg_features`, `pressures` (dernier battement : `ao`, `lv`, `la`, `pa`, `rv`, pas `dt`), `hrv`. Les tableaux sont arrondis en `Float32` dans le JSON (≈ 300 Ko pour 8 s d'ECG et 4 battements de PCG) ; une variante binaire n'a pas été nécessaire.
+- `emergent_signs` : uniquement des seuils déjà présents dans le projet, chacun avec sa source (souffle et grade, B3, POG > 20 mmHg, Na:K < 27, créatinine > 125 µmol/L, K > 5,5 mmol/L). Pas d'hypotension, de tachycardie ni d'hypoxémie : aucun seuil sourcé dans le kit.
+- `timecourse` : `{"doses": [...], "t_end_h", "t_eval_h", "states"}` ; renvoie `t`, `conc_mg_L`, `D`, `U` et, si demandé, l'état plat à chaque instant.
