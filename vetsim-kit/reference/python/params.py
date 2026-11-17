@@ -59,6 +59,19 @@ def healthy_params(bw=20.0):
         #     P = (1 + k·e_a(t))·P_passive, activation PR avant le ventricule ; k = 0 : oreillettes passives
         k_la=0.0, k_ra=0.0,          # gains d'activation atriale (à caler sur le rapport E/A mitral ; placeholders)
         ta_atr=0.09, tra_atr=0.06,   # durées de contraction et de relaxation atriales (s ; placeholders D)
+        # --- conduction (rhythm.py) ; placeholders D sauf mention (docs/PROVENANCE.md)
+        sa_block=0.0,                # probabilité de bloc de sortie sino-atrial (maladie du sinus)
+        af=0.0, af_cycle=0.12, af_cv=0.3,   # fibrillation atriale : drapeau, cycle atrial moyen (s), CV
+        hv=0.035,                    # temps His-ventricule (s)
+        av_erp=0.15, av_beta=0.10, av_tau=0.15, av_conceal=0.75,   # nœud AV (s) ; ERP et conduction cachée calés sur la FA (FC 129,7, CVRR 0,309 ; n = 50) avec 1:1 sinusal jusqu'à 225/min
+        av_vagal=0.5, av_k_gain=0.10,      # allongement nodal par le tonus vagal et par mmol/L de K au-delà de 5,5
+        hp_conduction=1.0,           # probabilité de conduction His-Purkinje (bloc infranodal)
+        k_hp_block=10.0, hp_k_slope=0.5,   # K au-delà duquel la conduction infranodale échoue (QRS large > 10,1) ; pente /mmol/L
+        junct_rate=50.0,             # automatisme jonctionnel (/min), au-dessus de l'échappement ventriculaire
+        vent_escape_rate=42.0,       # échappement ventriculaire (/min) : 42 ± 11 en BAV de haut degré (n = 97)
+        esc_k_gain=0.10,             # dépression de l'automatisme d'échappement par mmol/L de K au-delà de 5,5
+        vpc_rate=0.0, vpc_k_gain=1.0, k_vpc=3.0,   # foyer ectopique (/min), gain hypokaliémique (/min par mmol/L sous k_vpc)
+        k_atrial_standstill=8.5,     # K d'arrêt atrial, conduction sino-ventriculaire conservée (8,5-10 ; Hariman 1983)
     )
     return p
 

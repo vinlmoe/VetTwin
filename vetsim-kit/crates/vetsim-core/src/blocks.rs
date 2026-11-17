@@ -145,6 +145,17 @@ pub fn blocks_of(name: &str) -> &'static [Block] {
         "k_la" => &[PulmonaryCirculation, LeftHeart],
         "k_ra" => &[SystemicCirculation, RightHeart],
         "ta_atr" | "tra_atr" => &[PulmonaryCirculation, SystemicCirculation],
+        // conduction (rhythm) : génération et propagation de l'influx → FC, ECG, oreillettes
+        "sa_block" | "af" | "af_cycle" | "af_cv" | "hv" | "av_erp" | "av_beta" | "av_tau"
+        | "av_conceal" | "av_vagal" | "hp_conduction" | "junct_rate" | "vent_escape_rate"
+        | "vpc_rate" => &[Autonomic, Ecg],
+        "av_k_gain"
+        | "k_hp_block"
+        | "hp_k_slope"
+        | "esc_k_gain"
+        | "vpc_k_gain"
+        | "k_vpc"
+        | "k_atrial_standstill" => &[AcidBase, Autonomic, Ecg],
         _ => &[],
     }
 }

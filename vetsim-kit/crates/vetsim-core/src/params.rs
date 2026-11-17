@@ -231,6 +231,49 @@ define_params! {
     ta_atr,
     /// Durée de relaxation atriale (s).
     tra_atr,
+    // --- conduction (rhythm) ---
+    /// Probabilité de bloc de sortie sino-atrial (maladie du sinus).
+    sa_block,
+    /// Fibrillation atriale (0 ou 1).
+    af,
+    /// Cycle atrial moyen en FA (s).
+    af_cycle,
+    /// Coefficient de variation du cycle atrial en FA.
+    af_cv,
+    /// Temps His-ventricule (s).
+    hv,
+    /// Période réfractaire du nœud AV (s).
+    av_erp,
+    /// Allongement maximal du délai nodal à récupération incomplète (s).
+    av_beta,
+    /// Constante de récupération nodale (s).
+    av_tau,
+    /// Fraction de recul de la récupération nodale par un influx bloqué (conduction cachée).
+    av_conceal,
+    /// Allongement nodal par unité de tonus vagal au-delà de 0,6.
+    av_vagal,
+    /// Allongement nodal par mmol/L de K au-delà de 5,5.
+    av_k_gain,
+    /// Probabilité de conduction His-Purkinje.
+    hp_conduction,
+    /// K (mmol/L) au-delà duquel la conduction infranodale échoue.
+    k_hp_block,
+    /// Perte de conduction infranodale par mmol/L au-delà de `k_hp_block`.
+    hp_k_slope,
+    /// Automatisme jonctionnel (/min).
+    junct_rate,
+    /// Échappement ventriculaire (/min).
+    vent_escape_rate,
+    /// Dépression de l'automatisme d'échappement par mmol/L de K au-delà de 5,5.
+    esc_k_gain,
+    /// Décharges ectopiques ventriculaires (/min).
+    vpc_rate,
+    /// Décharges ectopiques supplémentaires par mmol/L de K sous `k_vpc` (/min).
+    vpc_k_gain,
+    /// K (mmol/L) sous lequel l'automatisme ectopique augmente.
+    k_vpc,
+    /// K (mmol/L) d'arrêt atrial.
+    k_atrial_standstill,
 }
 
 #[cfg(test)]
@@ -250,6 +293,6 @@ mod tests {
             assert_eq!(p.get(n), Some(v));
         }
         assert_eq!(p.get("nope"), None);
-        assert_eq!(Params::NAMES.len(), 88); // 73 + 11 décompensation + 4 oreillettes
+        assert_eq!(Params::NAMES.len(), 109); // 73 + 11 décompensation + 4 oreillettes + 21 conduction
     }
 }

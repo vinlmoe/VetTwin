@@ -22,3 +22,9 @@
 - Placeholders : PD de tous les médicaments, PK de l'atropine, du bêtabloquant et de l'opioïde, module pneumonie.
 - Placeholders (evidence D), ajoutés le 17/11/2026 : termes toxiques des médicaments (`pd.toxicity` : EC50 toxique = 10 × EC50 thérapeutique, Hill 3, amplitudes) et paramètres de décompensation de `healthy_dog.json` (`acid_ph0` 7,20, `acid_ees` 1,5, `acid_rsys` 1,0, `hypox_pvo2` 20 mmHg, `hypox_ees` 0,03, `k_weak` 2,5 mmol/L, `k_weak_vent` 0,4, `cpp_min` 40 mmHg, `cpp_ees` 0,02, `hr_arrest` 20 /min, `co_arrest_frac` 0,15). Aucune source : ordres de grandeur pédagogiques. Voir `docs/PROPOSITION_TOXICITE.md`.
 - Usage pédagogique uniquement.
+
+## Conduction (`reference/python/rhythm.py`, 17/11/2026)
+- Calés : `av_erp` 0,15 s et `av_conceal` 0,75 sur la FA canine (FC Holter médiane 129,7 [116,8–156,0], CVRR 0,309 [0,247–0,442], n = 50 ; 10.3389/fcvm.2026.1890025) sous la contrainte de conduction 1:1 jusqu'à ~225/min (FC max Holter des chiens sains 204 ± 25 ; 10.1371/journal.pone.0319886). Modèle : 129,6 /min, CVRR 0,291.
+- Sourcés : `vent_escape_rate` 42 /min (42 ± 11, n = 97 ; 10.1111/jvim.12512) ; `k_atrial_standstill` 8,5 mmol/L (arrêt atrial 8,5–10 avec conduction sino-ventriculaire, Hariman 1983, résumé) ; `k_hp_block` 10 (élargissement du QRS au-delà de 10,1, Tag & Day 2008, vu par moteur seulement).
+- Placeholders D : `af_cycle`, `af_cv`, `hv`, `av_beta`, `av_tau`, `av_vagal`, `av_k_gain`, `hp_k_slope`, `junct_rate` 50, `esc_k_gain`, `vpc_k_gain`, `k_vpc`.
+- Oreillette : gain `k_la` à caler sur E/A ≈ 1,39 (E 0,82, A 0,59 m/s, n = 53 ; 10.3390/ani15111524) ; k_la ≈ 1,45 donne E/A 1,39 à la FC de repos du modèle (contribution ≈ 10 % du VES). Les ondes fusionnent au-delà d'environ 120/min.
