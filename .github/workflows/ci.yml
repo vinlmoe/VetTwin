@@ -60,3 +60,49 @@ jobs:
       - run: pip install numpy scipy jsonschema
       - run: python tests/validate_modules.py
       - run: python tests/check_modules.py
+
+  cross-platform:
+    # Mêmes bits sur Linux x86_64 (natif) et wasm32-wasip1 (wasmtime) : sorties JSON identiques.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: vetsim-kit
+      - name: Installer wasmtime
+        run: |
+          curl -fsSL -o wt.tar.xz https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.2/wasmtime-v50.0.2-x86_64-linux.tar.xz
+          tar xf wt.tar.xz && echo "$PWD/wasmtime-v50.0.2-x86_64-linux" >> "$GITHUB_PATH"
+      - run: cargo build --release -p vetsim-cli && cargo build --release -p vetsim-cli --target wasm32-wasip1
+      - run: python3 tests/cross_platform.py --ref target/release/vetsim-cli --cmd "wasmtime run --dir . target/wasm32-wasip1/release/vetsim-cli.wasm"
+
+  kmp-demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android, x86_64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: vetsim-kit
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - run: cargo install cargo-ndk --locked
+      - run: cargo build --release -p vetsim-cli
+      - name: Tests JVM par la FFI, capture d'écran, APK
+        working-directory: vetsim-kit/kmp-demo
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_LATEST_HOME }}
+        run: ./gradlew :composeApp:desktopTest :composeApp:assembleDebug --console=plain
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vettwins-demo
+          path: |
+            vetsim-kit/kmp-demo/composeApp/build/screenshots/
+            vetsim-kit/kmp-demo/composeApp/build/outputs/apk/debug/
