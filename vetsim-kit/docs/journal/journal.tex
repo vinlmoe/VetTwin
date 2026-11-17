@@ -1,0 +1,97 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{longtable,booktabs,array}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage[numbers,sort]{natbib}
+\usepackage{textcomp}
+
+\newcommand{\commit}[1]{\texttt{\small #1}}
+\newcommand{\ecart}[1]{\textcolor{red!60!black}{#1}}
+\setlength{\parskip}{0.4em}
+\setlength{\parindent}{0pt}
+
+\title{Journal de développement de \emph{vetsim} et de l'application \emph{VetTwins}\\[0.3em]
+\large Modifications, vérifications, écarts et références}
+\author{Projet VetTwin}
+\date{Dernière mise à jour : 17 novembre 2026}
+
+\begin{document}
+\maketitle
+
+\begin{center}
+\fbox{\parbox{0.92\linewidth}{\textbf{Usage pédagogique uniquement.} Le moteur est un patient virtuel canin destiné à l'enseignement. Aucun résultat ne doit servir à décider d'une dose ou d'un traitement réel. Les paramètres sont partiellement calés sur des moyennes publiées et ne sont pas validés cliniquement.}}
+\end{center}
+
+\section{Règles du projet}
+\begin{itemize}
+  \item L'implémentation Python de \texttt{reference/python/} est \emph{normative}. Le moteur Rust doit la reproduire dans les tolérances du golden (\texttt{tests/golden/cases.json}, 962 valeurs).
+  \item Ni les modules JSON, ni les cibles de calibration, ni le golden, ni les valeurs de paramètres ne sont modifiés pour faire passer un test. Tout écart est rapporté avec ses chiffres.
+  \item Aucune donnée clinique ou pharmacologique n'est inventée. Une valeur manquante devient un placeholder marqué \texttt{evidence: "D"}.
+  \item Les formules des modules passent uniquement par le DSL (arbre d'opérations fermé), jamais par \texttt{eval}.
+  \item Déterminisme : graine explicite, générateur ChaCha8, fonctions mathématiques \texttt{libm} (mêmes bits sur toutes les plateformes).
+  \item Les références bibliographiques sont vérifiées (OpenAlex, DOI ou PubMed) avant d'être citées. La section~\ref{sec:refs} donne le statut de chacune.
+\end{itemize}
+
+\section{Chronologie des modifications}
+Chaque entrée indique le commit, ce qui a été fait, la vérification qui fait foi et les écarts constatés. Branche \texttt{m0-m1-workspace-dsl}.
+
+\subsection*{17 novembre 2026}
+\begin{longtable}{@{}p{1.5cm}p{4.2cm}p{10.3cm}@{}}
+\toprule
+\textbf{Commit} & \textbf{Étape} & \textbf{Contenu, vérification, écarts}\\
+\midrule\endhead
+\commit{d46cbe8} & Kit d'origine & Kit livré, inchangé. Référence Python : 962/962 valeurs golden conformes.\\
+\commit{84ba719} & M0 & Workspace Cargo, lints, CI. \texttt{fmt}, \texttt{clippy -D warnings} et tests verts.\\
+\commit{2454c63}, \commit{a9395fa} & M1 : DSL, modules & DSL fermé, validation des modules avec chemins JSON, patient sain, effets maladie. Égalité avec Python à $10^{-9}$ (5 poids, 4 maladies × 9 sévérités, 45 combinaisons, 44 expressions). CLI : 4161/4161 paramètres.\\
+\commit{0e50c38} & M2 : gaz, acide-base & Stewart (albumine canine \citep{constable2005}), Hill et Bohr \citep{cambier2004}, rein, lactate. Golden 390/390 ; test strict 3250/3250 à $10^{-9}$.\\
+\commit{2723d75}, \commit{6fd42bf} & M3 : hémodynamique & Dormand--Prince 5(4) \citep{dormand1980} à la place de LSODA, boucle baroréflexe. Golden 630/630, écart maximal $0{,}0075\times$ la tolérance. \ecart{Écart : MMVD $s=1{,}0$ (hors golden), critère d'arrêt du baroréflexe sur le fil (marge $6{,}7\times10^{-5}$), \texttt{lv\_edp} à $1{,}02\times$ la tolérance.} Décision : garder la référence telle quelle.\\
+\commit{8356400} & M4 : PK/PD & PK à 2 compartiments et dépôt oral, effets JSON, diurèse \citep{koh2021,her2020}. Golden 962/962.\\
+\commit{d9de070} & M5 : population & Graines explicites, banc de calibration. 160/160 lignes conformes, écart moyen 1,58\,\%. Critère adopté : écart relatif $<5$\,\% ou $<3$ erreurs-types combinées.\\
+\commit{e2a5842} & Déterminisme & Noyau sur \texttt{libm}. Le cas MMVD $s=1{,}0$ bascule de l'autre côté du seuil : ce n'est pas une correction.\\
+\commit{b0c0325} & M6 : autonome, ECG, PCG & VFC dans $\pm1$ ET des cibles \citep{bogucki2015} sur 20 graines. Rejeu des tirages NumPy : instants R à $3\times10^{-14}$\,s près.\\
+\commit{b5ca64d}--\commit{de04c4b} & M7 : FFI, VetTwins & UniFFI, démo Kotlin Multiplatform. Sorties identiques au bit près entre macOS natif, la JVM via FFI et wasm32 (32/32).\\
+\commit{8f0d0fa} & Respiration, schéma & Courbes respiratoires (volume = profil normalisé $\times$ volume courant alvéolaire VA/FR, \ecart{espace mort non modélisé}). Schéma des blocs du modèle et rattachement paramètre $\to$ bloc.\\
+\commit{832437a} & Pressions & PAS et PAD instantanées = PAM instantanée $\pm$ écart du battement simulé. \ecart{Pression pulsée supposée constante.}\\
+\commit{b7cccee}--\commit{790bdab} & Auscultation (a--d) & Port fidèle de \texttt{signals\_pcg\_v5.py} (signal à $4\times10^{-15}$ près), configuration JSON avec provenance, critères mesurés par \texttt{pcg\_metrics.py}, FFI, onglet Auscultation (son, spectrogramme, ECG et pressions alignés, zoom, curseur). Calage sur deux enregistrements \citep{tiho}. \ecart{Écarts de la référence conservés : B1$\to$B2 0,275\,s à FC 90, B2 $>$ B1 dans 75\,\% des paires, diastole/systole 1,24 et 1,60.} 100 graines au lieu de 20 (appariement B1/B2 instable).\\
+\commit{9d3f7b7}, \commit{e59a51c} & PK/PD répétée & Examen à un instant quelconque d'un schéma ; effets E(t) ; indicateurs au choix sur 1 à 14 jours. \ecart{Furosémide 2\,mg/kg per os toutes les 12\,h : K$^+$ de 4,1 à environ 2,4--3,0\,mmol/L (PD placeholder du module).}\\
+\bottomrule
+\end{longtable}
+
+\section{Décisions et écarts connus}
+\begin{enumerate}
+  \item \textbf{Critère d'arrêt du baroréflexe.} La sortie de la référence est discontinue près du seuil $|d_t-d|<0{,}04$. La référence est conservée (décision du 17/11/2026), voir \texttt{docs/SOLVER.md}.
+  \item \textbf{Durée de systole trop longue.} Avec $t_s = 0{,}37\sqrt{T}$, B1$\to$B2 vaut 0,27\,s à FC 90 et les rapports diastole/systole sont trop faibles. La cause est hémodynamique, pas audio.
+  \item \textbf{Hypokaliémie sous furosémide répété.} Elle découle de la PD du module (\texttt{k} $-= 0{,}04\,U$), qui est un placeholder. À examiner lors de la vérification bibliographique.
+  \item \textbf{Approximations d'affichage.} Pressions alignées sur le son : le battement simulé est posé à chaque battement. Volume respiratoire : sans espace mort. PAS et PAD instantanées : pression pulsée constante.
+  \item \textbf{Placeholders (evidence D).} PD de tous les médicaments ; PK de l'atropine, du bêtabloquant et de l'opioïde ; module pneumonie ; site d'auscultation \og apex\fg{} ; seuils de grade des souffles.
+\end{enumerate}
+
+\section{Provenance des données}
+\begin{longtable}{@{}p{3.2cm}p{5.2cm}p{7.6cm}@{}}
+\toprule
+\textbf{Bloc} & \textbf{Source} & \textbf{Usage et limite}\\
+\midrule\endhead
+Hémodynamique, gaz & \citet{haskins2005} & FC 87, PAM 103, PAP 14, PAOP 5,5, index cardiaque, gaz artériels et veineux mêlés. Seul le résumé a été lu.\\
+Acide-base & \citet{constable2005} & Na, K, Cl, albumine, phosphate ; A\textsubscript{tot} de l'albumine. Coefficient du phosphate humain.\\
+Affinité O\textsubscript{2} & \citet{cambier2004} & P50 30,0\,mmHg, effet Bohr $-0{,}37$.\\
+VFC & \citet{bogucki2015} & RR moyen, SDNN, RMSSD, LF/HF. Source unique, à recouper.\\
+PK furosémide & \citet{koh2021,noah,ema1999} & V\textsubscript{ss}, demi-vie IV, C\textsubscript{max} per os.\\
+PK pimobendane & \citet{her2020} & C\textsubscript{max}, ASC, demi-vie. \ecart{L'article porte sur la voie rectale : présence d'un bras oral à vérifier.}\\
+MMVD & \citet{keene2019,oyama2004,msdvet} & Stades ACVIM, POG, fraction de régurgitation.\\
+MRC & \citet{iris} & Bornes de créatininémie par stade IRIS.\\
+Addison & \citet{msdvet} & Na:K $<27$.\\
+Auscultation & \citet{tiho} & Deux enregistrements (licence CC BY-NC-ND 4.0, aucun embarqué).\\
+\bottomrule
+\end{longtable}
+
+\section{Statut des références}\label{sec:refs}
+Vérification du 17/11/2026 via OpenAlex. \textbf{Vérifiées} (titre, auteurs, année ; DOI ou PubMed) : \citet{haskins2005,her2020,koh2021,keene2019,oyama2004,dormand1980}. \textbf{Non vérifiées} (introuvables dans OpenAlex, informations reprises de \texttt{PROVENANCE.md} sans complément) : \citet{constable2005,cambier2004,bogucki2015}. \textbf{Documents à préciser} (édition, date de consultation) : \citet{iris,msdvet,noah,ema1999,tiho}.
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+\end{document}
