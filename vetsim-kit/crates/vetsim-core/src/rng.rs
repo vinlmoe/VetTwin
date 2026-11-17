@@ -30,6 +30,14 @@ impl SimRng {
         }
     }
 
+    /// Flux indépendant `stream` pour une même graine (ChaCha « stream id ») : sert à séparer
+    /// les usages (variabilité, autonome, ECG, PCG) sans corréler leurs tirages.
+    pub fn for_stream(seed: u64, stream: u64) -> Self {
+        let mut inner = ChaCha8Rng::seed_from_u64(seed);
+        inner.set_stream(stream);
+        Self { inner, spare: None }
+    }
+
     /// Entier 64 bits.
     pub fn next_u64(&mut self) -> u64 {
         self.inner.next_u64()
@@ -76,6 +84,61 @@ impl SimRng {
         }
         // Arrondi : dernier poids non nul.
         weights.iter().rposition(|w| *w > 0.0).unwrap_or(0)
+    }
+}
+
+/// Source de bruit des signaux (autonome, ECG, PCG).
+pub trait NoiseSource {
+    /// Uniforme sur [0, 1).
+    fn uniform01(&mut self) -> f64;
+    /// Normale centrée réduite.
+    fn standard_normal(&mut self) -> f64;
+}
+
+impl NoiseSource for SimRng {
+    fn uniform01(&mut self) -> f64 {
+        SimRng::uniform01(self)
+    }
+    fn standard_normal(&mut self) -> f64 {
+        SimRng::standard_normal(self)
+    }
+}
+
+/// Rejoue une suite de nombres enregistrée (tests de conformité avec la référence Python :
+/// on y injecte exactement les tirages de NumPy).
+#[derive(Debug, Clone)]
+pub struct Replay {
+    values: Vec<f64>,
+    pos: usize,
+}
+
+impl Replay {
+    /// Source qui renvoie `values` dans l'ordre.
+    pub fn new(values: Vec<f64>) -> Self {
+        Self { values, pos: 0 }
+    }
+
+    /// Nombre de valeurs consommées.
+    pub fn consumed(&self) -> usize {
+        self.pos
+    }
+
+    fn next(&mut self) -> f64 {
+        let v = *self
+            .values
+            .get(self.pos)
+            .expect("Replay : suite enregistrée épuisée");
+        self.pos += 1;
+        v
+    }
+}
+
+impl NoiseSource for Replay {
+    fn uniform01(&mut self) -> f64 {
+        self.next()
+    }
+    fn standard_normal(&mut self) -> f64 {
+        self.next()
     }
 }
 
@@ -138,6 +201,20 @@ mod tests {
         13812823858247345306,
         4608414444819030760,
     ];
+
+    #[test]
+    fn streams_are_independent() {
+        let mut a = SimRng::for_stream(5, 1);
+        let mut b = SimRng::for_stream(5, 2);
+        let mut c = SimRng::for_stream(5, 1);
+        let xa: Vec<u64> = (0..4).map(|_| a.next_u64()).collect();
+        assert_ne!(xa, (0..4).map(|_| b.next_u64()).collect::<Vec<_>>());
+        assert_eq!(xa, (0..4).map(|_| c.next_u64()).collect::<Vec<_>>());
+        assert_eq!(
+            SimRng::for_stream(5, 0).next_u64(),
+            SimRng::new(5).next_u64()
+        );
+    }
 
     #[test]
     fn moments_are_right() {

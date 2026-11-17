@@ -17,7 +17,8 @@ usage :
   vetsim-cli [--modules DIR] eval   --bw KG [--disease id:sévérité ...] [--conc drug=mg_per_L ...] [--D mL] [--U mL_per_kg]
   vetsim-cli [--modules DIR] pk     --bw KG --drug ID --dose MG_PER_KG --route iv|po --times T1,T2,... [--disease id:sévérité ...]
   vetsim-cli [--modules DIR] params --bw KG [--disease id:sévérité ...]
-  vetsim-cli [--modules DIR] calibrate [--targets FICHIER] [--n-healthy 50] [--n-disease 24] [--seed0 100]";
+  vetsim-cli [--modules DIR] calibrate [--targets FICHIER] [--n-healthy 50] [--n-disease 24] [--seed0 100] [--n-hrv 20]
+  vetsim-cli [--modules DIR] signals --bw KG [--disease id:sévérité ...] [--conc ...] [--seed 0] [--duration 8]";
 
 enum Failure {
     Usage(String),
@@ -54,6 +55,9 @@ struct Args {
     n_healthy: Option<usize>,
     n_disease: Option<usize>,
     seed0: Option<u64>,
+    n_hrv: Option<usize>,
+    seed: Option<u64>,
+    duration: Option<f64>,
 }
 
 fn count(flag: &str, v: &str) -> Result<usize, Failure> {
@@ -142,6 +146,14 @@ fn parse_args(argv: &[String]) -> Result<Args, Failure> {
             "--targets" => a.targets = Some(PathBuf::from(value()?)),
             "--n-healthy" => a.n_healthy = Some(count(flag, &value()?)?),
             "--n-disease" => a.n_disease = Some(count(flag, &value()?)?),
+            "--n-hrv" => a.n_hrv = Some(count(flag, &value()?)?),
+            "--duration" => a.duration = Some(num(flag, &value()?)?),
+            "--seed" => {
+                let v = value()?;
+                a.seed = Some(v.trim().parse().map_err(|_| {
+                    Failure::Usage(format!("--seed : entier ≥ 0 attendu, « {v} » reçu"))
+                })?);
+            }
             "--seed0" => {
                 let v = value()?;
                 a.seed0 = Some(v.trim().parse().map_err(|_| {
@@ -156,7 +168,8 @@ fn parse_args(argv: &[String]) -> Result<Args, Failure> {
         "eval" => &["bw", "disease", "conc", "D", "U"],
         "pk" => &["bw", "disease", "drug", "dose", "route", "times"],
         "params" => &["bw", "disease"],
-        "calibrate" => &["targets", "n_healthy", "n_disease", "seed0"],
+        "calibrate" => &["targets", "n_healthy", "n_disease", "seed0", "n_hrv"],
+        "signals" => &["bw", "disease", "conc", "D", "U", "seed", "duration"],
         "" => return Err(Failure::Usage("commande manquante".into())),
         other => return Err(Failure::Usage(format!("commande inconnue « {other} »"))),
     };
@@ -172,6 +185,9 @@ fn parse_args(argv: &[String]) -> Result<Args, Failure> {
         ("n_healthy", a.n_healthy.is_some()),
         ("n_disease", a.n_disease.is_some()),
         ("seed0", a.seed0.is_some()),
+        ("n_hrv", a.n_hrv.is_some()),
+        ("seed", a.seed.is_some()),
+        ("duration", a.duration.is_some()),
         ("bw", a.bw.is_some()),
         ("disease", !a.diseases.is_empty()),
     ];
@@ -310,7 +326,7 @@ fn run(argv: &[String]) -> Result<Json, Failure> {
             }
             Ok(Json::Object(m))
         }
-        "eval" => {
+        "eval" | "signals" => {
             let d = a.d.unwrap_or(0.0);
             let u = a.u.unwrap_or(0.0);
             let params = if a.conc.is_empty() && d == 0.0 && u == 0.0 {
@@ -323,6 +339,13 @@ fn run(argv: &[String]) -> Result<Json, Failure> {
                     .map_err(|e| Failure::Engine(e.to_string()))?
             };
             let ev = vetsim_core::evaluate(&params).map_err(|e| Failure::Engine(e.to_string()))?;
+            if a.command == "signals" {
+                return Ok(signals_json(
+                    &ev,
+                    a.seed.unwrap_or(0),
+                    a.duration.unwrap_or(8.0),
+                ));
+            }
             let mut m = Map::new();
             for (k, v) in ev.to_flat() {
                 m.insert(k.to_string(), Json::from(v));
@@ -372,6 +395,39 @@ fn run(argv: &[String]) -> Result<Json, Failure> {
     }
 }
 
+/// Signaux d'un patient (diagnostic hors contrat) : ECG, PCG, instants R, VFC, caractéristiques.
+fn signals_json(ev: &vetsim_core::Evaluation, seed: u64, duration_s: f64) -> Json {
+    use vetsim_core::signals::{patient_signals, SignalOptions};
+    let s = patient_signals(
+        ev,
+        &SignalOptions {
+            duration_s,
+            ..SignalOptions::default()
+        },
+        seed,
+    );
+    let (e, p) = (&s.ecg, &s.pcg);
+    let f = e.features;
+    let pf = p.features;
+    let hrv = s.autonomic.hrv.map(|h| {
+        serde_json::json!({
+            "fc_moy": h.fc_moy, "sdnn_ms": h.sdnn_ms, "rmssd_ms": h.rmssd_ms, "lf": h.lf, "hf": h.hf,
+            "lf_hf": if h.lf_hf.is_finite() { Json::from(h.lf_hf) } else { Json::Null },
+            "rsa_bpm": h.rsa_bpm, "f_peak": h.f_peak,
+        })
+    });
+    serde_json::json!({
+        "ecg": { "fs": 500.0, "v": e.v, "r_times": e.r_times,
+                 "features": { "pr": f.pr, "qrs": f.qrs, "qt": f.qt, "p_amp": f.p_amp,
+                               "t_amp": f.t_amp, "r_amp": f.r_amp, "t_w": f.t_w } },
+        "pcg": { "fs": vetsim_core::signals::PCG_FS, "v": p.v,
+                 "features": { "s1": pf.s1, "s2": pf.s2, "s3": pf.s3, "s3_amp": pf.s3_amp,
+                               "murmur": pf.murmur.label_fr(), "murmur_peak_flow": pf.murmur_peak_flow,
+                               "grade": pf.grade } },
+        "hrv": hrv,
+    })
+}
+
 /// Banc de calibration (diagnostic hors contrat) : même structure que
 /// `calibration/calibration_run_python.json`.
 fn calibrate(cat: &Catalog, a: &Args) -> Result<Json, Failure> {
@@ -385,7 +441,10 @@ fn calibrate(cat: &Catalog, a: &Args) -> Result<Json, Failure> {
         .map_err(|e| Failure::Modules(format!("{} : lecture impossible ({e})", path.display())))?;
     let targets = cal::parse_targets(&text, &path.display().to_string())
         .map_err(|e| Failure::Modules(e.to_string()))?;
-    let rows = cal::healthy_cohort(cat, &targets, a.n_healthy.unwrap_or(50)).map_err(engine)?;
+    let mut rows = cal::healthy_cohort(cat, &targets, a.n_healthy.unwrap_or(50)).map_err(engine)?;
+    let hrv_targets = cal::parse_hrv_targets(&text, &path.display().to_string())
+        .map_err(|e| Failure::Modules(e.to_string()))?;
+    rows.extend(cal::hrv_cohort(cat, &hrv_targets, a.n_hrv.unwrap_or(20)).map_err(engine)?);
     let healthy: Vec<Json> = rows
         .iter()
         .map(|r| {

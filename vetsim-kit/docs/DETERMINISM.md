@@ -5,6 +5,7 @@
 - **Ordre des tirages d'un patient** :
   1. variabilité interindividuelle, dans l'ordre de `interindividual_variability` de `healthy_dog.json` ;
   2. pour chaque maladie, dans l'ordre d'ajout : stade (si non imposé), sévérité uniforme dans le stade, puis tirages `draws` dans l'ordre du module.
+- **Flux par usage** : pour une graine donnée, chaque usage a son propre flux ChaCha (`SimRng::for_stream`, constantes `signals::streams`) : 0 patient (variabilité, maladies), 1 système autonome, 2 ECG, 3 PCG. Ajouter une maladie ne change donc pas le bruit de l'ECG.
 - **Mode sans bruit** (`NoNoise`, CLI `eval`, golden) : lognormal → 1, Bernoulli → faux, sévérité au milieu du stade, stade de plus forte probabilité a priori.
 - **Différence avec la référence Python** : NumPy (PCG64) et ChaCha8 ne produisent pas les mêmes nombres. Les cohortes se comparent donc statistiquement (`tests/compare_calibration.py`), pas valeur par valeur.
 - **Modèle entier** : toutes les fonctions transcendantes du noyau (`exp`, `ln`, `pow`, `tanh`, `cos`, `sin`) passent par `vetsim_core::math`, qui s'appuie sur `libm`. `sqrt` et les opérations arithmétiques sont correctement arrondies par IEEE 754. Les méthodes `f64::exp`, `powf`, etc. sont interdites par `clippy.toml` (`disallowed-methods`, vérifié en CI). Une même entrée donne donc les mêmes bits partout, y compris près des seuils discontinus (`SOLVER.md`).

@@ -28,6 +28,11 @@ vetsim-cli params --bw 20 [--disease mmvd:0.5 ...]
 Paramètres du patient (objet plat, 73 clés de `Params`) après application des maladies en mode déterministe. Sert à `tests/check_params_cli.py` (comparaison avec la référence Python, rel 1e-9). Peut changer sans incrément d'`api_version`; ne pas l'utiliser depuis une application.
 
 ```
-vetsim-cli calibrate [--targets calibration/targets.json] [--n-healthy 50] [--n-disease 24] [--seed0 100]
+vetsim-cli calibrate [--targets calibration/targets.json] [--n-healthy 50] [--n-disease 24] [--seed0 100] [--n-hrv 20]
 ```
-Banc de calibration (jalon M5), même structure que `calibration/calibration_run_python.json` : cohorte saine (graines `0..n`), indicateurs PK, cas par stade de MMVD, MRC et Addison (graines `seed0 + i`). Stochastique mais reproductible : même graine, même sortie. Comparaison avec la référence : `python tests/compare_calibration.py --cmd target/release/vetsim-cli`.
+Banc de calibration (jalon M5), même structure que `calibration/calibration_run_python.json` : cohorte saine (graines `0..n`), indicateurs PK, cas par stade de MMVD, MRC et Addison (graines `seed0 + i`), lignes de VFC (`n-hrv` chiens, 300 s ; jalon M6). Stochastique mais reproductible : même graine, même sortie. Comparaison avec la référence : `python tests/compare_calibration.py --cmd target/release/vetsim-cli`.
+
+```
+vetsim-cli signals --bw 20 [--disease mmvd:0.8 ...] [--conc ...] [--seed 0] [--duration 8]
+```
+Signaux d'un patient (jalon M6) : ECG à 500 Hz sur `duration` secondes (`ecg.v`, `ecg.r_times`, `ecg.features`), PCG de 4 battements à 4000 Hz (`pcg.v`, `pcg.features` : B1, B2, B3, souffle, grade), indices de VFC sur 120 s. Stochastique mais reproductible (graine, flux ChaCha distincts pour l'autonome, l'ECG et le PCG ; voir `docs/DETERMINISM.md`).

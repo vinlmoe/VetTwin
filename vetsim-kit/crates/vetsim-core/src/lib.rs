@@ -6,6 +6,7 @@
 //!
 //! Usage pédagogique uniquement ; aucun résultat ne sert à décider d'un traitement réel.
 
+pub mod autonomic;
 pub mod calibrate;
 pub mod case;
 pub mod dsl;
@@ -21,6 +22,7 @@ pub mod patient;
 pub mod pkpd;
 pub mod rng;
 pub mod roots;
+pub mod signals;
 
 pub use case::{apply_modifiers, evaluate_effects, Case, DrawSource, Modifier, NoNoise};
 pub use engine::{evaluate, metabolic_state, Evaluation, HemoInputs, MetabolicState};

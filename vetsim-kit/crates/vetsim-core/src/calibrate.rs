@@ -6,9 +6,11 @@
 //!   valeurs publiées citées dans `calibrate.py`.
 //! - Maladies : `n` cas par stade (graines `seed0 + i`, mêmes patients d'un stade à l'autre).
 //!
-//! Les lignes de VFC (section `hrv` des cibles) relèvent du modèle autonome (jalon M6).
+//! - VFC : `n_hrv` chiens (graines `0..n_hrv`), 300 s, cibles de la section `hrv` (jalon M6).
+//!
 //! Pas d'I/O : les cibles sont passées en texte JSON par l'appelant.
 
+use crate::autonomic::{simulate_autonomic, AutonomicInputs, AutonomicOptions, HrvMetrics};
 use crate::engine::{evaluate, Evaluation};
 use crate::error::{Error, LoadError};
 use crate::math;
@@ -16,6 +18,7 @@ use crate::modules::Catalog;
 use crate::patient::Patient;
 use crate::pkpd::{timecourse, Dose, Route};
 use crate::rng::SimRng;
+use crate::signals::streams;
 use crate::Issue;
 use serde_json::Value as Json;
 
@@ -38,23 +41,40 @@ pub struct Target {
 
 /// Lit la section `healthy` de `calibration/targets.json`.
 pub fn parse_targets(json: &str, origin: &str) -> Result<Vec<Target>, LoadError> {
+    parse_section(json, origin, "healthy", |v| extractor(v).is_some())
+}
+
+/// Lit la section `hrv` de `calibration/targets.json`.
+pub fn parse_hrv_targets(json: &str, origin: &str) -> Result<Vec<Target>, LoadError> {
+    parse_section(json, origin, "hrv", |v| hrv_extractor(v).is_some())
+}
+
+fn parse_section(
+    json: &str,
+    origin: &str,
+    section: &str,
+    known: impl Fn(&str) -> bool,
+) -> Result<Vec<Target>, LoadError> {
     let root: Json = serde_json::from_str(json).map_err(|source| LoadError::Json {
         origin: origin.into(),
         source,
     })?;
     let mut issues = Vec::new();
     let mut out = Vec::new();
-    match root.get("healthy").and_then(Json::as_array) {
-        None => issues.push(Issue::new("/healthy", "tableau de cibles attendu")),
+    match root.get(section).and_then(Json::as_array) {
+        None => issues.push(Issue::new(
+            format!("/{section}"),
+            "tableau de cibles attendu",
+        )),
         Some(rows) => {
             for (i, r) in rows.iter().enumerate() {
                 let s = |k: &str| r.get(k).and_then(Json::as_str).map(str::to_string);
                 let n = |k: &str| r.get(k).and_then(Json::as_f64);
                 match (s("module"), s("var"), n("target"), n("tol")) {
                     (Some(module), Some(var), Some(target), Some(tol)) => {
-                        if extractor(&var).is_none() {
+                        if !known(&var) {
                             issues.push(Issue::new(
-                                format!("/healthy/{i}/var"),
+                                format!("/{section}/{i}/var"),
                                 format!("variable « {var} » sans extracteur connu"),
                             ));
                         }
@@ -68,7 +88,7 @@ pub fn parse_targets(json: &str, origin: &str) -> Result<Vec<Target>, LoadError>
                         });
                     }
                     _ => issues.push(Issue::new(
-                        format!("/healthy/{i}"),
+                        format!("/{section}/{i}"),
                         "module, var, target et tol requis",
                     )),
                 }
@@ -180,6 +200,77 @@ pub fn healthy_cohort(
             }
         })
         .collect())
+}
+
+type HrvExtractor = fn(&HrvMetrics) -> f64;
+
+/// Extracteur d'un indice de VFC (libellés de `calibrate.py`, table TH).
+pub fn hrv_extractor(var: &str) -> Option<HrvExtractor> {
+    Some(match var {
+        "RR moyen" => |h| 60000.0 / h.fc_moy,
+        "SDNN" => |h| h.sdnn_ms,
+        "RMSSD" => |h| h.rmssd_ms,
+        "LF/HF" => |h| h.lf_hf,
+        _ => return None,
+    })
+}
+
+/// Durée des enregistrements de VFC du banc (s), comme `calibrate.py` (5 min).
+pub const HRV_DURATION_S: f64 = 300.0;
+
+/// VFC de `n` chiens sains de 20 kg (graines `0..n`, mêmes patients que la cohorte saine),
+/// enregistrements de 300 s. Moyenne comparée aux cibles ±1 ET publiés (Bogucki 2015).
+pub fn hrv_cohort(cat: &Catalog, targets: &[Target], n: usize) -> Result<Vec<CohortRow>, Error> {
+    let ex: Vec<HrvExtractor> = targets
+        .iter()
+        .map(|t| {
+            hrv_extractor(&t.var).ok_or_else(|| Error::InvalidInput(format!("variable {}", t.var)))
+        })
+        .collect::<Result<_, _>>()?;
+    let mut values: Vec<Vec<f64>> = vec![Vec::with_capacity(n); targets.len()];
+    let opts = AutonomicOptions {
+        duration_s: HRV_DURATION_S,
+        ..AutonomicOptions::default()
+    };
+    for seed in 0..n as u64 {
+        let mut rng = SimRng::new(seed);
+        let pt = Patient::with_variability(&cat.patient, 20.0, &mut rng)?;
+        let ev = evaluate(&pt.params)?;
+        let au = simulate_autonomic(
+            &AutonomicInputs::from(&ev),
+            &opts,
+            &mut SimRng::for_stream(seed, streams::AUTONOMIC),
+        );
+        let h = au.hrv.ok_or_else(|| {
+            Error::InvalidInput(format!("graine {seed} : moins de 20 battements"))
+        })?;
+        for (j, f) in ex.iter().enumerate() {
+            values[j].push(f(&h));
+        }
+    }
+    Ok(rows_from(targets, values))
+}
+
+fn rows_from(targets: &[Target], values: Vec<Vec<f64>>) -> Vec<CohortRow> {
+    targets
+        .iter()
+        .zip(values)
+        .map(|(t, x)| {
+            let (m, sd) = mean_sd(&x);
+            let inside = x
+                .iter()
+                .filter(|v| (*v - t.target).abs() <= 2.0 * t.tol)
+                .count();
+            CohortRow {
+                target: t.clone(),
+                model_mean: m,
+                model_sd: sd,
+                ok: (m - t.target).abs() <= t.tol,
+                frac_in: inside as f64 / x.len() as f64,
+                n: x.len(),
+            }
+        })
+        .collect()
 }
 
 /// Ligne PK : valeur du modèle face à une valeur publiée.

@@ -43,7 +43,9 @@ jobs:
         run: python tests/make_m3_fixture.py && cargo test --release -p vetsim-core --test hemodynamics
       - name: Rust == Python PK/PD (fixture M4 régénérée)
         run: python tests/make_m4_fixture.py && cargo test --release -p vetsim-core --test pkpd
-      - name: Banc de calibration Rust contre la référence Python (M5)
+      - name: Rust == Python autonome, VFC, ECG, PCG en rejouant les tirages NumPy (fixture M6 régénérée)
+        run: python tests/make_m6_fixture.py && cargo test --release -p vetsim-core --test signals
+      - name: Banc de calibration Rust contre la référence Python (M5, VFC M6)
         run: python tests/compare_calibration.py --cmd "target/release/vetsim-cli"
       - name: Conformité golden complète (critère de la feuille de route)
         run: python tests/conformance.py --cmd "target/release/vetsim-cli"
