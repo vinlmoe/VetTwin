@@ -58,6 +58,40 @@ class ScreenshotTest {
     }
 
     @Test
+    fun renderTreatment() {
+        val controller = DemoController()
+        val inputs = DemoInputs(diseaseId = "mmvd", stage = "C")
+        val plan = TreatmentPlan(
+            listOf(
+                Regimen("furosemide", 2.0, "po", 12.0, 14),
+                Regimen("pimobendan", 0.25, "po", 12.0, 14),
+            ),
+            horizonH = 7 * 24.0,
+        )
+        val scene = ImageComposeScene(width = 1250, height = 2050, density = Density(1f)) {
+            androidx.compose.foundation.layout.Box(
+                androidx.compose.ui.Modifier.background(androidx.compose.ui.graphics.Color(0xFFF6F7F8)).padding(16.dp),
+            ) {
+                androidx.compose.material3.MaterialTheme {
+                    TreatmentView(controller, inputs, onExamine = { _, _ -> }, initialPlan = plan, initialCursorH = 61.0, autoSimulate = true)
+                }
+            }
+        }
+        scene.render(0)
+        val img = scene.render(1_000_000_000L)
+        val out = File(System.getProperty("vetsim.screenshots")).apply { mkdirs() }.resolve("traitement_mmvd_C.png")
+        out.writeBytes(img.encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        scene.close()
+        assertTrue(out.length() > 10_000)
+        // Examen à t = 61 h : la vue Patient et l'auscultation utilisent le schéma
+        val exam = inputs.copy(plan = plan, atH = 61.0)
+        val r = controller.evaluate(exam)
+        assertTrue(r.caseLabel.contains("J2 13 h"), r.caseLabel)
+        assertTrue(r.changes.any { it.param == "vol_shift" }, "effet du diurétique (D) attendu")
+        assertTrue(controller.auscultate(exam, null, "base").samples.size == 32000)
+    }
+
+    @Test
     fun renderModelDiagram() = capture(
         "modele_mmvd_C_pimobendane",
         DemoInputs(diseaseId = "mmvd", stage = "C", conc = mapOf("pimobendan" to 0.03)),

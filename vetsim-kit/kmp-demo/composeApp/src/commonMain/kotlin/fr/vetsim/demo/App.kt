@@ -102,7 +102,19 @@ fun App(
                     }
                     Button(onClick = { run() }, modifier = Modifier.fillMaxWidth()) { Text("Évaluer") }
                     Spacer(Modifier.height(4.dp))
-                    Text("Médicament (concentration plasmatique)", fontWeight = FontWeight.SemiBold, color = Ink)
+                    val plan = inputs.plan
+                    if (plan != null && inputs.atH != null) {
+                        Text(
+                            "Traitement en cours (${plan.regimens.size} schéma${if (plan.regimens.size > 1) "s" else ""}) : " +
+                                "patient examiné à ${dayLabel(inputs.atH!!)}. Les concentrations fixes ci-dessous sont ignorées.",
+                            color = Color(0xFFC0392B), fontSize = 12.sp,
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            OutlinedButton(onClick = { tab = 4 }) { Text("Modifier", fontSize = 12.sp) }
+                            OutlinedButton(onClick = { inputs = inputs.copy(plan = null, atH = null); run() }) { Text("Arrêter", fontSize = 12.sp) }
+                        }
+                    }
+                    Text("Médicament (concentration plasmatique fixe)", fontWeight = FontWeight.SemiBold, color = Ink)
                     Picker("Médicament", controller.catalog.drugs.first { it.id == drugId }.name,
                         controller.catalog.drugs.map { it.id to "${it.name} [${it.evidence}]" }) { id ->
                         drugId = id!!
@@ -117,6 +129,9 @@ fun App(
                     if (inputs.conc.isNotEmpty()) {
                         Text(inputs.conc.entries.joinToString("\n") { "• ${it.key} : ${it.value} mg/L" }, color = Muted, fontSize = 13.sp)
                         OutlinedButton(onClick = { inputs = inputs.copy(conc = emptyMap()); run() }) { Text("Retirer les médicaments") }
+                    }
+                    OutlinedButton(onClick = { tab = 4 }, enabled = result != null, modifier = Modifier.fillMaxWidth()) {
+                        Text("Traitement répété (PK/PD)")
                     }
                     OutlinedButton(
                         onClick = { tab = 3 },
@@ -137,10 +152,15 @@ fun App(
                         Text("Choisir un patient puis « Évaluer ».", color = Muted)
                     } else {
                         Text(r.caseLabel, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Ink)
-                        Tabs(listOf("Patient", "Respiration", "Schéma du modèle", "Auscultation"), tab) { tab = it }
+                        Tabs(listOf("Patient", "Respiration", "Schéma du modèle", "Auscultation", "Traitement (PK/PD)"), tab) { tab = it }
                     }
                     if (r != null && tab == 1) RespirationView(r)
                     if (tab == 2) ModelView(controller.catalog, r, initialBlock)
+                    if (r != null && tab == 4) {
+                        TreatmentView(controller, inputs, onExamine = { plan, t ->
+                            inputs = inputs.copy(plan = plan, atH = t); run(); tab = 0
+                        })
+                    }
                     if (r != null && tab == 3) {
                         // clé : nouvelle synthèse quand le patient change
                         androidx.compose.runtime.key(inputs) { AuscultationView(controller, inputs) }

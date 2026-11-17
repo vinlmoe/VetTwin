@@ -58,12 +58,62 @@ data class Respiration(
 
 data class Sign(val label: String, val source: String)
 
+/** Schéma d'administration : [count] prises de [mgPerKg] mg/kg toutes les [intervalH] h dès [startH]. */
+data class Regimen(
+    val drugId: String,
+    val mgPerKg: Double,
+    val route: String,
+    val intervalH: Double,
+    val count: Int,
+    val startH: Double = 0.0,
+) {
+    fun doseTimes(): List<Double> = List(count) { startH + it * intervalH }
+}
+
+/** Traitement : un ou plusieurs schémas, simulés sur [horizonH] heures. */
+data class TreatmentPlan(val regimens: List<Regimen>, val horizonH: Double) {
+    fun dosesJson(): String = regimens.flatMap { r ->
+        r.doseTimes().map { t -> """{"t_h": $t, "drug": "${r.drugId}", "mg_per_kg": ${r.mgPerKg}, "route": "${r.route}"}""" }
+    }.joinToString(", ", "[", "]")
+}
+
 data class DemoInputs(
     val bw: Double = 20.0,
     val diseaseId: String? = null,
     val stage: String? = null,
     val conc: Map<String, Double> = emptyMap(),
     val seed: Long = 1,
+    /** Traitement en cours et instant d'examen (h) : remplacent `conc` quand ils sont définis. */
+    val plan: TreatmentPlan? = null,
+    val atH: Double? = null,
+) {
+    /** Options d'exposition au médicament pour state/pcg : schéma à l'instant t, ou concentrations fixes. */
+    fun exposureJson(): String = if (plan != null && atH != null && plan.regimens.isNotEmpty()) {
+        """"doses": ${plan.dosesJson()}, "at_h": $atH"""
+    } else {
+        """"conc": {${conc.entries.joinToString(", ") { (k, v) -> "\"$k\": $v" }}}"""
+    }
+}
+
+/** Libellé d'instant : « J2 14 h » (J0 = jour de la première prise). */
+fun dayLabel(h: Double): String {
+    val d = kotlin.math.floor(h / 24).toInt()
+    val r = h - d * 24
+    val hh = kotlin.math.floor(r).toInt()
+    val mm = kotlin.math.round((r - hh) * 60).toInt()
+    return "J$d ${hh} h" + if (mm in 1..59) " ${mm.toString().padStart(2, '0')}" else ""
+}
+
+/** Résultat d'une simulation de traitement. */
+class TreatmentResult(
+    val t: DoubleArray,
+    val conc: Map<String, FloatArray>,
+    val effect: Map<String, FloatArray>,
+    val deficitMl: FloatArray,
+    val diuresisMlKg: FloatArray,
+    val stateT: DoubleArray,
+    val states: Map<String, FloatArray>,
+    val plan: TreatmentPlan,
 )
 
 data class DemoResult(
@@ -162,6 +212,39 @@ class DemoController(private val engine: VetsimEngine = createEngine()) {
         return o
     }
 
+    /** Simule un traitement : concentrations, effets E(t), état de volume et états physiologiques. */
+    fun treatment(inp: DemoInputs, plan: TreatmentPlan): TreatmentResult {
+        require(plan.regimens.isNotEmpty()) { "aucun schéma d'administration" }
+        val p = check(engine.newPatient("""{"bw": ${inp.bw}, "seed": ${inp.seed}, "variability": false}"""))
+        val id = p.str("patient_id")
+        if (inp.diseaseId != null) {
+            val stage = inp.stage?.let { ""","stage": "$it"""" } ?: ""
+            check(engine.addDisease(id, """{"id": "${inp.diseaseId}"$stage}"""))
+        }
+        val h = plan.horizonH
+        val step = when { h <= 48 -> 0.1; h <= 7 * 24 -> 0.25; else -> 0.5 }
+        val n = kotlin.math.floor(h / step).toInt()
+        val grid = (0..n).joinToString(", ") { "%.4f".fmt(it * step).replace(',', '.') }
+        val sStep = kotlin.math.max(1.0, kotlin.math.ceil(h / 96.0))
+        val sn = kotlin.math.floor(h / sStep).toInt()
+        val sgrid = (0..sn).joinToString(", ") { "%.4f".fmt(it * sStep).replace(',', '.') }
+        val r = check(engine.timecourse(id, """{"doses": ${plan.dosesJson()}, "t_end_h": $h, "t_eval_h": [$grid], "state_times_h": [$sgrid]}"""))
+        val series = { o: JsonObject -> o.mapValues { it.value.floats() } }
+        val states = r["states_at"]!!.jsonArray.map { it.jsonObject }
+        // toutes les variables numériques du modèle (clés de `eval`), pour choisir les indicateurs
+        val keys = states.firstOrNull()?.keys?.filter { states[0][it] is JsonPrimitive && states[0][it]!!.jsonPrimitive.doubleOrNull != null } ?: emptyList()
+        return TreatmentResult(
+            t = r["t"]!!.jsonArray.map { it.d() }.toDoubleArray(),
+            conc = series(r["conc_mg_L"]!!.jsonObject),
+            effect = series(r["effect"]!!.jsonObject),
+            deficitMl = r["D"]!!.floats(),
+            diuresisMlKg = r["U"]!!.floats(),
+            stateT = r["state_t"]!!.jsonArray.map { it.d() }.toDoubleArray(),
+            states = keys.associateWith { k -> FloatArray(states.size) { i -> states[i][k]!!.d().toFloat() } },
+            plan = plan,
+        )
+    }
+
     /** Auscultation du patient décrit par [inp] (FC imposée si [hr] non nul, site d'auscultation). */
     @OptIn(kotlin.io.encoding.ExperimentalEncodingApi::class)
     fun auscultate(inp: DemoInputs, hr: Double?, site: String, durationS: Double = 8.0): AuscultationResult {
@@ -171,9 +254,8 @@ class DemoController(private val engine: VetsimEngine = createEngine()) {
             val stage = inp.stage?.let { ""","stage": "$it"""" } ?: ""
             check(engine.addDisease(id, """{"id": "${inp.diseaseId}"$stage}"""))
         }
-        val conc = inp.conc.entries.joinToString(", ") { (k, v) -> "\"$k\": $v" }
         val hrOpt = hr?.let { ""","hr": $it""" } ?: ""
-        val r = check(engine.pcg(id, """{"conc": {$conc}, "site": "$site", "seed": ${inp.seed}, "duration_s": $durationS,
+        val r = check(engine.pcg(id, """{${inp.exposureJson()}, "site": "$site", "seed": ${inp.seed}, "duration_s": $durationS,
             "with_ecg": true, "with_pressures": true$hrOpt}"""))
         val wav = kotlin.io.encoding.Base64.decode(r.str("wav_base64"))
         val n = (wav.size - 44) / 2
@@ -213,8 +295,7 @@ class DemoController(private val engine: VetsimEngine = createEngine()) {
             val name = catalog.diseases.firstOrNull { it.id == inp.diseaseId }?.name ?: inp.diseaseId
             caseLabel = "$name, stade ${c.str("stage")} (s = ${"%.2f".fmt(c["severity"]!!.d())})"
         }
-        val conc = inp.conc.entries.joinToString(", ") { (k, v) -> "\"$k\": $v" }
-        val st = check(engine.state(id, """{"conc": {$conc}, "signals": true, "duration_s": $ecgSeconds, "seed": ${inp.seed}}"""))
+        val st = check(engine.state(id, """{${inp.exposureJson()}, "signals": true, "duration_s": $ecgSeconds, "seed": ${inp.seed}}"""))
         val values = st.filterValues { it is JsonPrimitive && it.jsonPrimitive.doubleOrNull != null && it.jsonPrimitive.booleanOrNull == null }
             .mapValues { it.value.d() }
         val signs = st["emergent_signs"]!!.jsonArray.map {
@@ -232,7 +313,8 @@ class DemoController(private val engine: VetsimEngine = createEngine()) {
         val healthy = check(engine.state(hp, "{}"))["params"]!!.jsonObject
         val current = st["params"]!!.jsonObject
         val disease = catalog.diseases.firstOrNull { it.id == inp.diseaseId }
-        val drugs = catalog.drugs.filter { it.id in inp.conc.keys }
+        val drugIds = if (inp.plan != null && inp.atH != null) inp.plan.regimens.map { it.drugId }.toSet() else inp.conc.keys
+        val drugs = catalog.drugs.filter { it.id in drugIds }
         val changes = current.keys.mapNotNull { k ->
             val a = healthy[k]!!.d()
             val b = current[k]!!.d()
@@ -243,7 +325,11 @@ class DemoController(private val engine: VetsimEngine = createEngine()) {
         }
         return DemoResult(
             values = values,
-            caseLabel = caseLabel + if (inp.conc.isEmpty()) "" else " + " + inp.conc.entries.joinToString { "${it.key} ${it.value} mg/L" },
+            caseLabel = caseLabel + when {
+                inp.plan != null && inp.atH != null -> " · sous traitement, examiné à ${dayLabel(inp.atH)} (t = ${"%.1f".fmt(inp.atH)} h)"
+                inp.conc.isEmpty() -> ""
+                else -> " + " + inp.conc.entries.joinToString { "${it.key} ${it.value} mg/L" }
+            },
             signs = signs,
             ecg = sg["ecg"]!!.floats(),
             ecgFs = sg["ecg_fs"]!!.d(),
