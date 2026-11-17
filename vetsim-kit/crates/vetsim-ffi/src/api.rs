@@ -12,7 +12,7 @@ use vetsim_core::blocks::{blocks_of, Block};
 use vetsim_core::case::{Case, DrawSource, NoNoise};
 use vetsim_core::dsp::{base64, wav_pcm16};
 use vetsim_core::pcg::{patient_pcg, AuscultationConfig, PcgOptions};
-use vetsim_core::pkpd::{apply_drug_effects, timecourse, Dose, Route};
+use vetsim_core::pkpd::{apply_drug_effects, emax_effect, timecourse, Dose, Route};
 use vetsim_core::rng::NoiseSource;
 use vetsim_core::signals::{make_pcg, patient_signals, streams, PcgInputs, SignalOptions, PCG_FS};
 use vetsim_core::{
@@ -362,8 +362,31 @@ impl Engine {
                 .collect::<Result<_, _>>()?,
             Some(_) => return Err(ApiError::one("/conc", "objet {médicament: mg/L} attendu")),
         };
-        let d = opt_f64(m, "D", 0.0)?;
-        let u = opt_f64(m, "U", 0.0)?;
+        let mut d = opt_f64(m, "D", 0.0)?;
+        let mut u = opt_f64(m, "U", 0.0)?;
+        let mut conc = conc;
+        // Examen à l'instant `at_h` d'un schéma d'administration : concentrations, D et U
+        // simulés (PK du patient, donc avec sa fonction rénale et hépatique).
+        if m.contains_key("doses") {
+            if !conc.is_empty() || d != 0.0 || u != 0.0 {
+                return Err(ApiError::one(
+                    "/doses",
+                    "donner « doses » + « at_h » OU « conc »/« D »/« U », pas les deux",
+                ));
+            }
+            let at = opt_f64(m, "at_h", f64::NAN)?;
+            if !(0.0..=24.0 * 60.0).contains(&at) {
+                return Err(ApiError::one(
+                    "/at_h",
+                    "instant d'examen (h) requis, entre 0 et 60 jours",
+                ));
+            }
+            let ds = parse_doses(m)?;
+            let tc = timecourse(&s.patient.params, &self.catalog()?.drugs, &ds, at, &[at])?;
+            conc = tc.conc.iter().map(|(k, v)| (k.clone(), v[0])).collect();
+            d = tc.d[0];
+            u = tc.u[0];
+        }
         let mut base = s.patient.params.clone();
         // Préréglage de FC (réglage d'usage, ex. « repos » 72/min) : FC de repos imposée.
         if let Some(v) = m.get("hr").filter(|v| !v.is_null()) {
@@ -442,34 +465,7 @@ impl Engine {
         self.respond(|e| {
             let o = parse(doses, "doses")?;
             let m = obj(&o, "")?;
-            let list = m
-                .get("doses")
-                .and_then(Json::as_array)
-                .ok_or_else(|| ApiError::one("/doses", "tableau de doses requis"))?;
-            let mut ds = Vec::new();
-            for (i, d) in list.iter().enumerate() {
-                let dm = obj(d, &format!("/doses/{i}"))?;
-                let path = |k: &str| format!("/doses/{i}/{k}");
-                let route = match dm.get("route").and_then(Json::as_str) {
-                    Some("iv") => Route::Iv,
-                    Some("po") => Route::Po,
-                    _ => return Err(ApiError::one(path("route"), "« iv » ou « po » attendu")),
-                };
-                ds.push(Dose {
-                    t_h: opt_f64(dm, "t_h", 0.0)
-                        .map_err(|_| ApiError::one(path("t_h"), "nombre attendu"))?,
-                    drug: dm
-                        .get("drug")
-                        .and_then(Json::as_str)
-                        .ok_or_else(|| ApiError::one(path("drug"), "identifiant requis"))?
-                        .to_string(),
-                    mg_per_kg: dm
-                        .get("mg_per_kg")
-                        .and_then(Json::as_f64)
-                        .ok_or_else(|| ApiError::one(path("mg_per_kg"), "nombre requis"))?,
-                    route,
-                });
-            }
+            let ds = parse_doses(m)?;
             let t_end = opt_f64(m, "t_end_h", 24.0)?;
             let t_eval: Vec<f64> = match m.get("t_eval_h") {
                 None => (0..=t_end.ceil() as usize)
@@ -498,7 +494,63 @@ impl Engine {
             for (d, v) in &tc.conc {
                 conc.insert(d.clone(), json!(v));
             }
-            let mut out = json!({ "ok": true, "t": tc.t, "conc_mg_L": conc, "D": tc.d, "U": tc.u });
+            // Effet Emax normalisé E(t) de chaque médicament (0–1 × emax).
+            let mut effects = Map::new();
+            for (d, v) in &tc.conc {
+                let module = c.drug(d).expect("médicament validé par timecourse");
+                effects.insert(
+                    d.clone(),
+                    json!(v
+                        .iter()
+                        .map(|x| emax_effect(module, *x))
+                        .collect::<Vec<_>>()),
+                );
+            }
+            let mut out = json!({ "ok": true, "t": tc.t, "conc_mg_L": conc, "effect": effects,
+                                  "D": tc.d, "U": tc.u });
+            // États physiologiques à des instants choisis (moins nombreux que la grille PK).
+            if let Some(v) = m.get("state_times_h") {
+                let times: Vec<f64> = v
+                    .as_array()
+                    .ok_or_else(|| ApiError::one("/state_times_h", "tableau attendu"))?
+                    .iter()
+                    .enumerate()
+                    .map(|(i, x)| {
+                        x.as_f64()
+                            .filter(|t| *t >= 0.0 && *t <= t_end)
+                            .ok_or_else(|| {
+                                ApiError::one(
+                                    format!("/state_times_h/{i}"),
+                                    "instant entre 0 et t_end_h",
+                                )
+                            })
+                    })
+                    .collect::<Result<_, _>>()?;
+                if times.len() > 400 {
+                    return Err(ApiError::one("/state_times_h", "au plus 400 instants"));
+                }
+                let tcs = timecourse(&s.patient.params, &c.drugs, &ds, t_end, &times)?;
+                let mut states = Vec::with_capacity(tcs.t.len());
+                for i in 0..tcs.t.len() {
+                    let conc_i: Vec<(String, f64)> =
+                        tcs.conc.iter().map(|(d, v)| (d.clone(), v[i])).collect();
+                    let p = apply_drug_effects(
+                        &s.patient.params,
+                        &c.drugs,
+                        &conc_i,
+                        tcs.d[i],
+                        tcs.u[i],
+                    )?;
+                    let ev = evaluate(&p)?;
+                    let mut st = Map::new();
+                    for (k, v) in ev.to_flat() {
+                        st.insert(k.into(), Json::from(v));
+                    }
+                    states.push(Json::Object(st));
+                }
+                out["state_t"] = json!(tcs.t);
+                out["states_at"] = Json::Array(states);
+            }
             if with_states {
                 let mut states = Vec::with_capacity(tc.t.len());
                 for i in 0..tc.t.len() {
@@ -664,6 +716,42 @@ fn aligned_pressures(ev: &Evaluation, beats: &[f64], dur: f64, fs: f64) -> Json 
     }
     json!({ "fs": fs, "ao": ao, "lv": lv, "la": la,
             "note": "battement simulé posé à chaque instant de battement (forme non recalculée par battement)" })
+}
+
+/// Schéma d'administration : `"doses": [{"t_h", "drug", "mg_per_kg", "route": "iv"|"po"}]`.
+fn parse_doses(m: &Map<String, Json>) -> Result<Vec<Dose>, ApiError> {
+    let list = m
+        .get("doses")
+        .and_then(Json::as_array)
+        .ok_or_else(|| ApiError::one("/doses", "tableau de doses requis"))?;
+    if list.len() > 500 {
+        return Err(ApiError::one("/doses", "au plus 500 administrations"));
+    }
+    let mut ds = Vec::with_capacity(list.len());
+    for (i, d) in list.iter().enumerate() {
+        let dm = obj(d, &format!("/doses/{i}"))?;
+        let path = |k: &str| format!("/doses/{i}/{k}");
+        let route = match dm.get("route").and_then(Json::as_str) {
+            Some("iv") => Route::Iv,
+            Some("po") => Route::Po,
+            _ => return Err(ApiError::one(path("route"), "« iv » ou « po » attendu")),
+        };
+        ds.push(Dose {
+            t_h: opt_f64(dm, "t_h", 0.0)
+                .map_err(|_| ApiError::one(path("t_h"), "nombre attendu"))?,
+            drug: dm
+                .get("drug")
+                .and_then(Json::as_str)
+                .ok_or_else(|| ApiError::one(path("drug"), "identifiant requis"))?
+                .to_string(),
+            mg_per_kg: dm
+                .get("mg_per_kg")
+                .and_then(Json::as_f64)
+                .ok_or_else(|| ApiError::one(path("mg_per_kg"), "nombre requis"))?,
+            route,
+        });
+    }
+    Ok(ds)
 }
 
 fn case_json(c: &Case) -> Json {
@@ -851,6 +939,82 @@ mod tests {
         json!({ "patient": read("healthy_dog.json"), "diseases": ds, "drugs": dr,
                 "auscultation": read("auscultation.json") })
         .to_string()
+    }
+
+    #[test]
+    fn repeated_dosing_and_examination_at_any_time() {
+        let mut e = Engine::new();
+        e.load_modules(&bundle());
+        let id = j(&e.new_patient(r#"{"variability": false}"#))["patient_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        e.add_disease(&id, r#"{"id": "mmvd", "stage": "C"}"#);
+        // Furosémide et pimobendane per os toutes les 12 h pendant 3 jours.
+        let doses: Vec<Json> = (0..6)
+            .flat_map(|k| {
+                let t = 12.0 * k as f64;
+                [
+                    json!({"t_h": t, "drug": "furosemide", "mg_per_kg": 2.0, "route": "po"}),
+                    json!({"t_h": t, "drug": "pimobendan", "mg_per_kg": 0.25, "route": "po"}),
+                ]
+            })
+            .collect();
+        let t_eval: Vec<f64> = (0..=288).map(|i| i as f64 * 0.25).collect();
+        let tc = j(&e.timecourse(
+            &id,
+            &json!({ "doses": doses, "t_end_h": 72.0, "t_eval_h": t_eval,
+                                                "state_times_h": [1.0, 11.0, 61.0, 71.0] })
+            .to_string(),
+        ));
+        assert_eq!(tc["ok"], true, "{tc}");
+        assert_eq!(tc["effect"]["furosemide"].as_array().unwrap().len(), 289);
+        assert_eq!(tc["states_at"].as_array().unwrap().len(), 4);
+        let c = |d: &str, h: f64| tc["conc_mg_L"][d][(h * 4.0) as usize].as_f64().unwrap();
+        // Pic après chaque prise, creux avant la suivante ; demi-vie courte : pas d'accumulation.
+        assert!(c("pimobendan", 1.0) > 5.0 * c("pimobendan", 11.75));
+        assert!((c("pimobendan", 61.0) - c("pimobendan", 1.0)).abs() < 0.05 * c("pimobendan", 1.0));
+        assert!(
+            tc["D"][288].as_f64().unwrap() > 0.0,
+            "déficit de volume du diurétique"
+        );
+        // Examen au pic et au creux : mêmes concentrations que la cinétique, états différents.
+        let mut at = |h: f64| j(&e.state(&id, &json!({ "doses": doses, "at_h": h }).to_string()));
+        let (peak, trough) = (at(61.0), at(71.0));
+        assert_eq!(peak["ok"], true, "{peak}");
+        let states_at = tc["states_at"].as_array().unwrap();
+        for (st, sa) in [(&peak, &states_at[2]), (&trough, &states_at[3])] {
+            // Même modèle, mais segments d'intégration PK différents ([0, t] contre la grille) :
+            // concentrations égales à ~1e-14, puis le solveur hémodynamique adaptatif (rtol 1e-6)
+            // suit une autre séquence de pas, d'où un accord à la précision du solveur.
+            for (k, tol) in [
+                ("k", 1e-9),
+                ("na", 1e-9),
+                ("hr", 1e-4),
+                ("map", 1e-4),
+                ("cvp", 1e-4),
+            ] {
+                let (a, b) = (st[k].as_f64().unwrap(), sa[k].as_f64().unwrap());
+                assert!(
+                    (a - b).abs() <= tol * a.abs().max(b.abs()),
+                    "{k} : {a} / {b}"
+                );
+            }
+        }
+        assert_ne!(peak["map"], trough["map"]);
+        // Auscultation au pic
+        let p = j(&e.pcg(
+            &id,
+            &json!({ "doses": doses, "at_h": 61.0, "duration_s": 3 }).to_string(),
+        ));
+        assert_eq!(p["ok"], true, "{p}");
+        // Erreurs structurées
+        let both = json!({ "doses": doses, "at_h": 1.0, "conc": {"pimobendan": 0.03} });
+        assert_eq!(j(&e.state(&id, &both.to_string()))["ok"], false);
+        assert_eq!(
+            j(&e.state(&id, &json!({ "doses": doses }).to_string()))["ok"],
+            false
+        );
     }
 
     #[test]
