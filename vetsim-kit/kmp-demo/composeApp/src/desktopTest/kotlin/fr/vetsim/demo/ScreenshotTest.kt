@@ -40,9 +40,9 @@ class ScreenshotTest {
         val inputs = DemoInputs(diseaseId = "mmvd", stage = "B2")
         val scene = ImageComposeScene(width = 1100, height = 900, density = Density(1f)) {
             androidx.compose.foundation.layout.Box(
-                androidx.compose.ui.Modifier.background(androidx.compose.ui.graphics.Color(0xFFF6F7F8)).padding(16.dp),
+                androidx.compose.ui.Modifier.background(androidx.compose.ui.graphics.Color(0xFFF3F5F7)).padding(16.dp),
             ) {
-                androidx.compose.material3.MaterialTheme {
+                VetTheme {
                     AuscultationView(controller, inputs, initialWindowS = 2f, initialCursor = 1.2f)
                 }
             }
@@ -72,9 +72,9 @@ class ScreenshotTest {
         )
         val scene = ImageComposeScene(width = 1250, height = 2050, density = Density(1f)) {
             androidx.compose.foundation.layout.Box(
-                androidx.compose.ui.Modifier.background(androidx.compose.ui.graphics.Color(0xFFF6F7F8)).padding(16.dp),
+                androidx.compose.ui.Modifier.background(androidx.compose.ui.graphics.Color(0xFFF3F5F7)).padding(16.dp),
             ) {
-                androidx.compose.material3.MaterialTheme {
+                VetTheme {
                     TreatmentView(controller, inputs, onExamine = { _, _, _ -> }, initialPlan = plan, initialCursorH = 61.0, autoSimulate = true)
                 }
             }

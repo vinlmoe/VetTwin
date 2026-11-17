@@ -453,6 +453,10 @@ pub struct PcgResult {
     pub t_mc: f64,
     /// Fermeture aortique dans le battement, après garde-fou (s).
     pub t_ac: f64,
+    /// Fermeture mitrale (B1) de chaque battement, relative à son début (s).
+    pub beat_t_mc: Vec<f64>,
+    /// Fermeture aortique (A2) de chaque battement, relative à son début (s).
+    pub beat_t_ac: Vec<f64>,
 }
 
 /// Bruit cardiaque : somme de sinusoïdes amorties (phases tirées), attaque exponentielle.
@@ -578,6 +582,7 @@ pub fn synthesize_pcg(
     let n1 = (cfg.s1_duration * fs) as usize;
     let n2 = (cfg.s2_duration * fs) as usize;
     let n3 = (cfg.s3_duration * fs) as usize;
+    let mut beat_t_ac = Vec::with_capacity(beats.len());
     for (i, &b) in beats.iter().enumerate() {
         let rr = if i + 1 < beats.len() {
             beats[i + 1] - b
@@ -590,6 +595,7 @@ pub fn synthesize_pcg(
             resp * noise.lognormal(0.0, cfg.gain_sd) * math::pow(rr / period, cfg.s2_gain_rr_exp);
         // la systole raccourcit peu quand le RR diminue
         let ts = (t_ac - t_mc) * math::pow(rr / period, cfg.s2_systole_rr_exp);
+        beat_t_ac.push(t_mc + ts);
         let b1 = s_sound(n1, fs, cfg.s1_f0, cfg.s1_tau, s1_amp * g1, cfg, noise);
         put(&mut sig, b + t_mc, fs, &b1);
         // inspiration : dédoublement physiologique de B2
@@ -679,10 +685,247 @@ pub fn synthesize_pcg(
             murmur,
             grade,
         },
+        beat_t_mc: vec![t_mc; beats.len()],
         beats,
         t_mc,
         t_ac,
+        beat_t_ac,
     })
+}
+
+/// Battement pour la synthèse battement par battement : début (s, temps du signal) et
+/// hémodynamique de CE battement (séries de son début au battement suivant).
+#[derive(Debug, Clone, PartialEq)]
+pub struct PcgBeat {
+    /// Début du battement dans le signal (s).
+    pub t: f64,
+    /// Hémodynamique du battement (`t` relatif à son début, `period` = RR, `ts` du battement).
+    pub h: PcgInputs,
+}
+
+/// Synthèse battement par battement (miroir de `pcg_beats.make_pcg_beats`) : chaque battement a
+/// ses propres événements mécaniques (fermetures mitrale et aortique, dP/dt, débit régurgitant,
+/// remplissage rapide), donc ses propres B1, B2, B3 et souffle. Les gains aléatoires (contact du
+/// stéthoscope) et la modulation respiratoire sont ceux de `synthesize_pcg`. Ordre des tirages :
+/// bruit du souffle (N normales), par battement 2 lognormales, 3 + 3 + 3 phases, [1 uniforme si
+/// souffle], puis bruit de fond (N normales).
+pub fn synthesize_pcg_beats(
+    beats: &[PcgBeat],
+    la_mean: f64,
+    cfg: &AuscultationConfig,
+    opts: &PcgOptions,
+    noise: &mut dyn NoiseSource,
+) -> Result<PcgResult, Error> {
+    let fs = opts.fs.unwrap_or(cfg.fs);
+    let dur = opts.duration_s.unwrap_or(cfg.duration_s);
+    let resp_hz = opts.resp_hz.unwrap_or(cfg.resp_hz);
+    let site_name = opts.site.as_deref().unwrap_or("base");
+    let site = cfg.site(site_name).ok_or_else(|| {
+        Error::InvalidInput(format!("site d'auscultation inconnu « {site_name} »"))
+    })?;
+    if !(fs > 0.0 && dur > 0.0 && dur <= 600.0 && resp_hz.is_finite() && resp_hz >= 0.0) {
+        return Err(Error::InvalidInput(format!(
+            "options PCG invalides (fs {fs}, durée {dur}, f_resp {resp_hz})"
+        )));
+    }
+    if beats.is_empty() {
+        return Err(Error::InvalidInput("aucun battement".into()));
+    }
+    let filt = |(lo, hi): (f64, f64), order| {
+        butter_bandpass(order, lo, hi, fs).map_err(|e| Error::InvalidInput(e.to_string()))
+    };
+    let sos_m = filt(cfg.murmur_band, cfg.murmur_order)?;
+    let sos_b = filt(cfg.bg_band, cfg.bg_order)?;
+    let n = (dur * fs) as usize;
+    let mut sig = vec![0.0; n];
+    let q_reg = |h: &PcgInputs| -> Vec<f64> {
+        h.q_mi
+            .iter()
+            .zip(&h.q_ao)
+            .map(|(m, a)| (-m).max(0.0) + (-a).max(0.0))
+            .collect()
+    };
+    let peak_reg = beats
+        .iter()
+        .flat_map(|b| q_reg(&b.h))
+        .fold(f64::NEG_INFINITY, f64::max);
+    let murmur_on = peak_reg > cfg.murmur_flow_threshold;
+    let white: Vec<f64> = (0..n).map(|_| noise.standard_normal()).collect();
+    let mut mnoise = sosfilt(&sos_m, &white);
+    let sd = std(&mnoise);
+    mnoise.iter_mut().for_each(|x| *x /= sd);
+    let n1 = (cfg.s1_duration * fs) as usize;
+    let n2 = (cfg.s2_duration * fs) as usize;
+    let n3 = (cfg.s3_duration * fs) as usize;
+    let k_m = site.murmur_gain * cfg.murmur_amp;
+    let (mut s1_sum, mut s2_sum, mut s3_sum, mut tmc_sum, mut tac_sum) = (0.0, 0.0, 0.0, 0.0, 0.0);
+    let (mut beat_t_mc, mut beat_t_ac) = (Vec::new(), Vec::new());
+    for bt in beats {
+        let (b, h) = (bt.t, &bt.h);
+        let dt = h.t[1] - h.t[0];
+        let ev = beat_events(h, dt);
+        let t_mc = ev.i_mc as f64 * dt;
+        let t_ac = f64::max(ev.i_ac as f64 * dt, t_mc + cfg.guard_systole_frac * h.ts);
+        let s1_amp =
+            site.s1_gain * cfg.s1_base * f64::min(cfg.s1_cap, ev.dpdt_max / cfg.s1_dpdt_ref);
+        let s2_amp = site.s2_gain * cfg.s2_base * f64::min(cfg.s2_cap, ev.dp_close / cfg.s2_dp_ref);
+        let s3_amp = if la_mean > cfg.s3_la_threshold {
+            cfg.s3_amp * f64::max(0.0, (ev.q_early - cfg.s3_q_ref) / cfg.s3_q_ref)
+        } else {
+            0.0
+        };
+        s1_sum += s1_amp;
+        s2_sum += s2_amp;
+        s3_sum += s3_amp;
+        tmc_sum += t_mc;
+        tac_sum += t_ac;
+        beat_t_mc.push(t_mc);
+        beat_t_ac.push(t_ac);
+        let resp = 1.0 + cfg.resp_mod * math::sin(2.0 * PI * resp_hz * b);
+        let g1 = resp * noise.lognormal(0.0, cfg.gain_sd);
+        let g2 = resp * noise.lognormal(0.0, cfg.gain_sd);
+        let b1 = s_sound(n1, fs, cfg.s1_f0, cfg.s1_tau, s1_amp * g1, cfg, noise);
+        put(&mut sig, b + t_mc, fs, &b1);
+        let insp = f64::max(0.0, math::sin(2.0 * PI * resp_hz * b));
+        let split = cfg.s2_split_base + cfg.s2_split_insp * insp;
+        let a2 = s_sound(
+            n2,
+            fs,
+            cfg.s2_f0_aortic,
+            cfg.s2_tau,
+            s2_amp * g2 * (1.0 - cfg.s2_aortic_insp_drop * insp),
+            cfg,
+            noise,
+        );
+        put(&mut sig, b + t_ac, fs, &a2);
+        let p2 = s_sound(
+            n2,
+            fs,
+            cfg.s2_f0_pulmonic,
+            cfg.s2_tau,
+            s2_amp * g2 * (cfg.s2_pulmonic_base + cfg.s2_pulmonic_insp * insp),
+            cfg,
+            noise,
+        );
+        put(&mut sig, b + t_ac + split, fs, &p2);
+        if s3_amp > 0.0 {
+            let b3 = burst(n3, fs, cfg.s3_f0, cfg.s3_tau, s3_amp * g1);
+            put(&mut sig, b + t_ac + cfg.s3_delay, fs, &b3);
+        }
+        if murmur_on {
+            let qr = q_reg(h);
+            let grid: Vec<f64> = (0..(h.period * fs) as usize)
+                .map(|k| k as f64 / fs)
+                .collect();
+            let env = interp_right(&grid, &h.t, &qr, 0.0);
+            let jitter = noise.uniform(cfg.murmur_jitter.0, cfg.murmur_jitter.1);
+            let i0 = (b * fs) as usize;
+            for (k, e) in env.iter().enumerate() {
+                let idx = i0 + k;
+                if idx >= n {
+                    break;
+                }
+                sig[idx] += e.max(0.0).sqrt() * k_m * resp * jitter * mnoise[idx];
+            }
+        }
+    }
+    let white: Vec<f64> = (0..n).map(|_| noise.standard_normal()).collect();
+    let mut bg = sosfilt(&sos_b, &white);
+    let sd = std(&bg);
+    bg.iter_mut().for_each(|x| *x /= sd);
+    for (k, s) in sig.iter_mut().enumerate() {
+        let sw = math::sin(2.0 * PI * resp_hz * k as f64 / fs + cfg.swell_phase);
+        let swell = cfg.swell_base + cfg.swell_amp * (sw * sw);
+        *s += cfg.bg_amp * bg[k] * swell;
+    }
+    let grade = if peak_reg > cfg.grade_min_flow {
+        ((cfg
+            .grade_thresholds
+            .iter()
+            .filter(|t| **t < peak_reg)
+            .count()
+            + 1) as u8)
+            .min(cfg.grade_max)
+    } else {
+        0
+    };
+    let max_back = |f: fn(&PcgInputs) -> &Vec<f64>| {
+        beats
+            .iter()
+            .flat_map(|b| f(&b.h).iter().map(|x| (-x).max(0.0)))
+            .fold(0.0, f64::max)
+    };
+    let murmur = if max_back(|h| &h.q_mi) > cfg.murmur_flow_threshold {
+        Murmur::HolosystolicLeftApical
+    } else if max_back(|h| &h.q_ao) > cfg.murmur_flow_threshold {
+        Murmur::DiastolicLeftBasilar
+    } else {
+        Murmur::None
+    };
+    let norm = sig.iter().map(|x| x.abs()).fold(0.0, f64::max).max(1e-9);
+    sig.iter_mut().for_each(|x| *x /= norm);
+    let nb = beats.len() as f64;
+    Ok(PcgResult {
+        fs,
+        samples: sig,
+        features: AuscultationFeatures {
+            s1: s1_sum / nb,
+            s2: s2_sum / nb,
+            s3_amp: s3_sum / nb,
+            s3: s3_sum / nb > cfg.s3_audible,
+            murmur_peak_flow: peak_reg,
+            murmur,
+            grade,
+        },
+        beats: beats.iter().map(|b| b.t).collect(),
+        t_mc: tmc_sum / nb,
+        t_ac: tac_sum / nb,
+        beat_t_mc,
+        beat_t_ac,
+    })
+}
+
+/// Battements du signal, chacun avec son hémodynamique : la séquence de conduction est simulée
+/// battement par battement depuis 0, les battements de `[warm, warm + dur − marge)` sont ramenés
+/// à l'origine du signal (miroir de `pcg_beats.signal_beats`). Renvoie aussi la POG moyenne.
+pub fn signal_beats(
+    p: &crate::params::Params,
+    cond: &crate::rhythm::Conduction,
+    period0: f64,
+    warm: f64,
+    dur: f64,
+    end_margin: f64,
+) -> Result<(Vec<PcgBeat>, f64), Error> {
+    let r = crate::hemo::simulate_hemo_beats(p, cond, warm + dur + 1.0, warm, period0)?;
+    let w = &r.waveforms;
+    let mut out = Vec::new();
+    for b in &r.beats {
+        if b.t >= warm + dur - end_margin {
+            break;
+        }
+        let idx: Vec<usize> = (0..w.t.len())
+            .filter(|&i| w.t[i] >= b.t && w.t[i] < b.t + b.rr)
+            .collect();
+        if idx.len() < 3 {
+            continue;
+        }
+        let pick = |v: &[f64]| idx.iter().map(|&i| v[i]).collect::<Vec<f64>>();
+        out.push(PcgBeat {
+            t: b.t - warm,
+            h: PcgInputs {
+                t: idx.iter().map(|&i| w.t[i] - b.t).collect(),
+                q_ao: pick(&w.q_ao),
+                q_mi: pick(&w.q_mi),
+                p_lv: pick(&w.p_lv),
+                p_ao: pick(&w.p_ao),
+                p_pv: pick(&w.p_pv),
+                period: b.rr,
+                ts: b.ts,
+                la_mean: r.summary.la_mean,
+            },
+        });
+    }
+    Ok((out, r.summary.la_mean))
 }
 
 /// Auscultation d'un patient évalué : simulation autonome (instants des battements avec
@@ -702,27 +945,31 @@ pub fn patient_pcg(
     let au = simulate_autonomic(
         &ev.into(),
         &AutonomicOptions {
-            duration_s: dur.max(120.0),
+            duration_s: (dur + crate::signals::SIGNAL_WARM_S).max(120.0),
             ..AutonomicOptions::default()
         },
         &mut SimRng::for_stream(seed, streams::AUTONOMIC),
     );
-    // battements = activations ventriculaires de la conduction (mêmes que l'ECG)
+    // battements = activations ventriculaires de la conduction (mêmes que l'ECG), chacun avec
+    // l'hémodynamique simulée sur cette séquence (chauffe de SIGNAL_WARM_S avant la fenêtre)
+    let warm = crate::signals::SIGNAL_WARM_S;
     let cond =
         crate::signals::patient_conduction(ev, &au.beats, seed.wrapping_add(streams::RHYTHM));
-    let beats: Vec<f64> = cond
-        .ventricular
-        .iter()
-        .map(|b| b.t)
-        .filter(|b| *b < dur)
-        .collect();
+    let (beats, la_mean) = signal_beats(
+        &ev.params,
+        &cond,
+        60.0 / ev.params.hr,
+        warm,
+        dur,
+        cfg.end_margin_s,
+    )?;
     let o = PcgOptions {
         resp_hz: opts.resp_hz.or(Some(ev.metabolic.art.rr / 60.0)),
         ..opts.clone()
     };
-    synthesize_pcg(
-        &PcgInputs::from(&ev.hemo),
-        Some(&beats),
+    synthesize_pcg_beats(
+        &beats,
+        la_mean,
         cfg,
         &o,
         &mut SimRng::for_stream(seed, streams::AUSCULTATION),

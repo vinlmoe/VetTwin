@@ -33,6 +33,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
@@ -55,6 +58,7 @@ private val EcgGreen = Color(0xFF0B7A55)
  * Auscultation : son synthétisé (module pcg.rs), forme d'onde, spectrogramme, ECG et pressions
  * cardiaques sur le même axe de temps ; zoom et défilement ; curseur synchronisé avec le son.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AuscultationView(
     controller: DemoController,
@@ -143,12 +147,14 @@ fun AuscultationView(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("FC :", color = Muted, fontSize = 13.sp)
+      // barre d'outils : réglages du son, lecture, zoom
+      Column(Modifier.fillMaxWidth().card().padding(horizontal = 14.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("FC", color = Muted, fontSize = 12.sp, modifier = Modifier.align(Alignment.CenterVertically))
             Chip("Patient", hrChoice == null) { stopPlayback(); played = false; hrChoice = null; generate() }
             Chip("Repos 72", hrChoice == 72.0) { stopPlayback(); played = false; hrChoice = 72.0; generate() }
             Chip("90", hrChoice == 90.0) { stopPlayback(); played = false; hrChoice = 90.0; generate() }
-            Text("   Site :", color = Muted, fontSize = 13.sp)
+            Text("     Site", color = Muted, fontSize = 12.sp, modifier = Modifier.align(Alignment.CenterVertically))
             Chip("Base", site == "base") { stopPlayback(); played = false; site = "base"; generate() }
             Chip("Apex (non calibré)", site == "apex") { stopPlayback(); played = false; site = "apex"; generate() }
         }
@@ -156,7 +162,7 @@ fun AuscultationView(
         error?.let { Text("Erreur : $it", color = Color(0xFFB00020)) }
         if (r == null) return@Column
         val dur = r.durationS.toFloat()
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Button(onClick = { if (playing) stopPlayback() else startPlayback() }) {
                 Text(if (playing) "■ Arrêter" else if (played) "↻ Rejouer" else "▶ Écouter")
             }
@@ -168,15 +174,17 @@ fun AuscultationView(
                 Checkbox(zoomOnly, { zoomOnly = it })
                 Text("fenêtre affichée seulement", color = Ink, fontSize = 13.sp)
             }
-            Text("Volume ×${"%.1f".fmt(gain.toDouble())}", color = Ink, fontSize = 13.sp)
-            Slider(value = gain, onValueChange = { gain = it }, valueRange = 1f..8f, modifier = Modifier.width(140.dp))
-            Text(
-                "FC ${"%.0f".fmt(r.hr)} /min · ${r.beats.size} battements · " +
-                    (if (r.grade == 0) "pas de souffle" else "souffle ${r.murmur}, grade ${r.grade}/6 (indicatif)") +
-                    (if (r.s3) " · B3" else "") + " · site ${r.site}",
-                color = Ink, fontSize = 13.sp,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Volume ×${"%.1f".fmt(gain.toDouble())}", color = Ink, fontSize = 13.sp)
+                Slider(value = gain, onValueChange = { gain = it }, valueRange = 1f..8f, modifier = Modifier.width(140.dp))
+            }
         }
+        Text(
+            "FC ${"%.0f".fmt(r.hr)} /min · ${r.beats.size} battements · " +
+                (if (r.grade == 0) "pas de souffle" else "souffle ${r.murmur}, grade ${r.grade}/6 (indicatif)") +
+                (if (r.s3) " · B3" else "") + " · site ${r.site}",
+            color = Muted, fontSize = 13.sp,
+        )
         // Zoom et défilement
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -191,17 +199,20 @@ fun AuscultationView(
                 Slider(value = start, onValueChange = { start = it }, valueRange = 0f..maxOf(0.001f, dur - window), enabled = window < dur)
             }
         }
+      }
+        val r = result ?: return@Column
+        val dur = r.durationS.toFloat()
         val t0 = start
         val t1 = start + window
-        TimePanel("Phonocardiogramme (${r.fs} Hz)", t0, t1, cursor, height = 120) { w, h ->
+        TimePanel("Phonocardiogramme (${r.fs} Hz)", t0, t1, cursor, height = 120, yRange = -1f to 1f) { w, h ->
             drawMinMax(r.samples, r.fs.toDouble(), t0, t1, w, h, Accent, -1f, 1f)
         }
-        TimePanel("Spectrogramme 0–500 Hz (dB)", t0, t1, cursor, height = 110) { w, h -> drawSpectrogram(r.spectrogram, t0, t1, w, h) }
-        TimePanel("ECG, dérivation II (mêmes battements que le son)", t0, t1, cursor, height = 110) { w, h ->
+        TimePanel("Spectrogramme 0–500 Hz (dB)", t0, t1, cursor, height = 110, yLabels = listOf("500 Hz", "0")) { w, h -> drawSpectrogram(r.spectrogram, t0, t1, w, h) }
+        TimePanel("ECG, dérivation II (mêmes battements que le son)", t0, t1, cursor, height = 110, yRange = -1.5f to 2.5f) { w, h ->
             drawMinMax(r.ecg, r.ecgFs, t0, t1, w, h, EcgGreen, -1.5f, 2.5f) // échelle unique de l'ECG (mV)
         }
-        TimePanel("Pressions (mmHg) : aorte, VG, OG", t0, t1, cursor, height = 150, legend = listOf("Aorte" to AoRed, "VG" to LvBlue, "OG" to LaAmber)) { w, h ->
-            val hi = maxOf(r.ao.maxOrNull() ?: 1f, r.lv.maxOrNull() ?: 1f) * 1.05f
+        val hi = maxOf(r.ao.maxOrNull() ?: 1f, r.lv.maxOrNull() ?: 1f) * 1.05f
+        TimePanel("Pressions (mmHg) : aorte, VG, OG", t0, t1, cursor, height = 150, legend = listOf("Aorte" to AoRed, "VG" to LvBlue, "OG" to LaAmber), yRange = 0f to hi) { w, h ->
             drawMinMax(r.ao, r.pressureFs, t0, t1, w, h, AoRed, 0f, hi)
             drawMinMax(r.lv, r.pressureFs, t0, t1, w, h, LvBlue, 0f, hi)
             drawMinMax(r.la, r.pressureFs, t0, t1, w, h, LaAmber, 0f, hi)
@@ -235,10 +246,14 @@ private fun TimePanel(
     cursor: Float?,
     height: Int,
     legend: List<Pair<String, Color>> = emptyList(),
+    /** Échelle verticale du tracé (même conversion que drawMinMax), pour graduer l'axe. */
+    yRange: Pair<Float, Float>? = null,
+    /** Libellés fixes haut et bas (spectrogramme). */
+    yLabels: List<String>? = null,
     draw: DrawScope.(Float, Float) -> Unit,
 ) {
     val measurer = rememberTextMeasurer()
-    Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(12.dp)).padding(10.dp)) {
+    Column(Modifier.fillMaxWidth().card().padding(10.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(title, fontWeight = FontWeight.SemiBold, color = Ink, fontSize = 13.sp)
             legend.forEach { (l, c) ->
@@ -248,8 +263,18 @@ private fun TimePanel(
         }
         Canvas(Modifier.fillMaxWidth().height(height.dp)) {
             val axis = 16f
-            val w = size.width
+            val left = 40f
+            val w = size.width - left
             val h = size.height - axis
+            yRange?.let { (lo, hi) ->
+                val span = (hi - lo).takeIf { it > 1e-6f } ?: 1f
+                drawYAxis(measurer, lo, hi, left, size.width, h, { v -> 4f + (1f - (v - lo) / span) * (h - 8f) })
+            }
+            yLabels?.let { (top, bottom) ->
+                drawText(measurer, top, Offset(2f, 0f), TextStyle(fontSize = 9.sp, color = Muted))
+                drawText(measurer, bottom, Offset(2f, h - 12f), TextStyle(fontSize = 9.sp, color = Muted))
+            }
+            translate(left = left) {
             draw(w, h)
             // graduations temporelles
             val span = t1 - t0
@@ -257,13 +282,14 @@ private fun TimePanel(
             var t = (floor(t0 / step) + 1) * step
             while (t < t1) {
                 val x = (t - t0) / span * w
-                drawLine(Color(0xFFE6EAEE), Offset(x, 0f), Offset(x, h))
+                drawLine(UiGrid, Offset(x, 0f), Offset(x, h))
                 drawText(measurer, "${"%.2f".fmt(t.toDouble()).trimEnd('0').trimEnd(',')} s", Offset(x + 2f, h + 1f), TextStyle(fontSize = 9.sp, color = Muted))
                 t += step
             }
             cursor?.takeIf { it in t0..t1 }?.let {
                 val x = (it - t0) / span * w
                 drawLine(CursorColor, Offset(x, 0f), Offset(x, h), strokeWidth = 2.5f)
+            }
             }
         }
     }

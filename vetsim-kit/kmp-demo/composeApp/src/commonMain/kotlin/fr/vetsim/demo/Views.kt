@@ -26,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -101,7 +102,7 @@ private fun TracePanel(
     legend: List<Pair<String, Color>> = emptyList(),
 ) {
     val measurer = rememberTextMeasurer()
-    Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(12.dp)).padding(12.dp)) {
+    Column(Modifier.fillMaxWidth().card().padding(12.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(title, fontWeight = FontWeight.SemiBold, color = Ink, fontSize = 14.sp)
             legend.forEach { (l, c) ->
@@ -115,14 +116,10 @@ private fun TracePanel(
             val lo = all.min()
             val hi = all.max()
             val span = (hi - lo).takeIf { it > 1e-6f } ?: 1f
-            val left = 56f
+            val left = 44f
             val w = size.width - left
             fun y(x: Float) = 6f + (1f - (x - lo) / span) * (size.height - 12f)
-            listOf(lo, hi).forEach { tick ->
-                val label = "%.0f".fmt(tick.toDouble())
-                drawText(measurer, label, Offset(0f, y(tick) - 8f), TextStyle(fontSize = 10.sp, color = Muted))
-                drawLine(Color(0xFFE6EAEE), Offset(left, y(tick)), Offset(size.width, y(tick)))
-            }
+            drawYAxis(measurer, lo, hi, left, size.width, size.height, ::y)
             if (zeroLine && lo < 0f && hi > 0f) drawLine(EdgeGray, Offset(left, y(0f)), Offset(size.width, y(0f)))
             for ((v, color) in series) {
                 val path = Path()
@@ -216,7 +213,7 @@ fun ModelView(catalog: Catalog, r: DemoResult?, initialSelection: String? = null
             Text("Cliquer un bloc pour ses paramètres.", color = Muted, fontSize = 12.sp)
         }
         val measurer = rememberTextMeasurer()
-        BoxWithConstraints(Modifier.fillMaxWidth().height(560.dp).background(Color.White, RoundedCornerShape(12.dp))) {
+        BoxWithConstraints(Modifier.fillMaxWidth().height(560.dp).card()) {
             val wPx = constraints.maxWidth.toFloat()
             val hPx = constraints.maxHeight.toFloat()
             val nodeW = wPx / 5f - 56f
@@ -224,24 +221,43 @@ fun ModelView(catalog: Catalog, r: DemoResult?, initialSelection: String? = null
             fun center(n: Node) = Offset((n.col + 0.5f) * wPx / 5f, (n.row + 0.5f) * hPx / 4f)
             val byId = NODES.associateBy { it.id }
             Canvas(Modifier.fillMaxSize()) {
+                val box = Size(nodeW, nodeH)
+                val curves = mutableListOf<Curve>()
                 for (e in EDGES) {
-                    val a = byId.getValue(e.from)
-                    val b = byId.getValue(e.to)
-                    val visible = drawEdge(center(a), center(b), Size(nodeW, nodeH), e.bend, e.bidir, EdgeGray, null)
-                    val mid = curvePoint(center(a), center(b), e.bend, 0.5f)
-                    val layout = measurer.measure(e.label, TextStyle(fontSize = 10.sp, color = Muted))
-                    // Libellé seulement s'il tient hors des blocs (sinon : détail au clic).
-                    if (visible < layout.size.width + 12f && abs(center(a).y - center(b).y) < 1f) continue
-                    val tl = Offset(mid.x - layout.size.width / 2f, mid.y - layout.size.height / 2f)
-                    drawRect(Color.White.copy(alpha = 0.9f), tl, Size(layout.size.width.toFloat(), layout.size.height.toFloat()))
-                    drawText(layout, topLeft = tl)
+                    val a = center(byId.getValue(e.from))
+                    val b = center(byId.getValue(e.to))
+                    drawEdge(a, b, box, e.bend, e.bidir, EdgeGray, null)
+                    curves += edgeCurve(a, b, box, e.bend)
                 }
                 // Liens dynamiques : module → blocs où il agit.
                 diseaseBlocks.forEach { b ->
-                    byId[b]?.let { drawEdge(center(byId.getValue("disease")), center(it), Size(nodeW, nodeH), 0.08f, false, DiseaseRed, dashed) }
+                    byId[b]?.let {
+                        drawEdge(center(byId.getValue("disease")), center(it), box, 0.08f, false, DiseaseRed, dashed)
+                        curves += edgeCurve(center(byId.getValue("disease")), center(it), box, 0.08f)
+                    }
                 }
                 drugBlocks.forEach { b ->
-                    byId[b]?.let { drawEdge(center(byId.getValue("drugs")), center(it), Size(nodeW, nodeH), -0.08f, false, DrugBlue, dashed) }
+                    byId[b]?.let {
+                        drawEdge(center(byId.getValue("drugs")), center(it), box, -0.08f, false, DrugBlue, dashed)
+                        curves += edgeCurve(center(byId.getValue("drugs")), center(it), box, -0.08f)
+                    }
+                }
+                // Libellés des couplages, placés sans chevauchement après tous les liens.
+                val style = TextStyle(fontSize = 10.sp, color = Muted)
+                val layouts = EDGES.map { measurer.measure(it.label, style) }
+                val boxes = NODES.map { n ->
+                    val c = center(n)
+                    Rect(c.x - nodeW / 2 - 2f, c.y - nodeH / 2 - 2f, c.x + nodeW / 2 + 2f, c.y + nodeH / 2 + 2f)
+                }
+                val spots = placeEdgeLabels(
+                    EDGES.indices.map { LabelItem(curves[it], layouts[it].size.width + 8f, layouts[it].size.height + 1f, it) },
+                    curves, boxes, size.width, size.height,
+                )
+                for ((i, p) in spots) {
+                    val l = layouts[i]
+                    val tl = Offset(p.x - l.size.width / 2f, p.y - l.size.height / 2f)
+                    drawRect(Color.White.copy(alpha = 0.9f), tl, Size(l.size.width.toFloat(), l.size.height.toFloat()))
+                    drawText(l, topLeft = tl)
                 }
             }
             for (n in NODES) {
@@ -292,7 +308,7 @@ private fun Swatch(fill: Color, stroke: Color) {
 private fun BlockDetail(catalog: Catalog, id: String, label: String, changes: List<ParamChange>) {
     val block = catalog.blocks.firstOrNull { it.id == id } ?: return
     val byParam = changes.associateBy { it.param }
-    Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(12.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(Modifier.fillMaxWidth().card().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(label, fontWeight = FontWeight.SemiBold, color = Ink, fontSize = 15.sp)
         val couplings = EDGES.filter { it.from == id || it.to == id }.joinToString(" · ") {
             val other = if (it.from == id) it.to else it.from
@@ -311,9 +327,17 @@ private fun BlockDetail(catalog: Catalog, id: String, label: String, changes: Li
 
 @Composable
 private fun ChangesTable(catalog: Catalog, changes: List<ParamChange>) {
-    Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(12.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+    Column(Modifier.fillMaxWidth().card().padding(12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Text("Paramètres modifiés par rapport au chien sain de même poids", fontWeight = FontWeight.SemiBold, color = Ink, fontSize = 14.sp)
         if (changes.isEmpty()) Text("Aucun : patient sain.", color = Muted, fontSize = 12.sp)
+        if (changes.isNotEmpty()) {
+            val head: @Composable (String, Modifier) -> Unit = { t, m -> Text(t.uppercase(), m, color = Muted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.5.sp) }
+            Row(Modifier.fillMaxWidth()) {
+                head("Paramètre", Modifier.width(110.dp)); head("Bloc", Modifier.weight(1f))
+                head("Sain → patient", Modifier.width(170.dp)); head("Source", Modifier.width(220.dp))
+            }
+            Box(Modifier.fillMaxWidth().height(1.dp).background(UiLine))
+        }
         changes.forEach { c ->
             Row(Modifier.fillMaxWidth()) {
                 Text(c.param, Modifier.width(110.dp), color = Ink, fontSize = 12.sp, fontWeight = FontWeight.Medium)
@@ -339,10 +363,66 @@ private fun num(x: Double): String {
     return "%.${d}f".fmt(x)
 }
 
-private fun curvePoint(a: Offset, b: Offset, bend: Float, t: Float): Offset {
+/** Courbe quadratique visible d'un lien : départ et arrivée au bord des blocs, point de contrôle. */
+private data class Curve(val s: Offset, val c: Offset, val e: Offset) {
+    fun at(t: Float): Offset {
+        val u = 1 - t
+        return Offset(u * u * s.x + 2 * u * t * c.x + t * t * e.x, u * u * s.y + 2 * u * t * c.y + t * t * e.y)
+    }
+    fun tangent(t: Float): Offset {
+        val u = 1 - t
+        return Offset(2 * u * (c.x - s.x) + 2 * t * (e.x - c.x), 2 * u * (c.y - s.y) + 2 * t * (e.y - c.y))
+    }
+}
+
+private fun edgeCurve(a: Offset, b: Offset, box: Size, bend: Float): Curve {
     val ctrl = control(a, b, bend)
-    val u = 1 - t
-    return Offset(u * u * a.x + 2 * u * t * ctrl.x + t * t * b.x, u * u * a.y + 2 * u * t * ctrl.y + t * t * b.y)
+    return Curve(clip(a, ctrl, box), ctrl, clip(b, ctrl, box))
+}
+
+private data class LabelItem(val curve: Curve, val w: Float, val h: Float, val own: Int)
+private data class Spot(val t: Float, val off: Float, val p: Offset, val r: Rect)
+
+/**
+ * Place les étiquettes des liens sans chevauchement : positions candidates le long de la courbe
+ * (milieu d'abord) et de part et d'autre ; une position qui touche un bloc, une étiquette déjà
+ * posée ou le bord est exclue ; parmi les autres, la moins traversée par les autres liens et la
+ * plus proche du milieu. Les étiquettes les plus contraintes sont posées d'abord ; sans position
+ * libre, l'étiquette est omise (couplage détaillé au clic sur le bloc). Renvoie (indice, centre).
+ * Même algorithme que placeEdgeLabels dans web/app.js.
+ */
+private fun placeEdgeLabels(items: List<LabelItem>, curves: List<Curve>, boxes: List<Rect>, w: Float, h: Float): List<Pair<Int, Offset>> {
+    val samples = curves.map { cv -> List(33) { cv.at(it / 32f) } }
+    val ts = floatArrayOf(0.5f, 0.42f, 0.58f, 0.34f, 0.66f, 0.26f, 0.74f, 0.18f, 0.82f)
+    val cands = items.map { it ->
+        val list = mutableListOf<Spot>()
+        for (t in ts) for (off in floatArrayOf(0f, 11f, -11f)) {
+            val p = it.curve.at(t)
+            val d = it.curve.tangent(t)
+            val len = hypot(d.x, d.y).takeIf { l -> l > 0f } ?: 1f
+            val x = p.x - d.y / len * off
+            val y = p.y + d.x / len * off
+            val r = Rect(x - it.w / 2, y - it.h / 2, x + it.w / 2, y + it.h / 2)
+            if (r.left < 0 || r.top < 0 || r.right > w || r.bottom > h || boxes.any { b -> b.overlaps(r) }) continue
+            list += Spot(t, off, Offset(x, y), r)
+        }
+        list
+    }
+    val placed = mutableListOf<Rect>()
+    val out = mutableListOf<Pair<Int, Offset>>()
+    for (i in items.indices.sortedWith(compareBy({ cands[it].size }, { it }))) {
+        var best: Spot? = null
+        var bestCost = Float.MAX_VALUE
+        for (s in cands[i]) {
+            if (placed.any { it.overlaps(s.r) }) continue
+            var cross = 0
+            samples.forEachIndexed { j, pts -> if (j != items[i].own) pts.forEach { q -> if (q.x > s.r.left && q.x < s.r.right && q.y > s.r.top && q.y < s.r.bottom) cross++ } }
+            val cost = 3f * cross + 20f * abs(s.t - 0.5f) + 0.3f * abs(s.off)
+            if (cost < bestCost) { bestCost = cost; best = s }
+        }
+        best?.let { placed += it.r; out += items[i].own to it.p }
+    }
+    return out
 }
 
 private fun control(a: Offset, b: Offset, bend: Float): Offset {

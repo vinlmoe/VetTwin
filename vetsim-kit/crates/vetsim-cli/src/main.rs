@@ -443,6 +443,7 @@ fn pcg_json(dir: &Path, ev: &vetsim_core::Evaluation, a: &Args) -> Result<Json, 
         "wav_base64": vetsim_core::dsp::base64(&wav), "fs": r.fs, "grade": f.grade,
         "murmur": f.murmur.label_fr(), "s3": f.s3, "s1": f.s1, "s2": f.s2,
         "murmur_peak_flow": f.murmur_peak_flow, "beats": r.beats, "t_mc": r.t_mc, "t_ac": r.t_ac,
+        "beat_t_mc": r.beat_t_mc, "beat_t_ac": r.beat_t_ac,
         "hr": ev.params.hr, "site": a.site.clone().unwrap_or_else(|| "base".into()),
     }))
 }
@@ -471,7 +472,7 @@ fn signals_json(ev: &vetsim_core::Evaluation, seed: u64, duration_s: f64) -> Jso
     serde_json::json!({
         "ecg": { "fs": 500.0, "v": e.v, "r_times": e.r_times,
                  "features": { "pr": f.pr, "qrs": f.qrs, "qt": f.qt, "p_amp": f.p_amp,
-                               "t_amp": f.t_amp, "r_amp": f.r_amp, "t_w": f.t_w } },
+                               "t_amp": f.t_amp, "r_amp": f.r_amp, "t_w": f.t_w, "p_w": f.p_w } },
         "pcg": { "fs": vetsim_core::signals::PCG_FS, "v": p.v,
                  "features": { "s1": pf.s1, "s2": pf.s2, "s3": pf.s3, "s3_amp": pf.s3_amp,
                                "murmur": pf.murmur.label_fr(), "murmur_peak_flow": pf.murmur_peak_flow,

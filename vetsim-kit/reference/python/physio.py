@@ -13,9 +13,12 @@ def _act(t, T, ts, tr):
                     np.where(tc < ts + tr, 0.5 * (1 + np.cos(np.pi * (tc - ts) / tr)), 0.0))
 
 
-def _vent_p(V, e, ees, v0, a, b):
+def _vent_p(V, e, ees, v0, a, b, e_act=None):
+    """Pression ventriculaire : élastance active e_act·Ees + raideur passive pondérée par (1 − e).
+    `e_act` (défaut : e) porte l'amplitude propre du battement (battement par battement)."""
     x = np.clip(b * (V - v0), -20, 8)
-    return e * ees * (V - v0) + (1 - e) * a * (np.exp(x) - 1.0)
+    e_act = e if e_act is None else e_act
+    return e_act * ees * (V - v0) + (1 - e) * a * (np.exp(x) - 1.0)
 
 
 def _valve(dp, r_f, g_b, eps=0.3):
@@ -67,7 +70,7 @@ def simulate_hemo(p, n_beats=11, dt=0.002, pr=None):
     """Simule la circulation (rythme régulier) ; renvoie séries temporelles du dernier cycle et
     indices. `pr` : délai oreillette → ventricule de la conduction (défaut : paramètre `pr`)."""
     T = 60.0 / p['hr']
-    ts = 0.37 * math.sqrt(T)
+    ts = p['ts_coef'] * math.sqrt(T)        # durée de systole (ts_coef calé sur B1→B2 du beagle)
     tr = 0.4 * ts
     V0 = _initial_volumes(p)
 
@@ -377,45 +380,77 @@ def _act1(tau, ts, tr):
                     np.where((tau >= ts) & (tau < ts + tr), 0.5 * (1 + np.cos(np.pi * (tau - ts) / tr)), 0.0))
 
 
-def beat_schedule(cond, period0):
-    """Battements ventriculaires (t, ts, tr) et activations atriales organisées (t) d'une séquence
-    de conduction (rhythm.simulate_conduction). Durée de systole du battement i : 0,37·√RR_i,
-    RR_i = intervalle qui le précède (période nominale pour le premier)."""
+def beat_schedule(cond, period0, p):
+    """Battements ventriculaires (t, ts, tr, c) et activations atriales organisées (t) d'une
+    séquence de conduction (rhythm.simulate_conduction).
+
+    Durée de systole : ts_coef·√(période moyenne)·(RR_i / période moyenne)^ts_restitution,
+    RR_i = intervalle qui précède (période nominale pour le premier battement).
+
+    Amplitude d'élastance active c_i (relation force-intervalle, modèle de recirculation du Ca²⁺
+    à deux compartiments du réticulum sarcoplasmique) :
+    - à partir de la fin de la systole précédente, le Ca²⁺ recapté (compartiment de captation,
+      contenu u) gagne le compartiment de libération avec la constante `ca_tau` ; au battement,
+      tout le compartiment de libération est libéré : libération = u·(1 − exp(−d/ca_tau)),
+      d = temps écoulé depuis la fin de la systole précédente ;
+    - après le battement, une fraction `ca_recirc` du Ca²⁺ libéré est recaptée, le reste est
+      extrudé et remplacé par l'entrée transsarcolemmale (1 − ca_recirc) ; le Ca²⁺ non transféré
+      reste dans le compartiment de captation.
+    En rythme régulier, quelle que soit la fréquence, la libération vaut 1 (régime établi : le
+    périodique est retrouvé). Un battement prématuré libère moins (restitution mécanique) ; le
+    Ca²⁺ resté en attente renforce le battement suivant (potentialisation post-extrasystolique).
+    Un battement à QRS large (ectopique, échappement ventriculaire) active le myocarde hors du
+    réseau de Purkinje : contraction dyssynchrone, amplitude multipliée par `ees_wide`."""
     tv = [b['t'] for b in cond['ventricular']]
+    wide = [b.get('wide', False) for b in cond['ventricular']]
+    ts0 = p['ts_coef'] * math.sqrt(period0)
+    tau, rho = p['ca_tau'], p['ca_recirc']
+    u = 1.0 / (1.0 - math.exp(-(period0 - ts0) / tau))     # compartiment de captation, régime établi
     beats = []
+    ts_prev = ts0
     for i, t in enumerate(tv):
         rr = t - tv[i - 1] if i > 0 else period0
-        ts = 0.37 * math.sqrt(rr)
-        beats.append((t, ts, 0.4 * ts))
+        # durée de systole adaptée à la fréquence moyenne, avec une restitution modeste au RR
+        # précédent (exposant ts_restitution) : identique au régime périodique si RR = RR moyen
+        ts = p['ts_coef'] * math.sqrt(period0) * (rr / period0) ** p['ts_restitution']
+        x = math.exp(-max(0.0, rr - ts_prev) / tau)
+        rel = u * (1.0 - x)                                  # Ca²⁺ libéré (1 en régime établi)
+        u = u * x + rho * rel + (1.0 - rho)
+        c = rel * (p['ees_wide'] if wide[i] else 1.0)
+        beats.append((t, ts, 0.4 * ts, c))
+        ts_prev = ts
     atr = [t for t, organized in cond['atrial'] if organized]
     return beats, atr
 
 
 def _activations(t, beats, atr, p):
-    """Activation ventriculaire (max des deux derniers battements, pour qu'un battement prématuré
-    survienne pendant la relaxation du précédent) et activation atriale à l'instant t."""
+    """Activation ventriculaire e (max des deux derniers battements, pour qu'un battement prématuré
+    survienne pendant la relaxation du précédent), activation active e_act (max des activations
+    pondérées par l'amplitude c de chaque battement) et activation atriale à l'instant t."""
     import bisect
     tv = beat_starts = [b[0] for b in beats]
     i = bisect.bisect_right(beat_starts, t) - 1
-    e = 0.0
+    e = e_act = 0.0
     for j in (i - 1, i):
         if 0 <= j < len(beats):
-            t0, ts, tr = beats[j]
-            e = max(e, float(_act1(t - t0, ts, tr)))
+            t0, ts, tr, c = beats[j]
+            a = float(_act1(t - t0, ts, tr))
+            e = max(e, a)
+            e_act = max(e_act, c * a)
     k = bisect.bisect_right(atr, t) - 1
     ea = 0.0
     for j in (k - 1, k):
         if 0 <= j < len(atr):
             ea = max(ea, float(_act1(t - atr[j], p['ta_atr'], p['tra_atr'])))
-    return e, ea
+    return e, e_act, ea
 
 
 def _flows_beats(V, t, p, beats, atr):
     lv, rv, ao, sv, pa, pv = V
-    e, ea = _activations(t, beats, atr, p)
+    e, e_act, ea = _activations(t, beats, atr, p)
     P = dict(
-        lv=_vent_p(lv, e, p['ees_lv'], p['v0_lv'], p['a_lv'], p['b_lv']),
-        rv=_vent_p(rv, e, p['ees_rv'], p['v0_rv'], p['a_rv'], p['b_rv']),
+        lv=_vent_p(lv, e, p['ees_lv'], p['v0_lv'], p['a_lv'], p['b_lv'], e_act),
+        rv=_vent_p(rv, e, p['ees_rv'], p['v0_rv'], p['a_rv'], p['b_rv'], e_act),
         ao=(ao - p['v0_ao']) / p['c_ao'], sv=(1 + p['k_ra'] * ea) * (sv - p['v0_sv']) / p['c_sv'],
         pa=(pa - p['v0_pa']) / p['c_pa'], pv=(1 + p['k_la'] * ea) * (pv - p['v0_pv']) / p['c_pv'])
     rf = p['r_valve']
@@ -430,7 +465,7 @@ def simulate_hemo_beats(p, cond, t_end, warm, period0, dt=0.002):
     """Simule la circulation sur une séquence de battements quelconque (rythme irrégulier, blocs,
     extrasystoles, FA). Indicateurs moyennés sur les battements complets après `warm` secondes ;
     chaque battement garde son VES, sa PAS et sa PAD (déficit de pouls, alternance)."""
-    beats, atr = beat_schedule(cond, period0)
+    beats, atr = beat_schedule(cond, period0, p)
     V0 = _initial_volumes(p)
 
     def rhs(t, V):
@@ -457,7 +492,19 @@ def simulate_hemo_beats(p, cond, t_end, warm, period0, dt=0.002):
         vl = V[0][m]
         qmi, qao = Q['mi'][m], Q['ao'][m]
         qf = np.maximum(qmi, 0.0)
-        per_beat.append(dict(t=a, rr=b - a, relaxed=relaxed.get(a, True), edv=vl.max(), esv=vl.min(), sv=vl.max() - vl.min(),
+        bt = next((bb for bb in beats if bb[0] == a), None)
+        ts_a = bt[1] if bt is not None else p['ts_coef'] * math.sqrt(b - a)
+        # volumes du battement mesurés sur SA contraction (début → fin de relaxation, ou battement
+        # suivant) : VTS = minimum, VTD = maximum avant ce minimum. Le remplissage de la diastole
+        # qui suit appartient au battement suivant (sinon une pause gonfle le VES du battement prématuré).
+        tr_a = bt[2] if bt is not None else 0.4 * ts_a
+        vs = V[0][m & (t < a + ts_a + tr_a)]
+        if len(vs) < 3:
+            vs = vl
+        j_es = int(np.argmin(vs))
+        esv_b, edv_b = float(vs[j_es]), float(vs[:j_es + 1].max())
+        per_beat.append(dict(t=a, rr=b - a, relaxed=relaxed.get(a, True), ts=ts_a, c=bt[3] if bt is not None else 1.0,
+                             edv=edv_b, esv=esv_b, sv=edv_b - esv_b,
                              sap=P['ao'][m].max(), dap=P['ao'][m].min(), lv_edp=P['lv'][m][0],
                              v_reg=(-np.minimum(qmi, 0).sum() - np.minimum(qao, 0).sum()) * dt,
                              mitral_e=float(qf[ea[m] <= 0].max()) if np.any(ea[m] <= 0) else 0.0,

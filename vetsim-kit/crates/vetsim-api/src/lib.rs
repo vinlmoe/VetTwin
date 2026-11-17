@@ -644,12 +644,9 @@ impl Engine {
                 out["r_times"] = json!(sg.ecg.r_times);
             }
             if opt_bool(&m, "with_pressures", false)? {
-                let all_beats: Vec<f64> = {
-                    // mêmes battements que le son, sans la marge de fin
-                    let sg = patient_signals(&ev, &SignalOptions { duration_s: dur, ecg_fs: 500.0, pcg_beats: 1 }, seed);
-                    sg.ecg.r_times
-                };
-                out["pressures"] = aligned_pressures(&ev, &all_beats, dur, 250.0);
+                // mêmes battements que le son et l'ECG (pressions simulées battement par battement)
+                let sg = patient_signals(&ev, &SignalOptions { duration_s: dur, ecg_fs: 500.0, pcg_beats: 1 }, seed);
+                out["pressures"] = beat_pressures(&ev, &sg.autonomic.beats, seed, dur, 250.0)?;
             }
             Ok(out)
         })
@@ -706,42 +703,45 @@ fn effects_json(effects: &[vetsim_core::modules::Effect]) -> Vec<Json> {
 /// Pressions aorte, VG et OG sur la fenêtre du son : le battement simulé est posé à chaque
 /// instant de battement (avant le premier, la fin d'un battement virtuel à b0 − T). Approximation
 /// documentée : la forme du battement n'est pas recalculée battement par battement.
-fn aligned_pressures(ev: &Evaluation, beats: &[f64], dur: f64, fs: f64) -> Json {
-    let w = &ev.hemo.waveforms;
-    let period = ev.hemo.timing.period;
-    let dt = if w.t.len() > 1 {
-        w.t[1] - w.t[0]
-    } else {
-        0.002
-    };
+/// Pressions simulées battement par battement sur la séquence de conduction des signaux (mêmes
+/// battements que l'ECG et le son, chauffe `SIGNAL_WARM_S`), échantillonnées à `fs` sur
+/// `[0, dur)` : alignées sur l'ECG dans le temps, déficit de pouls visible en cas d'arythmie.
+fn beat_pressures(
+    ev: &Evaluation,
+    sinus_times: &[f64],
+    seed: u64,
+    dur: f64,
+    fs: f64,
+) -> Result<Json, ApiError> {
+    use vetsim_core::signals::{patient_conduction, streams, SIGNAL_WARM_S};
+    let w = SIGNAL_WARM_S;
+    let cond = patient_conduction(ev, sinus_times, seed.wrapping_add(streams::RHYTHM));
+    let r = vetsim_core::hemo::simulate_hemo_beats(
+        &ev.params,
+        &cond,
+        w + dur + 0.5,
+        w,
+        60.0 / ev.params.hr,
+    )?;
+    let wf = &r.waveforms;
     let n = (dur * fs) as usize;
-    let at = |series: &[f64], phase: f64| -> f64 {
-        let x = (phase / dt).clamp(0.0, (series.len() - 1) as f64);
+    let at = |series: &[f64], t: f64| -> f64 {
+        // séries échantillonnées à pas constant depuis w
+        let dt = wf.t[1] - wf.t[0];
+        let x = ((t - wf.t[0]) / dt).clamp(0.0, (series.len() - 1) as f64);
         let i = x.floor() as usize;
         let j = (i + 1).min(series.len() - 1);
         series[i] + (series[j] - series[i]) * (x - i as f64)
     };
-    let mut ao = Vec::with_capacity(n);
-    let mut lv = Vec::with_capacity(n);
-    let mut la = Vec::with_capacity(n);
-    let mut k = 0;
-    for i in 0..n {
-        let t = i as f64 / fs;
-        while k < beats.len() && beats[k] <= t {
-            k += 1;
-        }
-        let start = if k == 0 {
-            beats.first().map_or(0.0, |b| b - period)
-        } else {
-            beats[k - 1]
-        };
-        let phase = t - start;
-        ao.push(at(&w.p_ao, phase) as f32 as f64);
-        lv.push(at(&w.p_lv, phase) as f32 as f64);
-        la.push(at(&w.p_pv, phase) as f32 as f64);
-    }
-    json!({ "fs": fs, "ao": ao, "lv": lv, "la": la,
-            "note": "battement simulé posé à chaque instant de battement (forme non recalculée par battement)" })
+    let pick = |v: &[f64]| -> Vec<f64> {
+        (0..n)
+            .map(|i| at(v, w + i as f64 / fs) as f32 as f64)
+            .collect()
+    };
+    Ok(
+        json!({ "fs": fs, "ao": pick(&wf.p_ao), "lv": pick(&wf.p_lv), "la": pick(&wf.p_pv),
+               "note": "pressions simulées battement par battement sur la séquence de conduction de l'ECG" }),
+    )
 }
 
 /// Schéma d'administration : `"doses": [{"t_h", "drug", "mg_per_kg", "route": "iv"|"po"}]`.
@@ -1040,6 +1040,7 @@ fn signals_json(
         "pressures": { "dt": w.t.get(1).copied().unwrap_or(0.002), "period": ev.hemo.timing.period,
                        "ao": f32s(&w.p_ao), "lv": f32s(&w.p_lv), "la": f32s(&w.p_pv),
                        "pa": f32s(&w.p_pa), "rv": f32s(&w.p_rv) },
+        "pressures_aligned": beat_pressures(ev, &s.autonomic.beats, seed, duration_s, 250.0)?,
         "hrv": hrv,
         "respiration": { "fs": fs_resp, "rr_per_min": ev.metabolic.art.rr, "vt_alv_mL": vt_alv_ml,
                          "volume_mL": f32s(&volume), "flow_mL_s": f32s(&flow),

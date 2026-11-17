@@ -7,7 +7,7 @@ reference/python/pcg_metrics.py sur des fichiers WAV 16 bits.
 
 Cas : chien sain 20 kg à FC 72 et 90 (paramètre « hr » imposé avant l'évaluation : réglage
 d'usage, pas la valeur calibrée de 87/min) ; MMVD 0,3 (léger) et 0,5 (modéré).
-Graines : 100 par défaut (le prompt en demande 20). Raison : pcg_metrics n'apparie B1 et B2 que
+Graines : 200 par défaut (le prompt en demande 20 ; 100 jusqu'au 17/11/2026, porté à 200 : à 100 graines le rapport B2/B1 à FC 72 sortait à z 3,1 sur les graines 0–99 et rentrait sur 100–199). Raison : pcg_metrics n'apparie B1 et B2 que
 si leur intervalle est < 0,3 s ; à FC 72 la systole du modèle (0,33 s) dépasse ce seuil, d'où
 ~1 paire par graine et 35-40 % de graines sans paire ; à 20 graines les métriques B2/B1 sont
 dominées par le hasard (vérifié : Rust et référence divergent à 20 graines, convergent à 100).
@@ -28,7 +28,7 @@ import pcg_metrics
 ap = argparse.ArgumentParser()
 g = ap.add_mutually_exclusive_group(required=True)
 g.add_argument('--python', action='store_true'); g.add_argument('--cmd')
-ap.add_argument('--seeds', type=int, default=100); ap.add_argument('--report'); ap.add_argument('--json'); ap.add_argument('--ref-json'); ap.add_argument('--seed0', type=int, default=0)
+ap.add_argument('--seeds', type=int, default=200); ap.add_argument('--report'); ap.add_argument('--json'); ap.add_argument('--ref-json'); ap.add_argument('--seed0', type=int, default=0)
 a = ap.parse_args()
 
 def python_wav(hr, disease, seed, path):

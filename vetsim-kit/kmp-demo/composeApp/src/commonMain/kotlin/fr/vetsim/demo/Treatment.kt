@@ -142,7 +142,7 @@ fun TreatmentView(
             color = Warn, fontSize = 12.sp,
         )
         // --- éditeur de schéma
-        Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(12.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.fillMaxWidth().card().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Schéma d'administration", fontWeight = FontWeight.SemiBold, color = Ink, fontSize = 14.sp)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 SmallPicker(drugs.first { it.id == drugId }.let { "${it.name} [${it.evidence}]" }, drugs.map { it.id to "${it.name} [${it.evidence}]" }) { drugId = it }
@@ -232,7 +232,7 @@ fun TreatmentView(
         val doseMarks = r.plan.regimens.mapIndexed { i, rg -> rg.administrations().map { it.first }.filter { it <= horizon } to DrugColors[i % DrugColors.size] }
         val drugColor = { id: String -> DrugColors[r.plan.regimens.indexOfFirst { it.drugId == id }.coerceAtLeast(0) % DrugColors.size] }
         // --- curseur d'examen
-        Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(12.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(Modifier.fillMaxWidth().card().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Instant d'examen : ${dayLabel(cursor)} (t = ${"%.1f".fmt(cursor)} h)", fontWeight = FontWeight.SemiBold, color = Ink, fontSize = 14.sp)
                 val ref = refDrug
@@ -241,10 +241,7 @@ fun TreatmentView(
                     OutlinedButton(onClick = { cursor = extremum(r.t, r.conc.getValue(ref), cursor, forward = true, max = true) }) { Text("pic ▶", fontSize = 12.sp) }
                     SmallPicker("repère : ${drugs.first { it.id == ref }.name}", r.conc.keys.map { it to drugs.first { d -> d.id == it }.name }) { refDrug = it }
                 }
-                Button(
-                    onClick = { onExamine(r.plan, cursor, r.death) },
-                    colors = ButtonDefaults.buttonColors(containerColor = CursorColor),
-                ) { Text("Examiner le patient à cet instant") }
+                Button(onClick = { onExamine(r.plan, cursor, r.death) }) { Text("Examiner le patient à cet instant") }
             }
             Slider(value = cursor.toFloat(), onValueChange = { cursor = it.toDouble() }, valueRange = 0f..horizon.toFloat())
             Text(
@@ -292,7 +289,7 @@ fun TreatmentView(
             )
         }
         // --- indicateurs au choix
-        Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(12.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(Modifier.fillMaxWidth().card().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("Indicateurs à suivre (cliquer pour ajouter ou retirer)", fontWeight = FontWeight.SemiBold, color = Ink, fontSize = 14.sp)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 INDICATORS.filter { it.key in r.states.keys }.forEach { ind ->
@@ -377,7 +374,7 @@ private fun TimeChart(
     onTap: (Double) -> Unit,
 ) {
     val measurer = rememberTextMeasurer()
-    Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(12.dp)).padding(10.dp)) {
+    Column(Modifier.fillMaxWidth().card().padding(10.dp)) {
         Text(title, fontWeight = FontWeight.SemiBold, color = Ink, fontSize = 13.sp)
         Canvas(
             Modifier.fillMaxWidth().height(height.dp).pointerInput(horizon) {
@@ -408,9 +405,7 @@ private fun TimeChart(
                 }
                 g += step
             }
-            listOf(lo, hi).forEach { v ->
-                drawText(measurer, "%.3f".fmt(v.toDouble()).trimEnd('0').trimEnd(','), Offset(0f, y(v) - 7f), TextStyle(fontSize = 9.sp, color = Muted))
-            }
+            drawYAxis(measurer, lo, hi, left, size.width, h, ::y)
             refLines.forEach { v ->
                 if (v in lo..hi) drawLine(Muted, Offset(left, y(v)), Offset(left + w, y(v)), pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f)))
             }

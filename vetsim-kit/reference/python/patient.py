@@ -3,7 +3,7 @@ import numpy as np
 from params import healthy_params, copy_params
 from diseases import apply, REGISTRY
 from physio import evaluate
-from signals import make_ecg_conducted, make_pcg, patient_conduction
+from signals import make_ecg_conducted, make_pcg, patient_conduction, shift_conduction, SIGNAL_WARM_S
 from autonomic import simulate_autonomic
 import pkpd
 
@@ -32,7 +32,7 @@ class Patient:
             pe = r['p']
             au = simulate_autonomic(r, seed=int(self.rng.integers(1 << 30)))
             r['autonomic_ts'] = au
-            cond = patient_conduction(r, au['beats'], seed=int(self.rng.integers(1 << 30)))
+            cond = shift_conduction(patient_conduction(r, au['beats'], seed=int(self.rng.integers(1 << 30))), SIGNAL_WARM_S)
             r['conduction_ts'] = cond
             t, ecg, f = make_ecg_conducted(pe, cond, pe['hr'])
             r['ecg'] = dict(t=t, v=ecg, **f, hr=pe['hr'],

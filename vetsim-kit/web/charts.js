@@ -71,7 +71,13 @@ export function timeChart(canvas, opts) {
     const lab = opts.ticks === 'treatment' ? (ticks >= 24 ? `J${Math.round(t / 24)}` : dayLabel(t)) : `${fmt(t, ticks < 0.5 ? 2 : 1)} s`;
     if (x + 40 < w) ctx.fillText(lab, x + 2, h - 3);
   }
-  ctx.fillText(fmt(hi), 2, Y(hi) + 4); ctx.fillText(fmt(lo), 2, Y(lo));
+  // graduations verticales « rondes » (1, 2, 5 × 10ⁿ) dans [lo, hi], avec lignes de grille
+  const yt = niceTicks(lo, hi, H < 100 ? 3 : H < 140 ? 4 : 5);
+  for (const v of yt.values) {
+    const y = Y(v);
+    if (!opts.paper) { ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(left + W, y); ctx.stroke(); }
+    ctx.fillText(yt.format(v), 2, Math.min(H - 1, Math.max(9, y + 3.5)));
+  }
   for (const r of opts.refLines || []) {
     ctx.save(); ctx.setLineDash([6, 6]); ctx.strokeStyle = COLORS.muted;
     ctx.beginPath(); ctx.moveTo(left, Y(r)); ctx.lineTo(left + W, Y(r)); ctx.stroke(); ctx.restore();
@@ -107,6 +113,18 @@ export function timeChart(canvas, opts) {
     ctx.beginPath(); ctx.moveTo(X(opts.cursor), 0); ctx.lineTo(X(opts.cursor), H); ctx.stroke();
   }
   return { left, W, x0, x1 };
+}
+
+/** Graduations de pas 1, 2 ou 5 × 10ⁿ comprises dans [lo, hi] (au moins les bornes si l'écart est nul). */
+function niceTicks(lo, hi, n) {
+  const span = hi - lo;
+  if (!(span > 1e-12)) return { values: [lo], format: (v) => fmt(v) };
+  const raw = span / n, p = 10 ** Math.floor(Math.log10(raw)), m = raw / p;
+  const step = (m < 1.5 ? 1 : m < 3 ? 2 : m < 7 ? 5 : 10) * p; // pas rond le plus proche du pas brut
+  const values = [];
+  for (let v = Math.ceil(lo / step - 1e-9) * step; v <= hi + step * 1e-9; v += step) values.push(Math.abs(v) < step * 1e-9 ? 0 : v);
+  const d = Math.max(0, -Math.floor(Math.log10(step) + 1e-9));
+  return { values, format: (v) => v.toFixed(d).replace('.', ',').replace('-', '−') };
 }
 
 function secondTicks(span) { return span <= 1 ? 0.1 : span <= 3 ? 0.25 : span <= 6 ? 0.5 : 1; }
