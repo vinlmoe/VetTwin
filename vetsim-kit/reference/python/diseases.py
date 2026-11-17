@@ -135,4 +135,67 @@ class Pneumonia(Disease):
         return Case(self.name, s, mods, dict(stage=st))
 
 
-REGISTRY = {c.name: c for c in (MMVD(), CKD(), Hypoadrenocorticism(), Pneumonia())}
+# ------------------------------------------------------------------ troubles du rythme
+# Ils n'agissent que sur les paramètres de la couche de conduction (rhythm.py) : la FC, l'ECG,
+# l'hémodynamique et les sons en découlent. Amplitudes : placeholders D sauf mention.
+
+class AtrialFibrillation(Disease):
+    """Fibrillation atriale : activations atriales désorganisées (af = 1). La sévérité règle la
+    période réfractaire du nœud AV, donc la réponse ventriculaire (lente à rapide)."""
+    name = 'FA'
+    stages = {'reponse_lente': (0.05, 0.35), 'reponse_moderee': (0.35, 0.7), 'reponse_rapide': (0.7, 1.0)}
+    stage_probs = {'reponse_lente': 0.3, 'reponse_moderee': 0.4, 'reponse_rapide': 0.3}
+
+    def sample(self, rng, severity=None, stage=None):
+        s, st = self.draw_severity(rng, severity, stage)
+        z = _lnz(rng, 0.1)
+        mods = [('af', 'add', 1.0),
+                ('av_erp', 'mul', (1.25 - 0.5 * s) * z)]
+        return Case(self.name, s, mods, dict(stage=st))
+
+
+class AVBlock(Disease):
+    """Bloc atrioventriculaire : 1er degré (délai nodal allongé), 2e degré (période réfractaire
+    nodale allongée : Wenckebach), 3e degré (échec de la conduction infranodale : échappement)."""
+    name = 'BAV'
+    stages = {'premier_degre': (0.05, 0.33), 'deuxieme_degre': (0.33, 0.66), 'troisieme_degre': (0.66, 1.0)}
+    stage_probs = {'premier_degre': 0.4, 'deuxieme_degre': 0.35, 'troisieme_degre': 0.25}
+
+    def sample(self, rng, severity=None, stage=None):
+        s, st = self.draw_severity(rng, severity, stage)
+        mods = [('pr', 'add', 0.12 * min(1.0, s / 0.33)),
+                ('av_erp', 'mul', 1 + 4.0 * min(1.0, max(0.0, (s - 0.33) / 0.33))),
+                ('hp_conduction', 'mul', max(0.0, 1 - max(0.0, s - 0.66) / 0.1))]
+        return Case(self.name, s, mods, dict(stage=st))
+
+
+class VentricularPremature(Disease):
+    """Extrasystoles ventriculaires : foyer ectopique ventriculaire actif."""
+    name = 'ESV'
+    stages = {'rares': (0.05, 0.3), 'frequentes': (0.3, 0.7), 'tres_frequentes': (0.7, 1.0)}
+    stage_probs = {'rares': 0.4, 'frequentes': 0.4, 'tres_frequentes': 0.2}
+
+    def sample(self, rng, severity=None, stage=None):
+        s, st = self.draw_severity(rng, severity, stage)
+        mods = [('vpc_rate', 'add', 30.0 * s ** 2 * _lnz(rng, 0.3))]
+        return Case(self.name, s, mods, dict(stage=st))
+
+
+class SickSinus(Disease):
+    """Maladie du sinus : bloc de sortie sino-atrial (pauses), bradycardie sinusale, foyers
+    d'échappement déprimés."""
+    name = 'SSS'
+    stages = {'legere': (0.1, 0.4), 'moderee': (0.4, 0.7), 'severe': (0.7, 1.0)}
+    stage_probs = {'legere': 0.35, 'moderee': 0.4, 'severe': 0.25}
+
+    def sample(self, rng, severity=None, stage=None):
+        s, st = self.draw_severity(rng, severity, stage)
+        mods = [('sa_block', 'add', 0.45 * s * _lnz(rng, 0.2)),
+                ('hr', 'mul', 1 - 0.3 * s),
+                ('junct_rate', 'mul', 1 - 0.8 * s),
+                ('vent_escape_rate', 'mul', 1 - 0.8 * s)]
+        return Case(self.name, s, mods, dict(stage=st))
+
+
+REGISTRY = {c.name: c for c in (MMVD(), CKD(), Hypoadrenocorticism(), Pneumonia(),
+                                AtrialFibrillation(), AVBlock(), VentricularPremature(), SickSinus())}

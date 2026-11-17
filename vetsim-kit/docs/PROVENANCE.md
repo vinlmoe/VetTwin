@@ -28,3 +28,25 @@
 - Sourcés : `vent_escape_rate` 42 /min (42 ± 11, n = 97 ; 10.1111/jvim.12512) ; `k_atrial_standstill` 8,5 mmol/L (arrêt atrial 8,5–10 avec conduction sino-ventriculaire, Hariman 1983, résumé) ; `k_hp_block` 10 (élargissement du QRS au-delà de 10,1, Tag & Day 2008, vu par moteur seulement).
 - Placeholders D : `af_cycle`, `af_cv`, `hv`, `av_beta`, `av_tau`, `av_vagal`, `av_k_gain`, `hp_k_slope`, `junct_rate` 50, `esc_k_gain`, `vpc_k_gain`, `k_vpc`.
 - Oreillette : gain `k_la` à caler sur E/A ≈ 1,39 (E 0,82, A 0,59 m/s, n = 53 ; 10.3390/ani15111524) ; k_la ≈ 1,45 donne E/A 1,39 à la FC de repos du modèle (contribution ≈ 10 % du VES). Les ondes fusionnent au-delà d'environ 120/min.
+
+## Troubles du rythme (modules `atrial_fibrillation`, `av_block`, `ventricular_premature`, `sick_sinus`, 17/11/2026)
+Ces modules n'agissent que sur les paramètres de la conduction. FC, ECG, hémodynamique et sons émergent.
+
+- **Fibrillation atriale** (evidence C).
+  - Effets : `af` = 1 ; `av_erp` × (1,25 − 0,5·s).
+  - Réponse ventriculaire : 105, 132 et 155 /min aux sévérités 0,1, 0,5 et 0,9.
+  - Comparaison : FC Holter médiane 129,7 (10.3389/fcvm.2026.1890025) ; FC > 150 chez 80 % des chiens non traités (10.1111/jvim.16666).
+- **Bloc AV** (evidence C).
+  - Effets :
+    - PR + 0,12·min(1, s/0,33) ;
+    - `av_erp` × (1 + 4·min(1, max(0, (s − 0,33)/0,33))) ;
+    - `hp_conduction` × max(0, 1 − max(0, s − 0,66)/0,1).
+  - Rythmes produits : 1er degré PR jusqu'à 0,24 s (critère > 0,13 s) ; Wenckebach à s ≈ 0,5 ; 2:1 à s ≈ 0,6 ; 3e degré avec échappement ventriculaire 42 /min (42 ± 11, n = 97 ; 10.1111/jvim.12512).
+- **Extrasystoles ventriculaires** (evidence D).
+  - Effet : `vpc_rate` + 30·s² /min.
+  - Comparaison : le chien sain a moins de 20 ESV/24 h dans 86 % des cas (10.1371/journal.pone.0319886).
+  - Pause compensatrice rarement complète (ERP nodal court, calé sur la FA) : à recaler.
+- **Maladie du sinus** (evidence D).
+  - Effets : `sa_block` + 0,45·s ; FC sinusale × (1 − 0,3·s) ; échappements jonctionnel et ventriculaire × (1 − 0,8·s).
+  - Pause la plus longue : 4,9 s sur 5 h à s = 0,85, contre 6,9 s (5,5–10,3) sur Holter de 24 h (10.1111/jvim.17071).
+- **`esc_overdrive`** = 1,3 (placeholder D) : suppression des échappements par entraînement. Sans elle, l'échappement jonctionnel s'insérait dans chaque pause de Wenckebach.

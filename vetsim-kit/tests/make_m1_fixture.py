@@ -17,7 +17,7 @@ class Stub:                       # identique à tests/check_modules.py et refer
     def lognormal(self, *a): return 1.0
     def random(self): return 0.99
 
-NAMES = {'mmvd': 'MMVD', 'ckd': 'CKD', 'addison': 'Addison', 'pneumonia': 'Pneumonie'}
+NAMES = {'mmvd': 'MMVD', 'ckd': 'CKD', 'addison': 'Addison', 'pneumonia': 'Pneumonie', 'atrial_fibrillation': 'FA', 'av_block': 'BAV', 'ventricular_premature': 'ESV', 'sick_sinus': 'SSS'}
 D.KM['zsd'] = 0.0
 
 def case(name, s):

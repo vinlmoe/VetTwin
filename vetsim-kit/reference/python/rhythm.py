@@ -17,7 +17,8 @@ Chaque trouble du rythme naît d'un mécanisme, rien n'est plaqué :
 - His-Purkinje : conduction avec la probabilité `hp_conduction`, réduite au-delà de `k_hp_block`
   (bloc infranodal, Mobitz II, 3e degré) ;
 - échappements : foyers jonctionnel (`junct_rate`) et ventriculaire (`vent_escape_rate`), remis à
-  zéro par toute activation ventriculaire ; le jonctionnel est sous le bloc nodal mais au-dessus
+  zéro par toute activation ventriculaire ; suppression par entraînement (overdrive) : après un
+  battement conduit, le premier intervalle d'échappement est allongé du facteur `esc_overdrive` ; le jonctionnel est sous le bloc nodal mais au-dessus
   du bloc infranodal ;
 - foyer ectopique ventriculaire : décharges de Poisson (`vpc_rate` /min, accrues en hypokaliémie
   par `vpc_k_gain`) ; efficace seulement hors de la période réfractaire ventriculaire (QT).
@@ -139,6 +140,7 @@ def simulate_conduction(p, v_eff, sinus_period, t_end, rand, sinus_times=None):
     # --- propagation chronologique
     vent = []
     last_v = -math.inf          # dernière activation ventriculaire (toute origine)
+    last_conducted = True       # la dernière activation était conduite (suppression des échappements)
     last_his = -math.inf        # fin de la dernière activation nodale (origine de la récupération)
     i_s, i_e = 0, 0
     pending = None              # influx conduit en cours de traversée : (t_arrivée_V, t_a, pr)
@@ -152,10 +154,11 @@ def simulate_conduction(p, v_eff, sinus_period, t_end, rand, sinus_times=None):
         if pending is not None:
             cand.append((pending[0], 2))
         base = last_v if math.isfinite(last_v) else 0.0
+        ods = p['esc_overdrive'] if last_conducted else 1.0
         if junct_ok:
-            cand.append((base + junct_cycle, 3))
+            cand.append((base + junct_cycle * ods, 3))
         if math.isfinite(vesc_cycle):
-            cand.append((base + vesc_cycle, 4))
+            cand.append((base + vesc_cycle * ods, 4))
         if not cand:
             break                                          # asystolie : plus aucun événement
         t, kind = min(cand)
@@ -183,20 +186,24 @@ def simulate_conduction(p, v_eff, sinus_period, t_end, rand, sinus_times=None):
                 continue                                   # ventricule réfractaire
             vent.append(dict(t=tv, origin=ORG_SINUS, t_a=ta, pr=pr, wide=False))
             last_v = tv
+            last_conducted = True
         elif kind == 1:                                    # foyer ectopique
             i_e += 1
             if t - last_v < vrp:
                 continue
             vent.append(dict(t=t, origin=ORG_VPC, t_a=None, pr=None, wide=True))
             last_v = t
+            last_conducted = False
             last_his = t                                   # conduction rétrograde : nœud AV réfractaire
         elif kind == 3:                                    # échappement jonctionnel (QRS fin)
             vent.append(dict(t=t, origin=ORG_JUNCT, t_a=None, pr=None, wide=False))
             last_v = t
+            last_conducted = False
             last_his = t
         else:                                              # échappement ventriculaire (QRS large)
             vent.append(dict(t=t, origin=ORG_VESC, t_a=None, pr=None, wide=True))
             last_v = t
+            last_conducted = False
     return dict(atrial=atrial, ventricular=vent)
 
 

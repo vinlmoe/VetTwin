@@ -1,0 +1,122 @@
+{
+ "schema_version": "1.0.0",
+ "species": [
+  "dog"
+ ],
+ "license": "CC-BY-4.0",
+ "id": "sick_sinus",
+ "version": "1.0.0",
+ "name": {
+  "fr": "Maladie du sinus",
+  "en": "Sick sinus syndrome"
+ },
+ "evidence": "D",
+ "description": {
+  "fr": "Bloc de sortie sino-atrial (pauses), bradycardie sinusale, foyers d'échappement déprimés."
+ },
+ "severity": {
+  "stages": {
+   "legere": [
+    0.1,
+    0.4
+   ],
+   "moderee": [
+    0.4,
+    0.7
+   ],
+   "severe": [
+    0.7,
+    1.0
+   ]
+  },
+  "prior": {
+   "legere": 0.35,
+   "moderee": 0.4,
+   "severe": 0.25
+  }
+ },
+ "draws": {
+  "z_sa": {
+   "dist": "lognormal_mean1",
+   "sd": 0.2
+  }
+ },
+ "effects": [
+  {
+   "param": "sa_block",
+   "op": "add",
+   "expr": {
+    "mul": [
+     0.45,
+     "s",
+     "z_sa"
+    ]
+   }
+  },
+  {
+   "param": "hr",
+   "op": "mul",
+   "expr": {
+    "sub": [
+     1,
+     {
+      "mul": [
+       0.3,
+       "s"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "param": "junct_rate",
+   "op": "mul",
+   "expr": {
+    "sub": [
+     1,
+     {
+      "mul": [
+       0.8,
+       "s"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "param": "vent_escape_rate",
+   "op": "mul",
+   "expr": {
+    "sub": [
+     1,
+     {
+      "mul": [
+       0.8,
+       "s"
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "targets": [],
+ "refs": [
+  "Plus longue pause 6,9 s (5,5-10,3), n = 21 (10.1111/jvim.17071)",
+  "Pauses 2,5 ± 1,3 s (ECG), races : schnauzer nain, westie, cocker (10.1016/j.jvc.2018.12.003)"
+ ],
+ "presentation": {
+  "difficulty": 3,
+  "owner_complaint": {
+   "fr": [
+    "syncope",
+    "faiblesse",
+    "léthargie"
+   ]
+  },
+  "exams": [
+   "ECG",
+   "Holter",
+   "test à l'atropine"
+  ]
+ }
+}

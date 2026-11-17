@@ -18,10 +18,19 @@ fn read(rel: &str) -> String {
 
 fn catalog() -> Catalog {
     let patient = PatientModule::from_json(&read("modules/healthy_dog.json"), "p").unwrap();
-    let diseases = ["mmvd", "ckd", "addison", "pneumonia"]
-        .iter()
-        .map(|d| DiseaseModule::from_json(&read(&format!("modules/diseases/{d}.json")), d).unwrap())
-        .collect();
+    let diseases = [
+        "mmvd",
+        "ckd",
+        "addison",
+        "pneumonia",
+        "atrial_fibrillation",
+        "av_block",
+        "ventricular_premature",
+        "sick_sinus",
+    ]
+    .iter()
+    .map(|d| DiseaseModule::from_json(&read(&format!("modules/diseases/{d}.json")), d).unwrap())
+    .collect();
     let drugs = [
         "atropine",
         "betabloquant",

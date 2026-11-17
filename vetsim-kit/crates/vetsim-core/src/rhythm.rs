@@ -9,7 +9,8 @@
 //! - nœud AV : période réfractaire, délai dépendant de la récupération, conduction cachée ;
 //!   allongés par le tonus vagal et par K⁺ ;
 //! - His-Purkinje : conduction probabiliste, en échec au-delà de `k_hp_block` ;
-//! - échappements jonctionnel et ventriculaire ; foyer ectopique ventriculaire (Poisson),
+//! - échappements jonctionnel et ventriculaire (suppression par entraînement : premier intervalle
+//!   allongé de `esc_overdrive` après un battement conduit) ; foyer ectopique ventriculaire (Poisson),
 //!   accru en hypokaliémie ; réfractarité ventriculaire = QT.
 //!
 //! L'aléa ne passe que par des tirages uniformes `u ∈ [0, 1)` fournis par l'appelant : ils sont
@@ -257,6 +258,8 @@ pub fn simulate_conduction(
     // --- propagation chronologique
     let mut last_v = f64::NEG_INFINITY;
     let mut last_his = f64::NEG_INFINITY;
+    // la dernière activation était conduite : suppression des échappements par entraînement
+    let mut last_conducted = true;
     let (mut i_s, mut i_e) = (0usize, 0usize);
     let mut pending: Option<(f64, f64, f64)> = None;
     loop {
@@ -281,11 +284,12 @@ pub fn simulate_conduction(
             offer(tv, 2);
         }
         let base = if last_v.is_finite() { last_v } else { 0.0 };
+        let ods = if last_conducted { p.esc_overdrive } else { 1.0 };
         if junct_ok {
-            offer(base + junct_cycle, 3);
+            offer(base + junct_cycle * ods, 3);
         }
         if vesc_cycle.is_finite() {
-            offer(base + vesc_cycle, 4);
+            offer(base + vesc_cycle * ods, 4);
         }
         let Some((t, kind)) = best else {
             break; // asystolie
@@ -324,6 +328,7 @@ pub fn simulate_conduction(
                     wide: false,
                 });
                 last_v = tv;
+                last_conducted = true;
             }
             1 => {
                 i_e += 1;
@@ -338,6 +343,7 @@ pub fn simulate_conduction(
                     wide: true,
                 });
                 last_v = t;
+                last_conducted = false;
                 last_his = t; // conduction rétrograde : nœud AV réfractaire
             }
             3 => {
@@ -349,6 +355,7 @@ pub fn simulate_conduction(
                     wide: false,
                 });
                 last_v = t;
+                last_conducted = false;
                 last_his = t;
             }
             _ => {
@@ -360,6 +367,7 @@ pub fn simulate_conduction(
                     wide: true,
                 });
                 last_v = t;
+                last_conducted = false;
             }
         }
     }

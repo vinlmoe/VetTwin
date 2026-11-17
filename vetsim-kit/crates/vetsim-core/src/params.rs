@@ -266,6 +266,8 @@ define_params! {
     vent_escape_rate,
     /// Dépression de l'automatisme d'échappement par mmol/L de K au-delà de 5,5.
     esc_k_gain,
+    /// Allongement du premier intervalle d'échappement après un battement conduit.
+    esc_overdrive,
     /// Décharges ectopiques ventriculaires (/min).
     vpc_rate,
     /// Décharges ectopiques supplémentaires par mmol/L de K sous `k_vpc` (/min).
@@ -293,6 +295,6 @@ mod tests {
             assert_eq!(p.get(n), Some(v));
         }
         assert_eq!(p.get("nope"), None);
-        assert_eq!(Params::NAMES.len(), 109); // 73 + 11 décompensation + 4 oreillettes + 21 conduction
+        assert_eq!(Params::NAMES.len(), 110); // 73 + 11 décompensation + 4 oreillettes + 22 conduction
     }
 }

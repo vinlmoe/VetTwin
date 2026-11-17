@@ -21,13 +21,22 @@ fn read(rel: &str) -> String {
 fn catalog() -> Catalog {
     let patient = PatientModule::from_json(&read("modules/healthy_dog.json"), "healthy_dog.json")
         .unwrap_or_else(|e| panic!("{e}"));
-    let diseases = ["mmvd", "ckd", "addison", "pneumonia"]
-        .iter()
-        .map(|d| {
-            let f = format!("modules/diseases/{d}.json");
-            DiseaseModule::from_json(&read(&f), &f).unwrap_or_else(|e| panic!("{e}"))
-        })
-        .collect();
+    let diseases = [
+        "mmvd",
+        "ckd",
+        "addison",
+        "pneumonia",
+        "atrial_fibrillation",
+        "av_block",
+        "ventricular_premature",
+        "sick_sinus",
+    ]
+    .iter()
+    .map(|d| {
+        let f = format!("modules/diseases/{d}.json");
+        DiseaseModule::from_json(&read(&f), &f).unwrap_or_else(|e| panic!("{e}"))
+    })
+    .collect();
     let drugs = [
         "atropine",
         "betabloquant",
@@ -82,7 +91,7 @@ fn assert_params(label: &str, got: &Params, exp: &serde_json::Map<String, Json>)
 #[test]
 fn all_modules_load() {
     let c = catalog();
-    assert_eq!(c.diseases.len(), 4);
+    assert_eq!(c.diseases.len(), 8);
     assert_eq!(c.drugs.len(), 5);
     assert_eq!(c.patient.params.len(), Params::NAMES.len());
 }
@@ -147,7 +156,7 @@ fn disease_modifiers_match_python() {
         }
         n += 1;
     }
-    assert_eq!(n, 36);
+    assert_eq!(n, 72); // 8 maladies × 9 sévérités
 }
 
 #[test]

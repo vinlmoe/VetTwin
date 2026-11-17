@@ -1057,10 +1057,19 @@ mod tests {
         let read = |p: &str| -> Json {
             serde_json::from_str(&std::fs::read_to_string(root.join(p)).unwrap()).unwrap()
         };
-        let ds: Vec<Json> = ["mmvd", "ckd", "addison", "pneumonia"]
-            .iter()
-            .map(|d| read(&format!("diseases/{d}.json")))
-            .collect();
+        let ds: Vec<Json> = [
+            "mmvd",
+            "ckd",
+            "addison",
+            "pneumonia",
+            "atrial_fibrillation",
+            "av_block",
+            "ventricular_premature",
+            "sick_sinus",
+        ]
+        .iter()
+        .map(|d| read(&format!("diseases/{d}.json")))
+        .collect();
         let dr: Vec<Json> = [
             "atropine",
             "betabloquant",
@@ -1271,7 +1280,7 @@ mod tests {
         assert_eq!(e.api_version(), "1.1.0");
         assert_eq!(j(&e.load_modules(&bundle()))["ok"], true);
         let l = j(&e.list_modules());
-        assert_eq!(l["diseases"].as_array().unwrap().len(), 4);
+        assert_eq!(l["diseases"].as_array().unwrap().len(), 8);
         let p = j(&e.new_patient(r#"{"bw": 20, "variability": false}"#));
         let id = p["patient_id"].as_str().unwrap().to_string();
         let c = j(&e.add_disease(&id, r#"{"id": "mmvd", "severity": 0.8}"#));

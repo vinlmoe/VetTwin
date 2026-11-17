@@ -70,6 +70,7 @@ def healthy_params(bw=20.0):
         junct_rate=50.0,             # automatisme jonctionnel (/min), au-dessus de l'échappement ventriculaire
         vent_escape_rate=42.0,       # échappement ventriculaire (/min) : 42 ± 11 en BAV de haut degré (n = 97)
         esc_k_gain=0.10,             # dépression de l'automatisme d'échappement par mmol/L de K au-delà de 5,5
+        esc_overdrive=1.3,           # allongement du premier intervalle d'échappement après un battement conduit (placeholder D)
         vpc_rate=0.0, vpc_k_gain=1.0, k_vpc=3.0,   # foyer ectopique (/min), gain hypokaliémique (/min par mmol/L sous k_vpc)
         k_atrial_standstill=8.5,     # K d'arrêt atrial, conduction sino-ventriculaire conservée (8,5-10 ; Hariman 1983)
     )
