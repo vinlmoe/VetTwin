@@ -85,6 +85,10 @@ fun AuscultationView(
     var loop by remember { mutableStateOf(false) }
     var zoomOnly by remember { mutableStateOf(false) }
     var played by remember { mutableStateOf(false) }
+    var gain by remember { mutableStateOf(3f) }
+
+    /** Amplification réglable avec limiteur doux (tanh) : pas d'écrêtage brutal. */
+    fun amplified(x: FloatArray): FloatArray = FloatArray(x.size) { kotlin.math.tanh(gain * x[it]) }
     // segment joué (s) : tout l'enregistrement, ou la fenêtre affichée
     var segStart by remember { mutableStateOf(0f) }
     var segLen by remember { mutableStateOf(0f) }
@@ -97,7 +101,7 @@ fun AuscultationView(
         segLen = if (zoomOnly) minOf(window, dur - segStart) else dur
         val a = (segStart * r.fs).toInt().coerceIn(0, r.samples.size)
         val b = ((segStart + segLen) * r.fs).toInt().coerceIn(a, r.samples.size)
-        playAudio(r.samples.copyOfRange(a, b), r.fs)
+        playAudio(amplified(r.samples.copyOfRange(a, b)), r.fs)
         if (!zoomOnly) start = 0f
         played = true
         playing = true
@@ -123,7 +127,7 @@ fun AuscultationView(
                     val r = result ?: break
                     val a = (segStart * r.fs).toInt().coerceIn(0, r.samples.size)
                     val b = ((segStart + segLen) * r.fs).toInt().coerceIn(a, r.samples.size)
-                    playAudio(r.samples.copyOfRange(a, b), r.fs)
+                    playAudio(amplified(r.samples.copyOfRange(a, b)), r.fs)
                     if (!zoomOnly) start = 0f
                     mark = TimeSource.Monotonic.markNow()
                 } else {
@@ -159,6 +163,8 @@ fun AuscultationView(
                 Checkbox(zoomOnly, { zoomOnly = it })
                 Text("fenêtre affichée seulement", color = Ink, fontSize = 13.sp)
             }
+            Text("Volume ×${"%.1f".fmt(gain.toDouble())}", color = Ink, fontSize = 13.sp)
+            Slider(value = gain, onValueChange = { gain = it }, valueRange = 1f..8f, modifier = Modifier.width(140.dp))
             Text(
                 "FC ${"%.0f".fmt(r.hr)} /min · ${r.beats.size} battements · " +
                     (if (r.grade == 0) "pas de souffle" else "souffle ${r.murmur}, grade ${r.grade}/6 (indicatif)") +

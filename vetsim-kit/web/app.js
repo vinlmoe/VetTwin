@@ -12,7 +12,7 @@ const S = {
   ctl: null, tab: 'patient',
   inputs: { bw: 20, disease: null, stage: null, seed: 1, plan: null, atH: null },
   res: null,
-  ausc: { hr: null, site: 'base', r: null, spec: null, window: 8, start: 0, cursor: null, playing: false, audio: null, src: null, loop: false, zoomOnly: false, played: false },
+  ausc: { hr: null, site: 'base', r: null, spec: null, window: 8, start: 0, cursor: null, playing: false, audio: null, src: null, loop: false, zoomOnly: false, played: false, gain: 3, gainNode: null },
   treat: { regimens: [], days: 3, r: null, cursor: 0, shown: ['hr', 'map', 'k'], ref: null, editing: null, open: null },
   model: { selected: null },
 };
@@ -293,6 +293,7 @@ function renderAuscultation(v) {
     <div class="row"><button class="primary" id="play">${A.playing ? '■ Arrêter' : A.played ? '↻ Rejouer' : '▶ Écouter'}</button>
       <label style="flex-direction:row;align-items:center"><input type="checkbox" id="loop" ${A.loop ? 'checked' : ''}> en boucle</label>
       <label style="flex-direction:row;align-items:center"><input type="checkbox" id="zoomonly" ${A.zoomOnly ? 'checked' : ''}> fenêtre affichée seulement</label>
+      <label style="flex-direction:row;align-items:center;gap:6px">Volume <input id="vol" type="range" min="1" max="8" step="0.5" value="${A.gain}" style="width:120px"> <b id="voll">×${fmt(A.gain, 1)}</b></label>
       <span>FC ${fmt(r.hr, 0)} /min · ${r.beats.length} battements · ${r.grade ? `souffle ${r.murmur}, grade ${r.grade}/6 (indicatif)` : 'pas de souffle'}${r.s3 ? ' · B3' : ''} · site ${r.site}</span></div>
     <div class="sliders"><label><span>Fenêtre : <b id="wl">${fmt(A.window, 1)}</b> s</span><input id="win" type="range" min="0.5" max="${dur}" step="0.1" value="${A.window}"></label>
       <label><span>Début : <b id="sl">${fmt(A.start, 2)}</b> s</span><input id="start" type="range" min="0" max="${Math.max(0.001, dur - A.window)}" step="0.01" value="${A.start}"></label></div>`
@@ -311,6 +312,10 @@ function renderAuscultation(v) {
   $('#play').onclick = () => (A.playing ? stopAusc() : play());
   $('#loop').onchange = (e) => { A.loop = e.target.checked; if (A.src) A.src.loop = A.loop; };
   $('#zoomonly').onchange = (e) => { A.zoomOnly = e.target.checked; };
+  $('#vol').oninput = (e) => {
+    A.gain = +e.target.value; $('#voll').textContent = '×' + fmt(A.gain, 1);
+    if (A.gainNode) A.gainNode.gain.value = A.gain;
+  };
   drawAusc();
 }
 
@@ -332,7 +337,12 @@ function play() {
   if (ctx.state === 'suspended') ctx.resume();
   const buf = ctx.createBuffer(1, r.samples.length, r.fs);
   buf.copyToChannel(r.samples, 0);
-  const src = ctx.createBufferSource(); src.buffer = buf; src.connect(ctx.destination);
+  // amplification réglable puis limiteur doux (pas d'écrêtage brutal aux volumes élevés)
+  const src = ctx.createBufferSource(); src.buffer = buf;
+  const g = ctx.createGain(); g.gain.value = A.gain; A.gainNode = g;
+  const lim = ctx.createDynamicsCompressor();
+  lim.threshold.value = -6; lim.knee.value = 6; lim.ratio.value = 12; lim.attack.value = 0.002; lim.release.value = 0.1;
+  src.connect(g); g.connect(lim); lim.connect(ctx.destination);
   const off = A.zoomOnly ? A.start : 0, len = A.zoomOnly ? Math.min(A.window, r.duration_s - off) : r.duration_s;
   src.loop = A.loop; src.loopStart = off; src.loopEnd = off + len;
   const t0 = ctx.currentTime + 0.05;
