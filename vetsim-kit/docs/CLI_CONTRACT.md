@@ -20,3 +20,9 @@ Dose en mg/kg à t = 0, `route` = `iv` (bolus central) ou `po` (dépôt, biodisp
 
 ## Conformité
 `python tests/conformance.py --cmd "<chemin du binaire>"` compare toutes les valeurs à `tests/golden/cases.json` selon `tolerances`. Critère : **100 % des valeurs conformes**.
+
+## Diagnostic (hors contrat, non versionné)
+```
+vetsim-cli params --bw 20 [--disease mmvd:0.5 ...]
+```
+Paramètres du patient (objet plat, 73 clés de `Params`) après application des maladies en mode déterministe. Sert à `tests/check_params_cli.py` (comparaison avec la référence Python, rel 1e-9). Peut changer sans incrément d'`api_version`; ne pas l'utiliser depuis une application.
