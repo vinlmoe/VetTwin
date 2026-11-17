@@ -340,3 +340,119 @@ def evaluate(p, n_beats=11):
     res['decomp'] = dict(f_contract=fc, f_rsys=fr, f_vent=f_vent, iterations=it + 1)
     res['outcome'] = dict(state='decompensated' if mech else 'stable', mechanisms=mech)
     return res
+
+
+# ------------------------------------------------------------------ hémodynamique battement par battement
+def _act1(tau, ts, tr):
+    """Activation d'un battement isolé, `tau` secondes après son début (même forme que _act)."""
+    return np.where((tau >= 0) & (tau < ts), 0.5 * (1 - np.cos(np.pi * tau / ts)),
+                    np.where((tau >= ts) & (tau < ts + tr), 0.5 * (1 + np.cos(np.pi * (tau - ts) / tr)), 0.0))
+
+
+def beat_schedule(cond, period0):
+    """Battements ventriculaires (t, ts, tr) et activations atriales organisées (t) d'une séquence
+    de conduction (rhythm.simulate_conduction). Durée de systole du battement i : 0,37·√RR_i,
+    RR_i = intervalle qui le précède (période nominale pour le premier)."""
+    tv = [b['t'] for b in cond['ventricular']]
+    beats = []
+    for i, t in enumerate(tv):
+        rr = t - tv[i - 1] if i > 0 else period0
+        ts = 0.37 * math.sqrt(rr)
+        beats.append((t, ts, 0.4 * ts))
+    atr = [t for t, organized in cond['atrial'] if organized]
+    return beats, atr
+
+
+def _activations(t, beats, atr, p):
+    """Activation ventriculaire (max des deux derniers battements, pour qu'un battement prématuré
+    survienne pendant la relaxation du précédent) et activation atriale à l'instant t."""
+    import bisect
+    tv = beat_starts = [b[0] for b in beats]
+    i = bisect.bisect_right(beat_starts, t) - 1
+    e = 0.0
+    for j in (i - 1, i):
+        if 0 <= j < len(beats):
+            t0, ts, tr = beats[j]
+            e = max(e, float(_act1(t - t0, ts, tr)))
+    k = bisect.bisect_right(atr, t) - 1
+    ea = 0.0
+    for j in (k - 1, k):
+        if 0 <= j < len(atr):
+            ea = max(ea, float(_act1(t - atr[j], p['ta_atr'], p['tra_atr'])))
+    return e, ea
+
+
+def _flows_beats(V, t, p, beats, atr):
+    lv, rv, ao, sv, pa, pv = V
+    e, ea = _activations(t, beats, atr, p)
+    P = dict(
+        lv=_vent_p(lv, e, p['ees_lv'], p['v0_lv'], p['a_lv'], p['b_lv']),
+        rv=_vent_p(rv, e, p['ees_rv'], p['v0_rv'], p['a_rv'], p['b_rv']),
+        ao=(ao - p['v0_ao']) / p['c_ao'], sv=(1 + p['k_ra'] * ea) * (sv - p['v0_sv']) / p['c_sv'],
+        pa=(pa - p['v0_pa']) / p['c_pa'], pv=(1 + p['k_la'] * ea) * (pv - p['v0_pv']) / p['c_pv'])
+    rf = p['r_valve']
+    Q = dict(
+        mi=_valve(P['pv'] - P['lv'], rf, p['g_mr']), ao=_valve(P['lv'] - P['ao'], rf, p['g_ar']),
+        tr=_valve(P['sv'] - P['rv'], rf, p['g_tr']), pu=_valve(P['rv'] - P['pa'], rf, p['g_pr']),
+        sys=(P['ao'] - P['sv']) / p['r_sys'], pul=(P['pa'] - P['pv']) / p['r_pul'])
+    return P, Q, e, ea
+
+
+def simulate_hemo_beats(p, cond, t_end, warm, period0, dt=0.002):
+    """Simule la circulation sur une séquence de battements quelconque (rythme irrégulier, blocs,
+    extrasystoles, FA). Indicateurs moyennés sur les battements complets après `warm` secondes ;
+    chaque battement garde son VES, sa PAS et sa PAD (déficit de pouls, alternance)."""
+    beats, atr = beat_schedule(cond, period0)
+    V0 = _initial_volumes(p)
+
+    def rhs(t, V):
+        _, Q, _, _ = _flows_beats(V, t, p, beats, atr)
+        return [Q['mi'] - Q['ao'], Q['tr'] - Q['pu'], Q['ao'] - Q['sys'],
+                Q['sys'] - Q['tr'], Q['pu'] - Q['pul'], Q['pul'] - Q['mi']]
+
+    t_eval = np.arange(warm, t_end, dt)
+    sol = solve_ivp(rhs, (0, t_end), V0, method='LSODA', t_eval=t_eval, rtol=1e-6, atol=1e-6, max_step=0.004)
+    V, t = sol.y, sol.t
+    rows = [_flows_beats(V[:, j], t[j], p, beats, atr) for j in range(len(t))]
+    P = {k: np.array([r[0][k] for r in rows]) for k in rows[0][0]}
+    Q = {k: np.array([r[1][k] for r in rows]) for k in rows[0][1]}
+    ea = np.array([r[3] for r in rows])
+    # battements complets dans la fenêtre
+    starts = [b[0] for b in beats if b[0] >= warm]
+    # contraction précédente terminée au début du battement (sinon la « télédiastole » n'existe pas)
+    relaxed = {b1[0]: (b1[0] - b0[0] >= b0[1] + b0[2]) for b0, b1 in zip(beats[:-1], beats[1:])}
+    per_beat = []
+    for a, b in zip(starts[:-1], starts[1:]):
+        m = (t >= a) & (t < b)
+        if m.sum() < 3:
+            continue
+        vl = V[0][m]
+        qmi, qao = Q['mi'][m], Q['ao'][m]
+        qf = np.maximum(qmi, 0.0)
+        per_beat.append(dict(t=a, rr=b - a, relaxed=relaxed.get(a, True), edv=vl.max(), esv=vl.min(), sv=vl.max() - vl.min(),
+                             sap=P['ao'][m].max(), dap=P['ao'][m].min(), lv_edp=P['lv'][m][0],
+                             v_reg=(-np.minimum(qmi, 0).sum() - np.minimum(qao, 0).sum()) * dt,
+                             mitral_e=float(qf[ea[m] <= 0].max()) if np.any(ea[m] <= 0) else 0.0,
+                             mitral_a=float(qf[ea[m] > 0].max()) if np.any(ea[m] > 0) else 0.0))
+    if not per_beat:
+        raise ValueError('aucun battement complet dans la fenêtre')
+    win = (t >= starts[0]) & (t < starts[-1])
+    mean = lambda k: float(np.mean([x[k] for x in per_beat]))
+    sv_tot = sum(x['sv'] for x in per_beat)
+    rr_mean = mean('rr')
+    out = dict(t=t, beats=per_beat, T=rr_mean,
+               map=float(P['ao'][win].mean()), sap=mean('sap'), dap=mean('dap'),
+               co=float(Q['sys'][win].mean()) * 60 / 1000.0,
+               edv=mean('edv'), esv=mean('esv'), sv=mean('sv'), ef=mean('sv') / mean('edv'),
+               reg_fraction=sum(x['v_reg'] for x in per_beat) / sv_tot if sv_tot > 0 else 0.0,
+               la_mean=float(P['pv'][win].mean()), la_max=float(P['pv'][win].max()),
+               pap_mean=float(P['pa'][win].mean()), cvp=float(P['sv'][win].mean()),
+               lv_edp=float(np.mean([x['lv_edp'] for x in per_beat if x['relaxed']] or [math.nan])),
+               mitral_e=mean('mitral_e'), mitral_a=mean('mitral_a'),
+               hr_v=60.0 / rr_mean, converged=True)
+    for k, v in P.items():
+        out['P_' + k] = v
+    for k, v in Q.items():
+        out['Q_' + k] = v
+    out['V_lv'] = V[0]
+    return out
