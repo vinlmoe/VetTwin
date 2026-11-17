@@ -71,6 +71,7 @@ fn run(c: &Catalog, case: &Json) -> Run {
         &conc,
         0.0,
         case["U"].as_f64().unwrap(),
+        case["UK"].as_f64().unwrap(),
     )
     .unwrap();
     match evaluate(&q) {
@@ -169,7 +170,7 @@ fn toxicity_terms_are_what_kills() {
     let mut c = catalog();
     let healthy = Patient::healthy(&c.patient, 20.0).unwrap();
     let conc = vec![("opioide".to_string(), 2.0)];
-    let q = apply_drug_effects(&healthy.params, &c.drugs, &conc, 0.0, 0.0).unwrap();
+    let q = apply_drug_effects(&healthy.params, &c.drugs, &conc, 0.0, 0.0, 0.0).unwrap();
     assert!(matches!(
         evaluate(&q),
         Err(Error::NonViable {
@@ -180,7 +181,7 @@ fn toxicity_terms_are_what_kills() {
     for d in &mut c.drugs {
         d.pd.toxicity.clear();
     }
-    let q = apply_drug_effects(&healthy.params, &c.drugs, &conc, 0.0, 0.0).unwrap();
+    let q = apply_drug_effects(&healthy.params, &c.drugs, &conc, 0.0, 0.0, 0.0).unwrap();
     let e = evaluate(&q)
         .expect("sans toxicité, l'effet thérapeutique plafonné laisse le patient en vie");
     assert!(!e

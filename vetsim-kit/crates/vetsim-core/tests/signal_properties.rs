@@ -72,7 +72,10 @@ fn hrv_targets_within_one_sd_over_20_seeds() {
         assert_eq!(r.n, 20);
         if KNOWN.contains(&r.target.var.as_str()) {
             if r.ok {
-                eprintln!("    {} redevenu conforme : retirer l'écart connu", r.target.var);
+                eprintln!(
+                    "    {} redevenu conforme : retirer l'écart connu",
+                    r.target.var
+                );
             } else {
                 eprintln!("    ÉCART CONNU {} : {}", r.target.var, r.model_mean);
                 assert!(

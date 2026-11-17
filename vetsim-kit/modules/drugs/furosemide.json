@@ -5,30 +5,31 @@
  ],
  "license": "CC-BY-4.0",
  "id": "furosemide",
- "version": "1.0.0",
+ "version": "1.1.0",
  "name": {
   "fr": "Furosémide"
  },
  "evidence": "B",
  "pk": {
-  "vc_L_kg": 0.34,
-  "vp_L_kg": 0.18,
-  "cl_mL_min_kg": 5.0,
-  "q_mL_min_kg": 15.7,
-  "ka_per_h": 1.93,
-  "f": 0.39,
+  "vc_L_kg": 0.207,
+  "vp_L_kg": 0.461,
+  "cl_mL_min_kg": 10.72,
+  "q_mL_min_kg": 3.343,
+  "ka_per_h": 0.73,
+  "f": 0.55,
   "renal_exp": 0.7,
   "hep_exp": 0.0
  },
  "pd": {
   "type": "diuretic",
   "emax": 1.0,
-  "ec50_mg_L": 1.0,
-  "hill": 1.5,
-  "urine_max_mL_kg_min": 0.25,
+  "ec50_mg_L": 0.309,
+  "hill": 5.06,
+  "urine_max_mL_kg_min": 0.2,
   "f_plasma": 0.3,
   "tau_refill_h": 4.0,
   "tau_elect_h": 24.0,
+  "tau_k_h": 8.0,
   "effects": [
    {
     "param": "vol_shift",
@@ -45,8 +46,8 @@
     "op": "add",
     "expr": {
      "mul": [
-      -0.04,
-      "U"
+      -0.034,
+      "UK"
      ]
     }
    },
@@ -55,7 +56,7 @@
     "op": "add",
     "expr": {
      "mul": [
-      -0.5,
+      -0.236,
       "U"
      ]
     }
@@ -65,17 +66,18 @@
     "op": "add",
     "expr": {
      "mul": [
-      -0.3,
+      -0.073,
       "U"
      ]
     }
    }
-  ]
+  ],
+  "ke0_per_h": 3.35
  },
  "refs": [
+  "Koh 2021, BMC Vet Res 17:295, doi:10.1186/s12917-021-02998-4 (texte intégral lu : tableaux 2, 4, 5, 6)",
   "RCP Noah furosemide",
-  "EMA 1999 MRL report",
-  "BMC Vet Res 2021 (s12917-021-02998-4)"
+  "EMA 1999 MRL report"
  ],
- "notes": "PK calée (fit_pk.py). PD placeholder. D = déficit de volume (mL), U = diurèse effective cumulée (mL/kg), voir MODEL_SPEC. Pas de terme toxique : toxicité volémique et électrolytique émergente via D et U."
+ "notes": "PK et PD calées sur Koh 2021 (5 beagles ≈ 11,7 kg, 2 mg/kg IV et comprimé per os) : fit_pk.py, fit_furosemide_pd.py. cl rapportée à 20 kg par l'allométrie BW^0,75 du moteur (735,7 mL/h/kg mesurés). ec50/hill au site d'effet : compartiment d'effet ke0 (action depuis la lumière tubulaire), diurèse induite u = urine_max·E(Ce). Pertes d'électrolytes par mL/kg de diurèse effective calées sur les variations sériques 1–8 h (tableau 4) : Na+ et Cl- via U (récupération tau_elect_h), K+ via UK (récupération tau_k_h = 8 h, compromis Koh 2021 / Adin 2021, doi:10.1111/jvim.16097, K+ inchangé à 24 h). tau_refill_h, tau_elect_h et f_plasma : placeholders. D = déficit de volume (mL), U = diurèse effective cumulée (mL/kg), voir MODEL_SPEC. Toxicité volémique et électrolytique émergente via D et U."
 }

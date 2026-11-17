@@ -291,13 +291,15 @@ pub struct PkRow {
 }
 
 /// Indicateurs publiés utilisés par `calibrate.py::pk_checks` (valeurs recopiées de ce fichier).
-/// (médicament, dose mg/kg PO, [(indicateur, cible, unité, source)])
 /// (indicateur, cible, unité, source)
 type PkRef = (&'static str, f64, &'static str, &'static str);
 
-const PK_REFS: &[(&str, f64, &[PkRef])] = &[
+/// (médicament, poids kg, dose mg/kg PO, indicateurs). Furosémide : au poids des chiens de Koh 2021
+/// (11,7 kg = 288,6 mL / 24,65 mL/kg).
+const PK_REFS: &[(&str, f64, f64, &[PkRef])] = &[
     (
         "pimobendan",
+        20.0,
         0.5,
         &[
             ("cmax", 49.1, "ng/mL", "Her 2020"),
@@ -307,18 +309,18 @@ const PK_REFS: &[(&str, f64, &[PkRef])] = &[
     ),
     (
         "furosemide",
-        5.0,
+        11.7,
+        2.0,
         &[
-            ("cmax", 2126.0, "ng/mL", "RCP Noah (5 mg/kg PO)"),
-            ("tmax", 1.0, "h", "RCP Noah 0,8-1,1 h"),
+            ("cmax", 610.0, "ng/mL", "Koh 2021 (2 mg/kg PO, 11,7 kg)"),
+            ("tmax", 1.0, "h", "Koh 2021 (0,5-1,5 h)"),
+            ("auc", 1500.0, "ng.h/mL", "Koh 2021 (AUCinf)"),
         ],
     ),
-    (
-        "furosemide",
-        1.9,
-        &[("cmax", 900.0, "ng/mL", "RCP Noah (1,9 mg/kg PO)")],
-    ),
 ];
+
+/// Poids des chiens de Koh 2021 (furosémide).
+const KOH_BW: f64 = 11.7;
 
 /// `np.linspace(0, stop, num)`.
 fn linspace(stop: f64, num: usize) -> Vec<f64> {
@@ -326,12 +328,12 @@ fn linspace(stop: f64, num: usize) -> Vec<f64> {
     (0..num).map(|i| i as f64 * step).collect()
 }
 
-/// Indicateurs PK du patient sain de 20 kg sans variabilité.
+/// Indicateurs PK du patient sain sans variabilité (poids de l'étude de référence).
 pub fn pk_checks(cat: &Catalog) -> Result<Vec<PkRow>, Error> {
-    let p = Patient::healthy(&cat.patient, 20.0)?.params;
     let mut rows = Vec::new();
     let grid = linspace(24.0, 481);
-    for (drug, dose, refs) in PK_REFS {
+    for (drug, bw, dose, refs) in PK_REFS {
+        let p = Patient::healthy(&cat.patient, *bw)?.params;
         let d = Dose {
             t_h: 0.0,
             drug: (*drug).into(),
@@ -366,7 +368,8 @@ pub fn pk_checks(cat: &Catalog) -> Result<Vec<PkRow>, Error> {
             });
         }
     }
-    // Demi-vie IV du furosémide 2 mg/kg : pente de ln C sur ]2, 8[ h (BMC Vet Res 2021 : 1-1,5 h).
+    // Demi-vie IV du furosémide 2 mg/kg : pente de ln C sur ]2, 8[ h (Koh 2021 : 2,07 ± 0,76 h).
+    let p = Patient::healthy(&cat.patient, KOH_BW)?.params;
     let grid = linspace(12.0, 241);
     let d = Dose {
         t_h: 0.0,
@@ -392,9 +395,9 @@ pub fn pk_checks(cat: &Catalog) -> Result<Vec<PkRow>, Error> {
     rows.push(PkRow {
         module: "PK furosemide".into(),
         var: "t1/2 IV".into(),
-        target: 1.25,
+        target: 2.07,
         unit: "h".into(),
-        source: "BMC Vet Res 2021 (1-1,5 h)".into(),
+        source: "Koh 2021 (2,07 ± 0,76 h)".into(),
         model: std::f64::consts::LN_2 / -slope,
     });
     Ok(rows)

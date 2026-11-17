@@ -72,23 +72,25 @@ def healthy_cohort(n=50):
 
 def pk_checks():
     rows = []
-    # pimobendan 0.5 mg/kg PO (Her 2020) : Cmax 49.1 ng/mL, Tmax 2.1 h, t1/2 1.8 h, AUC 148.4 ng.h/mL
-    p = Patient(20.0, variability=False).p
+    # pimobendan 0.5 mg/kg PO (Her 2020) : Cmax 49.1 ng/mL, Tmax 2.1 h, t1/2 1.8 h, AUC 148.4 ng.h/mL (chien de 20 kg)
+    # furosémide 2 mg/kg PO (Koh 2021, tableau 2) : Cmax 0,61 µg/mL, Tmax 1 h (0,5-1,5), AUCinf 1,50 µg.h/mL,
+    # au poids des chiens de l'étude (11,7 kg = 288,6 mL / 24,65 mL/kg, tableau 5 et texte)
     tg = np.linspace(0, 24, 481)
-    for drug, dose, ref in [('pimobendan', 0.5, dict(cmax=(49.1, 'ng/mL', 1000, 'Her 2020'), tmax=(2.1, 'h', 1, 'Her 2020'), auc=(148.4, 'ng.h/mL', 1000, 'Her 2020'))),
-                            ('furosemide', 5.0, dict(cmax=(2126, 'ng/mL', 1000, 'RCP Noah (5 mg/kg PO)'), tmax=(1.0, 'h', 1, 'RCP Noah 0,8-1,1 h'))),
-                            ('furosemide', 1.9, dict(cmax=(900, 'ng/mL', 1000, 'RCP Noah (1,9 mg/kg PO)')))]:
+    for drug, bw, dose, ref in [('pimobendan', 20.0, 0.5, dict(cmax=(49.1, 'ng/mL', 1000, 'Her 2020'), tmax=(2.1, 'h', 1, 'Her 2020'), auc=(148.4, 'ng.h/mL', 1000, 'Her 2020'))),
+                                ('furosemide', 11.7, 2.0, dict(cmax=(610.0, 'ng/mL', 1000, 'Koh 2021 (2 mg/kg PO, 11,7 kg)'), tmax=(1.0, 'h', 1, 'Koh 2021 (0,5-1,5 h)'), auc=(1500.0, 'ng.h/mL', 1000, 'Koh 2021 (AUCinf)')))]:
+        p = Patient(bw, variability=False).p
         tc = pkpd.timecourse(p, [(0.0, drug, dose, 'po')], 24.0, list(tg))
         t = np.array(tc['t']); c = np.array(tc[drug])
         i = c.argmax()
         mod = dict(cmax=c.max() * 1000, tmax=t[i], auc=np.trapezoid(c, t) * 1000)
         for k, (tv, u, _, src) in ref.items():
             rows.append(dict(module='PK ' + drug, var=f'{k} ({dose} mg/kg PO)', target=tv, unit=u, source=src, model_mean=float(mod[k])))
-    # furosémide IV 2 mg/kg : demi-vie 1-1,5 h (BMC Vet Res 2021)
+    # furosémide IV 2 mg/kg, 11,7 kg : demi-vie 2,07 ± 0,76 h (Koh 2021, tableau 2)
+    p = Patient(11.7, variability=False).p
     tc = pkpd.timecourse(p, [(0.0, 'furosemide', 2.0, 'iv')], 12.0, list(np.linspace(0, 12, 241)))
     t = np.array(tc['t']); c = np.array(tc['furosemide']); m = (t > 2) & (t < 8)
     k = -np.polyfit(t[m], np.log(c[m]), 1)[0]
-    rows.append(dict(module='PK furosemide', var='t1/2 IV', target=1.25, unit='h', source='BMC Vet Res 2021 (1-1,5 h)', model_mean=float(np.log(2) / k)))
+    rows.append(dict(module='PK furosemide', var='t1/2 IV', target=2.07, unit='h', source='Koh 2021 (2,07 ± 0,76 h)', model_mean=float(np.log(2) / k)))
     return rows
 
 

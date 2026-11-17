@@ -14,7 +14,7 @@ use vetsim_core::{Catalog, DiseaseModule, DrugModule, NoNoise, Patient, PatientM
 
 const USAGE: &str = "\
 usage :
-  vetsim-cli [--modules DIR] eval   --bw KG [--disease id:sévérité ...] [--conc drug=mg_per_L ...] [--D mL] [--U mL_per_kg]
+  vetsim-cli [--modules DIR] eval   --bw KG [--disease id:sévérité ...] [--conc drug=mg_per_L ...] [--D mL] [--U mL_per_kg] [--UK mL_per_kg]
   vetsim-cli [--modules DIR] pk     --bw KG --drug ID --dose MG_PER_KG --route iv|po --times T1,T2,... [--disease id:sévérité ...]
   vetsim-cli [--modules DIR] params --bw KG [--disease id:sévérité ...]
   vetsim-cli [--modules DIR] calibrate [--targets FICHIER] [--n-healthy 50] [--n-disease 24] [--seed0 100] [--n-hrv 20]
@@ -48,6 +48,7 @@ struct Args {
     conc: Vec<(String, f64)>,
     d: Option<f64>,
     u: Option<f64>,
+    uk: Option<f64>,
     drug: Option<String>,
     dose: Option<f64>,
     route: Option<String>,
@@ -128,6 +129,7 @@ fn parse_args(argv: &[String]) -> Result<Args, Failure> {
             }
             "--D" => a.d = Some(num(flag, &value()?)?),
             "--U" => a.u = Some(num(flag, &value()?)?),
+            "--UK" => a.uk = Some(num(flag, &value()?)?),
             "--drug" => a.drug = Some(value()?),
             "--dose" => a.dose = Some(num(flag, &value()?)?),
             "--route" => {
@@ -172,13 +174,13 @@ fn parse_args(argv: &[String]) -> Result<Args, Failure> {
         }
     }
     let allowed: &[&str] = match a.command.as_str() {
-        "eval" => &["bw", "disease", "conc", "D", "U"],
+        "eval" => &["bw", "disease", "conc", "D", "U", "UK"],
         "pk" => &["bw", "disease", "drug", "dose", "route", "times"],
         "params" => &["bw", "disease"],
         "calibrate" => &["targets", "n_healthy", "n_disease", "seed0", "n_hrv"],
-        "signals" => &["bw", "disease", "conc", "D", "U", "seed", "duration"],
+        "signals" => &["bw", "disease", "conc", "D", "U", "UK", "seed", "duration"],
         "pcg" => &[
-            "bw", "disease", "conc", "D", "U", "seed", "duration", "hr", "site", "fs",
+            "bw", "disease", "conc", "D", "U", "UK", "seed", "duration", "hr", "site", "fs",
         ],
         "" => return Err(Failure::Usage("commande manquante".into())),
         other => return Err(Failure::Usage(format!("commande inconnue « {other} »"))),
@@ -187,6 +189,7 @@ fn parse_args(argv: &[String]) -> Result<Args, Failure> {
         ("conc", !a.conc.is_empty()),
         ("D", a.d.is_some()),
         ("U", a.u.is_some()),
+        ("UK", a.uk.is_some()),
         ("drug", a.drug.is_some()),
         ("dose", a.dose.is_some()),
         ("route", a.route.is_some()),
@@ -342,6 +345,7 @@ fn run(argv: &[String]) -> Result<Json, Failure> {
         "eval" | "signals" | "pcg" => {
             let d = a.d.unwrap_or(0.0);
             let u = a.u.unwrap_or(0.0);
+            let uk = a.uk.unwrap_or(0.0);
             let mut base = pt.params.clone();
             // Préréglage de fréquence cardiaque (réglage d'usage) : FC de repos imposée.
             if let Some(hr) = a.hr {
@@ -352,13 +356,13 @@ fn run(argv: &[String]) -> Result<Json, Failure> {
                 }
                 base.hr = hr;
             }
-            let params = if a.conc.is_empty() && d == 0.0 && u == 0.0 {
+            let params = if a.conc.is_empty() && d == 0.0 && u == 0.0 && uk == 0.0 {
                 base.clone()
             } else {
                 for (id, _) in &a.conc {
                     check_drug(&cat, id)?;
                 }
-                vetsim_core::apply_drug_effects(&base, &cat.drugs, &a.conc, d, u)
+                vetsim_core::apply_drug_effects(&base, &cat.drugs, &a.conc, d, u, uk)
                     .map_err(|e| Failure::Engine(e.to_string()))?
             };
             let ev = vetsim_core::evaluate(&params).map_err(|e| Failure::Engine(e.to_string()))?;

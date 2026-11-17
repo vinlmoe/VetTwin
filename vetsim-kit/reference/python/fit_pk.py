@@ -16,14 +16,22 @@ def metrics(c,t):
     cc=c[(t>t[i]+0.5)&m][-200:]
     k=-np.polyfit(tt[len(tt)//2:],np.log(cc[len(cc)//2:]),1)[0]
     return c.max(),t[i],np.log(2)/k,np.trapezoid(c,t)
-# --- furosémide : IV t1/2 1-1.5 h (BMC Vet Res 2021), Vss 0.52 L/kg (RCP), Cmax 2.126 mg/L à 5 mg/kg PO, 0.9 à 1.9 mg/kg, Tmax 0.8-1.1 h
+# --- furosémide : Koh 2021 (BMC Vet Res 17:295, texte intégral lu, tableau 2), 5 beagles ≈ 11,7 kg, 2 mg/kg.
+# Fixés par l'article : CL 735,7 mL/h/kg ; Vss 0,6675 L/kg ; Vc = dose/C0 = 2/9,65 ; F 0,5498.
+# Ajustés : Q sur t1/2 IV 2,07 h (pente de ln C sur ]2, 8[ h, comme calibrate.py) ; ka sur Cmax PO 0,61 mg/L.
+# Écarts résiduels : Tmax PO 0,5 h (publié 1, 0,5-1,5) ; t1/2 apparente PO 1,5 h (publié 3,44 ± 1,79).
+# Dans le module, cl est rapportée à 20 kg (allométrie BW^0,75 du moteur) : 12,26·(11,7/20)^0,25 = 10,72 mL/min/kg.
+CL_F, VC_F, F_F = 0.7357, 2 / 9.65, 0.5498
+VP_F = 0.6675 - VC_F
+def th_iv(c, t):
+    m = (t > 2) & (t < 8); return np.log(2) / (-np.polyfit(t[m], np.log(c[m]), 1)[0])
 def resf(x):
-    vc,q,f,ka=x; vp=0.52-vc; cl=0.30
-    t,c=pk(vc,vp,cl,q,ka,f,5.0,'po'); cm,tm,_,_=metrics(c,t)
-    t,c2=pk(vc,vp,cl,q,ka,f,1.9,'po'); cm2=c2.max()
-    t,c3=pk(vc,vp,cl,q,ka,f,2.0,'iv'); _,_,th,_=metrics(c3,t)
-    return [(cm-2.126)/0.4,(cm2-0.9)/0.2,(tm-1.0)/0.3,(th-1.25)/0.3]
-s=least_squares(resf,[0.25,0.25,0.4,2.0],bounds=([0.1,0.05,0.15,0.5],[0.45,2,0.9,6])); print('furo',s.x,resf(s.x))
+    q, ka = x
+    t, c = pk(VC_F, VP_F, CL_F, q, ka, F_F, 2.0, 'iv', T=24)
+    t, cp = pk(VC_F, VP_F, CL_F, q, ka, F_F, 2.0, 'po', T=24)
+    return [(th_iv(c, t) - 2.07) / 0.3, (cp.max() - 0.61) / 0.1]
+s = least_squares(resf, [0.3, 1.0], bounds=([0.01, 0.1], [5, 10]))
+print('furo Q (L/h/kg), ka (1/h)', s.x, resf(s.x), '-> q mL/min/kg', s.x[0] * 1000 / 60, ', cl à 20 kg', CL_F * 1000 / 60 * (11.7 / 20) ** 0.25)
 # --- pimobendan PO 0.5 mg/kg : Cmax 49.1 ng/mL, Tmax 2.1 h, t1/2 1.8 h, AUC 148.4 ng h/mL (Her 2020)
 def resp(x):
     vc,vp,cl,ka=x; q=1.0; f=0.5

@@ -1,5 +1,5 @@
 """CLI de référence (contrat : docs/CLI_CONTRACT.md). Le CLI Rust doit produire la même sortie JSON.
-  python cli.py eval --bw 20 [--disease mmvd:0.5 ...] [--conc drug=mg_per_L ...] [--D mL] [--U mL_per_kg]
+  python cli.py eval --bw 20 [--disease mmvd:0.5 ...] [--conc drug=mg_per_L ...] [--D mL] [--U mL_per_kg] [--UK mL_per_kg]
   python cli.py pk --bw 20 --drug furosemide --dose 2 --route iv --times 0,0.5,1,2
 Mode déterministe : bruit nul, pas de variabilité interindividuelle."""
 import sys, json, argparse
@@ -28,6 +28,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(); sub = ap.add_subparsers(dest='cmd', required=True)
     e = sub.add_parser('eval'); e.add_argument('--bw', type=float, default=20.0); e.add_argument('--disease', action='append', default=[])
     e.add_argument('--conc', action='append', default=[]); e.add_argument('--D', type=float, default=0.0); e.add_argument('--U', type=float, default=0.0)
+    e.add_argument('--UK', type=float, default=0.0)
     k = sub.add_parser('pk'); k.add_argument('--bw', type=float, default=20.0); k.add_argument('--drug', required=True); k.add_argument('--dose', type=float, required=True)
     k.add_argument('--route', choices=['iv', 'po'], required=True); k.add_argument('--times', required=True)
     k.add_argument('--disease', action='append', default=[])
@@ -38,7 +39,7 @@ def main(argv=None):
         name, s = d.split(':'); pt.add_disease({'mmvd': 'MMVD', 'ckd': 'CKD', 'addison': 'Addison', 'pneumonia': 'Pneumonie', 'atrial_fibrillation': 'FA', 'av_block': 'BAV', 'ventricular_premature': 'ESV', 'sick_sinus': 'SSS'}[name], severity=float(s))
     if a.cmd == 'eval':
         conc = {kv.split('=')[0]: float(kv.split('=')[1]) for kv in a.conc}
-        r = pt.state(conc, a.D, a.U, signals=False)
+        r = pt.state(conc, a.D, a.U, signals=False, UK=a.UK)
         print(json.dumps(flat(r)))
     else:
         times = [float(t) for t in a.times.split(',')]

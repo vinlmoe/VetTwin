@@ -34,7 +34,7 @@ for c in G['cases']:
     conc = {x.split('=')[0]: float(x.split('=')[1]) for i, x in enumerate(a) if i > 0 and a[i - 1] == '--conc'}
     native = json.loads(subprocess.check_output(['target/release/vetsim-cli'] + a, text=True))
     out.append(dict(id=c['id'], bw=float(opt('--bw', 20)), diseases=diseases, conc=conc,
-                    D=float(opt('--D', 0)), U=float(opt('--U', 0)), expected=native))
+                    D=float(opt('--D', 0)), U=float(opt('--U', 0)), UK=float(opt('--UK', 0)), expected=native))
 json.dump(out, open('web/selftest.json', 'w'))
 print('web/selftest.json :', len(out), 'cas')
 PY

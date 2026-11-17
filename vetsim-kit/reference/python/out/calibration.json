@@ -328,35 +328,35 @@
   },
   {
    "module": "PK furosemide",
-   "var": "cmax (5.0 mg/kg PO)",
-   "target": 2126,
+   "var": "cmax (2.0 mg/kg PO)",
+   "target": 610.0,
    "unit": "ng/mL",
-   "source": "RCP Noah (5 mg/kg PO)",
-   "model_mean": 2219.50349651801
+   "source": "Koh 2021 (2 mg/kg PO, 11,7 kg)",
+   "model_mean": 614.0536524726828
   },
   {
    "module": "PK furosemide",
-   "var": "tmax (5.0 mg/kg PO)",
+   "var": "tmax (2.0 mg/kg PO)",
    "target": 1.0,
    "unit": "h",
-   "source": "RCP Noah 0,8-1,1 h",
-   "model_mean": 0.8
+   "source": "Koh 2021 (0,5-1,5 h)",
+   "model_mean": 0.5
   },
   {
    "module": "PK furosemide",
-   "var": "cmax (1.9 mg/kg PO)",
-   "target": 900,
-   "unit": "ng/mL",
-   "source": "RCP Noah (1,9 mg/kg PO)",
-   "model_mean": 843.4113317428819
+   "var": "auc (2.0 mg/kg PO)",
+   "target": 1500.0,
+   "unit": "ng.h/mL",
+   "source": "Koh 2021 (AUCinf)",
+   "model_mean": 1494.637220689219
   },
   {
    "module": "PK furosemide",
    "var": "t1/2 IV",
-   "target": 1.25,
+   "target": 2.07,
    "unit": "h",
-   "source": "BMC Vet Res 2021 (1-1,5 h)",
-   "model_mean": 1.2507141278340594
+   "source": "Koh 2021 (2,07 \u00b1 0,76 h)",
+   "model_mean": 2.0711258049139945
   }
  ],
  "disease": {

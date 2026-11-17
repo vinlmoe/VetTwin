@@ -10,7 +10,7 @@
 | Affinité O₂ | Cambier et al. 2004, Res Vet Sci 77:83 | P50 30,0 ± 1,3 mmHg; Δlog P50/ΔpH = −0,370 | — |
 | VFC | Bogucki & Noszczyk-Nowak 2015, Pol J Vet Sci (50 chiens, 60 min) | RR moyen, SDNN, RMSSD, LF/HF | Source unique, valeurs très élevées : à recouper |
 | ECG | Labrador et berger allemand (n = 30, dérivation II) ; Bispo 2025 (n = 22) ; Romito 2022 (n = 180) | PR, QRS, QT, amplitudes P, R, T ; durée visible de P (45 ms), QRS visible = `qrs`, segment ST présent | Durées et amplitudes mesurées sur le tracé (`docs/VERIFICATION_ECG.md`) ; largeur de T et élargissement de P en hyperkaliémie : placeholders D |
-| PK furosémide | RCP Noah; EMA 1999; BMC Vet Res 2021 | Vss 0,52 L/kg, t½ IV 1–1,5 h, Cmax per os | Biodisponibilité ajustée (0,39) pour reproduire Cmax; sources en désaccord |
+| PK/PD furosémide | Koh 2021 (BMC Vet Res 17:295, texte intégral) ; Adin 2021 (JVIM 35:1245) ; Roudebush 1994 (résumé) | Koh : CL 735,7 mL/h/kg, Vss 0,668, C0 9,65, F 0,55, t½ 2,07 h, Cmax PO 0,61 ; diurèse horaire (tableau 5) ; électrolytes sériques (tableau 4) et urinaires (tableau 6). Adin : K⁺ inchangé à 24 h | cl rapportée à 20 kg (BW^0,75) ; compartiment d'effet ke0 calé sur la diurèse par intervalle ; τ_K = 8 h compromis Koh/Adin ; Tmax PO 0,5 h (publié 1) ; tau_refill, tau_elect, f_plasma placeholders |
 | PK pimobendane | Her et al. 2020, Front Vet Sci 7:423 (0,5 mg/kg per os) | Cmax, AUC, t½ | Tmax mal reproduit; F = 0,5 supposée |
 | IRIS | Staging IRIS | Bornes de créatininémie par stade | — |
 | MMVD | MSD Vet Manual; JVIM 2004 (MR expérimentale) | RF 17–81 %, œdème si POG > ~20 mmHg | FC 130 et 160/min aux stades C et D : choix clinique non sourcé |

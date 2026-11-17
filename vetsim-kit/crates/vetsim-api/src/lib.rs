@@ -365,14 +365,15 @@ impl Engine {
         };
         let mut d = opt_f64(m, "D", 0.0)?;
         let mut u = opt_f64(m, "U", 0.0)?;
+        let mut uk = opt_f64(m, "UK", 0.0)?;
         let mut conc = conc;
         // Examen à l'instant `at_h` d'un schéma d'administration : concentrations, D et U
         // simulés (PK du patient, donc avec sa fonction rénale et hépatique).
         if m.contains_key("doses") {
-            if !conc.is_empty() || d != 0.0 || u != 0.0 {
+            if !conc.is_empty() || d != 0.0 || u != 0.0 || uk != 0.0 {
                 return Err(ApiError::one(
                     "/doses",
-                    "donner « doses » + « at_h » OU « conc »/« D »/« U », pas les deux",
+                    "donner « doses » + « at_h » OU « conc »/« D »/« U »/« UK », pas les deux",
                 ));
             }
             let at = opt_f64(m, "at_h", f64::NAN)?;
@@ -387,6 +388,7 @@ impl Engine {
             conc = tc.conc.iter().map(|(k, v)| (k.clone(), v[0])).collect();
             d = tc.d[0];
             u = tc.u[0];
+            uk = tc.uk[0];
         }
         let mut base = s.patient.params.clone();
         // Préréglage de FC (réglage d'usage, ex. « repos » 72/min) : FC de repos imposée.
@@ -397,7 +399,7 @@ impl Engine {
                 .ok_or_else(|| ApiError::one("/hr", "FC entre 20 et 300 /min attendue"))?;
             base.hr = hr;
         }
-        if conc.is_empty() && d == 0.0 && u == 0.0 {
+        if conc.is_empty() && d == 0.0 && u == 0.0 && uk == 0.0 {
             return Ok(base);
         }
         Ok(apply_drug_effects(
@@ -406,11 +408,12 @@ impl Engine {
             &conc,
             d,
             u,
+            uk,
         )?)
     }
 
     /// État : mêmes clés plates que le CLI `eval`, plus `case` et `emergent_signs` ; options
-    /// `{"conc": {...}, "D": 0, "U": 0, "signals": false}` (avec `signals`, ajoute la réponse
+    /// `{"conc": {...}, "D": 0, "U": 0, "UK": 0, "signals": false}` (avec `signals`, ajoute la réponse
     /// de [`Engine::signals`] sous la clé `signals`).
     pub fn state(&mut self, patient_id: &str, options: &str) -> String {
         self.respond(|e| {
@@ -521,7 +524,7 @@ impl Engine {
                 );
             }
             let mut out = json!({ "ok": true, "t": tc.t, "conc_mg_L": conc, "effect": effects,
-                                  "D": tc.d, "U": tc.u });
+                                  "D": tc.d, "U": tc.u, "UK": tc.uk });
             // États physiologiques à des instants choisis (moins nombreux que la grille PK).
             if let Some(v) = m.get("state_times_h") {
                 let times: Vec<f64> = v
@@ -561,6 +564,7 @@ impl Engine {
                         &conc_i,
                         tcs.d[i],
                         tcs.u[i],
+                        tcs.uk[i],
                     )?;
                     let st = state_entry(&p)?;
                     if st["outcome"] == "dead" {
@@ -583,8 +587,14 @@ impl Engine {
                     }
                     let conc_i: Vec<(String, f64)> =
                         tc.conc.iter().map(|(d, v)| (d.clone(), v[i])).collect();
-                    let p =
-                        apply_drug_effects(&s.patient.params, &c.drugs, &conc_i, tc.d[i], tc.u[i])?;
+                    let p = apply_drug_effects(
+                        &s.patient.params,
+                        &c.drugs,
+                        &conc_i,
+                        tc.d[i],
+                        tc.u[i],
+                        tc.uk[i],
+                    )?;
                     let st = state_entry(&p)?;
                     if st["outcome"] == "dead" {
                         cause = Some(st["cause"].clone());

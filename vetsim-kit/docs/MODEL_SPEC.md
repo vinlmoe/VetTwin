@@ -64,7 +64,7 @@ d_t = clip(baro_gain·(map_set − MAP)/45, −1, 1)
 - 2 compartiments + dépôt oral. `CL = cl·1e-3·60·20·s^0.75·nephron_mass^renal_exp·hepatic_fn^hep_exp` (L/h), `Vc = vc·bw`, `Vp = vp·bw`, `Q = q·1e-3·60·bw`.
 - Oral : la dose × `f` va au dépôt (`ka`); IV : dose dans le compartiment central. Concentration = quantité centrale / `Vc` (mg/L).
 - Effet Emax : `E = emax·C^hill/(ec50^hill + C^hill)`.
-- Furosémide (PD `diuretic`) : `u = 0.25·E(C)` mL/kg/min ; `dD/dt = 0.3·u·bw·60 − D/4` (mL/h) ; `dU/dt = u·60 − U/24`. Effets : `vol_shift −= D`, `K −= 0.04 U`, `Cl −= 0.5 U`, `Na −= 0.3 U`.
+- Furosémide (PD `diuretic`, calée sur Koh 2021) : site d'effet `dCe/dt = ke0·(C − Ce)`, `ke0 = 3.35 /h` ; `u = 0.20·E(Ce)` mL/kg/min (EC50 0,309 mg/L, Hill 5,06) ; `dD/dt = 0.3·u·bw·60 − D/4` (mL/h) ; `dU/dt = u·60 − U/24` ; `dUK/dt = u·60 − UK/8` (`tau_k_h`, récupération du K⁺). Effets : `vol_shift −= D`, `K −= 0.034 UK`, `Cl −= 0.236 U`, `Na −= 0.073 U`. États PK par médicament : dépôt, central, périphérique, site d'effet (figé sans `ke0_per_h`).
 - Les effets PD des autres médicaments sont des effets JSON (variable `E`) appliqués aux paramètres.
 - **Termes toxiques** (`pd.toxicity`, variable `T`) : `T = emax·C^hill/(ec50^hill + C^hill)` avec des constantes propres, appliqués après l'effet thérapeutique du même médicament. L'effet thérapeutique reste plafonné (occupation des récepteurs) ; la toxicité prolonge la relation dose-réponse au-delà. Opioïde → `vent_drive ×(1 − 0,99 T)` ; bêtabloquant → `ees_lv`, `ees_rv`, `hr ×(1 − 0,8 T)` ; pimobendane → `r_sys ×(1 − 0,8 T)`. EC50 toxique = 10 × EC50, Hill 3 : placeholders D.
 

@@ -29,12 +29,12 @@ for bw, combo in [(20, []), (20, [('mmvd', 0.8)]), (5, [('ckd', 0.6)])]:
     for drug, ec in EC50.items():
         for c in (0.0, -0.01, ec / 4, ec, 10 * ec, 1000 * ec):
             conc = {drug: c}
-            out['effects'].append(dict(bw=bw, diseases=combo, conc=conc, D=0.0, U=0.0,
+            out['effects'].append(dict(bw=bw, diseases=combo, conc=conc, D=0.0, U=0.0, UK=0.0,
                                        params={k: float(v) for k, v in pkpd.apply_drug_effects(patient(bw, combo), conc, 0.0, 0.0).items()}))
-    for conc, Dv, Uv in [({}, 150.0, 2.0), ({}, -30.0, 0.0), ({'furosemide': 3.0}, 80.0, 1.5),
-                         ({k: 2 * v for k, v in EC50.items()}, 120.0, 3.0)]:
-        out['effects'].append(dict(bw=bw, diseases=combo, conc=conc, D=Dv, U=Uv,
-                                   params={k: float(v) for k, v in pkpd.apply_drug_effects(patient(bw, combo), conc, Dv, Uv).items()}))
+    for conc, Dv, Uv, UKv in [({}, 150.0, 2.0, 2.0), ({}, -30.0, 0.0, 0.0), ({'furosemide': 3.0}, 80.0, 1.5, 0.7),
+                              ({k: 2 * v for k, v in EC50.items()}, 120.0, 3.0, 1.0), ({}, 0.0, 0.0, 4.0)]:
+        out['effects'].append(dict(bw=bw, diseases=combo, conc=conc, D=Dv, U=Uv, UK=UKv,
+                                   params={k: float(v) for k, v in pkpd.apply_drug_effects(patient(bw, combo), conc, Dv, Uv, UKv).items()}))
 
 T36 = [float(t) for t in np.arange(0, 36.5, 0.5)]
 TC = [

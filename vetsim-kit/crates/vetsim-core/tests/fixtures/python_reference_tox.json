@@ -6,6 +6,7 @@
    "bw": 20.0,
    "conc": {},
    "U": 0.0,
+   "UK": 0.0,
    "disease": null,
    "state": "stable",
    "mechanisms": [],
@@ -31,6 +32,7 @@
     "opioide": 0.5
    },
    "U": 0.0,
+   "UK": 0.0,
    "disease": null,
    "state": "decompensated",
    "mechanisms": [
@@ -59,6 +61,7 @@
     "opioide": 2.0
    },
    "U": 0.0,
+   "UK": 0.0,
    "disease": null,
    "state": "dead",
    "cause": "oxygen_debt"
@@ -70,6 +73,7 @@
     "betabloquant": 3.0
    },
    "U": 0.0,
+   "UK": 0.0,
    "disease": null,
    "state": "decompensated",
    "mechanisms": [
@@ -97,6 +101,7 @@
     "betabloquant": 10.0
    },
    "U": 0.0,
+   "UK": 0.0,
    "disease": null,
    "state": "decompensated",
    "mechanisms": [
@@ -125,6 +130,7 @@
     "pimobendan": 3.0
    },
    "U": 0.0,
+   "UK": 0.0,
    "disease": null,
    "state": "decompensated",
    "mechanisms": [
@@ -151,6 +157,7 @@
    "bw": 20.0,
    "conc": {},
    "U": 50.0,
+   "UK": 50.0,
    "disease": null,
    "state": "decompensated",
    "mechanisms": [
@@ -158,17 +165,17 @@
    ],
    "f_contract": 1.0,
    "f_rsys": 1.0,
-   "f_vent": 0.8399999999999999,
+   "f_vent": 0.9599999999999997,
    "values": {
     "map": 108.22564172767761,
     "co": 3.4908155815849127,
     "hr": 87.27533126697561,
-    "ph": 7.452376963211686,
-    "pco2": 44.658595205119774,
-    "pao2": 93.56500570819074,
-    "po2_v": 49.13262516596531,
-    "lactate": 1.2137092296226373,
-    "k": 2.0999999999999996
+    "ph": 7.449194332544542,
+    "pco2": 42.771181452279144,
+    "pao2": 95.81192684252483,
+    "po2_v": 49.549617625183814,
+    "lactate": 1.2136181336198166,
+    "k": 2.3999999999999995
    }
   },
   {
@@ -176,6 +183,7 @@
    "bw": 20.0,
    "conc": {},
    "U": 0.0,
+   "UK": 0.0,
    "disease": [
     "mmvd",
     0.9
@@ -204,6 +212,7 @@
    "bw": 20.0,
    "conc": {},
    "U": 0.0,
+   "UK": 0.0,
    "disease": [
     "addison",
     1.0
@@ -230,6 +239,7 @@
    "bw": 3.0,
    "conc": {},
    "U": 0.0,
+   "UK": 0.0,
    "disease": [
     "mmvd",
     0.9
@@ -242,6 +252,7 @@
    "bw": 5.0,
    "conc": {},
    "U": 0.0,
+   "UK": 0.0,
    "disease": [
     "mmvd",
     0.7

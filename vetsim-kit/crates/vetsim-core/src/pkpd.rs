@@ -106,6 +106,7 @@ pub fn apply_drug_effects(
     conc: &[(String, f64)],
     d: f64,
     u: f64,
+    uk: f64,
 ) -> Result<Params, Error> {
     for (id, c) in conc {
         if !drugs.iter().any(|m| &m.id == id) {
@@ -117,17 +118,17 @@ pub fn apply_drug_effects(
             )));
         }
     }
-    if !(d.is_finite() && u.is_finite()) {
-        return Err(Error::InvalidInput("D ou U non fini".into()));
+    if !(d.is_finite() && u.is_finite() && uk.is_finite()) {
+        return Err(Error::InvalidInput("D, U ou UK non fini".into()));
     }
-    let volume_state = d != 0.0 || u != 0.0;
+    let volume_state = d != 0.0 || u != 0.0 || uk != 0.0;
     if volume_state
         && !drugs
             .iter()
             .any(|m| matches!(m.pd.kind, PdKind::Diuretic { .. }))
     {
         return Err(Error::InvalidInput(
-            "D/U fournis mais aucun module diurétique chargé".into(),
+            "D/U/UK fournis mais aucun module diurétique chargé".into(),
         ));
     }
     let mut q = p.clone();
@@ -147,6 +148,7 @@ pub fn apply_drug_effects(
         if diuretic {
             env.set_num("D", d);
             env.set_num("U", u);
+            env.set_num("UK", uk);
         }
         let mods = evaluate_effects(&m.pd.effects, &env, &m.id)?;
         let relabel = |e: Error| match e {
@@ -181,8 +183,10 @@ pub struct Timecourse {
     pub conc: Vec<(String, Vec<f64>)>,
     /// Déficit de volume (mL).
     pub d: Vec<f64>,
-    /// Diurèse effective (mL/kg).
+    /// Diurèse effective (mL/kg), récupération `tau_elect_h` (pertes de Na⁺ et Cl⁻).
     pub u: Vec<f64>,
+    /// Diurèse effective (mL/kg), récupération `tau_k_h` (pertes de K⁺).
+    pub uk: Vec<f64>,
 }
 
 impl Timecourse {
@@ -202,10 +206,12 @@ pub const PK_ATOL: f64 = 1e-10;
 
 /// Simule les doses `doses` jusqu'à `t_end_h` et enregistre l'état aux instants `t_eval_h`.
 ///
-/// États par médicament : dépôt digestif, central, périphérique (mg) ; puis `D` et `U`.
+/// États par médicament : dépôt digestif, central, périphérique (mg), concentration au site
+/// d'effet (mg/L, `dCe/dt = ke0·(C − Ce)`, figée sans `ke0`) ; puis `D`, `U` et `UK`.
 /// L'intégration est relancée à chaque instant remarquable (doses, enregistrements),
-/// comme la référence. Diurétique : `u = urine_max·E(C)` (mL/kg/min),
-/// `dD/dt = f_plasma·u·bw·60 − D/τ_refill`, `dU/dt = 60·u − U/τ_elect` (par heure).
+/// comme la référence. Diurétique : `u = urine_max·E(Ce)` (mL/kg/min ; `E(C)` sans `ke0`),
+/// `dD/dt = f_plasma·u·bw·60 − D/τ_refill`, `dU/dt = 60·u − U/τ_elect`,
+/// `dUK/dt = 60·u − UK/τ_k` (par heure ; `τ_k = τ_elect` si absent).
 pub fn timecourse(
     p: &Params,
     catalog_drugs: &[DrugModule],
@@ -243,7 +249,7 @@ pub fn timecourse(
         })
         .collect::<Result<_, _>>()?;
     let pars: Vec<PkConstants> = mods.iter().map(|m| pk_constants(m, p)).collect();
-    let n = 3 * mods.len() + 2;
+    let n = 4 * mods.len() + 3;
     let mut state = vec![0.0; n];
     let mut events: Vec<&Dose> = doses.iter().collect();
     events.sort_by(|a, b| {
@@ -261,34 +267,45 @@ pub fn timecourse(
         let mut dy = vec![0.0; n];
         let mut urine = 0.0; // mL/kg/min
         for (j, (m, k)) in mods.iter().zip(&pars).enumerate() {
-            let i = 3 * j;
-            let (gut, ac, ap) = (y[i], y[i + 1], y[i + 2]);
+            let i = 4 * j;
+            let (gut, ac, ap, ce) = (y[i], y[i + 1], y[i + 2], y[i + 3]);
             let ka = m.pk.ka_per_h;
             dy[i] = -ka * gut;
             dy[i + 1] = ka * gut - (k.cl / k.vc) * ac - (k.q / k.vc) * ac + (k.q / k.vp) * ap;
             dy[i + 2] = (k.q / k.vc) * ac - (k.q / k.vp) * ap;
             if let PdKind::Diuretic {
                 urine_max_ml_kg_min,
+                ke0_per_h,
                 ..
             } = m.pd.kind
             {
-                urine += urine_max_ml_kg_min * emax_effect(m, ac / k.vc);
+                // site d'effet : action depuis la lumière tubulaire (retard sur le plasma)
+                let c_eff = match ke0_per_h {
+                    Some(ke0) => {
+                        dy[i + 3] = ke0 * (ac / k.vc - ce);
+                        ce
+                    }
+                    None => ac / k.vc,
+                };
+                urine += urine_max_ml_kg_min * emax_effect(m, c_eff);
             }
         }
-        // Récupération : constantes du (premier) diurétique dosé ; sans diurétique, D et U
+        // Récupération : constantes du (premier) diurétique dosé ; sans diurétique, D, U et UK
         // restent nuls.
         if let Some(PdKind::Diuretic {
             f_plasma,
             tau_refill_h,
             tau_elect_h,
+            tau_k_h,
             ..
         }) = mods
             .iter()
             .map(|m| &m.pd.kind)
             .find(|k| matches!(k, PdKind::Diuretic { .. }))
         {
-            dy[n - 2] = f_plasma * urine * bw * 60.0 - y[n - 2] / tau_refill_h;
-            dy[n - 1] = urine * 60.0 - y[n - 1] / tau_elect_h;
+            dy[n - 3] = f_plasma * urine * bw * 60.0 - y[n - 3] / tau_refill_h;
+            dy[n - 2] = urine * 60.0 - y[n - 2] / tau_elect_h;
+            dy[n - 1] = urine * 60.0 - y[n - 1] / tau_k_h.unwrap_or(*tau_elect_h);
         }
         dy
     };
@@ -302,6 +319,7 @@ pub fn timecourse(
         conc: ids.iter().map(|id| (id.to_string(), Vec::new())).collect(),
         d: Vec::new(),
         u: Vec::new(),
+        uk: Vec::new(),
     };
     let mut ev_i = 0;
     for (j, &a) in times.iter().enumerate() {
@@ -310,17 +328,18 @@ pub fn timecourse(
             let k = ids.iter().position(|id| *id == e.drug).expect("indexé");
             let mg = e.mg_per_kg * bw;
             match e.route {
-                Route::Iv => state[3 * k + 1] += mg,
-                Route::Po => state[3 * k] += mg * mods[k].pk.f,
+                Route::Iv => state[4 * k + 1] += mg,
+                Route::Po => state[4 * k] += mg * mods[k].pk.f,
             }
             ev_i += 1;
         }
         if t_eval_h.contains(&a) {
             out.t.push(a);
-            out.d.push(state[n - 2]);
-            out.u.push(state[n - 1]);
+            out.d.push(state[n - 3]);
+            out.u.push(state[n - 2]);
+            out.uk.push(state[n - 1]);
             for (k, (_, series)) in out.conc.iter_mut().enumerate() {
-                series.push(state[3 * k + 1] / pars[k].vc);
+                series.push(state[4 * k + 1] / pars[k].vc);
             }
         }
         if let Some(&b) = times.get(j + 1) {

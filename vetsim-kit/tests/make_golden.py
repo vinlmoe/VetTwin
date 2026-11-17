@@ -15,7 +15,7 @@ for d in ('atrial_fibrillation', 'av_block', 'ventricular_premature', 'sick_sinu
 add('mmvd_s0.8_pimobendan', ['eval', '--disease', 'mmvd:0.8', '--conc', 'pimobendan=0.03'])
 for dr, c in [('pimobendan', 0.03), ('atropine', 0.004), ('betabloquant', 0.15), ('opioide', 0.015)]:
     add(f'healthy_{dr}', ['eval', '--conc', f'{dr}={c}'])
-add('healthy_furosemide_volume', ['eval', '--D', '150', '--U', '2.0'])
+add('healthy_furosemide_volume', ['eval', '--D', '150', '--U', '2.0', '--UK', '2.0'])
 T = '0,0.25,0.5,1,2,4,8,12'
 for dr, dose, route in [('pimobendan', 0.5, 'po'), ('furosemide', 2.0, 'iv'), ('furosemide', 5.0, 'po'), ('atropine', 0.04, 'iv')]:
     add(f'pk_{dr}_{route}_{dose}', ['pk', '--drug', dr, '--dose', str(dose), '--route', route, '--times', T])

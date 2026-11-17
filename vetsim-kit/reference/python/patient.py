@@ -25,8 +25,8 @@ class Patient:
         self.cases.append(case)
         return case
 
-    def state(self, conc=None, D=0.0, U=0.0, signals=True):
-        p = pkpd.apply_drug_effects(self.p, conc or {}, D, U) if (conc or D or U) else self.p
+    def state(self, conc=None, D=0.0, U=0.0, signals=True, UK=0.0):
+        p = pkpd.apply_drug_effects(self.p, conc or {}, D, U, UK) if (conc or D or U or UK) else self.p
         r = evaluate(p)
         if signals:
             pe = r['p']
@@ -43,11 +43,11 @@ class Patient:
 
     def timecourse(self, doses, t_end_h, t_eval_h, signals=False):
         tc = pkpd.timecourse(self.p, doses, t_end_h, list(t_eval_h))
-        drugs = [k for k in tc if k not in ('t', 'D', 'U')]
+        drugs = [k for k in tc if k not in ('t', 'D', 'U', 'UK')]
         out = []
         for i, t in enumerate(tc['t']):
             conc = {d: tc[d][i] for d in drugs}
-            out.append((t, conc, self.state(conc, tc['D'][i], tc['U'][i], signals)))
+            out.append((t, conc, self.state(conc, tc['D'][i], tc['U'][i], signals, tc['UK'][i])))
         return tc, out
 
 

@@ -15,7 +15,7 @@ let same = 0, total = 0; const bad = [];
 for (const c of cases) {
   const id = call('newPatient', JSON.stringify({ bw: c.bw, variability: false })).patient_id;
   for (const [d, s] of c.diseases) call('addDisease', id, JSON.stringify({ id: d, severity: s }));
-  const st = call('state', id, JSON.stringify({ conc: c.conc, D: c.D, U: c.U }));
+  const st = call('state', id, JSON.stringify({ conc: c.conc, D: c.D, U: c.U, UK: c.UK || 0 }));
   for (const [k, v] of Object.entries(c.expected)) { total++; if (Object.is(st[k], v)) same++; else bad.push(`${c.id} ${k} : wasm ${st[k]} / natif ${v}`); }
 }
 document.getElementById('out').textContent = `SELFTEST ${same}/${total} valeurs identiques au bit près sur ${cases.length} cas\n` + bad.slice(0, 20).join('\n');

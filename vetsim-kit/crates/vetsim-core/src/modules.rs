@@ -944,6 +944,11 @@ pub enum PdKind {
         tau_refill_h: f64,
         /// Constante de récupération des électrolytes (h).
         tau_elect_h: f64,
+        /// Constante de récupération des pertes de K⁺ (h), état `UK` ; absente : `tau_elect_h`.
+        tau_k_h: Option<f64>,
+        /// Constante d'équilibration du site d'effet (1/h) : la diurèse suit la concentration au
+        /// site d'effet `Ce`, `dCe/dt = ke0·(C − Ce)`. Absente : la diurèse suit le plasma.
+        ke0_per_h: Option<f64>,
     },
 }
 
@@ -1087,13 +1092,26 @@ impl DrugModule {
                 let fp = c.req_num_in(m, p, "f_plasma", |x| (0.0..=1.0).contains(&x), "0 ≤ f ≤ 1");
                 let tr = c.req_num_in(m, p, "tau_refill_h", pos, "> 0");
                 let te = c.req_num_in(m, p, "tau_elect_h", pos, "> 0");
-                match (u, fp, tr, te) {
-                    (Some(u), Some(fp), Some(tr), Some(te)) => Some(PdKind::Diuretic {
-                        urine_max_ml_kg_min: u,
-                        f_plasma: fp,
-                        tau_refill_h: tr,
-                        tau_elect_h: te,
-                    }),
+                let mut opt_pos = |key: &str| match c.opt_num(m, p, key) {
+                    Some(Some(x)) if !(x > 0.0 && x.is_finite()) => {
+                        c.err(child(p, key), format!("{x} hors du domaine (> 0)"));
+                        None
+                    }
+                    other => other,
+                };
+                let ke0 = opt_pos("ke0_per_h");
+                let tk = opt_pos("tau_k_h");
+                match (u, fp, tr, te, ke0, tk) {
+                    (Some(u), Some(fp), Some(tr), Some(te), Some(ke0), Some(tk)) => {
+                        Some(PdKind::Diuretic {
+                            urine_max_ml_kg_min: u,
+                            f_plasma: fp,
+                            tau_refill_h: tr,
+                            tau_elect_h: te,
+                            tau_k_h: tk,
+                            ke0_per_h: ke0,
+                        })
+                    }
                     _ => None,
                 }
             }
@@ -1110,7 +1128,7 @@ impl DrugModule {
         let ec50 = c.req_num_in(m, p, "ec50_mg_L", |x| x > 0.0, "> 0");
         let hill = c.req_num_in(m, p, "hill", |x| x > 0.0, "> 0");
         let scope: &[&str] = match kind {
-            Some(PdKind::Diuretic { .. }) => &["E", "D", "U"],
+            Some(PdKind::Diuretic { .. }) => &["E", "D", "U", "UK"],
             _ => &["E"],
         };
         let effects = c.req(m, p, "effects");

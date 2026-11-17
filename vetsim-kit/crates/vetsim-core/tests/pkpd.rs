@@ -81,11 +81,14 @@ fn drug_effects_match_python_exactly() {
             .map(|(k, v)| (k.clone(), v.as_f64().unwrap()))
             .collect();
         let (d, u) = (case["D"].as_f64().unwrap(), case["U"].as_f64().unwrap());
-        let q = apply_drug_effects(&pt.params, &c.drugs, &conc, d, u).unwrap();
+        let uk = case["UK"].as_f64().unwrap();
+        let q = apply_drug_effects(&pt.params, &c.drugs, &conc, d, u, uk).unwrap();
         for (k, v) in case["params"].as_object().unwrap() {
             let (got, e) = (q.get(k).unwrap(), v.as_f64().unwrap());
             if !isclose(got, e, 1e-12, 1e-15) {
-                bad.push(format!("{conc:?} D={d} U={u} {k}: Rust {got} / Python {e}"));
+                bad.push(format!(
+                    "{conc:?} D={d} U={u} UK={uk} {k}: Rust {got} / Python {e}"
+                ));
             }
             n += 1;
         }
@@ -134,6 +137,7 @@ fn timecourses_match_python() {
                 "t" => &tc.t,
                 "D" => &tc.d,
                 "U" => &tc.u,
+                "UK" => &tc.uk,
                 drug => tc.conc_of(drug).unwrap(),
             };
             let exp = exp.as_array().unwrap();
@@ -205,7 +209,7 @@ fn pk_and_pd_errors_are_typed() {
         Err(Error::InvalidInput(_))
     ));
     assert_eq!(
-        apply_drug_effects(&pt.params, &c.drugs, &[("x".into(), 1.0)], 0.0, 0.0).unwrap_err(),
+        apply_drug_effects(&pt.params, &c.drugs, &[("x".into(), 1.0)], 0.0, 0.0, 0.0).unwrap_err(),
         Error::UnknownDrug("x".into())
     );
     // D/U sans module diurétique.
@@ -216,12 +220,12 @@ fn pk_and_pd_errors_are_typed() {
         .cloned()
         .collect();
     assert!(matches!(
-        apply_drug_effects(&pt.params, &no_diuretic, &[], 100.0, 0.0),
+        apply_drug_effects(&pt.params, &no_diuretic, &[], 100.0, 0.0, 0.0),
         Err(Error::InvalidInput(_))
     ));
     // Sans médicament ni D/U : paramètres inchangés.
     assert_eq!(
-        apply_drug_effects(&pt.params, &c.drugs, &[], 0.0, 0.0).unwrap(),
+        apply_drug_effects(&pt.params, &c.drugs, &[], 0.0, 0.0, 0.0).unwrap(),
         pt.params
     );
 }

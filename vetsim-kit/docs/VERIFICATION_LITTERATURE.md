@@ -260,10 +260,10 @@ Implications pour l'ionogramme du patient virtuel :
 
 ## Synthèse des écarts à arbitrer
 
-1. **PK du furosémide**
+1. **PK du furosémide** — *corrigé le 17/11/2026* (calage sur le texte intégral de Koh 2021, voir le journal)
    - La clairance fixée à 0,30 L/h/kg et la cible t½ = 1,25 h de `fit_pk.py` ne correspondent pas à Koh 2021 : 0,74 L/h/kg et 2,07 h.
    - L'ASC IV est ×2,4.
-2. **PD du furosémide** (placeholder D)
+2. **PD du furosémide** (placeholder D) — *corrigé le 17/11/2026* (diurèse, pertes d'électrolytes et récupération du K⁺ calées sur Koh 2021 et Adin 2021)
    - Diurèse : +49 % en IV, −40 % per os.
    - Pertes : K⁺ ×3,5, Cl⁻ ×2–3, Na⁺ alors que l'article n'en observe pas.
    - Conséquence : hypokaliémie marquée en prises répétées.
@@ -280,7 +280,7 @@ Implications pour l'ionogramme du patient virtuel :
    - Le calcium est absent (section 6).
    - La créatinine du haut de la plage IRIS1 tombe déjà en stade 2.
 
-Toute correction touche la référence normative et attend la décision de l'utilisateur.
+Décision de l'utilisateur du 17/11/2026 : la bibliographie prime sur la référence Python ; les écarts sont corrigés dans l'ordre de cette liste (suivi dans le journal).
 
 ## Recherches et sources bloquées
 
