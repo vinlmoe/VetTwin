@@ -233,8 +233,15 @@ fun TreatmentView(
         }
         TimeChart("Effet pharmacodynamique E(t) (0 à 1)", r.t, r.effect.map { (d, e) -> e to drugColor(d) }, horizon, cursor, doseMarks, yMin = 0f, yMax = 1f, height = 100) { cursor = it }
         if (r.deficitMl.any { it != 0f }) {
-            TimeChart("Diurétique : déficit de volume D (mL)", r.t, listOf(r.deficitMl to Color(0xFF0B5E7A)), horizon, cursor, doseMarks, height = 90) { cursor = it }
-            TimeChart("Diurétique : diurèse effective cumulée U (mL/kg)", r.t, listOf(r.diuresisMlKg to Color(0xFF5B8C2A)), horizon, cursor, doseMarks, height = 90) { cursor = it }
+            TimeChart("Diurétique : déficit de volume sanguin D (mL)", r.t, listOf(r.deficitMl to Color(0xFF0B5E7A)), horizon, cursor, doseMarks, height = 90) { cursor = it }
+            TimeChart("Diurétique : diurèse induite cumulée avec récupération U (mL/kg)", r.t, listOf(r.diuresisMlKg to Color(0xFF5B8C2A)), horizon, cursor, doseMarks, height = 90) { cursor = it }
+            Text(
+                "Débit urinaire induit u(t) = 0,25 · E(C) mL/kg/min (supplément dû au médicament ; la diurèse de base n'est pas modélisée). " +
+                    "U(t) = ∫ 60 u(s) e^(−(t−s)/24 h) ds : volume induit cumulé avec oubli exponentiel (τ = 24 h). Ce n'est pas le volume " +
+                    "d'urine émis, mais les pertes non encore récupérées ; il fixe les électrolytes (K⁺ − 0,04 U, Cl⁻ − 0,5 U, Na⁺ − 0,3 U, mmol/L). " +
+                    "D : part prélevée sur la volémie (30 % de u), nette du retour (τ = 4 h), soustraite du volume sanguin. Paramètres PD : placeholders (D).",
+                color = Muted, fontSize = 11.sp,
+            )
         }
         // --- indicateurs au choix
         Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(12.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
