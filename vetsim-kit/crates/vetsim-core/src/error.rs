@@ -131,6 +131,9 @@ pub enum Error {
         /// Cause.
         cause: crate::roots::RootError,
     },
+    /// Échec de l'intégration de l'hémodynamique.
+    #[error("intégration hémodynamique : {0}")]
+    Ode(crate::ode::OdeError),
     /// Une formule d'un module a échoué à l'évaluation.
     #[error("{module} : {location} : {source}")]
     Eval {

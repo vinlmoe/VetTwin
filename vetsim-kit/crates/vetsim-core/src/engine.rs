@@ -189,3 +189,137 @@ pub fn metabolic_state(p: &Params, h: &HemoInputs) -> Result<MetabolicState, Err
         er,
     })
 }
+
+/// Tonus de référence (chien sain au repos) qui définit `hr` comme la FC de repos.
+pub const S_REF: f64 = 0.2;
+/// Tonus vagal de référence.
+pub const V_REF: f64 = 0.6;
+/// Nombre maximal d'itérations du baroréflexe.
+pub const BARO_MAX_ITER: usize = 5;
+/// Seuil d'arrêt sur la commande barorécepteur.
+pub const BARO_TOL: f64 = 0.04;
+
+/// Effet multiplicatif sympathique (accélérateur) et vagal (frein) sur la FC du nœud sinusal.
+pub fn hr_factor(s: f64, v: f64, p: &Params) -> f64 {
+    (1.0 + p.a_s * s) * (1.0 - p.a_v * v)
+}
+
+/// État autonome en régime permanent.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Autonomic {
+    /// Tonus sympathique total (0–1).
+    pub s: f64,
+    /// Tonus vagal total (0–1).
+    pub v: f64,
+    /// Tonus sympathique effectif (après bêtabloquant).
+    pub s_eff: f64,
+    /// Tonus vagal effectif (après atropine).
+    pub v_eff: f64,
+    /// Commande barorécepteur (> 0 : hypotension).
+    pub d: f64,
+    /// PAM du dernier passage (mmHg).
+    pub map: f64,
+}
+
+/// Évaluation complète d'un patient (miroir de `physio.evaluate`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Evaluation {
+    /// Paramètres effectifs après baroréflexe (`hr`, `ees`, `r_sys`, `vol_shift`, `sympathetic`).
+    pub params: Params,
+    /// Hémodynamique du dernier passage.
+    pub hemo: crate::hemo::HemoResult,
+    /// Aval métabolique.
+    pub metabolic: MetabolicState,
+    /// Tonus autonomes.
+    pub autonomic: Autonomic,
+    /// Nombre de passages du baroréflexe effectués (1–5).
+    pub baro_iterations: usize,
+}
+
+impl Evaluation {
+    /// Sortie plate du contrat CLI `eval`, dans l'ordre de docs/CLI_CONTRACT.md.
+    pub fn to_flat(&self) -> Vec<(&'static str, f64)> {
+        let h = &self.hemo.summary;
+        let mut out = vec![
+            ("hr", self.params.hr),
+            ("map", h.map),
+            ("sap", h.sap),
+            ("dap", h.dap),
+            ("co", h.co),
+            ("sv", h.sv),
+            ("edv", h.edv),
+            ("esv", h.esv),
+            ("ef", h.ef),
+            ("reg_fraction", h.reg_fraction),
+            ("la_mean", h.la_mean),
+            ("pap_mean", h.pap_mean),
+            ("cvp", h.cvp),
+            ("lv_edp", h.lv_edp),
+        ];
+        out.extend(self.metabolic.to_flat());
+        out.push(("s_tone", self.autonomic.s));
+        out.push(("v_tone", self.autonomic.v));
+        out
+    }
+}
+
+/// Évalue le patient : baroréflexe en régime permanent puis aval métabolique (MODEL_SPEC §3).
+///
+/// À chaque passage, la commande `d` (> 0 en hypotension) augmente le tonus sympathique et
+/// réduit le tonus vagal ; ils modulent la FC (avec la dépression par l'hyperkaliémie au-delà de
+/// 6 mmol/L), l'inotropisme, la résistance systémique et le recrutement du volume non contraint.
+/// Arrêt si `|d_t − d| < 0,04`, sinon `d ← ½(d + d_t)`, au plus 5 passages.
+pub fn evaluate(base: &Params) -> Result<Evaluation, Error> {
+    use crate::hemo::{simulate_hemo, N_BEATS};
+    let mut d = 0.0;
+    let mut last = None;
+    let mut iterations = 0;
+    for _ in 0..BARO_MAX_ITER {
+        iterations += 1;
+        let s_tot = (base.s0 + 0.8 * d).clamp(0.0, 1.0);
+        let v_tot = (base.v0 + base.vagal_add - 0.6 * d).clamp(0.0, 1.0);
+        let s_eff = s_tot * (1.0 - base.beta_block);
+        let v_eff = v_tot * (1.0 - base.vagal_block);
+        let kfac = f64::max(0.4, 1.0 - 0.30 * f64::max(0.0, base.k - 6.0));
+        let mut q = base.clone();
+        q.hr = base.hr * hr_factor(s_eff, v_eff, base) / hr_factor(S_REF, V_REF, base) * kfac;
+        q.ees_lv = base.ees_lv * (1.0 + 0.4 * (s_eff - base.s0));
+        q.ees_rv = base.ees_rv * (1.0 + 0.4 * (s_eff - base.s0));
+        q.r_sys = base.r_sys * (1.0 + 0.5 * (s_tot - base.s0));
+        q.vol_shift = base.vol_shift + 0.20 * 85.0 * base.bw * (s_tot - base.s0);
+        let h = simulate_hemo(&q, N_BEATS)?;
+        let d_t = (base.baro_gain * (base.map_set - h.summary.map) / 45.0).clamp(-1.0, 1.0);
+        let done = (d_t - d).abs() < BARO_TOL;
+        last = Some((q, h, s_tot, v_tot, s_eff, v_eff));
+        if done {
+            break;
+        }
+        d = 0.5 * d + 0.5 * d_t;
+    }
+    let (mut q, h, s_tot, v_tot, s_eff, v_eff) = last.expect("au moins un passage");
+    q.sympathetic = s_tot;
+    let hs = &h.summary;
+    let metabolic = metabolic_state(
+        &q,
+        &HemoInputs {
+            co: hs.co,
+            map: hs.map,
+            la_mean: hs.la_mean,
+        },
+    )?;
+    let autonomic = Autonomic {
+        s: s_tot,
+        v: v_tot,
+        s_eff,
+        v_eff,
+        d,
+        map: hs.map,
+    };
+    Ok(Evaluation {
+        params: q,
+        hemo: h,
+        metabolic,
+        autonomic,
+        baro_iterations: iterations,
+    })
+}
