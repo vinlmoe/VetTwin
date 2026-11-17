@@ -96,17 +96,27 @@ impl Timing {
     }
 }
 
+/// Activation atriale : débute `pr` avant l'activation ventriculaire du même battement.
+pub fn atrial_activation(t: f64, p: &Params, tm: &Timing) -> f64 {
+    activation(t + p.pr, tm.period, p.ta_atr, p.tra_atr)
+}
+
 /// Pressions et débits pour les volumes `v` à l'instant `t`.
+///
+/// Oreillettes contractiles : élastance active proportionnelle à la pression passive des
+/// compartiments `pv` (OG + veines pulmonaires) et `sv` (OD + veines systémiques),
+/// `P = (1 + k·e_a(t))·P_passive` ; `k = 0` : oreillettes passives (modèle d'origine).
 pub fn flows(v: &[f64; 6], t: f64, p: &Params, tm: &Timing) -> (Pressures, Flows, f64) {
     let [lv, rv, ao, sv, pa, pv] = *v;
     let e = activation(t, tm.period, tm.ts, tm.tr);
+    let ea = atrial_activation(t, p, tm);
     let pr = Pressures {
         lv: ventricular_pressure(lv, e, p.ees_lv, p.v0_lv, p.a_lv, p.b_lv),
         rv: ventricular_pressure(rv, e, p.ees_rv, p.v0_rv, p.a_rv, p.b_rv),
         ao: (ao - p.v0_ao) / p.c_ao,
-        sv: (sv - p.v0_sv) / p.c_sv,
+        sv: (1.0 + p.k_ra * ea) * (sv - p.v0_sv) / p.c_sv,
         pa: (pa - p.v0_pa) / p.c_pa,
-        pv: (pv - p.v0_pv) / p.c_pv,
+        pv: (1.0 + p.k_la * ea) * (pv - p.v0_pv) / p.c_pv,
     };
     let rf = p.r_valve;
     let q = Flows {
@@ -168,6 +178,10 @@ pub struct HemoSummary {
     pub lv_edp: f64,
     /// Régime périodique atteint (volume d'éjection stable à 3 % entre les 2 derniers battements).
     pub converged: bool,
+    /// Pic du débit mitral protodiastolique (onde E, hors activation atriale ; mL/s).
+    pub mitral_e: f64,
+    /// Pic du débit mitral pendant l'activation atriale (onde A ; mL/s).
+    pub mitral_a: f64,
 }
 
 /// Séries du dernier battement (échantillonnage `dt`), temps relatif au début du battement.
@@ -320,7 +334,20 @@ pub fn simulate_hemo(p: &Params, n_beats: usize) -> Result<HemoResult, Error> {
         cvp: mean(&w.p_sv),
         lv_edp: w.p_lv[0],
         converged: (sv_tot - sv_prev).abs() / sv_tot.max(1e-6) < 0.03,
+        mitral_e: 0.0,
+        mitral_a: 0.0,
     };
+    // flux mitral : pic E (hors activation atriale) et pic A (pendant), comme la référence
+    let (mut pe, mut pa) = (None::<f64>, None::<f64>);
+    for (k, &q) in w.q_mi.iter().enumerate() {
+        let ea = atrial_activation(t_eval[last.start + k], p, &tm);
+        let qf = q.max(0.0);
+        let slot = if ea <= 0.0 { &mut pe } else { &mut pa };
+        *slot = Some(slot.map_or(qf, |m| m.max(qf)));
+    }
+    let mut summary = summary;
+    summary.mitral_e = pe.unwrap_or(0.0);
+    summary.mitral_a = pa.unwrap_or(0.0);
     Ok(HemoResult {
         timing: tm,
         summary,

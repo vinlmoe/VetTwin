@@ -130,7 +130,9 @@ pub fn blocks_of(name: &str) -> &'static [Block] {
         // masse néphronique : DFG, créatinine, urée, et clairance rénale des médicaments
         "nephron_mass" | "gfr0" | "creat0" | "urea0" => &[Kidney],
         "hepatic_fn" | "alt" => &[Liver],
-        "pr" | "qrs" | "qt" | "r_amp" | "t_amp" | "p_amp" => &[Ecg],
+        // PR : intervalle de l'ECG et délai mécanique oreillette → ventricule
+        "pr" => &[Ecg, PulmonaryCirculation, SystemicCirculation],
+        "qrs" | "qt" | "r_amp" | "t_amp" | "p_amp" => &[Ecg],
         // décompensation (engine::evaluate) : retours de l'aval sur la pompe et les vaisseaux
         "acid_ph0" | "acid_ees" => &[AcidBase, LeftHeart, RightHeart],
         "acid_rsys" => &[AcidBase, SystemicCirculation],
@@ -139,6 +141,10 @@ pub fn blocks_of(name: &str) -> &'static [Block] {
         "k_weak" | "k_weak_vent" => &[Ventilation],
         "hr_arrest" => &[Autonomic],
         "co_arrest_frac" => &[SystemicCirculation],
+        // oreillettes contractiles : OG dans pv, OD dans sv ; activation PR avant le ventricule
+        "k_la" => &[PulmonaryCirculation, LeftHeart],
+        "k_ra" => &[SystemicCirculation, RightHeart],
+        "ta_atr" | "tra_atr" => &[PulmonaryCirculation, SystemicCirculation],
         _ => &[],
     }
 }

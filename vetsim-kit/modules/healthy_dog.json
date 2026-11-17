@@ -229,7 +229,11 @@
   "cpp_min": 40.0,
   "cpp_ees": 0.02,
   "hr_arrest": 20.0,
-  "co_arrest_frac": 0.15
+  "co_arrest_frac": 0.15,
+  "k_la": 0.0,
+  "k_ra": 0.0,
+  "ta_atr": 0.09,
+  "tra_atr": 0.06
  },
  "interindividual_variability": {
   "ees_lv": {

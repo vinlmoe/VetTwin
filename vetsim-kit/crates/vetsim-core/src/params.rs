@@ -222,6 +222,15 @@ define_params! {
     hr_arrest,
     /// Débit / débit de référence sous lequel la circulation s'effondre.
     co_arrest_frac,
+    // --- oreillettes contractiles (élastance active sur pv et sv) ---
+    /// Gain d'activation de l'OG : `P_pv = (1 + k_la·e_a)·P_passive`.
+    k_la,
+    /// Gain d'activation de l'OD : `P_sv = (1 + k_ra·e_a)·P_passive`.
+    k_ra,
+    /// Durée de contraction atriale (s).
+    ta_atr,
+    /// Durée de relaxation atriale (s).
+    tra_atr,
 }
 
 #[cfg(test)]
@@ -241,6 +250,6 @@ mod tests {
             assert_eq!(p.get(n), Some(v));
         }
         assert_eq!(p.get("nope"), None);
-        assert_eq!(Params::NAMES.len(), 84); // 73 + 11 paramètres de décompensation
+        assert_eq!(Params::NAMES.len(), 88); // 73 + 11 décompensation + 4 oreillettes
     }
 }

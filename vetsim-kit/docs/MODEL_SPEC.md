@@ -16,6 +16,12 @@ Unités : pression mmHg, volume mL, temps s, débit mL/s (L/min en sortie), conc
 - Intégration : 11 battements, `rtol=1e-6`, `atol=1e-6`, `max_step=0.004`; les indicateurs sont calculés sur le dernier battement (échantillonnage `dt=0.002`). `reg_fraction` = volume régurgité (parties négatives des débits mitral et aortique) / volume d'éjection total.
 - Sorties : `map, sap, dap, co (L/min), edv, esv, ef, sv, reg_fraction, la_mean, la_max, pap_mean, cvp, lv_edp, converged`.
 
+### Oreillettes contractiles (structure, 17/11/2026)
+- `pv` = OG + veines pulmonaires, `sv` = OD + veines systémiques. Activation atriale `e_a(t) = act(t + pr, T, ta_atr, tra_atr)` : PR de l'ECG = délai mécanique oreillette → ventricule.
+- `P_pv = (1 + k_la·e_a)·(pv − v0_pv)/c_pv`, `P_sv = (1 + k_ra·e_a)·(sv − v0_sv)/c_sv`. Avec `k = 0`, les oreillettes sont passives : c'est le modèle d'origine, identique au bit près.
+- Sorties : `mitral_e` et `mitral_a` (pics du débit mitral hors et pendant l'activation atriale), pour caler `k_la` sur le rapport E/A du chien sain.
+- Calage en attente : nouvelle référence validée par l'utilisateur ; golden et calibration seront régénérés.
+
 ## 3. Boucle de régulation (`physio.evaluate`)
 Baroréflexe en régime permanent, jusqu'à 5 itérations (arrêt si `|d_t − d| < 0.04`, relaxation 0.5) :
 ```

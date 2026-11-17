@@ -55,6 +55,10 @@ def healthy_params(bw=20.0):
         cpp_ees=0.02,                # perte relative d'élastance par mmHg sous cpp_min
         hr_arrest=20.0,              # FC (/min) sous laquelle la pompe cardiaque est considérée arrêtée
         co_arrest_frac=0.15,         # débit / débit de référence sous lequel la circulation s'effondre
+        # --- oreillettes contractiles : élastance active sur pv (OG + veines pulmonaires) et sv (OD + veines)
+        #     P = (1 + k·e_a(t))·P_passive, activation PR avant le ventricule ; k = 0 : oreillettes passives
+        k_la=0.0, k_ra=0.0,          # gains d'activation atriale (à caler sur le rapport E/A mitral ; placeholders)
+        ta_atr=0.09, tra_atr=0.06,   # durées de contraction et de relaxation atriales (s ; placeholders D)
     )
     return p
 

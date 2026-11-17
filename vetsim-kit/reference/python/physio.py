@@ -23,14 +23,22 @@ def _valve(dp, r_f, g_b, eps=0.3):
     return s * dp / r_f + (1 - s) * g_b * dp
 
 
+def _atrial_act(t, T, p):
+    """Activation atriale : débute PR avant l'activation ventriculaire du même battement."""
+    return _act(t + p['pr'], T, p['ta_atr'], p['tra_atr'])
+
+
 def _flows(V, t, p, T, ts, tr):
     lv, rv, ao, sv, pa, pv = V
     e = _act(t, T, ts, tr)
+    ea = _atrial_act(t, T, p)
+    # oreillettes contractiles : élastance active proportionnelle à la pression passive
+    # (pv = OG + veines pulmonaires, sv = OD + veines systémiques) ; k = 0 : oreillettes passives
     P = dict(
         lv=_vent_p(lv, e, p['ees_lv'], p['v0_lv'], p['a_lv'], p['b_lv']),
         rv=_vent_p(rv, e, p['ees_rv'], p['v0_rv'], p['a_rv'], p['b_rv']),
-        ao=(ao - p['v0_ao']) / p['c_ao'], sv=(sv - p['v0_sv']) / p['c_sv'],
-        pa=(pa - p['v0_pa']) / p['c_pa'], pv=(pv - p['v0_pv']) / p['c_pv'])
+        ao=(ao - p['v0_ao']) / p['c_ao'], sv=(1 + p['k_ra'] * ea) * (sv - p['v0_sv']) / p['c_sv'],
+        pa=(pa - p['v0_pa']) / p['c_pa'], pv=(1 + p['k_la'] * ea) * (pv - p['v0_pv']) / p['c_pv'])
     rf = p['r_valve']
     Q = dict(
         mi=_valve(P['pv'] - P['lv'], rf, p['g_mr']),
@@ -96,6 +104,11 @@ def simulate_hemo(p, n_beats=11, dt=0.002):
         la_mean=P['pv'][last].mean(), la_max=P['pv'][last].max(),
         pap_mean=P['pa'][last].mean(), cvp=P['sv'][last].mean(),
         lv_edp=P['lv'][last][0], converged=abs(sv_tot - sv_prev) / max(sv_tot, 1e-6) < 0.03)
+    # flux mitral : pic protodiastolique E (hors activation atriale) et pic télédiastolique A (pendant)
+    ea = _atrial_act(t[last], T, p)
+    qf = np.maximum(qmi, 0.0)
+    out['mitral_e'] = float(qf[ea <= 0.0].max()) if np.any(ea <= 0.0) else 0.0
+    out['mitral_a'] = float(qf[ea > 0.0].max()) if np.any(ea > 0.0) else 0.0
     return out
 
 
