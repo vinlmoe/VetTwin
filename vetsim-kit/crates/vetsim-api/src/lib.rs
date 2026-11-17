@@ -419,17 +419,25 @@ impl Engine {
             let with_signals = opt_bool(&m, "signals", false)?;
             let s = e.session(patient_id)?.clone();
             let p = e.drugged_params(&s, &m)?;
-            let ev = evaluate(&p)?;
+            let (ev, outcome) = assess(&p)?;
             let mut out = Map::new();
             out.insert("ok".into(), Json::Bool(true));
-            for (k, v) in ev.to_flat() {
-                out.insert(k.into(), Json::from(v));
+            if let Some(ev) = &ev {
+                for (k, v) in ev.to_flat() {
+                    out.insert(k.into(), Json::from(v));
+                }
             }
             out.insert(
                 "case".into(),
                 Json::Array(s.patient.cases.iter().map(case_json).collect()),
             );
-            out.insert("emergent_signs".into(), Json::Array(emergent_signs(&ev)));
+            let alive = outcome["state"] != "dead";
+            out.insert("outcome".into(), outcome);
+            let signs = match &ev {
+                Some(ev) if alive => emergent_signs(ev),
+                _ => Vec::new(),
+            };
+            out.insert("emergent_signs".into(), Json::Array(signs));
             // Paramètres d'entrée du modèle (après maladies et médicaments, avant baroréflexe).
             let params: Map<String, Json> = p
                 .to_vec()
@@ -438,7 +446,12 @@ impl Engine {
                 .collect();
             out.insert("params".into(), Json::Object(params));
             if with_signals {
-                out.insert("signals".into(), signals_json(&ev, &m, s.seed)?);
+                // Pas de signal chez un patient décédé (aucun battement).
+                let sig = match &ev {
+                    Some(ev) if alive => signals_json(ev, &m, s.seed)?,
+                    _ => Json::Null,
+                };
+                out.insert("signals".into(), sig);
             }
             Ok(Json::Object(out))
         })
@@ -452,7 +465,7 @@ impl Engine {
             let m = obj(&o, "")?.clone();
             let s = e.session(patient_id)?.clone();
             let p = e.drugged_params(&s, &m)?;
-            let ev = evaluate(&p)?;
+            let ev = alive(&p)?;
             let mut out = signals_json(&ev, &m, s.seed)?;
             out["ok"] = Json::Bool(true);
             Ok(out)
@@ -532,6 +545,7 @@ impl Engine {
                 }
                 let tcs = timecourse(&s.patient.params, &c.drugs, &ds, t_end, &times)?;
                 let mut states = Vec::with_capacity(tcs.t.len());
+                let mut death: Option<f64> = None;
                 for i in 0..tcs.t.len() {
                     let conc_i: Vec<(String, f64)> =
                         tcs.conc.iter().map(|(d, v)| (d.clone(), v[i])).collect();
@@ -542,15 +556,15 @@ impl Engine {
                         tcs.d[i],
                         tcs.u[i],
                     )?;
-                    let ev = evaluate(&p)?;
-                    let mut st = Map::new();
-                    for (k, v) in ev.to_flat() {
-                        st.insert(k.into(), Json::from(v));
+                    let st = state_entry(&p)?;
+                    if death.is_none() && st["outcome"] == "dead" {
+                        death = Some(tcs.t[i]);
                     }
-                    states.push(Json::Object(st));
+                    states.push(st);
                 }
                 out["state_t"] = json!(tcs.t);
                 out["states_at"] = Json::Array(states);
+                out["death_t_h"] = json!(death);
             }
             if with_states {
                 let mut states = Vec::with_capacity(tc.t.len());
@@ -559,12 +573,7 @@ impl Engine {
                         tc.conc.iter().map(|(d, v)| (d.clone(), v[i])).collect();
                     let p =
                         apply_drug_effects(&s.patient.params, &c.drugs, &conc_i, tc.d[i], tc.u[i])?;
-                    let ev = evaluate(&p)?;
-                    let mut st = Map::new();
-                    for (k, v) in ev.to_flat() {
-                        st.insert(k.into(), Json::from(v));
-                    }
-                    states.push(Json::Object(st));
+                    states.push(state_entry(&p)?);
                 }
                 out["states"] = Json::Array(states);
             }
@@ -586,7 +595,7 @@ impl Engine {
                 .ok_or_else(|| ApiError::one("", "configuration auscultation non chargée (clé « auscultation » de loadModules)"))?;
             let s = e.session(patient_id)?.clone();
             let p = e.drugged_params(&s, &m)?;
-            let ev = evaluate(&p)?;
+            let ev = alive(&p)?;
             let seed = opt_u64(&m, "seed", s.seed)?;
             let site = match m.get("site") {
                 None | Some(Json::Null) => None,
@@ -791,6 +800,102 @@ impl NoiseSource for Silence {
 
 /// Signes cliniques dérivés des variables, **uniquement** avec des seuils déjà présents dans
 /// les fichiers du projet (chaque signe porte sa source). Liste volontairement courte.
+/// Libellé d'un mécanisme de décompensation (`engine::Mechanism::id`).
+fn mechanism_label_fr(id: &str) -> &'static str {
+    match id {
+        "acidemia_depression" => "dépression myocardique et vasoplégie par acidémie",
+        "hypoxic_depression" => "dépression myocardique par hypoxie tissulaire",
+        "coronary_ischemia" => "ischémie myocardique (pression de perfusion coronaire basse)",
+        "hypokalemic_weakness" => "faiblesse des muscles respiratoires (hypokaliémie)",
+        "hyperkalemic_bradycardia" => "bradycardie hyperkaliémique",
+        "anaerobic_metabolism" => "métabolisme anaérobie (extraction d'O₂ élevée, lactate)",
+        "pulmonary_edema" => "œdème pulmonaire (POG élevée)",
+        "renal_hypoperfusion" => "hypoperfusion rénale (PAM basse)",
+        "baroreflex_exhausted" => "baroréflexe épuisé (tonus sympathique maximal)",
+        _ => "mécanisme",
+    }
+}
+
+/// Libellé d'une cause de décès (`Error::NonViable::cause`).
+fn death_label_fr(cause: &str) -> &'static str {
+    match cause {
+        "cardiac_arrest" => "arrêt cardiaque (FC sous le seuil de pompe)",
+        "circulatory_collapse" => "effondrement circulatoire (débit cardiaque effondré)",
+        "oxygen_debt" => "dette d'oxygène (consommation d'O₂ supérieure à l'apport)",
+        "no_steady_state" => "aucun état stationnaire viable",
+        "vicious_circle" => "spirale de décompensation non résolue",
+        _ => "décès",
+    }
+}
+
+/// Évaluation avec issue mécanistique : `(dernière évaluation viable, issue JSON)`.
+/// Issue : `{"state": "stable"|"decompensated"|"dead", "mechanisms": [...], "cause", "label_fr"}`.
+/// Les seuils et pentes des couplages sont des placeholders (evidence D).
+fn assess(p: &vetsim_core::Params) -> Result<(Option<Evaluation>, Json), ApiError> {
+    match evaluate(p) {
+        Ok(ev) => {
+            let mechanisms: Vec<Json> = ev
+                .outcome
+                .mechanisms
+                .iter()
+                .map(|m| {
+                    json!({ "id": m.id, "label_fr": mechanism_label_fr(m.id), "value": m.value,
+                            "threshold": m.threshold, "factor": m.factor, "evidence": "D" })
+                })
+                .collect();
+            let state = if ev.outcome.decompensated {
+                "decompensated"
+            } else {
+                "stable"
+            };
+            let outcome = json!({ "state": state, "mechanisms": mechanisms,
+                "f_contract": ev.decomp.f_contract, "f_rsys": ev.decomp.f_rsys,
+                "f_vent": ev.decomp.f_vent, "iterations": ev.decomp.iterations });
+            Ok((Some(ev), outcome))
+        }
+        Err(vetsim_core::Error::NonViable { cause, last }) => Ok((
+            last.map(|b| *b),
+            json!({ "state": "dead", "cause": cause, "label_fr": death_label_fr(cause),
+                    "mechanisms": [], "evidence": "D" }),
+        )),
+        Err(e) => Err(e.into()),
+    }
+}
+
+/// Évaluation d'un patient vivant ; erreur lisible s'il est décédé (pas de son, pas de signal).
+fn alive(p: &vetsim_core::Params) -> Result<Evaluation, ApiError> {
+    match evaluate(p) {
+        Ok(ev) => Ok(ev),
+        Err(vetsim_core::Error::NonViable { cause, .. }) => Err(ApiError::one(
+            "",
+            format!("patient décédé : {}", death_label_fr(cause)),
+        )),
+        Err(e) => Err(e.into()),
+    }
+}
+
+/// Entrée d'une série d'états : valeurs plates (dernière passe viable en cas de décès),
+/// `outcome` (état), `mechanisms` (identifiants) et `cause` si décès.
+fn state_entry(p: &vetsim_core::Params) -> Result<Json, ApiError> {
+    let (ev, outcome) = assess(p)?;
+    let mut st = Map::new();
+    if let Some(ev) = &ev {
+        for (k, v) in ev.to_flat() {
+            st.insert(k.into(), Json::from(v));
+        }
+    }
+    st.insert("outcome".into(), outcome["state"].clone());
+    let ids: Vec<Json> = outcome["mechanisms"]
+        .as_array()
+        .map(|a| a.iter().map(|m| m["id"].clone()).collect())
+        .unwrap_or_default();
+    st.insert("mechanisms".into(), Json::Array(ids));
+    if outcome["state"] == "dead" {
+        st.insert("cause".into(), outcome["cause"].clone());
+    }
+    Ok(Json::Object(st))
+}
+
 fn emergent_signs(ev: &Evaluation) -> Vec<Json> {
     let mut out = Vec::new();
     let (h, m) = (&ev.hemo.summary, &ev.metabolic);
@@ -1085,9 +1190,48 @@ mod tests {
     }
 
     #[test]
+    fn outcome_reports_decompensation_and_death() {
+        let mut e = Engine::new();
+        assert_eq!(j(&e.load_modules(&bundle()))["ok"], true);
+        let p = j(&e.new_patient(r#"{"bw": 20, "variability": false}"#));
+        let id = p["patient_id"].as_str().unwrap().to_string();
+        let st = j(&e.state(&id, "{}"));
+        assert_eq!(st["outcome"]["state"], "stable");
+        let st = j(&e.state(&id, r#"{"conc": {"betabloquant": 10}}"#));
+        assert_eq!(st["outcome"]["state"], "decompensated");
+        let ids: Vec<&str> = st["outcome"]["mechanisms"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|m| m["id"].as_str().unwrap())
+            .collect();
+        assert!(ids.contains(&"coronary_ischemia"), "{ids:?}");
+        // surdosage d'opioïde : décès par dette d'O2, dernière passe viable rapportée
+        let st = j(&e.state(&id, r#"{"conc": {"opioide": 2}, "signals": true}"#));
+        assert_eq!(st["ok"], true);
+        assert_eq!(st["outcome"]["state"], "dead");
+        assert_eq!(st["outcome"]["cause"], "oxygen_debt");
+        assert!(st["map"].is_number());
+        assert!(st["signals"].is_null());
+        let pcg = j(&e.pcg(&id, r#"{"conc": {"opioide": 2}}"#));
+        assert_eq!(pcg["ok"], false);
+        // au cours d'un traitement : l'instant du décès est daté
+        let tc = j(&e.timecourse(
+            &id,
+            r#"{"doses": [{"t_h": 1, "drug": "opioide", "mg_per_kg": 20, "route": "iv"}],
+                "t_end_h": 6, "t_eval_h": [0, 1], "state_times_h": [0, 1.05, 6]}"#,
+        ));
+        assert_eq!(tc["ok"], true, "{tc}");
+        let sa = tc["states_at"].as_array().unwrap();
+        assert_eq!(sa[0]["outcome"], "stable");
+        assert_eq!(sa[1]["outcome"], "dead");
+        assert_eq!(tc["death_t_h"], 1.05);
+    }
+
+    #[test]
     fn full_session_matches_cli_contract() {
         let mut e = Engine::new();
-        assert_eq!(e.api_version(), "1.0.0");
+        assert_eq!(e.api_version(), "1.1.0");
         assert_eq!(j(&e.load_modules(&bundle()))["ok"], true);
         let l = j(&e.list_modules());
         assert_eq!(l["diseases"].as_array().unwrap().len(), 4);

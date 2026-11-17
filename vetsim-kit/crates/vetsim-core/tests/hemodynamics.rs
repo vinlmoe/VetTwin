@@ -211,6 +211,10 @@ fn out_of_golden_cases_match_reference_cli() {
 
 #[test]
 fn severity_and_weight_sweep_stays_finite() {
+    // Décès attendus (critère « dette d'O2 », VO2 > DO2) : MMVD sévère chez le chien de 3 kg.
+    // La passe simple donnait déjà un état non physique (ER 1,56 à 2,93, PvO2 au plancher de 1 mmHg).
+    let expected_dead = [(3.0, "mmvd", 8), (3.0, "mmvd", 9), (3.0, "mmvd", 10)];
+    let mut dead = Vec::new();
     let c = catalog();
     for bw in [3.0, 20.0, 60.0] {
         for d in ["mmvd", "ckd", "addison", "pneumonia"] {
@@ -219,7 +223,20 @@ fn severity_and_weight_sweep_stays_finite() {
                 let mut pt = Patient::healthy(&c.patient, bw).unwrap();
                 pt.add_disease(c.disease(d).unwrap(), s, &mut NoNoise)
                     .unwrap();
-                let ev = evaluate(&pt.params).unwrap_or_else(|e| panic!("{bw} kg {d}:{s} : {e}"));
+                let ev = match evaluate(&pt.params) {
+                    Ok(ev) => ev,
+                    Err(vetsim_core::error::Error::NonViable { cause, last }) => {
+                        let last =
+                            last.unwrap_or_else(|| panic!("{bw} kg {d}:{s} : aucune passe viable"));
+                        assert!(
+                            cause == "oxygen_debt" && last.metabolic.er >= 1.0,
+                            "{bw} kg {d}:{s} : {cause}"
+                        );
+                        dead.push((bw, d, i));
+                        continue;
+                    }
+                    Err(e) => panic!("{bw} kg {d}:{s} : {e}"),
+                };
                 for (k, v) in ev.to_flat() {
                     assert!(v.is_finite(), "{bw} kg {d}:{s} : {k} = {v}");
                 }
@@ -230,4 +247,5 @@ fn severity_and_weight_sweep_stays_finite() {
             }
         }
     }
+    assert_eq!(dead, expected_dead, "décès inattendus ou manquants");
 }

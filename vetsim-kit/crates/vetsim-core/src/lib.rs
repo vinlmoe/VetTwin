@@ -28,7 +28,10 @@ pub mod roots;
 pub mod signals;
 
 pub use case::{apply_modifiers, evaluate_effects, Case, DrawSource, Modifier, NoNoise};
-pub use engine::{evaluate, metabolic_state, Evaluation, HemoInputs, MetabolicState};
+pub use engine::{
+    evaluate, metabolic_state, Decompensation, Evaluation, HemoInputs, Mechanism, MetabolicState,
+    Outcome,
+};
 pub use error::{Error, EvalError, Issue, LoadError};
 pub use modules::{Catalog, DiseaseModule, DrugModule, PatientModule};
 pub use params::Params;
@@ -37,4 +40,4 @@ pub use pkpd::{apply_drug_effects, timecourse, Dose, Route, Timecourse};
 pub use rng::SimRng;
 
 /// Version du contrat d'API (CLI et messages JSON).
-pub const API_VERSION: &str = "1.0.0";
+pub const API_VERSION: &str = "1.1.0";

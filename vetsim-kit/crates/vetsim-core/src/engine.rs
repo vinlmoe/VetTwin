@@ -235,6 +235,47 @@ pub struct Evaluation {
     pub autonomic: Autonomic,
     /// Nombre de passages du baroréflexe effectués (1–5).
     pub baro_iterations: usize,
+    /// Facteurs de couplage de décompensation retenus.
+    pub decomp: Decompensation,
+    /// Issue clinique mécanistique (stable ou décompensé ; le décès est une erreur `NonViable`).
+    pub outcome: Outcome,
+}
+
+/// Facteurs de couplage appliqués à la passe retenue.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Decompensation {
+    /// Facteur de contractilité (acidémie × hypoxie tissulaire × ischémie coronaire).
+    pub f_contract: f64,
+    /// Facteur de résistance systémique (vasoplégie acidémique).
+    pub f_rsys: f64,
+    /// Facteur de commande ventilatoire (faiblesse hypokaliémique).
+    pub f_vent: f64,
+    /// Nombre de passes du point fixe (1 si aucun couplage actif).
+    pub iterations: usize,
+}
+
+/// Mécanisme de décompensation actif.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Mechanism {
+    /// Identifiant (`acidemia_depression`, `hypoxic_depression`, `coronary_ischemia`,
+    /// `hypokalemic_weakness`, `hyperkalemic_bradycardia`, `anaerobic_metabolism`,
+    /// `pulmonary_edema`, `renal_hypoperfusion`, `baroreflex_exhausted`).
+    pub id: &'static str,
+    /// Valeur de la variable qui le déclenche.
+    pub value: f64,
+    /// Seuil du modèle.
+    pub threshold: f64,
+    /// Facteur appliqué (1 pour un mécanisme déjà présent dans le modèle).
+    pub factor: f64,
+}
+
+/// Issue d'une évaluation viable.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Outcome {
+    /// `true` si au moins un mécanisme de décompensation est actif.
+    pub decompensated: bool,
+    /// Mécanismes actifs, dans un ordre fixe.
+    pub mechanisms: Vec<Mechanism>,
 }
 
 impl Evaluation {
@@ -264,13 +305,13 @@ impl Evaluation {
     }
 }
 
-/// Évalue le patient : baroréflexe en régime permanent puis aval métabolique (MODEL_SPEC §3).
+/// Une passe : baroréflexe en régime permanent puis aval métabolique (MODEL_SPEC §3).
 ///
 /// À chaque passage, la commande `d` (> 0 en hypotension) augmente le tonus sympathique et
 /// réduit le tonus vagal ; ils modulent la FC (avec la dépression par l'hyperkaliémie au-delà de
 /// 6 mmol/L), l'inotropisme, la résistance systémique et le recrutement du volume non contraint.
 /// Arrêt si `|d_t − d| < 0,04`, sinon `d ← ½(d + d_t)`, au plus 5 passages.
-pub fn evaluate(base: &Params) -> Result<Evaluation, Error> {
+fn evaluate_once(base: &Params) -> Result<Evaluation, Error> {
     use crate::hemo::{simulate_hemo, N_BEATS};
     let mut d = 0.0;
     let mut last = None;
@@ -322,5 +363,192 @@ pub fn evaluate(base: &Params) -> Result<Evaluation, Error> {
         metabolic,
         autonomic,
         baro_iterations: iterations,
+        decomp: Decompensation {
+            f_contract: 1.0,
+            f_rsys: 1.0,
+            f_vent: 1.0,
+            iterations: 1,
+        },
+        outcome: Outcome {
+            decompensated: false,
+            mechanisms: Vec::new(),
+        },
     })
+}
+
+// ------------------------------------------------------------------ décompensation et viabilité
+// Couplages mécanistiques en retour de l'aval métabolique sur la pompe et les vaisseaux
+// (miroir de `physio.evaluate`). Seuils et pentes : paramètres du patient, placeholders D.
+
+/// Passes au plus avant de conclure à une spirale non résolue.
+pub const DECOMP_MAX_ITER: usize = 30;
+/// Convergence des facteurs de couplage.
+pub const DECOMP_TOL: f64 = 1e-3;
+/// Plancher des facteurs de couplage.
+pub const F_FLOOR: f64 = 0.1;
+/// Extraction d'O2 au point d'inflexion du lactate.
+pub const ER_ANAEROBIC: f64 = 0.55;
+/// POG au-delà de laquelle le gradient A-a s'ouvre.
+pub const LA_EDEMA: f64 = 18.0;
+/// PAM sous laquelle la perfusion rénale baisse (40 + 35).
+pub const MAP_RENAL: f64 = 75.0;
+
+/// Facteurs cibles (contractilité, résistance, acidémie, hypoxie, coronaire) d'une passe.
+fn coupling_targets(p: &Params, e: &Evaluation) -> (f64, f64, f64, f64, f64) {
+    let ph = e.metabolic.art.ph;
+    let pvo2 = e.metabolic.ven.po2;
+    let f_acid_c = f64::max(F_FLOOR, 1.0 - p.acid_ees * f64::max(0.0, p.acid_ph0 - ph));
+    let f_acid_r = f64::max(F_FLOOR, 1.0 - p.acid_rsys * f64::max(0.0, p.acid_ph0 - ph));
+    let f_hyp = f64::max(
+        F_FLOOR,
+        1.0 - p.hypox_ees * f64::max(0.0, p.hypox_pvo2 - pvo2),
+    );
+    let cpp = e.hemo.summary.dap - e.hemo.summary.lv_edp;
+    let f_cor = f64::max(F_FLOOR, 1.0 - p.cpp_ees * f64::max(0.0, p.cpp_min - cpp));
+    (f_acid_c * f_hyp * f_cor, f_acid_r, f_acid_c, f_hyp, f_cor)
+}
+
+/// Erreurs d'une passe qui traduisent l'absence d'état stationnaire (racine introuvable,
+/// intégration impossible, débit ou FC non physiologiques) plutôt qu'une entrée invalide.
+fn is_physiological_failure(e: &Error) -> bool {
+    matches!(
+        e,
+        Error::Root { .. } | Error::Ode(_) | Error::InvalidInput(_)
+    )
+}
+
+/// Évalue le patient avec les couplages de décompensation (point fixe amorti).
+///
+/// Hypokaliémie → faiblesse ventilatoire (direct) ; acidémie, hypoxie tissulaire et ischémie
+/// coronaire → dépression de la contractilité ; acidémie → vasoplégie (boucle,
+/// `f ← ½(f + f_cible)` jusqu'à `|f_cible − f| < 1e-3`). Sans couplage actif, une seule passe :
+/// résultat identique à la passe simple.
+///
+/// Renvoie [`Error::NonViable`] si la pompe s'arrête (FC < `hr_arrest`), si la circulation
+/// s'effondre (DC < `co_arrest_frac` × DC de référence), si VO2 dépasse DO2 (`er ≥ 1`), si
+/// aucun état stationnaire n'existe ou si la spirale ne converge pas en 30 passes.
+pub fn evaluate(p0: &Params) -> Result<Evaluation, Error> {
+    let co_ref = 3.29 * math::pow(p0.bw / 20.0, 0.75);
+    let f_vent = f64::max(
+        F_FLOOR,
+        1.0 - p0.k_weak_vent * f64::max(0.0, p0.k_weak - p0.k),
+    );
+    let (mut fc, mut fr) = (1.0, 1.0);
+    let mut last: Option<Evaluation> = None;
+    for it in 0..DECOMP_MAX_ITER {
+        let mut q = p0.clone();
+        q.vent_drive = p0.vent_drive * f_vent;
+        q.ees_lv = p0.ees_lv * fc;
+        q.ees_rv = p0.ees_rv * fc;
+        q.r_sys = p0.r_sys * fr;
+        let e = match evaluate_once(&q) {
+            Ok(e) => e,
+            Err(err) if is_physiological_failure(&err) => {
+                return Err(Error::NonViable {
+                    cause: "no_steady_state",
+                    last: last.map(Box::new),
+                })
+            }
+            Err(err) => return Err(err),
+        };
+        let dead = if e.params.hr < p0.hr_arrest {
+            Some("cardiac_arrest")
+        } else if e.hemo.summary.co < p0.co_arrest_frac * co_ref {
+            Some("circulatory_collapse")
+        } else if e.metabolic.er >= 1.0 {
+            Some("oxygen_debt")
+        } else {
+            None
+        };
+        if let Some(cause) = dead {
+            return Err(Error::NonViable {
+                cause,
+                last: Some(Box::new(e)),
+            });
+        }
+        let (tc, tr, f_acid, f_hyp, f_cor) = coupling_targets(p0, &e);
+        if (tc - fc).abs() < DECOMP_TOL && (tr - fr).abs() < DECOMP_TOL {
+            return Ok(finish(p0, e, fc, fr, f_vent, it + 1, f_acid, f_hyp, f_cor));
+        }
+        last = Some(e);
+        fc = 0.5 * fc + 0.5 * tc;
+        fr = 0.5 * fr + 0.5 * tr;
+    }
+    Err(Error::NonViable {
+        cause: "vicious_circle",
+        last: last.map(Box::new),
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn finish(
+    p0: &Params,
+    mut e: Evaluation,
+    fc: f64,
+    fr: f64,
+    f_vent: f64,
+    iterations: usize,
+    f_acid: f64,
+    f_hyp: f64,
+    f_cor: f64,
+) -> Evaluation {
+    let kfac = f64::max(0.4, 1.0 - 0.30 * f64::max(0.0, p0.k - 6.0));
+    let hs = &e.hemo.summary;
+    let mut mech = Vec::new();
+    let mut push = |id, value, threshold, factor| {
+        mech.push(Mechanism {
+            id,
+            value,
+            threshold,
+            factor,
+        })
+    };
+    if f_acid < 1.0 {
+        push(
+            "acidemia_depression",
+            e.metabolic.art.ph,
+            p0.acid_ph0,
+            f_acid,
+        );
+    }
+    if f_hyp < 1.0 {
+        push(
+            "hypoxic_depression",
+            e.metabolic.ven.po2,
+            p0.hypox_pvo2,
+            f_hyp,
+        );
+    }
+    if f_cor < 1.0 {
+        push("coronary_ischemia", hs.dap - hs.lv_edp, p0.cpp_min, f_cor);
+    }
+    if f_vent < 1.0 {
+        push("hypokalemic_weakness", p0.k, p0.k_weak, f_vent);
+    }
+    if kfac < 1.0 {
+        push("hyperkalemic_bradycardia", p0.k, 6.0, kfac);
+    }
+    if e.metabolic.er > ER_ANAEROBIC {
+        push("anaerobic_metabolism", e.metabolic.er, ER_ANAEROBIC, 1.0);
+    }
+    if hs.la_mean > LA_EDEMA {
+        push("pulmonary_edema", hs.la_mean, LA_EDEMA, 1.0);
+    }
+    if hs.map < MAP_RENAL {
+        push("renal_hypoperfusion", hs.map, MAP_RENAL, 1.0);
+    }
+    if e.autonomic.s >= 1.0 {
+        push("baroreflex_exhausted", e.autonomic.s, 1.0, 1.0);
+    }
+    e.decomp = Decompensation {
+        f_contract: fc,
+        f_rsys: fr,
+        f_vent,
+        iterations,
+    };
+    e.outcome = Outcome {
+        decompensated: !mech.is_empty(),
+        mechanisms: mech,
+    };
+    e
 }

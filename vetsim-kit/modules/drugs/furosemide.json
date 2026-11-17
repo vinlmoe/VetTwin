@@ -77,5 +77,5 @@
   "EMA 1999 MRL report",
   "BMC Vet Res 2021 (s12917-021-02998-4)"
  ],
- "notes": "PK calée (fit_pk.py). PD placeholder. D = déficit de volume (mL), U = diurèse effective cumulée (mL/kg), voir MODEL_SPEC."
+ "notes": "PK calée (fit_pk.py). PD placeholder. D = déficit de volume (mL), U = diurèse effective cumulée (mL/kg), voir MODEL_SPEC. Pas de terme toxique : toxicité volémique et électrolytique émergente via D et U."
 }

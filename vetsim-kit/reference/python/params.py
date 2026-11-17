@@ -43,6 +43,18 @@ def healthy_params(bw=20.0):
         vagal_add=0.0, vagal_block=0.0, beta_block=0.0,   # modifiés par médicaments / maladies
         rsa_depth=0.95, vag_noise=0.025, sym_noise=0.22,              # profondeur de modulation respiratoire du tonus vagal central
         baro_sens=1.0,               # sensibilité du baroréflexe (réduite en insuffisance cardiaque)
+        # --- décompensation : couplages mécanistiques (PLACEHOLDERS evidence D, docs/PROVENANCE.md) ---
+        acid_ph0=7.20,               # pH artériel sous lequel l'acidémie déprime myocarde et tonus vasculaire
+        acid_ees=1.5,                # perte relative d'élastance (VG, VD) par unité de pH sous acid_ph0
+        acid_rsys=1.0,               # perte relative de résistance systémique par unité de pH sous acid_ph0
+        hypox_pvo2=20.0,             # PvO2 (mmHg) sous laquelle l'hypoxie tissulaire déprime le myocarde
+        hypox_ees=0.03,              # perte relative d'élastance par mmHg de PvO2 sous hypox_pvo2
+        k_weak=2.5,                  # K+ (mmol/L) sous lequel les muscles respiratoires faiblissent
+        k_weak_vent=0.4,             # perte relative de commande ventilatoire par mmol/L sous k_weak
+        cpp_min=40.0,                # pression de perfusion coronaire PAD − PTDVG (mmHg) sous laquelle le myocarde s'ischémie
+        cpp_ees=0.02,                # perte relative d'élastance par mmHg sous cpp_min
+        hr_arrest=20.0,              # FC (/min) sous laquelle la pompe cardiaque est considérée arrêtée
+        co_arrest_frac=0.15,         # débit / débit de référence sous lequel la circulation s'effondre
     )
     return p
 

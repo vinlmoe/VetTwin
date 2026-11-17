@@ -35,8 +35,65 @@
      1
     ]
    }
+  ],
+  "toxicity": [
+   {
+    "id": "cardiodepression",
+    "emax": 1.0,
+    "ec50_mg_L": 1.5,
+    "hill": 3.0,
+    "evidence": "D",
+    "source": "Placeholder pédagogique (evidence D) : EC50 toxique = 10 × EC50 thérapeutique, Hill 3, aucune source ; ne jamais utiliser pour une dose réelle. Mécanisme : dépression myocardique et sinusale directe (stabilisation de membrane).",
+    "effects": [
+     {
+      "param": "ees_lv",
+      "op": "mul",
+      "expr": {
+       "add": [
+        1,
+        {
+         "mul": [
+          -0.8,
+          "T"
+         ]
+        }
+       ]
+      }
+     },
+     {
+      "param": "ees_rv",
+      "op": "mul",
+      "expr": {
+       "add": [
+        1,
+        {
+         "mul": [
+          -0.8,
+          "T"
+         ]
+        }
+       ]
+      }
+     },
+     {
+      "param": "hr",
+      "op": "mul",
+      "expr": {
+       "add": [
+        1,
+        {
+         "mul": [
+          -0.8,
+          "T"
+         ]
+        }
+       ]
+      }
+     }
+    ]
+   }
   ]
  },
  "refs": [],
- "notes": "PLACEHOLDER."
+ "notes": "PLACEHOLDER. Termes toxiques (pd.toxicity) : placeholders D."
 }

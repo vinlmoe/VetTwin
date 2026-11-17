@@ -126,6 +126,86 @@
        }
       }
      }
+    },
+    "toxicity": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "required": [
+       "id",
+       "emax",
+       "ec50_mg_L",
+       "hill",
+       "effects"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+       },
+       "emax": {
+        "type": "number",
+        "minimum": 0
+       },
+       "ec50_mg_L": {
+        "type": "number",
+        "exclusiveMinimum": 0
+       },
+       "hill": {
+        "type": "number",
+        "exclusiveMinimum": 0
+       },
+       "evidence": {
+        "enum": [
+         "A",
+         "B",
+         "C",
+         "D"
+        ]
+       },
+       "source": {
+        "type": "string"
+       },
+       "effects": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "required": [
+          "param",
+          "op",
+          "expr"
+         ],
+         "additionalProperties": false,
+         "properties": {
+          "param": {
+           "type": "string"
+          },
+          "op": {
+           "enum": [
+            "mul",
+            "add"
+           ]
+          },
+          "expr": {
+           "$ref": "expr.schema.json"
+          },
+          "when": {
+           "$ref": "expr.schema.json"
+          },
+          "clamp": {
+           "type": "array",
+           "items": {
+            "type": "number"
+           },
+           "minItems": 2,
+           "maxItems": 2
+          }
+         }
+        }
+       }
+      }
+     }
     }
    }
   },

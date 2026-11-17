@@ -142,6 +142,15 @@ pub enum Error {
     /// Échec de l'intégration de l'hémodynamique.
     #[error("intégration hémodynamique : {0}")]
     Ode(crate::ode::OdeError),
+    /// Aucun état stationnaire viable : décès du patient virtuel (cause mécanistique :
+    /// `cardiac_arrest`, `circulatory_collapse`, `oxygen_debt`, `no_steady_state`, `vicious_circle`).
+    #[error("patient non viable : {cause}")]
+    NonViable {
+        /// Cause mécanistique.
+        cause: &'static str,
+        /// Dernière passe viable avant l'effondrement, s'il y en a une.
+        last: Option<Box<crate::engine::Evaluation>>,
+    },
     /// Une formule d'un module a échoué à l'évaluation.
     #[error("{module} : {location} : {source}")]
     Eval {

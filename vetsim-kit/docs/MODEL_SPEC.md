@@ -53,6 +53,18 @@ d_t = clip(baro_gain·(map_set − MAP)/45, −1, 1)
 - Effet Emax : `E = emax·C^hill/(ec50^hill + C^hill)`.
 - Furosémide (PD `diuretic`) : `u = 0.25·E(C)` mL/kg/min ; `dD/dt = 0.3·u·bw·60 − D/4` (mL/h) ; `dU/dt = u·60 − U/24`. Effets : `vol_shift −= D`, `K −= 0.04 U`, `Cl −= 0.5 U`, `Na −= 0.3 U`.
 - Les effets PD des autres médicaments sont des effets JSON (variable `E`) appliqués aux paramètres.
+- **Termes toxiques** (`pd.toxicity`, variable `T`) : `T = emax·C^hill/(ec50^hill + C^hill)` avec des constantes propres, appliqués après l'effet thérapeutique du même médicament. L'effet thérapeutique reste plafonné (occupation des récepteurs) ; la toxicité prolonge la relation dose-réponse au-delà. Opioïde → `vent_drive ×(1 − 0,99 T)` ; bêtabloquant → `ees_lv`, `ees_rv`, `hr ×(1 − 0,8 T)` ; pimobendane → `r_sys ×(1 − 0,8 T)`. EC50 toxique = 10 × EC50, Hill 3 : placeholders D.
+
+## 6 bis. Décompensation et viabilité (`physio.evaluate`, `physio._evaluate_once`)
+- `_evaluate_once` = l'ancienne évaluation (baroréflexe, hémodynamique, aval). `evaluate` l'enveloppe d'un point fixe amorti sur deux facteurs, `fc` (élastances VG et VD) et `fr` (`r_sys`) :
+  - acidémie : `f_acid = max(0,1 ; 1 − acid_ees·max(0, acid_ph0 − pH))` sur `fc`, `1 − acid_rsys·(…)` sur `fr` ;
+  - hypoxie tissulaire : `f_hyp = max(0,1 ; 1 − hypox_ees·max(0, hypox_pvo2 − PvO2))` sur `fc` ;
+  - ischémie coronaire : `f_cor = max(0,1 ; 1 − cpp_ees·max(0, cpp_min − (PAD − PTDVG)))` sur `fc` ;
+  - `f ← ½(f + f_cible)` jusqu'à `|f_cible − f| < 1e-3`, au plus 30 passes.
+- Hypokaliémie (direct) : `vent_drive × max(0,1 ; 1 − k_weak_vent·max(0, k_weak − K))`.
+- **Décès** (exception `NonViable`, erreur `Error::NonViable` en Rust) : FC < `hr_arrest` (`cardiac_arrest`) ; DC < `co_arrest_frac`·3,29·(bw/20)^0,75 (`circulatory_collapse`) ; `er ≥ 1`, VO2 > DO2 (`oxygen_debt`) ; racine introuvable (`no_steady_state`) ; pas de convergence (`vicious_circle`).
+- **Décompensé** si au moins un mécanisme est actif : les trois couplages, la faiblesse hypokaliémique, la bradycardie hyperkaliémique (K > 6, déjà présente), `er > 0,55` (anaérobiose), POG > 18 (œdème), PAM < 75 (hypoperfusion rénale), tonus sympathique saturé.
+- Tous les seuils et pentes sont des paramètres du patient (`healthy_dog.json`), placeholders D. Ils sont inactifs dans la plage du golden et de la calibration.
 
 ## 7. Système autonome et VFC (`autonomic.py`)
 Simulation à 20 Hz : porte respiratoire (profil `rho`), tonus vagal filtré (`τ_v=0.25 s`), sympathique lent (`τ_s=3 s`, retard 2.5 s, bruit), dérive vagale lente (`vag_noise`, `τ=12 s`), baroréflexe sigmoïde, nœud sinusal à intégration de phase (IPFM) → instants des ondes R → VFC (RR moyen, SDNN, RMSSD, LF/HF, RSA). **Stochastique** : valider statistiquement (`calibration/targets.json`, section `hrv`, tolérance ±1 ET, moyenne sur ≥ 20 graines), pas au point.

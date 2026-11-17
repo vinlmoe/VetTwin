@@ -1,6 +1,6 @@
 # Proposition : toxicité, décompensation et risque de décès
 
-Statut : **proposition, en attente de validation** (changement d'architecture : schéma des modules, moteur, API). Rien n'est implémenté.
+Statut : **validée le 17/11/2026 et implémentée** avec les choix de l'utilisateur : termes toxiques séparés, placeholders D acceptés, référence Python étendue, **tout mécanistique** (pas de risque instantané statistique : le décès est l'absence d'état viable). Spécification normative : `docs/MODEL_SPEC.md` §6 bis. La section C ci-dessous (risque instantané) est donc **abandonnée**.
 
 Usage pédagogique uniquement. Les seuils toxiques ne doivent jamais servir à choisir une dose réelle.
 

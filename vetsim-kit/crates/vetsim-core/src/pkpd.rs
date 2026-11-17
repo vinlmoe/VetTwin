@@ -84,14 +84,22 @@ pub fn emax_effect(drug: &DrugModule, conc_mg_l: f64) -> f64 {
     pd.emax * c / (math::pow(pd.ec50_mg_l, pd.hill) + c)
 }
 
+/// Effet toxique normalisé : `T = emax·C^h/(EC50^h + C^h)` (même forme, constantes propres).
+pub fn toxic_effect(t: &crate::modules::Toxicity, conc_mg_l: f64) -> f64 {
+    let c = math::pow(conc_mg_l.max(0.0), t.hill);
+    t.emax * c / (math::pow(t.ec50_mg_l, t.hill) + c)
+}
+
 /// Paramètres modifiés par les concentrations plasmatiques `conc` (mg/L) et par l'état de
 /// volume du diurétique (`d` : déficit, mL ; `u` : diurèse effective, mL/kg).
 ///
 /// Chaque médicament présent dans `conc` applique ses effets avec `E` = effet Emax. Les effets
 /// d'un module diurétique utilisent aussi `D` et `U` ; ils sont appliqués dès que le médicament
 /// est dans `conc` **ou** que `D` ou `U` est non nul (comme `pkpd.apply_drug_effects`).
-/// Ordre d'application : celui de `drugs` (le catalogue est trié par identifiant) ; les modules
-/// fournis agissent sur des paramètres disjoints, l'ordre n'a donc pas d'effet aujourd'hui.
+/// Puis, si le médicament a une concentration, chacun de ses termes toxiques avec `T`.
+/// Ordre d'application : celui de `drugs` (le catalogue est trié par identifiant). Les modules
+/// fournis ne se recouvrent que par des effets multiplicatifs (`ees_lv` : pimobendane et
+/// toxicité du bêtabloquant) : l'ordre ne change le résultat qu'à l'arrondi près.
 pub fn apply_drug_effects(
     p: &Params,
     drugs: &[DrugModule],
@@ -141,7 +149,7 @@ pub fn apply_drug_effects(
             env.set_num("U", u);
         }
         let mods = evaluate_effects(&m.pd.effects, &env, &m.id)?;
-        apply_modifiers(&mut q, &mods).map_err(|e| match e {
+        let relabel = |e: Error| match e {
             Error::Eval {
                 location, source, ..
             } => Error::Eval {
@@ -150,7 +158,16 @@ pub fn apply_drug_effects(
                 source,
             },
             other => other,
-        })?;
+        };
+        apply_modifiers(&mut q, &mods).map_err(relabel)?;
+        if let Some(c) = c {
+            for t in &m.pd.toxicity {
+                let mut env = Env::new();
+                env.set_num("T", toxic_effect(t, c));
+                let mods = evaluate_effects(&t.effects, &env, &m.id)?;
+                apply_modifiers(&mut q, &mods).map_err(relabel)?;
+            }
+        }
     }
     Ok(q)
 }

@@ -71,10 +71,37 @@
      ]
     }
    }
+  ],
+  "toxicity": [
+   {
+    "id": "vasodilation",
+    "emax": 1.0,
+    "ec50_mg_L": 0.3,
+    "hill": 3.0,
+    "evidence": "D",
+    "source": "Placeholder pédagogique (evidence D) : EC50 toxique = 10 × EC50 thérapeutique, Hill 3, aucune source ; ne jamais utiliser pour une dose réelle. Mécanisme : vasodilatation excessive (inhibition de la PDE3).",
+    "effects": [
+     {
+      "param": "r_sys",
+      "op": "mul",
+      "expr": {
+       "add": [
+        1,
+        {
+         "mul": [
+          -0.8,
+          "T"
+         ]
+        }
+       ]
+      }
+     }
+    ]
+   }
   ]
  },
  "refs": [
   "Her et al. 2020 Front Vet Sci 7:423"
  ],
- "notes": "PK calée sur 0,5 mg/kg PO (Tmax mal reproduit; F supposée 0,5). PD placeholder."
+ "notes": "PK calée sur 0,5 mg/kg PO (Tmax mal reproduit; F supposée 0,5). PD placeholder. Termes toxiques (pd.toxicity) : placeholders D."
 }

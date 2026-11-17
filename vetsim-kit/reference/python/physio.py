@@ -173,8 +173,8 @@ def hr_factor(s, v, p):
     return (1 + p['a_s'] * s) * (1 - p['a_v'] * v)
 
 
-def evaluate(p, n_beats=11):
-    """Évalue le patient : renvoie un dict complet (hémodynamique, gaz, biochimie)."""
+def _evaluate_once(p, n_beats=11):
+    """Une passe : baroréflexe, hémodynamique, aval métabolique (paramètres déjà couplés)."""
     base = dict(p)
     d = 0.0                                   # commande barorécepteur (>0 : hypotension)
     for it in range(5):
@@ -229,4 +229,101 @@ def evaluate(p, n_beats=11):
     res = dict(hemo=h, art=dict(g, lactate=lact),
                ven=dict(ph=phv, pco2=pvco2, hco3=hco3v, po2=pvo2),
                chem=chem, do2=do2, do2_kg=do2 / bw, er=er, sympathetic=s_tot, autonomic=auto, p=p)
+    return res
+
+
+# ------------------------------------------------------------------ décompensation et viabilité
+# Couplages mécanistiques en retour de l'aval métabolique sur la pompe et les vaisseaux.
+# Constantes de seuil et de pente : paramètres du patient (acid_*, hypox_*, k_weak*, *_arrest),
+# PLACEHOLDERS evidence D. Inactifs dans la plage du golden (pH ≥ 7,26 ; PvO2 ≥ 26 ; K ≥ 3,7 ; ER < 0,25).
+DECOMP_MAX_ITER = 30      # passes au plus avant de conclure à une spirale non résolue
+DECOMP_TOL = 1e-3         # convergence des facteurs de couplage
+F_FLOOR = 0.1             # plancher des facteurs (au-delà : effondrement par les critères d'arrêt)
+ER_ANAEROBIC = 0.55       # extraction d'O2 au point d'inflexion du lactate (voir _evaluate_once)
+LA_EDEMA = 18.0           # POG au-delà de laquelle le gradient A-a s'ouvre (gas_exchange)
+MAP_RENAL = 75.0          # PAM sous laquelle la perfusion rénale baisse (40 + 35, _evaluate_once)
+
+
+class NonViable(Exception):
+    """Aucun état stationnaire viable : décès du patient virtuel (cause mécanistique)."""
+
+    def __init__(self, cause, last=None):
+        super().__init__(cause)
+        self.cause = cause
+        self.last = last          # dernière passe viable (ou None)
+
+
+def coupling_targets(p, res):
+    """Facteurs cibles (contractilité, résistance) imposés par l'état métabolique d'une passe."""
+    ph, pvo2 = res['art']['ph'], res['ven']['po2']
+    f_acid_c = max(F_FLOOR, 1.0 - p['acid_ees'] * max(0.0, p['acid_ph0'] - ph))
+    f_acid_r = max(F_FLOOR, 1.0 - p['acid_rsys'] * max(0.0, p['acid_ph0'] - ph))
+    f_hyp = max(F_FLOOR, 1.0 - p['hypox_ees'] * max(0.0, p['hypox_pvo2'] - pvo2))
+    cpp = res['hemo']['dap'] - res['hemo']['lv_edp']
+    f_cor = max(F_FLOOR, 1.0 - p['cpp_ees'] * max(0.0, p['cpp_min'] - cpp))
+    return f_acid_c * f_hyp * f_cor, f_acid_r, f_acid_c, f_hyp, f_cor
+
+
+def evaluate(p, n_beats=11):
+    """Évalue le patient avec les couplages de décompensation (point fixe amorti).
+
+    Hypokaliémie -> faiblesse ventilatoire (direct) ; acidémie et hypoxie tissulaire -> dépression
+    de la contractilité, acidémie -> vasoplégie (boucle). Lève NonViable si la pompe s'arrête
+    (FC < hr_arrest), si la circulation s'effondre (DC < co_arrest_frac × DC de référence), si aucun
+    état stationnaire n'existe (racine introuvable) ou si la spirale ne converge pas."""
+    p0 = dict(p)
+    bw = p0['bw']
+    co_ref = 3.29 * (bw / 20.0) ** 0.75
+    f_vent = max(F_FLOOR, 1.0 - p0['k_weak_vent'] * max(0.0, p0['k_weak'] - p0['k']))
+    fc, fr = 1.0, 1.0
+    last = None
+    converged = False
+    it = 0
+    for it in range(DECOMP_MAX_ITER):
+        q = dict(p0)
+        q['vent_drive'] = p0['vent_drive'] * f_vent
+        q['ees_lv'] = p0['ees_lv'] * fc
+        q['ees_rv'] = p0['ees_rv'] * fc
+        q['r_sys'] = p0['r_sys'] * fr
+        try:
+            res = _evaluate_once(q, n_beats)
+        except (ValueError, ZeroDivisionError):
+            raise NonViable('no_steady_state', last)
+        if res['p']['hr'] < p0['hr_arrest']:
+            raise NonViable('cardiac_arrest', res)
+        if res['hemo']['co'] < p0['co_arrest_frac'] * co_ref:
+            raise NonViable('circulatory_collapse', res)
+        if res['er'] >= 1.0:
+            raise NonViable('oxygen_debt', res)       # VO2 > DO2 : aucun état aérobie possible
+        last = res
+        tc, tr, f_acid, f_hyp, f_cor = coupling_targets(p0, res)
+        if abs(tc - fc) < DECOMP_TOL and abs(tr - fr) < DECOMP_TOL:
+            converged = True
+            break
+        fc = 0.5 * fc + 0.5 * tc
+        fr = 0.5 * fr + 0.5 * tr
+    if not converged:
+        raise NonViable('vicious_circle', last)
+    kfac = max(0.4, 1 - 0.30 * max(0.0, p0['k'] - 6.0))
+    mech = []
+    if f_acid < 1.0:
+        mech.append(dict(id='acidemia_depression', value=res['art']['ph'], threshold=p0['acid_ph0'], factor=f_acid))
+    if f_hyp < 1.0:
+        mech.append(dict(id='hypoxic_depression', value=res['ven']['po2'], threshold=p0['hypox_pvo2'], factor=f_hyp))
+    if f_cor < 1.0:
+        mech.append(dict(id='coronary_ischemia', value=res['hemo']['dap'] - res['hemo']['lv_edp'], threshold=p0['cpp_min'], factor=f_cor))
+    if f_vent < 1.0:
+        mech.append(dict(id='hypokalemic_weakness', value=p0['k'], threshold=p0['k_weak'], factor=f_vent))
+    if kfac < 1.0:
+        mech.append(dict(id='hyperkalemic_bradycardia', value=p0['k'], threshold=6.0, factor=kfac))
+    if res['er'] > ER_ANAEROBIC:
+        mech.append(dict(id='anaerobic_metabolism', value=res['er'], threshold=ER_ANAEROBIC, factor=1.0))
+    if res['hemo']['la_mean'] > LA_EDEMA:
+        mech.append(dict(id='pulmonary_edema', value=res['hemo']['la_mean'], threshold=LA_EDEMA, factor=1.0))
+    if res['hemo']['map'] < MAP_RENAL:
+        mech.append(dict(id='renal_hypoperfusion', value=res['hemo']['map'], threshold=MAP_RENAL, factor=1.0))
+    if res['autonomic']['s'] >= 1.0:
+        mech.append(dict(id='baroreflex_exhausted', value=res['autonomic']['s'], threshold=1.0, factor=1.0))
+    res['decomp'] = dict(f_contract=fc, f_rsys=fr, f_vent=f_vent, iterations=it + 1)
+    res['outcome'] = dict(state='decompensated' if mech else 'stable', mechanisms=mech)
     return res

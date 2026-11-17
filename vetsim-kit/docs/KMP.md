@@ -4,7 +4,7 @@ Principe : peu de fonctions, des chaînes JSON en entrée et en sortie. Les stru
 
 ```
 interface Engine {
-  fun apiVersion(): String                                  // "1.0.0"
+  fun apiVersion(): String                                  // "1.1.0"
   fun loadModules(json: String): String                     // {"ok":true} ou {"ok":false,"errors":[{path,message}]}
   fun newPatient(optionsJson: String): String               // {"bw":20,"seed":42,"variability":true} -> {"patient_id":"p1"}
   fun addDisease(patientId: String, optionsJson: String): String   // {"id":"mmvd","stage":"C"|"severity":0.7} -> {case}
@@ -15,6 +15,7 @@ interface Engine {
 }
 ```
 - `state` renvoie les mêmes clés plates que le CLI (`eval`) plus `case` (maladies actives et stades) et `emergent_signs` (liste de signes cliniques dérivés des variables : souffle et grade, dyspnée, hypotension, etc.).
+- **Issue (API 1.1.0)** : `state` renvoie `outcome` = `{"state": "stable"|"decompensated"|"dead", "mechanisms": [{id, label_fr, value, threshold, factor, evidence}], "f_contract", "f_rsys", "f_vent", "iterations"}` ; en cas de décès `{"state": "dead", "cause", "label_fr"}`, les variables plates étant celles de la dernière passe viable (absentes s'il n'y en a pas), `emergent_signs` vide et `signals` à `null`. `timecourse` ajoute à chaque entrée de `states_at`/`states` les clés `outcome`, `mechanisms` (identifiants) et `cause`, et renvoie `death_t_h` (premier instant de décès, ou `null`). `pcg` et `signals` renvoient une erreur pour un patient décédé. Seuils et pentes : placeholders D.
 - Les tableaux de signaux sont des `Float32`/`Float64` contigus; si le coût du JSON est trop élevé, exposer une variante binaire (`ByteArray`) pour `signals`.
 - Toute entrée invalide renvoie `{"ok":false,"errors":[...]}` : aucune panique ne doit traverser la FFI.
 

@@ -3,7 +3,7 @@ Exécuter depuis la racine du kit :  python tests/make_m2_fixture.py
 Sortie : crates/vetsim-core/tests/fixtures/python_reference_m2.json
 
 Méthode : physio.simulate_hemo est remplacé par un bouchon qui renvoie une hémodynamique
-imposée (co, map, la_mean) ; physio.evaluate (code de référence inchangé) calcule tout l'aval.
+imposée (co, map, la_mean) ; physio._evaluate_once (une passe de la référence, sans les couplages de décompensation) calcule tout l'aval.
 L'aval ne dépend que de ces trois grandeurs et des paramètres non touchés par le baroréflexe.
 Ne modifie aucun module ni aucune valeur de référence."""
 import json, os, sys
@@ -49,7 +49,7 @@ for bw, combo, over in PATIENTS:
         physio.simulate_hemo = lambda q, n_beats=11, h=hemo: dict(h)
         entry = dict(bw=float(bw), diseases=[[n, s] for n, s in combo], overrides=over, hemo_profile=label, hemo=hemo)
         try:
-            entry['expected'] = flat(physio.evaluate(dict(p0)))
+            entry["expected"] = flat(physio._evaluate_once(dict(p0)))   # une passe, sans couplage de décompensation
         except Exception as exc:
             entry['error'] = f'{type(exc).__name__}: {exc}'
         out['cases'].append(entry)

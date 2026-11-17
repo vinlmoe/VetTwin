@@ -218,7 +218,18 @@
   "rsa_depth": 0.95,
   "vag_noise": 0.025,
   "sym_noise": 0.22,
-  "baro_sens": 1.0
+  "baro_sens": 1.0,
+  "acid_ph0": 7.2,
+  "acid_ees": 1.5,
+  "acid_rsys": 1.0,
+  "hypox_pvo2": 20.0,
+  "hypox_ees": 0.03,
+  "k_weak": 2.5,
+  "k_weak_vent": 0.4,
+  "cpp_min": 40.0,
+  "cpp_ees": 0.02,
+  "hr_arrest": 20.0,
+  "co_arrest_frac": 0.15
  },
  "interindividual_variability": {
   "ees_lv": {

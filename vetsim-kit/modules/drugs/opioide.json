@@ -51,8 +51,35 @@
      ]
     }
    }
+  ],
+  "toxicity": [
+   {
+    "id": "respiratory_arrest",
+    "emax": 1.0,
+    "ec50_mg_L": 0.15,
+    "hill": 3.0,
+    "evidence": "D",
+    "source": "Placeholder pédagogique (evidence D) : EC50 toxique = 10 × EC50 thérapeutique, Hill 3, aucune source ; ne jamais utiliser pour une dose réelle. Mécanisme : dépression du centre respiratoire (apnée).",
+    "effects": [
+     {
+      "param": "vent_drive",
+      "op": "mul",
+      "expr": {
+       "add": [
+        1,
+        {
+         "mul": [
+          -0.99,
+          "T"
+         ]
+        }
+       ]
+      }
+     }
+    ]
+   }
   ]
  },
  "refs": [],
- "notes": "PLACEHOLDER."
+ "notes": "PLACEHOLDER. Termes toxiques (pd.toxicity) : placeholders D."
 }

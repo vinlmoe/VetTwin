@@ -1,0 +1,275 @@
+{
+ "note": "Fixture de la décompensation (couplages mécanistiques, termes toxiques, viabilité) : référence Python.",
+ "cases": [
+  {
+   "id": "sain",
+   "bw": 20.0,
+   "conc": {},
+   "U": 0.0,
+   "disease": null,
+   "state": "stable",
+   "mechanisms": [],
+   "f_contract": 1.0,
+   "f_rsys": 1.0,
+   "f_vent": 1.0,
+   "values": {
+    "map": 101.18322904821436,
+    "co": 3.248007162163722,
+    "hr": 87.64287361525591,
+    "ph": 7.380024760320032,
+    "pco2": 40.19905101871607,
+    "pao2": 98.87398688248086,
+    "po2_v": 50.81894447843134,
+    "lactate": 1.2167397136988625,
+    "k": 4.1
+   }
+  },
+  {
+   "id": "opioide_0.5",
+   "bw": 20.0,
+   "conc": {
+    "opioide": 0.5
+   },
+   "U": 0.0,
+   "disease": null,
+   "state": "decompensated",
+   "mechanisms": [
+    "acidemia_depression",
+    "anaerobic_metabolism"
+   ],
+   "f_contract": 0.5423817947524083,
+   "f_rsys": 0.694974505811176,
+   "f_vent": 1.0,
+   "values": {
+    "map": 84.2503411335798,
+    "co": 3.288343997499423,
+    "hr": 93.22812832042992,
+    "ph": 6.8945635913327665,
+    "pco2": 95.63700798959374,
+    "pao2": 32.876419060007436,
+    "po2_v": 22.144510538802855,
+    "lactate": 9.691530996844488,
+    "k": 4.1
+   }
+  },
+  {
+   "id": "opioide_2",
+   "bw": 20.0,
+   "conc": {
+    "opioide": 2.0
+   },
+   "U": 0.0,
+   "disease": null,
+   "state": "dead",
+   "cause": "oxygen_debt"
+  },
+  {
+   "id": "betabloquant_3",
+   "bw": 20.0,
+   "conc": {
+    "betabloquant": 3.0
+   },
+   "U": 0.0,
+   "disease": null,
+   "state": "decompensated",
+   "mechanisms": [
+    "renal_hypoperfusion"
+   ],
+   "f_contract": 1.0,
+   "f_rsys": 1.0,
+   "f_vent": 1.0,
+   "values": {
+    "map": 68.12770831577244,
+    "co": 1.5485020296169392,
+    "hr": 40.17572519943237,
+    "ph": 7.3754292969004025,
+    "pco2": 40.06978791522314,
+    "pao2": 99.02787152949625,
+    "po2_v": 36.4678259656111,
+    "lactate": 1.5795061468176785,
+    "k": 4.1
+   }
+  },
+  {
+   "id": "betabloquant_10",
+   "bw": 20.0,
+   "conc": {
+    "betabloquant": 10.0
+   },
+   "U": 0.0,
+   "disease": null,
+   "state": "decompensated",
+   "mechanisms": [
+    "coronary_ischemia",
+    "anaerobic_metabolism",
+    "renal_hypoperfusion"
+   ],
+   "f_contract": 0.6258183286440837,
+   "f_rsys": 1.0,
+   "f_vent": 1.0,
+   "values": {
+    "map": 41.170284671984746,
+    "co": 0.7926833947783082,
+    "hr": 30.556638664819744,
+    "ph": 7.2540102769815835,
+    "pco2": 36.960444371993546,
+    "pao2": 102.72947098572196,
+    "po2_v": 23.655518105186452,
+    "lactate": 9.600273435937769,
+    "k": 4.1
+   }
+  },
+  {
+   "id": "pimobendan_3",
+   "bw": 20.0,
+   "conc": {
+    "pimobendan": 3.0
+   },
+   "U": 0.0,
+   "disease": null,
+   "state": "decompensated",
+   "mechanisms": [
+    "coronary_ischemia",
+    "renal_hypoperfusion"
+   ],
+   "f_contract": 0.7918715295235952,
+   "f_rsys": 1.0,
+   "f_vent": 1.0,
+   "values": {
+    "map": 40.18595469988143,
+    "co": 4.524034408911092,
+    "hr": 196.436553030303,
+    "ph": 7.380141825928881,
+    "pco2": 40.20235547002008,
+    "pao2": 98.87005301188084,
+    "po2_v": 57.199260329534084,
+    "lactate": 1.2074344498365368,
+    "k": 4.1
+   }
+  },
+  {
+   "id": "furosemide_U50",
+   "bw": 20.0,
+   "conc": {},
+   "U": 50.0,
+   "disease": null,
+   "state": "decompensated",
+   "mechanisms": [
+    "hypokalemic_weakness"
+   ],
+   "f_contract": 1.0,
+   "f_rsys": 1.0,
+   "f_vent": 0.8399999999999999,
+   "values": {
+    "map": 101.18322904821436,
+    "co": 3.248007162163722,
+    "hr": 87.64287361525591,
+    "ph": 7.45234787911164,
+    "pco2": 44.65758534380459,
+    "pao2": 93.56620792404215,
+    "po2_v": 47.81747674681713,
+    "lactate": 1.2167462343437714,
+    "k": 2.0999999999999996
+   }
+  },
+  {
+   "id": "mmvd_0.9",
+   "bw": 20.0,
+   "conc": {},
+   "U": 0.0,
+   "disease": [
+    "mmvd",
+    0.9
+   ],
+   "state": "decompensated",
+   "mechanisms": [
+    "pulmonary_edema"
+   ],
+   "f_contract": 1.0,
+   "f_rsys": 1.0,
+   "f_vent": 1.0,
+   "values": {
+    "map": 102.59716284122501,
+    "co": 3.216171089361057,
+    "hr": 157.4861111111111,
+    "ph": 7.384712099493552,
+    "pco2": 39.68969021952664,
+    "pao2": 67.78256108780681,
+    "po2_v": 43.97257918040888,
+    "lactate": 1.2213659210687018,
+    "k": 4.1
+   }
+  },
+  {
+   "id": "addison_1.0",
+   "bw": 20.0,
+   "conc": {},
+   "U": 0.0,
+   "disease": [
+    "addison",
+    1.0
+   ],
+   "state": "decompensated",
+   "mechanisms": [
+    "hyperkalemic_bradycardia",
+    "renal_hypoperfusion"
+   ],
+   "f_contract": 1.0,
+   "f_rsys": 1.0,
+   "f_vent": 1.0,
+   "values": {
+    "map": 71.53727367259692,
+    "co": 2.4052385255321944,
+    "hr": 91.79263462902696,
+    "ph": 7.3588822908809615,
+    "pco2": 39.61163079908226,
+    "pao2": 99.5732966677592,
+    "po2_v": 45.69994986508496,
+    "lactate": 1.2459810654737518,
+    "k": 7.5
+   }
+  },
+  {
+   "id": "mmvd_3kg_0.9",
+   "bw": 3.0,
+   "conc": {},
+   "U": 0.0,
+   "disease": [
+    "mmvd",
+    0.9
+   ],
+   "state": "dead",
+   "cause": "oxygen_debt"
+  },
+  {
+   "id": "mmvd_5kg_0.7",
+   "bw": 5.0,
+   "conc": {},
+   "U": 0.0,
+   "disease": [
+    "mmvd",
+    0.7
+   ],
+   "state": "decompensated",
+   "mechanisms": [
+    "pulmonary_edema",
+    "renal_hypoperfusion",
+    "baroreflex_exhausted"
+   ],
+   "f_contract": 1.0,
+   "f_rsys": 1.0,
+   "f_vent": 1.0,
+   "values": {
+    "map": 70.23551178034563,
+    "co": 0.5755023777977769,
+    "hr": 289.98520521387707,
+    "ph": 7.353747181997271,
+    "pco2": 36.3232537794457,
+    "pao2": 37.52411438155576,
+    "po2_v": 22.318099305517027,
+    "lactate": 4.960462035763108,
+    "k": 4.1
+   }
+  }
+ ]
+}

@@ -960,6 +960,29 @@ pub struct Pd {
     pub hill: f64,
     /// Effets sur les paramètres (variables `E`, et `D`, `U` pour un diurétique).
     pub effects: Vec<Effect>,
+    /// Termes toxiques : mécanismes distincts, à concentrations plus hautes (variable `T`).
+    pub toxicity: Vec<Toxicity>,
+}
+
+/// Terme toxique d'un médicament : `T = emax·C^h/(EC50^h + C^h)`, appliqué après l'effet
+/// thérapeutique. L'effet thérapeutique reste plafonné (occupation des récepteurs) ; la toxicité
+/// prolonge la relation dose-réponse au-delà de sa saturation.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Toxicity {
+    /// Identifiant du mécanisme (`respiratory_arrest`, `cardiodepression`…).
+    pub id: String,
+    /// Effet toxique maximal.
+    pub emax: f64,
+    /// Concentration à demi-effet toxique (mg/L).
+    pub ec50_mg_l: f64,
+    /// Coefficient de Hill.
+    pub hill: f64,
+    /// Niveau de preuve.
+    pub evidence: Evidence,
+    /// Provenance déclarée.
+    pub source: Option<String>,
+    /// Effets sur les paramètres (variable `T`).
+    pub effects: Vec<Effect>,
 }
 
 /// Module médicament.
@@ -1092,13 +1115,81 @@ impl DrugModule {
         };
         let effects = c.req(m, p, "effects");
         let effects = c.effects(effects, "/pd/effects", scope, false);
+        let toxicity = Self::toxicity(c, m);
         Some(Pd {
             kind: kind?,
             emax: emax?,
             ec50_mg_l: ec50?,
             hill: hill?,
             effects,
+            toxicity,
         })
+    }
+
+    fn toxicity(c: &mut Ctx, m: &Map<String, Json>) -> Vec<Toxicity> {
+        let mut out = Vec::new();
+        let Some(v) = m.get("toxicity") else {
+            return out;
+        };
+        let Json::Array(items) = v else {
+            c.err(
+                "/pd/toxicity",
+                format!("tableau attendu, {} trouvé", kind_of(v)),
+            );
+            return out;
+        };
+        for (i, item) in items.iter().enumerate() {
+            let p = format!("/pd/toxicity/{i}");
+            let Some(t) = c.as_obj(item, &p) else {
+                continue;
+            };
+            for k in t.keys() {
+                if !matches!(
+                    k.as_str(),
+                    "id" | "emax" | "ec50_mg_L" | "hill" | "evidence" | "source" | "effects"
+                ) {
+                    c.err(
+                        child(&p, k),
+                        format!("champ « {k} » non autorisé dans un terme toxique"),
+                    );
+                }
+            }
+            let id = c.req_str(t, &p, "id").map(str::to_string);
+            if let Some(id) = &id {
+                c.ident(id, &child(&p, "id"));
+            }
+            let emax = c.req_num_in(t, &p, "emax", |x| x >= 0.0, "≥ 0");
+            let ec50 = c.req_num_in(t, &p, "ec50_mg_L", |x| x > 0.0, "> 0");
+            let hill = c.req_num_in(t, &p, "hill", |x| x > 0.0, "> 0");
+            let evidence = match t.get("evidence").map(Json::as_str) {
+                None | Some(Some("D")) => Evidence::D,
+                Some(Some("A")) => Evidence::A,
+                Some(Some("B")) => Evidence::B,
+                Some(Some("C")) => Evidence::C,
+                Some(_) => {
+                    c.err(
+                        child(&p, "evidence"),
+                        "niveau de preuve invalide (attendu A, B, C ou D)",
+                    );
+                    Evidence::D
+                }
+            };
+            let source = t.get("source").and_then(Json::as_str).map(str::to_string);
+            let eff = c.req(t, &p, "effects");
+            let effects = c.effects(eff, &child(&p, "effects"), &["T"], true);
+            if let (Some(id), Some(emax), Some(ec50), Some(hill)) = (id, emax, ec50, hill) {
+                out.push(Toxicity {
+                    id,
+                    emax,
+                    ec50_mg_l: ec50,
+                    hill,
+                    evidence,
+                    source,
+                    effects,
+                });
+            }
+        }
+        out
     }
 }
 

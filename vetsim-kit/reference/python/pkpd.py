@@ -21,6 +21,16 @@ DRUGS = {
     'opioide': dict(vc=3.0, vp=4.0, cl=25.0, q=30.0, ka=1.0, f=0.5,
                     renal_exp=0.0, hep_exp=1.0, ec50=0.015, emax=1.0, hill=1.3),
 }
+# Termes TOXIQUES : mécanismes distincts de l'effet thérapeutique, à concentrations plus hautes.
+# T = emax·C^h/(EC50^h + C^h). PLACEHOLDERS (evidence D) : EC50 toxique = 10 × EC50 thérapeutique,
+# aucune source ; ne jamais utiliser pour une dose réelle. Atropine : cibles toxiques (hyperthermie,
+# iléus, effets centraux) non modélisées. Furosémide : toxicité volémique et électrolytique déjà
+# émergente via D et U.
+TOX = {
+    'pimobendan': [dict(id='vasodilation', emax=1.0, ec50=0.3, hill=3.0)],
+    'opioide': [dict(id='respiratory_arrest', emax=1.0, ec50=0.15, hill=3.0)],
+    'betabloquant': [dict(id='cardiodepression', emax=1.0, ec50=1.5, hill=3.0)],
+}
 URINE_MAX = 0.25      # mL/kg/min à effet maximal (furosemide)
 F_PLASMA = 0.3        # fraction du volume urinaire prélevée sur le volume sanguin
 TAU_REFILL = 4.0      # h, retour du volume (apport hydrique, transfert interstitiel)
@@ -41,6 +51,11 @@ def effect(drug, conc):
     d = DRUGS[drug]
     c = max(conc, 0.0) ** d['hill']
     return d['emax'] * c / (d['ec50'] ** d['hill'] + c)
+
+
+def tox_effect(t, conc):
+    c = max(conc, 0.0) ** t['hill']
+    return t['emax'] * c / (t['ec50'] ** t['hill'] + c)
 
 
 def timecourse(p, doses, t_end_h, t_eval_h):
@@ -111,14 +126,22 @@ def apply_drug_effects(p, conc, D, U):
         q['ees_lv'] *= 1 + 0.35 * e
         q['ees_rv'] *= 1 + 0.20 * e
         q['r_sys'] *= 1 - 0.20 * e
+        t = tox_effect(TOX['pimobendan'][0], conc['pimobendan'])
+        q['r_sys'] *= 1 - 0.8 * t             # toxique : vasodilatation excessive (inhibition PDE3)
     if 'opioide' in conc:
         e = effect('opioide', conc['opioide'])
         q['vent_drive'] *= 1 - 0.55 * e
         q['vagal_add'] += 0.25 * e            # augmentation du tonus vagal -> bradycardie, RSA accrue
+        t = tox_effect(TOX['opioide'][0], conc['opioide'])
+        q['vent_drive'] *= 1 - 0.99 * t        # toxique : dépression du centre respiratoire -> apnée
     if 'atropine' in conc:
         q['vagal_block'] = min(1.0, q['vagal_block'] + effect('atropine', conc['atropine']))
     if 'betabloquant' in conc:
         q['beta_block'] = min(1.0, q['beta_block'] + effect('betabloquant', conc['betabloquant']))
+        t = tox_effect(TOX['betabloquant'][0], conc['betabloquant'])
+        q['ees_lv'] *= 1 - 0.8 * t            # toxique : dépression myocardique directe (stabilisation de membrane)
+        q['ees_rv'] *= 1 - 0.8 * t
+        q['hr'] *= 1 - 0.8 * t                # toxique : dépression directe du nœud sinusal
     if D or U:
         q['vol_shift'] -= D
         q['k'] -= 0.04 * U

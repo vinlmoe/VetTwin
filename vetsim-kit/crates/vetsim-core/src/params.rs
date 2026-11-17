@@ -199,6 +199,29 @@ define_params! {
     sym_noise,
     /// Sensibilité du baroréflexe.
     baro_sens,
+    // --- décompensation : couplages mécanistiques (placeholders evidence D) ---
+    /// pH artériel sous lequel l'acidémie déprime myocarde et tonus vasculaire.
+    acid_ph0,
+    /// Perte relative d'élastance (VG, VD) par unité de pH sous `acid_ph0`.
+    acid_ees,
+    /// Perte relative de résistance systémique par unité de pH sous `acid_ph0`.
+    acid_rsys,
+    /// PvO2 (mmHg) sous laquelle l'hypoxie tissulaire déprime le myocarde.
+    hypox_pvo2,
+    /// Perte relative d'élastance par mmHg de PvO2 sous `hypox_pvo2`.
+    hypox_ees,
+    /// K+ (mmol/L) sous lequel les muscles respiratoires faiblissent.
+    k_weak,
+    /// Perte relative de commande ventilatoire par mmol/L sous `k_weak`.
+    k_weak_vent,
+    /// Pression de perfusion coronaire PAD − PTDVG (mmHg) sous laquelle le myocarde s'ischémie.
+    cpp_min,
+    /// Perte relative d'élastance par mmHg sous `cpp_min`.
+    cpp_ees,
+    /// FC (/min) sous laquelle la pompe cardiaque est considérée arrêtée.
+    hr_arrest,
+    /// Débit / débit de référence sous lequel la circulation s'effondre.
+    co_arrest_frac,
 }
 
 #[cfg(test)]
@@ -218,6 +241,6 @@ mod tests {
             assert_eq!(p.get(n), Some(v));
         }
         assert_eq!(p.get("nope"), None);
-        assert_eq!(Params::NAMES.len(), 73);
+        assert_eq!(Params::NAMES.len(), 84); // 73 + 11 paramètres de décompensation
     }
 }
