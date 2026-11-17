@@ -32,6 +32,8 @@ jobs:
       - run: pip install numpy scipy jsonschema
       - name: Rust == Python (fixture M1 régénérée avec le Python de la CI)
         run: python tests/make_m1_fixture.py && cargo test -p vetsim-core --test check_modules
+      - name: Rust == Python (fixture M2 régénérée avec le Python de la CI)
+        run: python tests/make_m2_fixture.py && cargo test -p vetsim-core --test metabolic
       - name: CLI Rust == Python (paramètres, M1)
         run: python tests/check_params_cli.py --cmd "target/release/vetsim-cli"
       # Activé à partir de M3 (eval) et M4 (pk) :

@@ -116,6 +116,21 @@ pub enum Error {
         /// Valeur obtenue.
         p: f64,
     },
+    /// Entrée du modèle invalide (valeur non finie, débit nul…).
+    #[error("entrée invalide : {0}")]
+    InvalidInput(String),
+    /// Échec d'une recherche de racine (équilibre de Stewart, ventilation, inversion de la courbe d'O2).
+    #[error("{what} : pas de solution dans [{lo}, {hi}] ({cause:?})")]
+    Root {
+        /// Équation concernée.
+        what: &'static str,
+        /// Borne basse.
+        lo: f64,
+        /// Borne haute.
+        hi: f64,
+        /// Cause.
+        cause: crate::roots::RootError,
+    },
     /// Une formule d'un module a échoué à l'évaluation.
     #[error("{module} : {location} : {source}")]
     Eval {

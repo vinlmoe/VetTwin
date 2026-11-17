@@ -8,12 +8,16 @@
 
 pub mod case;
 pub mod dsl;
+pub mod engine;
 pub mod error;
+pub mod gas;
 pub mod modules;
 pub mod params;
 pub mod patient;
+pub mod roots;
 
 pub use case::{apply_modifiers, evaluate_effects, Case, DrawSource, Modifier, NoNoise};
+pub use engine::{metabolic_state, HemoInputs, MetabolicState};
 pub use error::{Error, EvalError, Issue, LoadError};
 pub use modules::{Catalog, DiseaseModule, DrugModule, PatientModule};
 pub use params::Params;
