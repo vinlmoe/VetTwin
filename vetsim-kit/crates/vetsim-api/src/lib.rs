@@ -823,7 +823,7 @@ fn mechanism_label_fr(id: &str) -> &'static str {
         "hypoxic_depression" => "dépression myocardique par hypoxie tissulaire",
         "coronary_ischemia" => "ischémie myocardique (pression de perfusion coronaire basse)",
         "hypokalemic_weakness" => "faiblesse des muscles respiratoires (hypokaliémie)",
-        "hyperkalemic_bradycardia" => "bradycardie hyperkaliémique",
+        "hyperkalemic_bradycardia" => "frein hyperkaliémique de la FC (K⁺ sur le nœud sinusal)",
         "anaerobic_metabolism" => "métabolisme anaérobie (extraction d'O₂ élevée, lactate)",
         "pulmonary_edema" => "œdème pulmonaire (POG élevée)",
         "renal_hypoperfusion" => "hypoperfusion rénale (PAM basse)",

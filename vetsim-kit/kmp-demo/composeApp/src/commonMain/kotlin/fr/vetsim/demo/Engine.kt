@@ -129,7 +129,7 @@ val MECH_FR = mapOf(
     "hypoxic_depression" to "dépression myocardique par hypoxie tissulaire",
     "coronary_ischemia" to "ischémie myocardique (pression de perfusion coronaire basse)",
     "hypokalemic_weakness" to "faiblesse des muscles respiratoires (hypokaliémie)",
-    "hyperkalemic_bradycardia" to "bradycardie hyperkaliémique",
+    "hyperkalemic_bradycardia" to "frein hyperkaliémique de la FC (K⁺ sur le nœud sinusal)",
     "anaerobic_metabolism" to "métabolisme anaérobie (extraction d'O₂ élevée, lactate)",
     "pulmonary_edema" to "œdème pulmonaire (POG élevée)",
     "renal_hypoperfusion" to "hypoperfusion rénale (PAM basse)",

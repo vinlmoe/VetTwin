@@ -208,6 +208,7 @@ La comparaison de cet ionogramme à la littérature figure dans la section 6.
 | Na⁺ en crise (*s* = 0,85) | 131,3 | médiane 137 (116–160), n = 70 (Baumstark 2014) | lu | OK |
 | K⁺ en crise | 6,99 | médiane 7,3 (3,3–11,3) | lu | OK |
 | Créatinine en crise | 140 µmol/L = 1,58 mg/dL | médiane 1,7 (0,5–11,3) mg/dL dans le groupe gluco- et minéralocorticoïde, n = 72 (Hall 2023) | lu | OK |
+| **FC en crise (hyperkaliémie)** | *s* = 0,85 : K 6,99, **FC 106** (tonus sympathique 0,66) ; *s* = 1 : K 7,50, FC 92 | FC < 70 associée à l'hyperkaliémie (8× plus probable ; revue Can Vet J, PMC13142072) ; perte des ondes P (arrêt atrial) et rythmes d'échappement dès K ≥ 7 (PMC13040492, figure adaptée de l'humain) ; BAV de 3e degré transitoire à K 7,9 (10.3390/vetsci12010063) | lu | **Écart** (relevé par l'utilisateur) : K⁺ n'agit que par un frein multiplicatif `kfac` sur la FC sinusale (0,70 à K 6,99), que le baroréflexe annule, et par l'aspect de l'ECG (T, P, PR, QRS), sans effet sur la conduction. Le libellé « bradycardie hyperkaliémique » était trompeur et a été renommé « frein hyperkaliémique de la FC ». Correction mécanistique validée : `kfac` remplacé par les effets de K⁺ sur l'excitabilité atriale et la conduction AV (`docs/PROPOSITION_RYTHME.md`) |
 | Glycémie | −2 mmol/L chez la moitié des patients | 84 (36–401) mg/dL ; forme glucocorticoïde seule, n = 29 (Reagan 2022) | lu | Non comparable (autre population) |
 
 ### Urines et DFG du chien sain (base du futur modèle urinaire)
@@ -271,7 +272,8 @@ Implications pour l'ionogramme du patient virtuel :
 4. **VFC en stade C** : SDNN trop bas, LF/HF sans hausse.
 5. **Seuil d'œdème** : 18 mmHg contre 20–24 dans les sources.
 6. **Pimobendane** : T_max trop précoce.
-7. **MRC**
+7. **Hyperkaliémie (Addison)** : FC 106 à K 6,99 au lieu d'une bradycardie ; K⁺ n'agit pas sur la conduction (correction prévue avec la couche de rythme).
+8. **MRC**
    - Na⁺, Cl⁻ et K⁺ sont constants jusqu'au stade 4, alors que les sources rapportent K⁺ 4,8 contre 4,3 dès le stade 2.
    - L'acidose (HCO₃⁻ < 22) n'apparaît qu'au stade 3, contre 67 % des chiens dès le stade 2.
    - L'hématocrite est trop haute de 4 à 5 points.
