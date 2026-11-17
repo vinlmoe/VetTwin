@@ -10,6 +10,8 @@ use serde_json::{json, Map, Value as Json};
 use std::collections::BTreeMap;
 use vetsim_core::blocks::{blocks_of, Block};
 use vetsim_core::case::{Case, DrawSource, NoNoise};
+use vetsim_core::dsp::{base64, wav_pcm16};
+use vetsim_core::pcg::{patient_pcg, AuscultationConfig, PcgOptions};
 use vetsim_core::pkpd::{apply_drug_effects, timecourse, Dose, Route};
 use vetsim_core::rng::NoiseSource;
 use vetsim_core::signals::{make_pcg, patient_signals, streams, PcgInputs, SignalOptions, PCG_FS};
@@ -103,6 +105,7 @@ struct Session {
 #[derive(Debug, Default)]
 pub struct Engine {
     catalog: Option<Catalog>,
+    auscultation: Option<AuscultationConfig>,
     patients: BTreeMap<String, Session>,
     next_id: u64,
 }
@@ -180,12 +183,25 @@ impl Engine {
                 Err(e) => errors.extend(load_issues(&path, e)),
             }
         }
+        // Configuration du module auscultation (optionnelle).
+        let auscultation = match m.get("auscultation") {
+            None | Some(Json::Null) => None,
+            Some(a) => match AuscultationConfig::from_json(&a.to_string(), "auscultation") {
+                Ok(c) => Some(c),
+                Err(e) => {
+                    errors.extend(load_issues("/auscultation", e));
+                    None
+                }
+            },
+        };
         if !errors.is_empty() {
             return Err(ApiError(errors));
         }
+        self.auscultation = auscultation;
         let catalog = Catalog::new(patient.expect("contrôlé"), diseases, drugs)
             .map_err(|e| ApiError::one("", e.to_string()))?;
-        let counts = json!({ "diseases": catalog.diseases.len(), "drugs": catalog.drugs.len() });
+        let counts = json!({ "diseases": catalog.diseases.len(), "drugs": catalog.drugs.len(),
+                             "auscultation": self.auscultation.is_some() });
         self.catalog = Some(catalog);
         self.patients.clear();
         Ok(json!({ "ok": true, "loaded": counts }))
@@ -348,11 +364,20 @@ impl Engine {
         };
         let d = opt_f64(m, "D", 0.0)?;
         let u = opt_f64(m, "U", 0.0)?;
+        let mut base = s.patient.params.clone();
+        // Préréglage de FC (réglage d'usage, ex. « repos » 72/min) : FC de repos imposée.
+        if let Some(v) = m.get("hr").filter(|v| !v.is_null()) {
+            let hr = v
+                .as_f64()
+                .filter(|h| *h > 20.0 && *h < 300.0)
+                .ok_or_else(|| ApiError::one("/hr", "FC entre 20 et 300 /min attendue"))?;
+            base.hr = hr;
+        }
         if conc.is_empty() && d == 0.0 && u == 0.0 {
-            return Ok(s.patient.params.clone());
+            return Ok(base);
         }
         Ok(apply_drug_effects(
-            &s.patient.params,
+            &base,
             &self.catalog()?.drugs,
             &conc,
             d,
@@ -494,6 +519,94 @@ impl Engine {
         })
     }
 
+    /// Auscultation : `{"site": "base"|"apex", "hr": 72, "fs": 4000, "duration_s": 8, "seed": ...,
+    /// "conc": {...}, "with_ecg": true, "with_pressures": true}` →
+    /// `{"wav_base64", "fs", "grade", "murmur", "s3", ...}`. Avec la même graine et la même
+    /// durée, l'ECG renvoyé (`with_ecg`) a les mêmes battements que le son.
+    pub fn pcg(&mut self, patient_id: &str, options: &str) -> String {
+        self.respond(|e| {
+            let o = parse(options, "options")?;
+            let m = obj(&o, "")?.clone();
+            let cfg = e
+                .auscultation
+                .clone()
+                .ok_or_else(|| ApiError::one("", "configuration auscultation non chargée (clé « auscultation » de loadModules)"))?;
+            let s = e.session(patient_id)?.clone();
+            let p = e.drugged_params(&s, &m)?;
+            let ev = evaluate(&p)?;
+            let seed = opt_u64(&m, "seed", s.seed)?;
+            let site = match m.get("site") {
+                None | Some(Json::Null) => None,
+                Some(v) => Some(v.as_str().ok_or_else(|| ApiError::one("/site", "chaîne attendue"))?.to_string()),
+            };
+            let dur = opt_f64(&m, "duration_s", cfg.duration_s)?;
+            if !(1.0..=60.0).contains(&dur) {
+                return Err(ApiError::one("/duration_s", "durée entre 1 et 60 s"));
+            }
+            let fs = opt_f64(&m, "fs", cfg.fs)?;
+            if !(1000.0..=48000.0).contains(&fs) {
+                return Err(ApiError::one("/fs", "fréquence entre 1000 et 48000 Hz"));
+            }
+            let opts = PcgOptions { fs: Some(fs), duration_s: Some(dur), resp_hz: None, site };
+            let r = patient_pcg(&ev, &cfg, &opts, seed)?;
+            let wav = wav_pcm16(&r.samples, r.fs as u32);
+            let f = r.features;
+            let mut out = json!({
+                "ok": true, "wav_base64": base64(&wav), "fs": r.fs, "grade": f.grade,
+                "murmur": f.murmur.label_fr(), "s3": f.s3, "s1": f.s1, "s2": f.s2,
+                "murmur_peak_flow": f.murmur_peak_flow, "beats": r.beats, "t_mc": r.t_mc, "t_ac": r.t_ac,
+                "duration_s": dur, "hr": ev.params.hr, "rr_per_min": ev.metabolic.art.rr,
+                "site": opts.site.clone().unwrap_or_else(|| "base".into()),
+                "config_version": cfg.version,
+            });
+            if opt_bool(&m, "with_ecg", false)? {
+                let sg = patient_signals(&ev, &SignalOptions { duration_s: dur, ecg_fs: 500.0, pcg_beats: 1 }, seed);
+                out["ecg"] = json!(sg.ecg.v.iter().map(|x| *x as f32 as f64).collect::<Vec<_>>());
+                out["ecg_fs"] = json!(500.0);
+                out["r_times"] = json!(sg.ecg.r_times);
+            }
+            if opt_bool(&m, "with_pressures", false)? {
+                let all_beats: Vec<f64> = {
+                    // mêmes battements que le son, sans la marge de fin
+                    let sg = patient_signals(&ev, &SignalOptions { duration_s: dur, ecg_fs: 500.0, pcg_beats: 1 }, seed);
+                    sg.ecg.r_times
+                };
+                out["pressures"] = aligned_pressures(&ev, &all_beats, dur, 250.0);
+            }
+            Ok(out)
+        })
+    }
+
+    /// Message JSON générique `{"op": ..., "patient": ..., "options": {...}}` : `pcg`, `state`,
+    /// `signals`, `timecourse`, `add_disease`, `new_patient`, `list_modules`, `api_version`.
+    pub fn message(&mut self, text: &str) -> String {
+        let msg = match parse(text, "message") {
+            Ok(m) => m,
+            Err(e) => return e.to_json(),
+        };
+        let op = msg.get("op").and_then(Json::as_str).unwrap_or("");
+        let pid = msg
+            .get("patient")
+            .and_then(Json::as_str)
+            .unwrap_or("")
+            .to_string();
+        let opts = msg
+            .get("options")
+            .map(|o| o.to_string())
+            .unwrap_or_else(|| "{}".into());
+        match op {
+            "pcg" => self.pcg(&pid, &opts),
+            "state" => self.state(&pid, &opts),
+            "signals" => self.signals(&pid, &opts),
+            "timecourse" => self.timecourse(&pid, &opts),
+            "add_disease" => self.add_disease(&pid, &opts),
+            "new_patient" => self.new_patient(&opts),
+            "list_modules" => self.list_modules(),
+            "api_version" => json!({ "ok": true, "api_version": API_VERSION }).to_string(),
+            other => ApiError::one("/op", format!("opération inconnue « {other} »")).to_json(),
+        }
+    }
+
     fn respond(&mut self, f: impl FnOnce(&mut Self) -> ApiResult) -> String {
         match f(self) {
             Ok(v) => v.to_string(),
@@ -510,6 +623,47 @@ fn effects_json(effects: &[vetsim_core::modules::Effect]) -> Vec<Json> {
             json!({ "param": e.param, "op": e.op.as_str(), "conditional": e.when.is_some(), "blocks": blocks })
         })
         .collect()
+}
+
+/// Pressions aorte, VG et OG sur la fenêtre du son : le battement simulé est posé à chaque
+/// instant de battement (avant le premier, la fin d'un battement virtuel à b0 − T). Approximation
+/// documentée : la forme du battement n'est pas recalculée battement par battement.
+fn aligned_pressures(ev: &Evaluation, beats: &[f64], dur: f64, fs: f64) -> Json {
+    let w = &ev.hemo.waveforms;
+    let period = ev.hemo.timing.period;
+    let dt = if w.t.len() > 1 {
+        w.t[1] - w.t[0]
+    } else {
+        0.002
+    };
+    let n = (dur * fs) as usize;
+    let at = |series: &[f64], phase: f64| -> f64 {
+        let x = (phase / dt).clamp(0.0, (series.len() - 1) as f64);
+        let i = x.floor() as usize;
+        let j = (i + 1).min(series.len() - 1);
+        series[i] + (series[j] - series[i]) * (x - i as f64)
+    };
+    let mut ao = Vec::with_capacity(n);
+    let mut lv = Vec::with_capacity(n);
+    let mut la = Vec::with_capacity(n);
+    let mut k = 0;
+    for i in 0..n {
+        let t = i as f64 / fs;
+        while k < beats.len() && beats[k] <= t {
+            k += 1;
+        }
+        let start = if k == 0 {
+            beats.first().map_or(0.0, |b| b - period)
+        } else {
+            beats[k - 1]
+        };
+        let phase = t - start;
+        ao.push(at(&w.p_ao, phase) as f32 as f64);
+        lv.push(at(&w.p_lv, phase) as f32 as f64);
+        la.push(at(&w.p_pv, phase) as f32 as f64);
+    }
+    json!({ "fs": fs, "ao": ao, "lv": lv, "la": la,
+            "note": "battement simulé posé à chaque instant de battement (forme non recalculée par battement)" })
 }
 
 fn case_json(c: &Case) -> Json {
@@ -694,7 +848,71 @@ mod tests {
         .iter()
         .map(|d| read(&format!("drugs/{d}.json")))
         .collect();
-        json!({ "patient": read("healthy_dog.json"), "diseases": ds, "drugs": dr }).to_string()
+        json!({ "patient": read("healthy_dog.json"), "diseases": ds, "drugs": dr,
+                "auscultation": read("auscultation.json") })
+        .to_string()
+    }
+
+    #[test]
+    fn pcg_message_with_aligned_ecg_and_pressures() {
+        let mut e = Engine::new();
+        assert_eq!(
+            j(&e.load_modules(&bundle()))["loaded"]["auscultation"],
+            true
+        );
+        let id = j(&e.new_patient(r#"{"variability": false}"#))["patient_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        e.add_disease(&id, r#"{"id": "mmvd", "severity": 0.3}"#);
+        let msg = json!({ "op": "pcg", "patient": id,
+                          "options": { "seed": 4, "duration_s": 6, "with_ecg": true, "with_pressures": true, "hr": 90 } });
+        let r = j(&e.message(&msg.to_string()));
+        assert_eq!(r["ok"], true, "{r}");
+        assert_eq!(r["murmur"], "holosystolique apexien gauche");
+        assert!(r["grade"].as_u64().unwrap() >= 2);
+        assert_eq!(r["hr"], 90.0);
+        let wav = r["wav_base64"].as_str().unwrap();
+        assert!(wav.starts_with("UklGR")); // « RIFF »
+        assert_eq!(wav.len(), (44 + 6 * 4000 * 2usize).div_ceil(3) * 4);
+        // Mêmes battements pour le son et l'ECG (le son s'arrête 0,5 s avant la fin).
+        let beats: Vec<f64> = r["beats"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_f64().unwrap())
+            .collect();
+        let rt: Vec<f64> = r["r_times"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_f64().unwrap())
+            .collect();
+        assert!(
+            !beats.is_empty() && rt.starts_with(&beats),
+            "{beats:?} / {rt:?}"
+        );
+        assert_eq!(r["ecg"].as_array().unwrap().len(), 3000);
+        assert_eq!(r["pressures"]["ao"].as_array().unwrap().len(), 1500);
+        // Erreurs structurées
+        assert_eq!(j(&e.message(r#"{"op": "rien"}"#))["ok"], false);
+        assert_eq!(j(&e.pcg(&id, r#"{"site": "lune"}"#))["ok"], false);
+        assert_eq!(j(&e.pcg(&id, r#"{"hr": 500}"#))["ok"], false);
+        let mut b: Json = serde_json::from_str(&bundle()).unwrap();
+        b.as_object_mut().unwrap().remove("auscultation");
+        e.load_modules(&b.to_string());
+        let id = j(&e.new_patient("{}"))["patient_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let r = j(&e.pcg(&id, "{}"));
+        assert!(
+            r["errors"][0]["message"]
+                .as_str()
+                .unwrap()
+                .contains("auscultation"),
+            "{r}"
+        );
     }
 
     fn j(s: &str) -> Json {

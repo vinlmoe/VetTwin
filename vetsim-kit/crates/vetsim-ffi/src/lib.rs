@@ -93,6 +93,16 @@ impl Engine {
         self.with(|e| e.timecourse(&patient_id, &doses_json))
     }
 
+    /// Auscultation (WAV en base64, grade, souffle, B3 ; ECG et pressions alignés en option).
+    pub fn pcg(&self, patient_id: String, options_json: String) -> String {
+        self.with(|e| e.pcg(&patient_id, &options_json))
+    }
+
+    /// Message JSON générique `{"op": "pcg", "patient": ..., "options": ...}`.
+    pub fn message(&self, json: String) -> String {
+        self.with(|e| e.message(&json))
+    }
+
     /// Catalogue des modules.
     pub fn list_modules(&self) -> String {
         self.with(|e| e.list_modules())
