@@ -1,7 +1,7 @@
 //! vetsim-cli : binaire de conformité (contrat : docs/CLI_CONTRACT.md).
 //!
 //! Sortie : une ligne de JSON sur stdout, code 0. Erreurs : message sur stderr, code ≠ 0
-//! (2 = usage, 3 = modules invalides, 4 = erreur du moteur, 5 = fonction pas encore implémentée).
+//! (2 = usage, 3 = modules invalides, 4 = erreur du moteur).
 //! Mode déterministe : aucun bruit, aucune variabilité interindividuelle.
 //!
 //! Commandes : `eval` et `pk` (contrat), `params` (diagnostic : paramètres du patient après
@@ -22,7 +22,6 @@ enum Failure {
     Usage(String),
     Modules(String),
     Engine(String),
-    NotYet(&'static str),
 }
 
 impl Failure {
@@ -31,7 +30,6 @@ impl Failure {
             Failure::Usage(m) => (2, format!("{m}\n{USAGE}")),
             Failure::Modules(m) => (3, m),
             Failure::Engine(m) => (4, m),
-            Failure::NotYet(m) => (5, m.to_string()),
         };
         eprintln!("vetsim-cli : {msg}");
         ExitCode::from(code)
@@ -283,17 +281,18 @@ fn run(argv: &[String]) -> Result<Json, Failure> {
             Ok(Json::Object(m))
         }
         "eval" => {
-            for (id, _) in &a.conc {
-                check_drug(&cat, id)?;
-            }
-            if !a.conc.is_empty() || a.d.is_some_and(|x| x != 0.0) || a.u.is_some_and(|x| x != 0.0)
-            {
-                return Err(Failure::NotYet(
-                    "eval : les effets des médicaments (--conc, --D, --U) arrivent au jalon M4",
-                ));
-            }
-            let ev =
-                vetsim_core::evaluate(&pt.params).map_err(|e| Failure::Engine(e.to_string()))?;
+            let d = a.d.unwrap_or(0.0);
+            let u = a.u.unwrap_or(0.0);
+            let params = if a.conc.is_empty() && d == 0.0 && u == 0.0 {
+                pt.params.clone()
+            } else {
+                for (id, _) in &a.conc {
+                    check_drug(&cat, id)?;
+                }
+                vetsim_core::apply_drug_effects(&pt.params, &cat.drugs, &a.conc, d, u)
+                    .map_err(|e| Failure::Engine(e.to_string()))?
+            };
+            let ev = vetsim_core::evaluate(&params).map_err(|e| Failure::Engine(e.to_string()))?;
             let mut m = Map::new();
             for (k, v) in ev.to_flat() {
                 m.insert(k.to_string(), Json::from(v));
@@ -301,10 +300,42 @@ fn run(argv: &[String]) -> Result<Json, Failure> {
             Ok(Json::Object(m))
         }
         "pk" => {
-            check_drug(&cat, a.drug.as_deref().unwrap_or_default())?;
-            Err(Failure::NotYet(
-                "pk : la PK/PD n'est pas encore implémentée (jalon M4)",
-            ))
+            let drug = a.drug.clone().unwrap_or_default();
+            check_drug(&cat, &drug)?;
+            let times = a.times.clone().unwrap_or_default();
+            let route = match a.route.as_deref() {
+                Some("po") => vetsim_core::Route::Po,
+                _ => vetsim_core::Route::Iv,
+            };
+            let dose = vetsim_core::Dose {
+                t_h: 0.0,
+                drug: drug.clone(),
+                mg_per_kg: a.dose.unwrap_or_default(),
+                route,
+            };
+            let t_end = times.iter().copied().fold(0.0, f64::max);
+            let tc = vetsim_core::timecourse(&pt.params, &cat.drugs, &[dose], t_end, &times)
+                .map_err(|e| Failure::Engine(e.to_string()))?;
+            let conc = tc.conc_of(&drug).unwrap_or_default();
+            // Comme la référence : pour chaque instant demandé, l'enregistrement le plus proche.
+            let mut ts = Vec::with_capacity(times.len());
+            let mut cs = Vec::with_capacity(times.len());
+            for t in &times {
+                let i = (0..tc.t.len())
+                    .min_by(|&x, &y| {
+                        (tc.t[x] - t)
+                            .abs()
+                            .partial_cmp(&(tc.t[y] - t).abs())
+                            .expect("fini")
+                    })
+                    .ok_or_else(|| Failure::Engine("pk : aucun instant enregistré".into()))?;
+                ts.push(Json::from(tc.t[i]));
+                cs.push(Json::from(conc[i]));
+            }
+            let mut m = Map::new();
+            m.insert("t".into(), Json::Array(ts));
+            m.insert("conc_mg_L".into(), Json::Array(cs));
+            Ok(Json::Object(m))
         }
         _ => unreachable!("commande validée par parse_args"),
     }

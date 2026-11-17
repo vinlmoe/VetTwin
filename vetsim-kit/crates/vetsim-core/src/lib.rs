@@ -16,6 +16,7 @@ pub mod modules;
 pub mod ode;
 pub mod params;
 pub mod patient;
+pub mod pkpd;
 pub mod roots;
 
 pub use case::{apply_modifiers, evaluate_effects, Case, DrawSource, Modifier, NoNoise};
@@ -24,6 +25,7 @@ pub use error::{Error, EvalError, Issue, LoadError};
 pub use modules::{Catalog, DiseaseModule, DrugModule, PatientModule};
 pub use params::Params;
 pub use patient::{healthy_params, Patient};
+pub use pkpd::{apply_drug_effects, timecourse, Dose, Route, Timecourse};
 
 /// Version du contrat d'API (CLI et messages JSON).
 pub const API_VERSION: &str = "1.0.0";

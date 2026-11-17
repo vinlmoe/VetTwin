@@ -38,10 +38,10 @@ jobs:
         run: python tests/check_params_cli.py --cmd "target/release/vetsim-cli"
       - name: Rust == Python hors golden (fixture M3 régénérée)
         run: python tests/make_m3_fixture.py && cargo test --release -p vetsim-core --test hemodynamics
-      - name: Conformité golden, cas sans médicament (M3)
-        run: python tests/conformance.py --cmd "target/release/vetsim-cli" --only '^(healthy_[0-9]+kg|(mmvd|ckd|addison|pneumonia)_s[0-9.]+)$'
-      # Conformité complète à partir de M4 (médicaments, pk) :
-      # - run: python tests/conformance.py --cmd "target/release/vetsim-cli"
+      - name: Rust == Python PK/PD (fixture M4 régénérée)
+        run: python tests/make_m4_fixture.py && cargo test --release -p vetsim-core --test pkpd
+      - name: Conformité golden complète (critère de la feuille de route)
+        run: python tests/conformance.py --cmd "target/release/vetsim-cli"
 
   python-reference:
     runs-on: ubuntu-latest
