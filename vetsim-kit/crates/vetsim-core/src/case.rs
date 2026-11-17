@@ -15,6 +15,10 @@ pub trait DrawSource {
     fn lognormal_mean1(&mut self, sd: f64) -> f64;
     /// Vrai avec probabilité `p`.
     fn bernoulli(&mut self, p: f64) -> bool;
+    /// Uniforme sur [lo, hi).
+    fn uniform(&mut self, lo: f64, hi: f64) -> f64;
+    /// Indice tiré selon des poids positifs.
+    fn weighted_index(&mut self, weights: &[f64]) -> usize;
 }
 
 /// Tirages sans bruit : lognormal → 1, Bernoulli → faux (docs/DSL.md, mode du golden).
@@ -27,6 +31,20 @@ impl DrawSource for NoNoise {
     }
     fn bernoulli(&mut self, _p: f64) -> bool {
         false
+    }
+    /// Milieu de l'intervalle.
+    fn uniform(&mut self, lo: f64, hi: f64) -> f64 {
+        0.5 * (lo + hi)
+    }
+    /// Poids le plus élevé (le premier en cas d'égalité).
+    fn weighted_index(&mut self, weights: &[f64]) -> usize {
+        let mut best = 0;
+        for (i, w) in weights.iter().enumerate() {
+            if *w > weights[best] {
+                best = i;
+            }
+        }
+        best
     }
 }
 
@@ -121,6 +139,30 @@ pub fn apply_modifiers(p: &mut Params, mods: &[Modifier]) -> Result<(), Error> {
 }
 
 impl DiseaseModule {
+    /// Tire un cas : stade imposé (sévérité uniforme dans ses bornes) ou tiré selon `prior`,
+    /// puis tirages du module (comme `Disease.draw_severity` puis `sample`).
+    /// Avec [`NoNoise`] : stade de plus forte probabilité a priori, milieu de ses bornes.
+    pub fn sample(&self, stage: Option<&str>, draws: &mut dyn DrawSource) -> Result<Case, Error> {
+        let st =
+            match stage {
+                Some(name) => self.stages.iter().find(|s| s.name == name).ok_or_else(|| {
+                    Error::UnknownStage {
+                        disease: self.id.clone(),
+                        stage: name.to_string(),
+                    }
+                })?,
+                None => {
+                    let w: Vec<f64> = self.stages.iter().map(|s| s.prior).collect();
+                    &self.stages[draws.weighted_index(&w)]
+                }
+            };
+        let s = draws.uniform(st.lo, st.hi);
+        let mut case = self.case(s, draws)?;
+        // Le stade tiré fait foi (une sévérité sur une borne commune appartiendrait aux deux).
+        case.stage = Some(st.name.clone());
+        Ok(case)
+    }
+
     /// Tire un cas de sévérité imposée `severity` (le stade se déduit des bornes).
     pub fn case(&self, severity: f64, draws: &mut dyn DrawSource) -> Result<Case, Error> {
         if !(0.0..=1.0).contains(&severity) {

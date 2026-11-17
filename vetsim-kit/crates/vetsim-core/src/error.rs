@@ -103,6 +103,14 @@ pub enum Error {
     /// Aucun module maladie de cet identifiant.
     #[error("maladie inconnue « {0} »")]
     UnknownDisease(String),
+    /// Stade absent du module maladie.
+    #[error("maladie « {disease} » : stade inconnu « {stage} »")]
+    UnknownStage {
+        /// Module.
+        disease: String,
+        /// Stade demandé.
+        stage: String,
+    },
     /// Aucun module médicament de cet identifiant.
     #[error("médicament inconnu « {0} »")]
     UnknownDrug(String),

@@ -48,14 +48,36 @@ impl Patient {
         })
     }
 
-    /// Ajoute une maladie de sévérité imposée ; ses effets s'appliquent aux paramètres courants.
-    pub fn add_disease(
+    /// Patient avec variabilité interindividuelle : chaque paramètre listé dans
+    /// `interindividual_variability` est multiplié par un lognormal de moyenne 1 (CV du module),
+    /// dans l'ordre du module (comme `Patient(bw, seed, variability=True)`).
+    pub fn with_variability(
+        module: &PatientModule,
+        bw: f64,
+        draws: &mut dyn DrawSource,
+    ) -> Result<Self, Error> {
+        let mut params = healthy_params(module, bw)?;
+        for (name, sd) in &module.variability {
+            *params.get_mut(name).expect("nom validé au chargement") *= draws.lognormal_mean1(*sd);
+        }
+        Ok(Self {
+            params,
+            cases: Vec::new(),
+        })
+    }
+
+    /// Ajoute une maladie tirée par stade (ou selon `prior` si `stage` est `None`).
+    pub fn add_disease_staged(
         &mut self,
         module: &DiseaseModule,
-        severity: f64,
+        stage: Option<&str>,
         draws: &mut dyn DrawSource,
     ) -> Result<&Case, Error> {
-        let case = module.case(severity, draws)?;
+        let case = module.sample(stage, draws)?;
+        self.push_case(module, case)
+    }
+
+    fn push_case(&mut self, module: &DiseaseModule, case: Case) -> Result<&Case, Error> {
         let mut p = self.params.clone();
         apply_modifiers(&mut p, &case.modifiers).map_err(|e| match e {
             Error::Eval {
@@ -70,5 +92,16 @@ impl Patient {
         self.params = p;
         self.cases.push(case);
         Ok(self.cases.last().expect("cas ajouté"))
+    }
+
+    /// Ajoute une maladie de sévérité imposée ; ses effets s'appliquent aux paramètres courants.
+    pub fn add_disease(
+        &mut self,
+        module: &DiseaseModule,
+        severity: f64,
+        draws: &mut dyn DrawSource,
+    ) -> Result<&Case, Error> {
+        let case = module.case(severity, draws)?;
+        self.push_case(module, case)
     }
 }

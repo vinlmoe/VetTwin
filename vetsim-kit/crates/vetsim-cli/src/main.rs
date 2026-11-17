@@ -16,7 +16,8 @@ const USAGE: &str = "\
 usage :
   vetsim-cli [--modules DIR] eval   --bw KG [--disease id:sévérité ...] [--conc drug=mg_per_L ...] [--D mL] [--U mL_per_kg]
   vetsim-cli [--modules DIR] pk     --bw KG --drug ID --dose MG_PER_KG --route iv|po --times T1,T2,... [--disease id:sévérité ...]
-  vetsim-cli [--modules DIR] params --bw KG [--disease id:sévérité ...]";
+  vetsim-cli [--modules DIR] params --bw KG [--disease id:sévérité ...]
+  vetsim-cli [--modules DIR] calibrate [--targets FICHIER] [--n-healthy 50] [--n-disease 24] [--seed0 100]";
 
 enum Failure {
     Usage(String),
@@ -49,6 +50,18 @@ struct Args {
     dose: Option<f64>,
     route: Option<String>,
     times: Option<Vec<f64>>,
+    targets: Option<PathBuf>,
+    n_healthy: Option<usize>,
+    n_disease: Option<usize>,
+    seed0: Option<u64>,
+}
+
+fn count(flag: &str, v: &str) -> Result<usize, Failure> {
+    v.trim()
+        .parse::<usize>()
+        .ok()
+        .filter(|n| *n > 0)
+        .ok_or_else(|| Failure::Usage(format!("{flag} : entier > 0 attendu, « {v} » reçu")))
 }
 
 fn num(flag: &str, v: &str) -> Result<f64, Failure> {
@@ -126,6 +139,15 @@ fn parse_args(argv: &[String]) -> Result<Args, Failure> {
                     .collect::<Result<Vec<_>, _>>()?;
                 a.times = Some(t);
             }
+            "--targets" => a.targets = Some(PathBuf::from(value()?)),
+            "--n-healthy" => a.n_healthy = Some(count(flag, &value()?)?),
+            "--n-disease" => a.n_disease = Some(count(flag, &value()?)?),
+            "--seed0" => {
+                let v = value()?;
+                a.seed0 = Some(v.trim().parse().map_err(|_| {
+                    Failure::Usage(format!("--seed0 : entier ≥ 0 attendu, « {v} » reçu"))
+                })?);
+            }
             "--help" | "-h" => return Err(Failure::Usage(String::new())),
             other => return Err(Failure::Usage(format!("option inconnue « {other} »"))),
         }
@@ -134,6 +156,7 @@ fn parse_args(argv: &[String]) -> Result<Args, Failure> {
         "eval" => &["bw", "disease", "conc", "D", "U"],
         "pk" => &["bw", "disease", "drug", "dose", "route", "times"],
         "params" => &["bw", "disease"],
+        "calibrate" => &["targets", "n_healthy", "n_disease", "seed0"],
         "" => return Err(Failure::Usage("commande manquante".into())),
         other => return Err(Failure::Usage(format!("commande inconnue « {other} »"))),
     };
@@ -145,11 +168,18 @@ fn parse_args(argv: &[String]) -> Result<Args, Failure> {
         ("dose", a.dose.is_some()),
         ("route", a.route.is_some()),
         ("times", a.times.is_some()),
+        ("targets", a.targets.is_some()),
+        ("n_healthy", a.n_healthy.is_some()),
+        ("n_disease", a.n_disease.is_some()),
+        ("seed0", a.seed0.is_some()),
+        ("bw", a.bw.is_some()),
+        ("disease", !a.diseases.is_empty()),
     ];
     for (name, set) in used {
         if set && !allowed.contains(&name) {
             return Err(Failure::Usage(format!(
-                "--{name} n'est pas une option de « {} »",
+                "--{} n'est pas une option de « {} »",
+                name.replace('_', "-"),
                 a.command
             )));
         }
@@ -337,8 +367,64 @@ fn run(argv: &[String]) -> Result<Json, Failure> {
             m.insert("conc_mg_L".into(), Json::Array(cs));
             Ok(Json::Object(m))
         }
+        "calibrate" => calibrate(&cat, &a),
         _ => unreachable!("commande validée par parse_args"),
     }
+}
+
+/// Banc de calibration (diagnostic hors contrat) : même structure que
+/// `calibration/calibration_run_python.json`.
+fn calibrate(cat: &Catalog, a: &Args) -> Result<Json, Failure> {
+    use vetsim_core::calibrate as cal;
+    let engine = |e: vetsim_core::Error| Failure::Engine(e.to_string());
+    let path = a
+        .targets
+        .clone()
+        .unwrap_or_else(|| PathBuf::from("calibration/targets.json"));
+    let text = std::fs::read_to_string(&path)
+        .map_err(|e| Failure::Modules(format!("{} : lecture impossible ({e})", path.display())))?;
+    let targets = cal::parse_targets(&text, &path.display().to_string())
+        .map_err(|e| Failure::Modules(e.to_string()))?;
+    let rows = cal::healthy_cohort(cat, &targets, a.n_healthy.unwrap_or(50)).map_err(engine)?;
+    let healthy: Vec<Json> = rows
+        .iter()
+        .map(|r| {
+            serde_json::json!({
+                "module": r.target.module, "var": r.target.var, "target": r.target.target,
+                "tol": r.target.tol, "unit": r.target.unit, "source": r.target.source,
+                "model_mean": r.model_mean, "model_sd": r.model_sd, "ok": r.ok,
+                "frac_in": r.frac_in, "n": r.n,
+            })
+        })
+        .collect();
+    let pk: Vec<Json> = cal::pk_checks(cat)
+        .map_err(engine)?
+        .iter()
+        .map(|r| {
+            serde_json::json!({
+                "module": r.module, "var": r.var, "target": r.target, "unit": r.unit,
+                "source": r.source, "model_mean": r.model,
+            })
+        })
+        .collect();
+    let mut disease = Map::new();
+    for g in cal::disease_checks(cat, a.n_disease.unwrap_or(24), a.seed0.unwrap_or(100))
+        .map_err(engine)?
+    {
+        let samples: Vec<Json> = g
+            .samples
+            .iter()
+            .map(|v| {
+                let mut m = Map::new();
+                for (k, x) in cal::DISEASE_KEYS.iter().zip(v) {
+                    m.insert((*k).into(), Json::from(*x));
+                }
+                Json::Object(m)
+            })
+            .collect();
+        disease.insert(format!("{}|{}", g.disease, g.stage), Json::Array(samples));
+    }
+    Ok(serde_json::json!({ "healthy": healthy, "pk": pk, "disease": disease }))
 }
 
 fn main() -> ExitCode {

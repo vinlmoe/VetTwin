@@ -12,6 +12,8 @@ publish = false
 [workspace.dependencies]
 serde_json = { version = "1", features = ["preserve_order"] }
 thiserror = "2"
+rand_chacha = { version = "0.9", default-features = false }
+libm = "0.2"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
