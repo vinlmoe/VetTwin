@@ -3,7 +3,7 @@ import numpy as np
 from params import healthy_params, copy_params
 from diseases import apply, REGISTRY
 from physio import evaluate
-from signals import make_ecg, make_pcg
+from signals import make_ecg_conducted, make_pcg, patient_conduction
 from autonomic import simulate_autonomic
 import pkpd
 
@@ -32,9 +32,11 @@ class Patient:
             pe = r['p']
             au = simulate_autonomic(r, seed=int(self.rng.integers(1 << 30)))
             r['autonomic_ts'] = au
-            r_times = au['beats'][au['beats'] < 8.0]
-            t, ecg, f = make_ecg(pe, pe['hr'], r['art']['rr'], r_times=r_times)
-            r['ecg'] = dict(t=t, v=ecg, **f, hr=pe['hr'])
+            cond = patient_conduction(r, au['beats'], seed=int(self.rng.integers(1 << 30)))
+            r['conduction_ts'] = cond
+            t, ecg, f = make_ecg_conducted(pe, cond, pe['hr'])
+            r['ecg'] = dict(t=t, v=ecg, **f, hr=pe['hr'],
+                            r_times=[b['t'] for b in cond['ventricular'] if b['t'] < 8.0])
             t2, pcg, feats = make_pcg(r['hemo'])
             r['pcg'] = dict(t=t2, v=pcg, **feats)
         return r

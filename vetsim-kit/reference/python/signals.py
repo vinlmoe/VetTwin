@@ -15,22 +15,20 @@ def ecg_features(p):
     pr, qrs, qt = p['pr'], p['qrs'], p['qt']
     p_amp, t_amp, r_amp = p['p_amp'], p['t_amp'], p['r_amp']
     t_w = 0.045
-    p_visible = True
     if k > 5.5:
         d = k - 5.5
         t_amp *= 1 + 0.45 * d                 # onde T pointue, ample
         t_w = max(0.025, 0.045 - 0.006 * d)   # et étroite
+        qt *= max(0.8, 1 - 0.04 * d)          # QT raccourci (placeholder D)
         p_amp *= max(0.0, 1 - 0.25 * max(0.0, k - 6.0))
         pr *= 1 + 0.07 * max(0.0, k - 6.0)
         qrs *= 1 + 0.12 * max(0.0, k - 6.5)
-        if k > 7.8:
-            p_visible = False                  # stase atriale (rythme sinoventriculaire)
+        # disparition de l'onde P : arrêt atrial décidé par la conduction (rhythm), plus ici
     elif k < 3.2:
         d = 3.2 - k
         t_amp *= max(0.2, 1 - 0.3 * d)
         qt *= 1 + 0.08 * d
-    return dict(pr=pr, qrs=qrs, qt=qt, p_amp=p_amp if p_visible else 0.0,
-                t_amp=t_amp, r_amp=r_amp, t_w=t_w)
+    return dict(pr=pr, qrs=qrs, qt=qt, p_amp=p_amp, t_amp=t_amp, r_amp=r_amp, t_w=t_w)
 
 
 def make_ecg(p, hr, rr_resp, dur=8.0, fs=500, seed=0, r_times=None):
@@ -58,6 +56,67 @@ def make_ecg(p, hr, rr_resp, dur=8.0, fs=500, seed=0, r_times=None):
         sig += g(t_center, f['t_amp'], f['t_w'])                                    # T
     sig += 0.01 * rng.standard_normal(len(t)) + 0.02 * np.sin(2 * np.pi * 0.25 * t)
     return t, sig, f
+
+
+# Battements ventriculaires (ectopique, échappement) : QRS large et onde T discordante ;
+# fibrillation atriale : petites ondes f à chaque activation atriale désorganisée. Placeholders D.
+WIDE_QRS = 2.2          # facteur de largeur du QRS d'un battement ventriculaire
+WIDE_R = 1.2            # facteur d'amplitude de son onde R
+WIDE_T = -1.5           # onde T discordante (facteur de t_amp)
+F_WAVE = 0.3            # amplitude des ondes f (facteur de p_amp)
+
+
+def make_ecg_conducted(p, cond, hr, dur=8.0, fs=500, seed=0):
+    """ECG construit depuis la séquence de conduction (rhythm.simulate_conduction) : onde P à
+    chaque activation atriale organisée (aucune en arrêt atrial), ondes f en FA, QRS à chaque
+    activation ventriculaire après le PR de ce battement, QRS large et T discordante pour un
+    battement ventriculaire, QT corrigé par le RR précédent (Fridericia)."""
+    rng = np.random.default_rng(seed)
+    f = ecg_features(p)
+    t = np.arange(0, dur, 1 / fs)
+    sig = np.zeros_like(t)
+    g = lambda c, a, w: a * np.exp(-0.5 * ((t - c) / w) ** 2)
+    for ta, organized in cond['atrial']:
+        if ta > dur + 0.5:
+            break
+        if organized:
+            sig += g(ta + 0.5 * 0.03, f['p_amp'], 0.022)                            # P
+        else:
+            sig += g(ta, F_WAVE * p['p_amp'], 0.012)                               # onde f
+    prev = None
+    for b in cond['ventricular']:
+        tv = b['t']
+        if tv > dur + 0.5:
+            break
+        rr = tv - prev if prev is not None else 60.0 / hr
+        prev = tv
+        qt = f['qt'] * (95.0 / max(60.0 / rr, 30.0)) ** (1.0 / 3.0)
+        if b['wide']:
+            qrs = f['qrs'] * WIDE_QRS
+            qrs_w = qrs / 5.0
+            sig += g(tv, WIDE_R * f['r_amp'], qrs_w)                                 # R large
+            sig += g(tv + 0.55 * qrs, -0.35 * f['r_amp'], qrs_w * 0.9)              # S
+            sig += g(tv - 0.5 * qrs + qt - 2.2 * f['t_w'], WIDE_T * f['t_amp'], 1.5 * f['t_w'])
+        else:
+            qrs = f['qrs']
+            qrs_w = qrs / 5.0
+            sig += g(tv - 0.55 * qrs, -0.12 * f['r_amp'], qrs_w * 0.8)               # Q
+            sig += g(tv, f['r_amp'], qrs_w)                                         # R
+            sig += g(tv + 0.55 * qrs, -0.20 * f['r_amp'], qrs_w * 0.9)               # S
+            sig += g(tv - 0.5 * qrs + qt - 2.2 * f['t_w'], f['t_amp'], f['t_w'])     # T
+    sig += 0.01 * rng.standard_normal(len(t)) + 0.02 * np.sin(2 * np.pi * 0.25 * t)
+    return t, sig, f
+
+
+def patient_conduction(r, sinus_times, seed):
+    """Séquence de conduction des signaux : décharges sinusales du modèle autonome (variabilité
+    respiratoire) propagées par la couche de conduction ; aléa SplitMix64(seed)."""
+    import rhythm
+    p = r['p']
+    g = rhythm.SplitMix64(seed)
+    t_end = float(sinus_times[-1]) if len(sinus_times) else 0.0
+    return rhythm.simulate_conduction(p, r['autonomic']['v_eff'], 60.0 / p.get('hr_sinus', p['hr']), t_end,
+                                      g.random, sinus_times=list(sinus_times))
 
 
 # ------------------------------------------------------------------ PCG

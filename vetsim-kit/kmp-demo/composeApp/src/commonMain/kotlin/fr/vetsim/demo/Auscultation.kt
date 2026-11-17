@@ -198,7 +198,7 @@ fun AuscultationView(
         }
         TimePanel("Spectrogramme 0–500 Hz (dB)", t0, t1, cursor, height = 110) { w, h -> drawSpectrogram(r.spectrogram, t0, t1, w, h) }
         TimePanel("ECG, dérivation II (mêmes battements que le son)", t0, t1, cursor, height = 110) { w, h ->
-            drawMinMax(r.ecg, r.ecgFs, t0, t1, w, h, EcgGreen, null, null)
+            drawMinMax(r.ecg, r.ecgFs, t0, t1, w, h, EcgGreen, -1.5f, 2.5f) // échelle unique de l'ECG (mV)
         }
         TimePanel("Pressions (mmHg) : aorte, VG, OG", t0, t1, cursor, height = 150, legend = listOf("Aorte" to AoRed, "VG" to LvBlue, "OG" to LaAmber)) { w, h ->
             val hi = maxOf(r.ao.maxOrNull() ?: 1f, r.lv.maxOrNull() ?: 1f) * 1.05f

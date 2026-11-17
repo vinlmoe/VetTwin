@@ -30,6 +30,26 @@ import math
 
 ORG_SINUS, ORG_JUNCT, ORG_VESC, ORG_VPC = 'sinus', 'junctional', 'ventricular_escape', 'ectopic'
 SQRT3 = math.sqrt(3.0)
+_M64 = (1 << 64) - 1
+
+
+class SplitMix64:
+    """Générateur SplitMix64 (Steele, Lea, Flood 2014), écrit à l'identique en Rust
+    (`rhythm::SplitMix64`) : le moteur tire l'aléa de la conduction avec lui, d'où des séquences
+    identiques au bit près entre la référence et le port. u = (x >> 11)·2⁻⁵³ ∈ [0, 1)."""
+
+    def __init__(self, seed):
+        self.state = seed & _M64
+
+    def next_u64(self):
+        self.state = (self.state + 0x9E3779B97F4A7C15) & _M64
+        z = self.state
+        z = ((z ^ (z >> 30)) * 0xBF58476D1CE4E5B9) & _M64
+        z = ((z ^ (z >> 27)) * 0x94D049BB133111EB) & _M64
+        return z ^ (z >> 31)
+
+    def random(self):
+        return (self.next_u64() >> 11) * (1.0 / (1 << 53))
 
 
 def may_be_trivial(p):

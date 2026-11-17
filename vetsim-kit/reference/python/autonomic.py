@@ -27,7 +27,7 @@ def simulate_autonomic(r, dur=120.0, warm=20.0, fs=20.0, seed=0):
     rng = np.random.default_rng(seed)
     p = r['p']
     a = r['autonomic']
-    hr_bar, s_bar, v_bar = p['hr'], a['s_eff'], a['v_eff']
+    hr_bar, s_bar, v_bar = p.get('hr_sinus', p['hr']), a['s_eff'], a['v_eff']   # nœud sinusal
     mapbar = r['hemo']['map']
     rr_rate = r['art']['rr']
     fr = rr_rate / 60.0

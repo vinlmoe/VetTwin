@@ -519,6 +519,7 @@ fn calibrate(cat: &Catalog, a: &Args) -> Result<Json, Failure> {
         })
         .collect();
     let mut disease = Map::new();
+    let mut deaths = Map::new();
     for g in cal::disease_checks(cat, a.n_disease.unwrap_or(24), a.seed0.unwrap_or(100))
         .map_err(engine)?
     {
@@ -533,9 +534,15 @@ fn calibrate(cat: &Catalog, a: &Args) -> Result<Json, Failure> {
                 Json::Object(m)
             })
             .collect();
+        if !g.deaths.is_empty() {
+            deaths.insert(
+                format!("{}|{}", g.disease, g.stage),
+                serde_json::json!(g.deaths),
+            );
+        }
         disease.insert(format!("{}|{}", g.disease, g.stage), Json::Array(samples));
     }
-    Ok(serde_json::json!({ "healthy": healthy, "pk": pk, "disease": disease }))
+    Ok(serde_json::json!({ "healthy": healthy, "pk": pk, "disease": disease, "deaths": deaths }))
 }
 
 fn main() -> ExitCode {

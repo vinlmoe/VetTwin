@@ -57,7 +57,7 @@ def healthy_params(bw=20.0):
         co_arrest_frac=0.15,         # débit / débit de référence sous lequel la circulation s'effondre
         # --- oreillettes contractiles : élastance active sur pv (OG + veines pulmonaires) et sv (OD + veines)
         #     P = (1 + k·e_a(t))·P_passive, activation PR avant le ventricule ; k = 0 : oreillettes passives
-        k_la=0.0, k_ra=0.0,          # gains d'activation atriale (à caler sur le rapport E/A mitral ; placeholders)
+        k_la=1.45, k_ra=0.29,        # gains d'activation atriale : k_la calé sur E/A ≈ 1,39 (E 0,82, A 0,59 m/s, n = 53) ; k_ra = 0,2·k_la (placeholder D)
         ta_atr=0.09, tra_atr=0.06,   # durées de contraction et de relaxation atriales (s ; placeholders D)
         # --- conduction (rhythm.py) ; placeholders D sauf mention (docs/PROVENANCE.md)
         sa_block=0.0,                # probabilité de bloc de sortie sino-atrial (maladie du sinus)

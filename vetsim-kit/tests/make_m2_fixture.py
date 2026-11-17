@@ -2,7 +2,7 @@
 Exécuter depuis la racine du kit :  python tests/make_m2_fixture.py
 Sortie : crates/vetsim-core/tests/fixtures/python_reference_m2.json
 
-Méthode : physio.simulate_hemo est remplacé par un bouchon qui renvoie une hémodynamique
+Méthode : physio._hemo_with_rhythm (hémodynamique de tout rythme) est remplacé par un bouchon qui renvoie une hémodynamique
 imposée (co, map, la_mean) ; physio._evaluate_once (une passe de la référence, sans les couplages de décompensation) calcule tout l'aval.
 L'aval ne dépend que de ces trois grandeurs et des paramètres non touchés par le baroréflexe.
 Ne modifie aucun module ni aucune valeur de référence."""
@@ -46,7 +46,7 @@ for bw, combo, over in PATIENTS:
     p0.update(over)
     for label, (co20, mp, la) in HEMO.items():
         hemo = dict(co=scale(bw, co20), map=mp, la_mean=la)
-        physio.simulate_hemo = lambda q, n_beats=11, h=hemo: dict(h)
+        physio._hemo_with_rhythm = lambda q, v_eff, n_beats=11, h=hemo: (dict(h, hr_v=q['hr']), None)   # tout rythme : hémodynamique imposée
         entry = dict(bw=float(bw), diseases=[[n, s] for n, s in combo], overrides=over, hemo_profile=label, hemo=hemo)
         try:
             entry["expected"] = flat(physio._evaluate_once(dict(p0)))   # une passe, sans couplage de décompensation

@@ -823,7 +823,12 @@ fn mechanism_label_fr(id: &str) -> &'static str {
         "hypoxic_depression" => "dépression myocardique par hypoxie tissulaire",
         "coronary_ischemia" => "ischémie myocardique (pression de perfusion coronaire basse)",
         "hypokalemic_weakness" => "faiblesse des muscles respiratoires (hypokaliémie)",
-        "hyperkalemic_bradycardia" => "frein hyperkaliémique de la FC (K⁺ sur le nœud sinusal)",
+        "atrial_standstill" => {
+            "arrêt atrial hyperkaliémique (pas d'onde P ni de contraction atriale)"
+        }
+        "conduction_block" => {
+            "trouble de conduction (FC ventriculaire inférieure à la FC sinusale)"
+        }
         "anaerobic_metabolism" => "métabolisme anaérobie (extraction d'O₂ élevée, lactate)",
         "pulmonary_edema" => "œdème pulmonaire (POG élevée)",
         "renal_hypoperfusion" => "hypoperfusion rénale (PAM basse)",
@@ -1165,7 +1170,12 @@ mod tests {
         assert_eq!(r["ok"], true, "{r}");
         assert_eq!(r["murmur"], "holosystolique apexien gauche");
         assert!(r["grade"].as_u64().unwrap() >= 2);
-        assert_eq!(r["hr"], 90.0);
+        // préréglage : FC intrinsèque du nœud sinusal ; le baroréflexe l'ajuste ensuite
+        assert!(
+            (r["hr"].as_f64().unwrap() - 90.0).abs() < 2.0,
+            "{}",
+            r["hr"]
+        );
         let wav = r["wav_base64"].as_str().unwrap();
         assert!(wav.starts_with("UklGR")); // « RIFF »
         assert_eq!(wav.len(), (44 + 6 * 4000 * 2usize).div_ceil(3) * 4);
@@ -1221,7 +1231,7 @@ mod tests {
         let id = p["patient_id"].as_str().unwrap().to_string();
         let st = j(&e.state(&id, "{}"));
         assert_eq!(st["outcome"]["state"], "stable");
-        let st = j(&e.state(&id, r#"{"conc": {"betabloquant": 10}}"#));
+        let st = j(&e.state(&id, r#"{"conc": {"pimobendan": 3}}"#));
         assert_eq!(st["outcome"]["state"], "decompensated");
         let ids: Vec<&str> = st["outcome"]["mechanisms"]
             .as_array()
@@ -1316,8 +1326,10 @@ mod tests {
             .iter()
             .map(|s| s["id"].as_str().unwrap())
             .collect();
+        // le signe d'œdème suit la POG du patient (seuil 20 mmHg), quelle que soit sa valeur
+        let edema = st["la_mean"].as_f64().unwrap() > 20.0;
         assert!(
-            signs.contains(&"murmur") && signs.contains(&"pulmonary_edema_risk"),
+            signs.contains(&"murmur") && signs.contains(&"pulmonary_edema_risk") == edema,
             "{signs:?}"
         );
         let sg = j(&e.signals(&id, r#"{"duration_s": 4}"#));

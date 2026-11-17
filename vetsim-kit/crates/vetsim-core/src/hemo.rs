@@ -81,6 +81,8 @@ pub struct Timing {
     pub ts: f64,
     /// Durée de relaxation `tr = 0,4·ts` (s).
     pub tr: f64,
+    /// Délai oreillette → ventricule (s) ; `None` : paramètre `pr`.
+    pub pr: Option<f64>,
 }
 
 impl Timing {
@@ -92,13 +94,14 @@ impl Timing {
             period,
             ts,
             tr: 0.4 * ts,
+            pr: None,
         }
     }
 }
 
 /// Activation atriale : débute `pr` avant l'activation ventriculaire du même battement.
 pub fn atrial_activation(t: f64, p: &Params, tm: &Timing) -> f64 {
-    activation(t + p.pr, tm.period, p.ta_atr, p.tra_atr)
+    activation(t + tm.pr.unwrap_or(p.pr), tm.period, p.ta_atr, p.tra_atr)
 }
 
 /// Pressions et débits pour les volumes `v` à l'instant `t`.
@@ -235,10 +238,16 @@ pub const DT: f64 = 0.002;
 
 /// Simule `n_beats` battements et calcule les indicateurs sur le dernier.
 pub fn simulate_hemo(p: &Params, n_beats: usize) -> Result<HemoResult, Error> {
+    simulate_hemo_pr(p, n_beats, None)
+}
+
+/// Comme [`simulate_hemo`], avec le délai oreillette → ventricule de la conduction.
+pub fn simulate_hemo_pr(p: &Params, n_beats: usize, pr: Option<f64>) -> Result<HemoResult, Error> {
     if !(p.hr.is_finite() && p.hr > 0.0) {
         return Err(Error::InvalidInput(format!("FC {} /min", p.hr)));
     }
-    let tm = Timing::from_hr(p.hr);
+    let mut tm = Timing::from_hr(p.hr);
+    tm.pr = pr;
     let t_end = n_beats as f64 * tm.period;
     // Échantillons comme np.arange(t_end − 2T, t_end, dt) (y compris le calcul de numpy :
     // longueur ceil((stop − start)/dt), valeurs start + i·((start + dt) − start)).
@@ -680,4 +689,40 @@ pub fn simulate_hemo_beats(
         beats: per,
         waveforms: w,
     })
+}
+
+impl BeatsResult {
+    /// Forme commune avec la simulation périodique : indicateurs moyens et séries du dernier
+    /// battement complet (temps relatif à son début), rythme moyen.
+    pub fn into_hemo_result(self, p: &Params) -> HemoResult {
+        let last = *self.beats.last().expect("au moins un battement");
+        let w = &self.waveforms;
+        let idx: Vec<usize> = (0..w.t.len())
+            .filter(|&i| w.t[i] >= last.t && w.t[i] < last.t + last.rr)
+            .collect();
+        let pick = |v: &[f64]| idx.iter().map(|&i| v[i]).collect::<Vec<f64>>();
+        let one = Waveforms {
+            t: idx.iter().map(|&i| w.t[i] - last.t).collect(),
+            p_lv: pick(&w.p_lv),
+            p_rv: pick(&w.p_rv),
+            p_ao: pick(&w.p_ao),
+            p_sv: pick(&w.p_sv),
+            p_pa: pick(&w.p_pa),
+            p_pv: pick(&w.p_pv),
+            q_mi: pick(&w.q_mi),
+            q_ao: pick(&w.q_ao),
+            q_tr: pick(&w.q_tr),
+            q_pu: pick(&w.q_pu),
+            q_sys: pick(&w.q_sys),
+            q_pul: pick(&w.q_pul),
+            v_lv: pick(&w.v_lv),
+        };
+        let mut timing = Timing::from_hr(self.hr_v);
+        timing.pr = Some(p.pr);
+        HemoResult {
+            timing,
+            summary: self.summary,
+            waveforms: one,
+        }
+    }
 }

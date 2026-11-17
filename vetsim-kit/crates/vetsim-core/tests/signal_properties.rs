@@ -93,15 +93,15 @@ fn ecg_r_peaks_follow_r_times() {
         );
         assert!(e.v[imax] > 1.4, "amplitude de R {}", e.v[imax]);
     }
-    // Les ondes R de l'ECG sont exactement les battements de l'autonome sur [0, 8 s).
-    let expected: Vec<f64> = s
-        .autonomic
-        .beats
-        .iter()
-        .copied()
-        .filter(|t| *t < 8.0)
-        .collect();
-    assert_eq!(e.r_times, expected);
+    // Les ondes R de l'ECG sont les activations ventriculaires de la conduction des décharges
+    // sinusales de l'autonome : décharge + PR (rythme sinusal 1:1), sur [0, 8 s).
+    assert!(!e.r_times.is_empty() && e.r_times.iter().all(|t| *t < 8.0));
+    for (r, b) in e.r_times.iter().zip(&s.autonomic.beats) {
+        assert!(
+            (0.08..0.2).contains(&(r - b)),
+            "R {r} / décharge sinusale {b}"
+        );
+    }
     // FC moyenne sur les 120 s de l'autonome proche de la FC de régime permanent (la RSA du
     // chien sain est ample : sur 8 s, la moyenne n'est pas stable).
     let fc = s.autonomic.hrv.unwrap().fc_moy;
@@ -165,10 +165,15 @@ fn hyperkalaemia_changes_the_ecg() {
         "T ample et pointue : {a:?} / {h:?}"
     );
     assert!(a.p_amp < h.p_amp, "P aplatie");
-    // K > 7,8 : P absente
+    assert!(a.qt < h.qt, "QT raccourci : {} / {}", a.qt, h.qt);
+    // K ≥ k_atrial_standstill : arrêt atrial décidé par la conduction (ni onde P ni contraction),
+    // conduction sino-ventriculaire conservée
     let mut pt = Patient::healthy(&c.patient, 20.0).unwrap();
-    pt.params.k = 8.2;
+    pt.params.k = 9.0;
+    let cond =
+        vetsim_core::rhythm::simulate_conduction(&pt.params, 0.6, 0.68, 10.0, &mut || 0.0, None);
+    assert!(cond.atrial.is_empty());
+    assert!(cond.ventricular.len() > 10);
     let p = vetsim_core::signals::ecg_features(&pt.params);
-    assert_eq!(p.p_amp, 0.0);
     assert!(p.qrs > h.qrs);
 }

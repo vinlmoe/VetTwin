@@ -707,7 +707,15 @@ pub fn patient_pcg(
         },
         &mut SimRng::for_stream(seed, streams::AUTONOMIC),
     );
-    let beats: Vec<f64> = au.beats.iter().copied().filter(|b| *b < dur).collect();
+    // battements = activations ventriculaires de la conduction (mêmes que l'ECG)
+    let cond =
+        crate::signals::patient_conduction(ev, &au.beats, seed.wrapping_add(streams::RHYTHM));
+    let beats: Vec<f64> = cond
+        .ventricular
+        .iter()
+        .map(|b| b.t)
+        .filter(|b| *b < dur)
+        .collect();
     let o = PcgOptions {
         resp_hz: opts.resp_hz.or(Some(ev.metabolic.art.rr / 60.0)),
         ..opts.clone()

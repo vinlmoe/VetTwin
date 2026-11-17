@@ -18,6 +18,9 @@ const S = {
 };
 
 // ------------------------------------------------------------------ données d'affichage
+// Échelle unique de l'ECG (mV) : amplitudes comparables d'un patient à l'autre (onde T ample,
+// QRS large d'un battement ventriculaire…), sans mise à l'échelle automatique.
+const ECG_MIN = -1.5, ECG_MAX = 2.5;
 const HEMO = [['hr', 'FC', '/min', 0], ['sap', 'PAS', 'mmHg', 0], ['dap', 'PAD', 'mmHg', 0], ['map', 'PAM', 'mmHg', 0],
   ['co', 'Débit cardiaque', 'L/min', 2], ['ef', 'FE', '%', 0, 100], ['reg_fraction', 'Fraction régurgitée', '%', 0, 100],
   ['la_mean', 'POG moyenne', 'mmHg', 1], ['pap_mean', 'PAP moyenne', 'mmHg', 1], ['cvp', 'PVC', 'mmHg', 1]];
@@ -126,7 +129,8 @@ const MECH_FR = {
   hypoxic_depression: 'dépression myocardique par hypoxie tissulaire',
   coronary_ischemia: 'ischémie myocardique (pression de perfusion coronaire basse)',
   hypokalemic_weakness: 'faiblesse des muscles respiratoires (hypokaliémie)',
-  hyperkalemic_bradycardia: 'frein hyperkaliémique de la FC (K⁺ sur le nœud sinusal)',
+  atrial_standstill: "arrêt atrial hyperkaliémique (pas d'onde P ni de contraction atriale)",
+  conduction_block: 'trouble de conduction (FC ventriculaire inférieure à la FC sinusale)',
   anaerobic_metabolism: "métabolisme anaérobie (extraction d'O₂ élevée, lactate)",
   pulmonary_edema: 'œdème pulmonaire (POG élevée)',
   renal_hypoperfusion: 'hypoperfusion rénale (PAM basse)',
@@ -173,12 +177,12 @@ function renderPatient(v) {
     return;
   }
   const pr = sg.pressures;
-  v.innerHTML = card(`ECG, dérivation II (${Math.round(sg.ecg.length / sg.ecg_fs)} s, ${fmt(st.hr, 0)} /min)`, canvas('c-ecg', 150))
+  v.innerHTML = card(`ECG, dérivation II (${Math.round(sg.ecg.length / sg.ecg_fs)} s, ${fmt(st.hr, 0)} /min ; échelle fixe −1,5 à +2,5 mV)`, canvas('c-ecg', 150))
     + card('Pressions sur deux battements (mmHg) : aorte, VG, OG', canvas('c-pr', 170) + legend([['Aorte', COLORS.ao], ['VG', COLORS.lv], ['OG', COLORS.la]]) + `<div class="note">PCG : ${sg.pcg_features.grade ? `souffle ${sg.pcg_features.murmur}, grade ${sg.pcg_features.grade}/6` : 'pas de souffle'}</div>`)
     + `<div class="grid3">${card('Hémodynamique', valuesTable(HEMO, st))}${card('Gaz du sang', valuesTable(GASES, st))}${card('Biochimie', valuesTable(CHEM, st))}</div>`
     + card('Signes émergents', st.emergent_signs.length ? st.emergent_signs.map((s) => `<div>• ${esc(s.label_fr)}<div class="note">&nbsp;&nbsp;${esc(s.source)}</div></div>`).join('') : '<div class="note">Aucun signe dérivé au-delà des seuils sourcés.</div>');
   const dur = sg.ecg.length / sg.ecg_fs;
-  timeChart($('#c-ecg'), { series: [{ y: sg.ecg, dt: 1 / sg.ecg_fs, color: COLORS.ecg }], x0: 0, x1: dur, paper: true });
+  timeChart($('#c-ecg'), { series: [{ y: sg.ecg, dt: 1 / sg.ecg_fs, color: COLORS.ecg }], x0: 0, x1: dur, paper: true, yMin: ECG_MIN, yMax: ECG_MAX });
   const two = (a) => [...a, ...a];
   const p = pr.dt * pr.ao.length * 2;
   timeChart($('#c-pr'), { series: [two(pr.ao), two(pr.lv), two(pr.la)].map((y, i) => ({ y, dt: pr.dt, color: [COLORS.ao, COLORS.lv, COLORS.la][i] })), x0: 0, x1: p, yMin: 0 });
@@ -323,7 +327,7 @@ function drawAusc() {
   const A = S.ausc, r = A.r, x0 = A.start, x1 = A.start + A.window;
   timeChart($('#a-pcg'), { series: [{ y: r.samples, dt: 1 / r.fs, color: COLORS.accent }], x0, x1, yMin: -1, yMax: 1, cursor: A.cursor });
   spectrogram($('#a-spec'), A.spec, x0, x1, A.cursor);
-  timeChart($('#a-ecg'), { series: [{ y: r.ecg, dt: 1 / r.ecg_fs, color: COLORS.ecg }], x0, x1, cursor: A.cursor });
+  timeChart($('#a-ecg'), { series: [{ y: r.ecg, dt: 1 / r.ecg_fs, color: COLORS.ecg }], x0, x1, cursor: A.cursor, yMin: ECG_MIN, yMax: ECG_MAX });
   const p = r.pressures, hi = Math.max(...p.ao, ...p.lv) * 1.05;
   timeChart($('#a-pr'), { series: [p.ao, p.lv, p.la].map((y, i) => ({ y, dt: 1 / p.fs, color: [COLORS.ao, COLORS.lv, COLORS.la][i] })), x0, x1, yMin: 0, yMax: hi, cursor: A.cursor });
 }

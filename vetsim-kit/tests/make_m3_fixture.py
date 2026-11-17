@@ -24,7 +24,7 @@ def baro_trace(a):
         if x == '--disease':
             n, s = a[i + 1].split(':'); p = D.apply(p, D.REGISTRY[NAMES[n]].sample(Stub(), severity=float(s)))
     maps, orig = [], physio.simulate_hemo
-    physio.simulate_hemo = lambda q, n_beats=11, dt=0.002: (lambda h: (maps.append(h['map']), h)[1])(orig(q, n_beats, dt))
+    physio.simulate_hemo = lambda q, n_beats=11, dt=0.002, pr=None: (lambda h: (maps.append(h['map']), h)[1])(orig(q, n_beats, dt, pr))
     try:
         physio.evaluate(p)
     finally:

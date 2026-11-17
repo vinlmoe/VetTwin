@@ -20,6 +20,34 @@ use crate::params::Params;
 
 const SQRT3: f64 = 1.732_050_807_568_877_2;
 
+/// Générateur SplitMix64 (Steele, Lea, Flood 2014), identique à `rhythm.SplitMix64` de la
+/// référence : l'aléa de conduction du moteur est le même au bit près en Python et en Rust.
+#[derive(Debug, Clone)]
+pub struct SplitMix64 {
+    state: u64,
+}
+
+impl SplitMix64 {
+    /// Générateur initialisé par `seed`.
+    pub fn new(seed: u64) -> Self {
+        Self { state: seed }
+    }
+
+    /// Entier 64 bits suivant.
+    pub fn next_u64(&mut self) -> u64 {
+        self.state = self.state.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        let mut z = self.state;
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        z ^ (z >> 31)
+    }
+
+    /// Uniforme sur [0, 1) : `(x >> 11)·2⁻⁵³`.
+    pub fn random(&mut self) -> f64 {
+        (self.next_u64() >> 11) as f64 * (1.0 / (1u64 << 53) as f64)
+    }
+}
+
 /// Activation atriale.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AtrialEvent {
@@ -389,5 +417,19 @@ pub fn summarize(ev: &Conduction, t0: f64, t1: f64) -> RhythmSummary {
         max_rr,
         n: v.len(),
         origins,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SplitMix64;
+
+    /// Vecteurs de référence de SplitMix64 (graine 0), identiques à la référence Python.
+    #[test]
+    fn splitmix64_reference_vectors() {
+        let mut g = SplitMix64::new(0);
+        assert_eq!(g.next_u64(), 0xe220_a839_7b1d_cdaf);
+        assert_eq!(g.next_u64(), 0x6e78_9e6a_a1b9_65f4);
+        assert_eq!(g.next_u64(), 0x06c4_5d18_8009_454f);
     }
 }

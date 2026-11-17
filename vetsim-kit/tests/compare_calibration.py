@@ -62,6 +62,14 @@ def stats(xs):
     m = sum(xs) / len(xs)
     return m, math.sqrt(sum((x - m) ** 2 for x in xs) / len(xs))
 
+# décès mécanistiques (exclus des moyennes ; générateurs différents : information, pas critère)
+def _norm(k):
+    d, st = k.split('|')
+    return f"{NAMES.get(d, d)}|{st}"
+_pyd = {_norm(k): v for k, v in PY.get('deaths', {}).items()}
+_rsd = {_norm(k): v for k, v in RS.get('deaths', {}).items()}
+for key in sorted(set(_pyd) | set(_rsd)):
+    print(f"décès {key} : Python {len(_pyd.get(key, []))}/{N_PY_D} {_pyd.get(key, [])} ; Rust {len(_rsd.get(key, []))}/{a.n_disease} {_rsd.get(key, [])}")
 for key, rows in PY['disease'].items():
     d, st = key.split('|')
     rrows = RS['disease'][f'{NAMES[d]}|{st}']

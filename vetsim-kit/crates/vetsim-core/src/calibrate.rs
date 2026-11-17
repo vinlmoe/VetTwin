@@ -430,8 +430,10 @@ pub struct DiseaseGroup {
     pub disease: String,
     /// Stade.
     pub stage: String,
-    /// Une ligne par cas, valeurs dans l'ordre de [`DISEASE_KEYS`].
+    /// Une ligne par cas viable, valeurs dans l'ordre de [`DISEASE_KEYS`].
     pub samples: Vec<Vec<f64>>,
+    /// Causes des décès mécanistiques (cas exclus des moyennes).
+    pub deaths: Vec<&'static str>,
 }
 
 /// Cas par stade pour MMVD, MRC et Addison (`n` cas, graines `seed0 + i`).
@@ -443,16 +445,23 @@ pub fn disease_checks(cat: &Catalog, n: usize, seed0: u64) -> Result<Vec<Disease
             .ok_or_else(|| Error::UnknownDisease(id.into()))?;
         for st in &m.stages {
             let mut samples = Vec::with_capacity(n);
+            let mut deaths = Vec::new();
             for i in 0..n as u64 {
                 let mut rng = SimRng::new(seed0 + i);
                 let mut pt = Patient::with_variability(&cat.patient, 20.0, &mut rng)?;
                 pt.add_disease_staged(m, Some(&st.name), &mut rng)?;
-                samples.push(disease_values(&evaluate(&pt.params)?));
+                match evaluate(&pt.params) {
+                    Ok(e) => samples.push(disease_values(&e)),
+                    // décès mécanistique : compté à part, hors moyennes (comme calibrate.py)
+                    Err(Error::NonViable { cause, .. }) => deaths.push(cause),
+                    Err(e) => return Err(e),
+                }
             }
             out.push(DiseaseGroup {
                 disease: id.into(),
                 stage: st.name.clone(),
                 samples,
+                deaths,
             });
         }
     }

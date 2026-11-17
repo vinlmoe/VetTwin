@@ -20,7 +20,14 @@ Unités : pression mmHg, volume mL, temps s, débit mL/s (L/min en sortie), conc
 - `pv` = OG + veines pulmonaires, `sv` = OD + veines systémiques. Activation atriale `e_a(t) = act(t + pr, T, ta_atr, tra_atr)` : PR de l'ECG = délai mécanique oreillette → ventricule.
 - `P_pv = (1 + k_la·e_a)·(pv − v0_pv)/c_pv`, `P_sv = (1 + k_ra·e_a)·(sv − v0_sv)/c_sv`. Avec `k = 0`, les oreillettes sont passives : c'est le modèle d'origine, identique au bit près.
 - Sorties : `mitral_e` et `mitral_a` (pics du débit mitral hors et pendant l'activation atriale), pour caler `k_la` sur le rapport E/A du chien sain.
-- Calage en attente : nouvelle référence validée par l'utilisateur ; golden et calibration seront régénérés.
+- `k_la` = 1,45 (calé sur E/A), `k_ra` = 0,29 ; nouvelle référence du 17/11/2026 (`docs/NOUVELLE_REFERENCE.md`).
+
+### Conduction et rythme (`rhythm.py`, `physio._hemo_with_rhythm`)
+- Couche de conduction par événements (voir l'en-tête de `rhythm.py`).
+- Rythme sinusal 1:1 à PR constant : simulation périodique, avec le PR de la conduction.
+- Autre rythme : conduction sur 30 s (aléa SplitMix64, graine 0), puis `simulate_hemo_beats` (moyennes après 10 s). Une asystolie donne un décès `cardiac_arrest`.
+- La FC sinusale vaut `hr_factor(...)·hr` (sans `kfac`) ; la FC rapportée est la FC ventriculaire.
+- Signaux : décharges sinusales du modèle autonome, puis conduction, puis ECG (`make_ecg_conducted`) et battements du PCG.
 
 ## 3. Boucle de régulation (`physio.evaluate`)
 Baroréflexe en régime permanent, jusqu'à 5 itérations (arrêt si `|d_t − d| < 0.04`, relaxation 0.5) :
