@@ -62,6 +62,7 @@ Chaque entrée indique le commit, ce qui a été fait, la vérification qui fait
 \commit{8ffcfac} & Journal & Création de ce journal et de la bibliographie vérifiée.\\
 \commit{12e0e4a} & Édition des doses & Modification d'un schéma existant ; ajustement prise par prise (dose modifiée, prise omise = 0). Vérifié : prise omise à 48\,h $\Rightarrow$ concentration $<5$\,\% du pic habituel ; prise doublée à 72\,h $\Rightarrow$ pic $>1{,}8\times$.\\
 \commit{1fe10af} & Application web & API JSON déplacée dans \texttt{vetsim-api} (partagée), liaison WebAssembly \texttt{vetsim-wasm} (\texttt{wasm-bindgen} 0.2.100), interface web statique (5 onglets, cas partageables par l'adresse). Vérifié : 882/882 valeurs identiques au bit près entre Chrome (WebAssembly) et le binaire natif ; captures des onglets relues.\\
+\commit{(ce commit)} & Vérification bibliographique & Comparaison chiffrée du modèle à 30 sources (section~\ref{sec:verif}, \texttt{docs/VERIFICATION\_LITTERATURE.md}). Aucun module ni paramètre modifié.\\
 \bottomrule
 \end{longtable}
 
@@ -76,6 +77,53 @@ Chaque entrée indique le commit, ce qui a été fait, la vérification qui fait
   \item \textbf{Placeholders (evidence D).} PD de tous les médicaments ; PK de l'atropine, du bêtabloquant et de l'opioïde ; module pneumonie ; site d'auscultation \og apex\fg{} ; seuils de grade des souffles.
 \end{enumerate}
 
+\section{Vérification bibliographique (17 novembre 2026)}\label{sec:verif}
+Cinq recherches, puis une sixième sur l'ionogramme de la MRC, ont été menées par des sessions IA séparées de ce projet. Ce n'est pas une relecture externe. Les valeurs du modèle viennent de \texttt{vetsim-cli} en mode déterministe (20\,kg). Accès : \emph{lu} (texte de la source), \emph{résumé}, \emph{moteur} (résumé de moteur de recherche). Le détail figure dans \texttt{docs/VERIFICATION\_LITTERATURE.md}.
+
+\textbf{Conformes.}
+\begin{itemize}
+  \item Chien sain \citep{haskins2005,cambier2004,constable2005} (résumés) : FC 87,6 contre 87 ; PAM 101 contre 103 ; PAP 13,9 contre 14 ; pH 7,38 ; PaCO\textsubscript{2} 40,2 ; P50 30 ; Bohr $-0{,}37$ ; A\textsubscript{tot} 0,469\,mmol/g.
+  \item VFC du chien sain \citep{bogucki2015} (lu) : SDNN 185 contre $208{,}9\pm77{,}1$\,ms ; LF/HF 0,23 contre $0{,}28\pm0{,}11$.
+  \item Fraction de régurgitation en B1 et C \citep{kawai2026}.
+  \item FC et PAS en ICC \citep{yin2026}.
+  \item Pimobendane per os \citep{her2020} : C\textsubscript{max} 43,8 contre $49{,}1\pm28{,}7$\,ng/mL ; ASC 149 contre $148\pm72$.
+  \item Addison \citep{adler2007,baumstark2014,hall2023} : Na:K, Na$^+$ et K$^+$ en crise.
+  \item DFG \citep{bexfield2008}.
+\end{itemize}
+
+\textbf{Écarts} (rapportés, non corrigés : la référence Python est normative).
+\begin{enumerate}
+  \item \ecart{PK du furosémide.} \texttt{fit\_pk.py} fixe la clairance à 0,30\,L/h/kg et vise $t_{1/2}=1{,}25$\,h en l'attribuant à \citet{koh2021}. L'article (lu) donne $735{,}7\pm63{,}8$\,mL/h/kg et $2{,}07\pm0{,}76$\,h. L'ASC IV est $\times2{,}4$.
+  \item \ecart{PD du furosémide (placeholder D)} sur 8\,h après 2\,mg/kg :
+  \begin{itemize}
+    \item diurèse IV 36,8 contre 24,65\,mL/kg ; per os 18,6 contre 30,9 ;
+    \item $\Delta$K$^+$ à 8\,h $-1{,}14$ contre $-0{,}33$\,mmol/L ;
+    \item $\Delta$Na$^+$ $-8{,}6$ alors que l'article ne relève pas de variation significative ;
+    \item $\Delta$Cl$^-$ $-14{,}3$ contre $-4$ à $-6$.
+  \end{itemize}
+  D'où l'hypokaliémie excessive en prises répétées.
+  \item \ecart{Fréquence respiratoire} constante en ICC : 23 contre une médiane de 64/min \citep{yin2026}.
+  \item \ecart{VFC en stade C} : SDNN 84 contre $138\pm56$\,ms ; LF/HF 0,25 contre $0{,}40\pm0{,}13$ \citep{bogucki2017}.
+  \item \ecart{RSA} : le sens est conforme. La VFC baisse avec la FC, l'atropine et la sévérité \citep{billman2013,baisan2024,keene2019}. L'ampleur n'est pas comparable (bpm contre ms ou \%RSA).
+  \item \ecart{Seuil d'œdème} : 18\,mmHg contre 20--24 \citep{yao2025}, citation secondaire de Guyton et Lindsey 1959, non lu.
+  \item \ecart{MRC} :
+  \begin{itemize}
+    \item Na$^+$, Cl$^-$ et K$^+$ constants jusqu'au stade~4 ;
+    \item acidose uniquement à trou anionique élevé ;
+    \item créatinine de 140\,µmol/L en haut de la plage IRIS1 du module, donc déjà en stade 2 \citep{iris2026}.
+  \end{itemize}
+  \item \ecart{Pimobendane} : T\textsubscript{max} 0,95 contre $2{,}1\pm0{,}9$\,h.
+\end{enumerate}
+
+Bases du futur modèle urinaire :
+\begin{itemize}
+  \item densité urinaire $1{,}040\pm0{,}011$ \citep{rudinsky2019} ;
+  \item osmolalité $1541\pm527$\,mOsm/kg \citep{vanvonderen1997} ;
+  \item FE Na/Cl/K 0,20/0,42/9,47\,\% \citep{troia2018} ;
+  \item DFG \citep{bexfield2008,kelley2022,kelly2016}.
+\end{itemize}
+Aucune collecte primaire de diurèse sur 24\,h n'a été trouvée.
+
 \section{Provenance des données}
 \begin{longtable}{@{}p{3.2cm}p{5.2cm}p{7.6cm}@{}}
 \toprule
@@ -86,16 +134,16 @@ Acide-base & \citet{constable2005} & Na, K, Cl, albumine, phosphate ; A\textsubs
 Affinité O\textsubscript{2} & \citet{cambier2004} & P50 30,0\,mmHg, effet Bohr $-0{,}37$.\\
 VFC & \citet{bogucki2015} & RR moyen, SDNN, RMSSD, LF/HF. Source unique, à recouper.\\
 PK furosémide & \citet{koh2021,noah,ema1999} & V\textsubscript{ss}, demi-vie IV, C\textsubscript{max} per os.\\
-PK pimobendane & \citet{her2020} & C\textsubscript{max}, ASC, demi-vie. \ecart{L'article porte sur la voie rectale : présence d'un bras oral à vérifier.}\\
+PK pimobendane & \citet{her2020} & C\textsubscript{max}, ASC, demi-vie. Bras oral 0,5\,mg/kg confirmé (texte intégral lu, $n=7$).\\
 MMVD & \citet{keene2019,oyama2004,msdvet} & Stades ACVIM, POG, fraction de régurgitation.\\
-MRC & \citet{iris} & Bornes de créatininémie par stade IRIS.\\
+MRC & \citet{iris,iris2026} & Bornes de créatininémie par stade IRIS (édition 2026 lue).\\
 Addison & \citet{msdvet} & Na:K $<27$.\\
 Auscultation & \citet{tiho} & Deux enregistrements (licence CC BY-NC-ND 4.0, aucun embarqué).\\
 \bottomrule
 \end{longtable}
 
 \section{Statut des références}\label{sec:refs}
-Vérification du 17/11/2026 via OpenAlex. \textbf{Vérifiées} (titre, auteurs, année ; DOI ou PubMed) : \citet{haskins2005,her2020,koh2021,keene2019,oyama2004,dormand1980}. \textbf{Non vérifiées} (introuvables dans OpenAlex, informations reprises de \texttt{PROVENANCE.md} sans complément) : \citet{constable2005,cambier2004,bogucki2015}. \textbf{Documents à préciser} (édition, date de consultation) : \citet{iris,msdvet,noah,ema1999,tiho}.
+Vérification du 17/11/2026 via OpenAlex (titre, auteurs, année, DOI) : toutes les entrées \texttt{@article}, sauf \citet{dormand1980} (vérifié antérieurement). Le champ \texttt{note} de chaque entrée indique jusqu'où la source a été lue (résumé ou texte intégral). \textbf{Documents à préciser} (édition, date de consultation) : \citet{iris,msdvet,noah,ema1999,tiho}. Sources citées dans le rapport mais non vérifiées : Wong 1977 (vue par moteur seulement), Roche-Catholy 2021.
 
 \bibliographystyle{plainnat}
 \bibliography{references}
