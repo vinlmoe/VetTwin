@@ -10,7 +10,7 @@ Unités : pression mmHg, volume mL, temps s, débit mL/s (L/min en sortie), conc
 - Cycle `T = 60/hr`, `ts = ts_coef·√T` (`ts_coef` = 0,325 depuis le 17/11/2026), `tr = 0.4·ts`. Activation `e(t)` : demi-cosinus montant sur `[0, ts)`, descendant sur `[ts, ts+tr)`, 0 ensuite.
 - Pression ventriculaire : `P = e·ees·(V−v0) + (1−e)·a·(exp(clip(b(V−v0), −20, 8)) − 1)`.
 - Compartiments vasculaires : `P = (V−v0)/C`.
-- Valve (diode lisse) : `σ = 0.5(1+tanh(Δp/0.3))`, `Q = σ·Δp/r_valve + (1−σ)·g·Δp` (fuite `g` : `g_mr, g_ar, g_tr, g_pr`).
+- Valve (diode lisse) : `σ = 0.5(1+tanh(Δp/0.3))`, `Q = σ·Δp/r_valve + (1−σ)·g·Δp` (fuite `g` : `g_mr, g_ar, g_tr, g_pr`, normalisées au chien de 20 kg et multipliées par `(bw/20)^0.75` dans l'hémodynamique, comme les débits et `1/r_valve` ; `hemo::leak_scale`, 18/11/2026).
 - **Orifice mitral dynamique** (18/11/2026, `engine::hemo_with_rhythm`) : l'orifice effectif grandit avec le VG (Yoran 1979, chiens, résumé). Il est fixe pendant le battement : `g = g_mr·(VTD/mr_vref)^mr_k`, point fixe amorti sur ln g (relaxation ½, tolérance 1e-3, au plus 12 simulations), ignoré si `g_mr < 0,05`. `mr_k` = 2,5 et `mr_vref` = 72·s mL (VTD du chien sain) ; calé sur Suzuki 2013 (furosémide 0,17 mg/kg/h × 6 h, IM expérimentale : POG −27 %, modèle −27 %). La conductance retenue est reportée dans les paramètres de l'évaluation (`g_mr`, `mr_k = 0`) pour les recalculs en aval.
 - **Capacitance veineuse** `ven_cap` (1 au repos) : multiplie `c_sv` dans la pression veineuse systémique, pas dans le volume initial (une veinodilatation redistribue le volume sans en ajouter).
 - Débits : mitrale `(Ppv−Plv)`, aortique `(Plv−Pao)`, tricuspide `(Psv−Prv)`, pulmonaire `(Prv−Ppa)`, systémique `(Pao−Psv)/r_sys`, pulmonaire `(Ppa−Ppv)/r_pul`.

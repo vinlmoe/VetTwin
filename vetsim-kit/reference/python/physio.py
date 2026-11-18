@@ -44,11 +44,12 @@ def _flows(V, t, p, T, ts, tr, pr=None):
         ao=(ao - p['v0_ao']) / p['c_ao'], sv=(1 + p['k_ra'] * ea) * (sv - p['v0_sv']) / (p['c_sv'] * p['ven_cap']),
         pa=(pa - p['v0_pa']) / p['c_pa'], pv=(1 + p['k_la'] * ea) * (pv - p['v0_pv']) / p['c_pv'])
     rf = p['r_valve']
+    gs = (p['bw'] / 20.0) ** 0.75   # fuites normalisées à 20 kg, échelle des débits
     Q = dict(
-        mi=_valve(P['pv'] - P['lv'], rf, p['g_mr']),
-        ao=_valve(P['lv'] - P['ao'], rf, p['g_ar']),
-        tr=_valve(P['sv'] - P['rv'], rf, p['g_tr']),
-        pu=_valve(P['rv'] - P['pa'], rf, p['g_pr']),
+        mi=_valve(P['pv'] - P['lv'], rf, p['g_mr'] * gs),
+        ao=_valve(P['lv'] - P['ao'], rf, p['g_ar'] * gs),
+        tr=_valve(P['sv'] - P['rv'], rf, p['g_tr'] * gs),
+        pu=_valve(P['rv'] - P['pa'], rf, p['g_pr'] * gs),
         sys=(P['ao'] - P['sv']) / p['r_sys'],
         pul=(P['pa'] - P['pv']) / p['r_pul'])
     return P, Q, e
@@ -482,9 +483,10 @@ def _flows_beats(V, t, p, beats, atr):
         ao=(ao - p['v0_ao']) / p['c_ao'], sv=(1 + p['k_ra'] * ea) * (sv - p['v0_sv']) / (p['c_sv'] * p['ven_cap']),
         pa=(pa - p['v0_pa']) / p['c_pa'], pv=(1 + p['k_la'] * ea) * (pv - p['v0_pv']) / p['c_pv'])
     rf = p['r_valve']
+    gs = (p['bw'] / 20.0) ** 0.75   # fuites normalisées à 20 kg, échelle des débits
     Q = dict(
-        mi=_valve(P['pv'] - P['lv'], rf, p['g_mr']), ao=_valve(P['lv'] - P['ao'], rf, p['g_ar']),
-        tr=_valve(P['sv'] - P['rv'], rf, p['g_tr']), pu=_valve(P['rv'] - P['pa'], rf, p['g_pr']),
+        mi=_valve(P['pv'] - P['lv'], rf, p['g_mr'] * gs), ao=_valve(P['lv'] - P['ao'], rf, p['g_ar'] * gs),
+        tr=_valve(P['sv'] - P['rv'], rf, p['g_tr'] * gs), pu=_valve(P['rv'] - P['pa'], rf, p['g_pr'] * gs),
         sys=(P['ao'] - P['sv']) / p['r_sys'], pul=(P['pa'] - P['pv']) / p['r_pul'])
     return P, Q, e, ea
 
