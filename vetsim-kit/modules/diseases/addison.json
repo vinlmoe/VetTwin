@@ -1,0 +1,175 @@
+{
+ "schema_version": "1.0.0",
+ "species": [
+  "dog"
+ ],
+ "license": "CC-BY-4.0",
+ "id": "addison",
+ "version": "1.0.0",
+ "name": {
+  "fr": "Hypoadrénocorticisme (Addison)",
+  "en": "Hypoadrenocorticism"
+ },
+ "evidence": "C",
+ "description": {
+  "fr": "De la forme discrète à la crise addisonienne : Na et Cl ↓ (même mécanisme), K ↑, hypovolémie (bvf ↓), vasodilatation, hypoglycémie possible. Azotémie prérénale et FC inappropriément basse émergent du moteur."
+ },
+ "severity": {
+  "stages": {
+   "discret": [
+    0.1,
+    0.4
+   ],
+   "modere": [
+    0.4,
+    0.7
+   ],
+   "crise": [
+    0.7,
+    1.0
+   ]
+  },
+  "prior": {
+   "discret": 0.3,
+   "modere": 0.4,
+   "crise": 0.3
+  }
+ },
+ "draws": {
+  "z_c": {
+   "dist": "lognormal_mean1",
+   "sd": 0.2
+  },
+  "z_k": {
+   "dist": "lognormal_mean1",
+   "sd": 0.2
+  },
+  "z_bvf": {
+   "dist": "lognormal_mean1",
+   "sd": 0.2
+  },
+  "hypo": {
+   "dist": "bernoulli",
+   "p": 0.5
+  }
+ },
+ "effects": [
+  {
+   "param": "na",
+   "op": "add",
+   "expr": {
+    "mul": [
+     -22.0,
+     "s",
+     "z_c"
+    ]
+   }
+  },
+  {
+   "param": "cl",
+   "op": "add",
+   "expr": {
+    "mul": [
+     -17.0,
+     "s",
+     "z_c"
+    ]
+   }
+  },
+  {
+   "param": "k",
+   "op": "add",
+   "expr": {
+    "mul": [
+     3.4,
+     "s",
+     "z_k"
+    ]
+   }
+  },
+  {
+   "param": "bvf",
+   "op": "mul",
+   "expr": {
+    "add": [
+     1,
+     {
+      "mul": [
+       -0.22,
+       "s",
+       "z_bvf"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "param": "r_sys",
+   "op": "mul",
+   "expr": {
+    "add": [
+     1,
+     {
+      "mul": [
+       -0.25,
+       "s"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "param": "glucose",
+   "op": "add",
+   "expr": {
+    "mul": [
+     -2.0,
+     "s",
+     "hypo"
+    ]
+   }
+  }
+ ],
+ "targets": [
+  {
+   "stage": "modere",
+   "var": "na_k_ratio",
+   "range": [
+    0,
+    27
+   ],
+   "source": "MSD Manual : Na:K < 27 évocateur",
+   "kind": "published_threshold"
+  },
+  {
+   "stage": "crise",
+   "var": "k",
+   "range": [
+    6.0,
+    9.0
+   ],
+   "source": "cas rapportés (ex. K 8,3 mmol/L)",
+   "kind": "plausibility"
+  }
+ ],
+ "refs": [
+  "MSD Vet Manual — Addison disease"
+ ],
+ "presentation": {
+  "difficulty": 3,
+  "owner_complaint": {
+   "fr": [
+    "abattement",
+    "vomissements intermittents",
+    "tremblements",
+    "collapsus"
+   ]
+  },
+  "exams": [
+   "ionogramme (Na:K)",
+   "test de stimulation ACTH",
+   "ECG",
+   "glycémie"
+  ]
+ }
+}

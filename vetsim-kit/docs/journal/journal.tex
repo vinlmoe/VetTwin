@@ -1,0 +1,190 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{longtable,booktabs,array}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage[numbers,sort]{natbib}
+\usepackage{textcomp}
+
+\newcommand{\commit}[1]{\texttt{\small #1}}
+\newcommand{\ecart}[1]{\textcolor{red!60!black}{#1}}
+\setlength{\parskip}{0.4em}
+\setlength{\parindent}{0pt}
+
+\title{Journal de développement de \emph{vetsim} et de l'application \emph{VetTwins}\\[0.3em]
+\large Modifications, vérifications, écarts et références}
+\author{Projet VetTwin}
+\date{Dernière mise à jour : 17 novembre 2026}
+
+\begin{document}
+\maketitle
+
+\begin{center}
+\fbox{\parbox{0.92\linewidth}{\textbf{Usage pédagogique uniquement.} Le moteur est un patient virtuel canin destiné à l'enseignement. Aucun résultat ne doit servir à décider d'une dose ou d'un traitement réel. Les paramètres sont partiellement calés sur des moyennes publiées et ne sont pas validés cliniquement.}}
+\end{center}
+
+\section{Règles du projet}
+\begin{itemize}
+  \item L'implémentation Python de \texttt{reference/python/} est \emph{normative}. Le moteur Rust doit la reproduire dans les tolérances du golden (\texttt{tests/golden/cases.json}, 962 valeurs).
+  \item Ni les modules JSON, ni les cibles de calibration, ni le golden, ni les valeurs de paramètres ne sont modifiés pour faire passer un test. Tout écart est rapporté avec ses chiffres.
+  \item Aucune donnée clinique ou pharmacologique n'est inventée. Une valeur manquante devient un placeholder marqué \texttt{evidence: "D"}.
+  \item Les formules des modules passent uniquement par le DSL (arbre d'opérations fermé), jamais par \texttt{eval}.
+  \item Déterminisme : graine explicite, générateur ChaCha8, fonctions mathématiques \texttt{libm} (mêmes bits sur toutes les plateformes).
+  \item Les références bibliographiques sont vérifiées (OpenAlex, DOI ou PubMed) avant d'être citées. La section~\ref{sec:refs} donne le statut de chacune.
+\end{itemize}
+
+\section{Chronologie des modifications}
+Chaque entrée indique le commit, ce qui a été fait, la vérification qui fait foi et les écarts constatés. Branche \texttt{m0-m1-workspace-dsl}.
+
+\subsection*{17 novembre 2026}
+\begin{longtable}{@{}p{1.5cm}p{4.2cm}p{10.3cm}@{}}
+\toprule
+\textbf{Commit} & \textbf{Étape} & \textbf{Contenu, vérification, écarts}\\
+\midrule\endhead
+\commit{d46cbe8} & Kit d'origine & Kit livré, inchangé. Référence Python : 962/962 valeurs golden conformes.\\
+\commit{84ba719} & M0 & Workspace Cargo, lints, CI. \texttt{fmt}, \texttt{clippy -D warnings} et tests verts.\\
+\commit{2454c63}, \commit{a9395fa} & M1 : DSL, modules & DSL fermé, validation des modules avec chemins JSON, patient sain, effets maladie. Égalité avec Python à $10^{-9}$ (5 poids, 4 maladies × 9 sévérités, 45 combinaisons, 44 expressions). CLI : 4161/4161 paramètres.\\
+\commit{0e50c38} & M2 : gaz, acide-base & Stewart (albumine canine \citep{constable2005}), Hill et Bohr \citep{cambier2004}, rein, lactate. Golden 390/390 ; test strict 3250/3250 à $10^{-9}$.\\
+\commit{2723d75}, \commit{6fd42bf} & M3 : hémodynamique & Dormand--Prince 5(4) \citep{dormand1980} à la place de LSODA, boucle baroréflexe. Golden 630/630, écart maximal $0{,}0075\times$ la tolérance. \ecart{Écart : MMVD $s=1{,}0$ (hors golden), critère d'arrêt du baroréflexe sur le fil (marge $6{,}7\times10^{-5}$), \texttt{lv\_edp} à $1{,}02\times$ la tolérance.} Décision : garder la référence telle quelle.\\
+\commit{8356400} & M4 : PK/PD & PK à 2 compartiments et dépôt oral, effets JSON, diurèse \citep{koh2021,her2020}. Golden 962/962.\\
+\commit{d9de070} & M5 : population & Graines explicites, banc de calibration. 160/160 lignes conformes, écart moyen 1,58\,\%. Critère adopté : écart relatif $<5$\,\% ou $<3$ erreurs-types combinées.\\
+\commit{e2a5842} & Déterminisme & Noyau sur \texttt{libm}. Le cas MMVD $s=1{,}0$ bascule de l'autre côté du seuil : ce n'est pas une correction.\\
+\commit{b0c0325} & M6 : autonome, ECG, PCG & VFC dans $\pm1$ ET des cibles \citep{bogucki2015} sur 20 graines. Rejeu des tirages NumPy : instants R à $3\times10^{-14}$\,s près.\\
+\commit{b5ca64d}--\commit{de04c4b} & M7 : FFI, VetTwins & UniFFI, démo Kotlin Multiplatform. Sorties identiques au bit près entre macOS natif, la JVM via FFI et wasm32 (32/32).\\
+\commit{8f0d0fa} & Respiration, schéma & Courbes respiratoires (volume = profil normalisé $\times$ volume courant alvéolaire VA/FR, \ecart{espace mort non modélisé}). Schéma des blocs du modèle et rattachement paramètre $\to$ bloc.\\
+\commit{832437a} & Pressions & PAS et PAD instantanées = PAM instantanée $\pm$ écart du battement simulé. \ecart{Pression pulsée supposée constante.}\\
+\commit{b7cccee}--\commit{790bdab} & Auscultation (a--d) & Port fidèle de \texttt{signals\_pcg\_v5.py} (signal à $4\times10^{-15}$ près), configuration JSON avec provenance, critères mesurés par \texttt{pcg\_metrics.py}, FFI, onglet Auscultation (son, spectrogramme, ECG et pressions alignés, zoom, curseur). Calage sur deux enregistrements \citep{tiho}. \ecart{Écarts de la référence conservés : B1$\to$B2 0,275\,s à FC 90, B2 $>$ B1 dans 75\,\% des paires, diastole/systole 1,24 et 1,60.} 100 graines au lieu de 20 (appariement B1/B2 instable).\\
+\commit{9d3f7b7}, \commit{e59a51c} & PK/PD répétée & Examen à un instant quelconque d'un schéma ; effets E(t) ; indicateurs au choix sur 1 à 14 jours. \ecart{Furosémide 2\,mg/kg per os toutes les 12\,h : K$^+$ de 4,1 à environ 2,4--3,0\,mmol/L (PD placeholder du module).}\\
+\commit{8ffcfac} & Journal & Création de ce journal et de la bibliographie vérifiée.\\
+\commit{12e0e4a} & Édition des doses & Modification d'un schéma existant ; ajustement prise par prise (dose modifiée, prise omise = 0). Vérifié : prise omise à 48\,h $\Rightarrow$ concentration $<5$\,\% du pic habituel ; prise doublée à 72\,h $\Rightarrow$ pic $>1{,}8\times$.\\
+\commit{1fe10af} & Application web & API JSON déplacée dans \texttt{vetsim-api} (partagée), liaison WebAssembly \texttt{vetsim-wasm} (\texttt{wasm-bindgen} 0.2.100), interface web statique (5 onglets, cas partageables par l'adresse). Vérifié : 882/882 valeurs identiques au bit près entre Chrome (WebAssembly) et le binaire natif ; captures des onglets relues.\\
+\commit{3d8d5c8} & Vérification bibliographique & Comparaison chiffrée du modèle à 30 sources (section~\ref{sec:verif}, \texttt{docs/VERIFICATION\_LITTERATURE.md}). Aucun module ni paramètre modifié.\\
+\commit{db2ac1e} & Proposition toxicité & \texttt{docs/PROPOSITION\_TOXICITE.md} : termes toxiques séparés $T$ dans la PD (au lieu de $E>1$, qui ne fait qu'amplifier l'effet thérapeutique), critères de décompensation sourcés, risque de décès par risque instantané (flux ChaCha distinct). En attente de validation, rien d'implémenté.\\
+\commit{266add1} & Toxicité et décompensation & Validé par l'utilisateur : termes toxiques séparés, placeholders D, référence Python étendue, \og tout mécanistique\fg{}. PD : termes toxiques $T$ (opioïde : apnée ; bêtabloquant : dépression myocardique et sinusale ; pimobendane : vasoplégie). L'effet thérapeutique reste plafonné (occupation des récepteurs) : c'est la réponse retenue à la demande \og désactiver la maximisation\fg{}. Point fixe hémodynamique--métabolisme : acidémie, hypoxie tissulaire, ischémie coronaire $\to$ contractilité ; acidémie $\to$ vasoplégie ; hypokaliémie $\to$ faiblesse ventilatoire. Décès = absence d'état viable (arrêt cardiaque, effondrement circulatoire, VO\textsubscript{2}~$>$~DO\textsubscript{2}, pas d'état stationnaire, spirale). 11 paramètres placeholders D. Vérifié : golden 962/962 (Python et Rust), paramètres 4788/4788, calibration 164/164 (aucun couplage actif sur 264 cas, écart identique à la référence d'origine), fixture Rust~=~Python, 3 mutations sur 3 détectées. \ecart{Cas golden avec médicament : écart de 0,054\,\% au plus (queue toxique à la CE50). MMVD sévère létale chez le chien de 3\,kg (l'ancien modèle donnait déjà ER~1,56 et PvO\textsubscript{2} au plancher) ; un chien de 60\,kg reste \og stable\fg{} en MMVD $s=1$.}\\
+\commit{69e62b2} & Interfaces & Concentrations fixes retirées (web, bureau, Android) : tout passe par la PK/PD. Bandeau d'issue, vues \og patient décédé\fg{}, bandes d'état sur les courbes du traitement. Décès absorbant dans \texttt{timecourse} et à l'examen. Auscultation : arrêter, rejouer, boucle, fenêtre seule. Vérifié : 882/882 valeurs identiques au bit près (navigateur), 8 tests KMP dont un surdosage mortel, APK construit.\\
+\commit{87ca549} & Proposition rythme & \texttt{docs/PROPOSITION\_RYTHME.md} : troubles du rythme modélisés mécaniquement (conduction par événements : nœud sinusal, nœud AV à délai dépendant de la récupération et période réfractaire, échappements, foyer ectopique, FA), hémodynamique battement par battement avec oreillettes contractiles, ECG et sons dérivés. Ce sont de nouvelles maladies (décision de l'utilisateur). Recherches bibliographiques en cours (rythme, sons cardiaques réels). Rien d'implémenté.\\
+\commit{965df07} & Oreillettes (structure) & Élastance active sur \texttt{pv} (OG) et \texttt{sv} (OD), déclenchée PR avant le ventricule ; mesure des ondes E et A mitrales. Gain nul en attendant le calage : résultats identiques (golden 962/962, paramètres 5016/5016). \ecart{Calage impossible dans les tolérances du golden : dès 0,8\,\% de contribution atriale, 5 valeurs sortent (PTDVG MMVD $s=0{,}8$). Décision de l'utilisateur : nouvelle référence, calée sur le rapport E/A du chien sain (recherche en cours).}\\
+\commit{bd51828} & Couche de conduction & \texttt{rhythm.py} (référence Python) : nœud sinusal, oreillettes (FA, arrêt atrial hyperkaliémique avec conduction sino-ventriculaire), nœud AV (période réfractaire, délai de récupération, conduction cachée), His-Purkinje, échappements, foyer ectopique. Calés : FA 129,6/min et CVRR 0,291 (cibles 129,7 et 0,309, $n=50$) ; échappement 42/min ($n=97$) ; arrêt atrial à K~8,5 (Hariman 1983, résumé). 11 critères avec contrôles d'échec. Pas encore branchée au moteur. Hyperkaliémie (remarque de l'utilisateur) : bradycardie seulement au-delà de K~$\approx$~10, cohérent avec 9--21\,\% de chiens bradycardes en crise addisonienne (Chalifoux 2023, $n=84$).\\
+\commit{3e83f20} & Volume de l'auscultation & Réglage $\times1$ à $\times8$ (web : gain et compresseur ; KMP : gain et limiteur doux tanh).\\
+\commit{a29c017} & Conduction en Rust & \texttt{rhythm.rs} : 13 scénarios identiques à la référence à $10^{-12}$ (tirages rejoués), 3 mutations sur 3 détectées.\\
+\commit{1a6255e}, \commit{393d4e8} & Hémodynamique battement par battement & \texttt{simulate\_hemo\_beats} (Python, puis Rust) : activation propre à chaque battement (systole $0{,}37\sqrt{RR}$), contraction atriale à chaque activation organisée, indicateurs par battement. Séquence régulière = simulation périodique à 0,6\,\% près. Avec l'oreillette calée sur E/A ($k_{la}=1{,}45$), la FA à 131/min abaisse le débit de 17\,\% par rapport au sinusal à la même FC (\textbf{$-18$\,\% rapporté} chez le chien, Naito 1983, résumé) ; le déficit de pouls émerge (VES de 12,6 à 50\,mL). Rust~=~Python à 1\,\% (moyennes) et 2\,\% (VES par battement), 3 mutations sur 3 détectées. Pas encore branchée au moteur.\\
+\commit{664ff2f} & Nouvelle référence & Décision de l'utilisateur (l'oreillette ne tenait pas dans l'ancien golden). Conduction branchée au moteur (sinusal 1:1 : périodique avec le PR de la conduction ; sinon battement par battement, aléa SplitMix64 identique Python/Rust) ; oreillette active ($k_{la}=1{,}45$, E/A) ; \texttt{kfac} supprimé (K$^+$ par la conduction) ; FC rapportée = FC ventriculaire ; ECG et battements du son construits depuis la conduction (P selon l'activation atriale, PR par battement, QRS large et T discordante, QT raccourci en hyperkaliémie) ; échelle unique de l'ECG. Golden et calibration régénérés : Rust 962/962, calibration 164/164, cohorte saine dans toutes les cibles ; décès MMVD stade D 2/24 (Python), 3/96 (Rust). \ecart{MMVD stade C moins congestif (POG s 0,8 : 20,6 $\to$ 17,4) ; Addison sans frein : FC 141 à K 6,8 ; PAM saine 106 (cible 103).} Détail : \texttt{docs/NOUVELLE\_REFERENCE.md}.\\
+\commit{987ddd1} & Maladies du rythme & Quatre nouvelles maladies (modules JSON et référence Python), agissant seulement sur la conduction : fibrillation atriale (réponse 105/132/155/min selon le stade ; médiane publiée 130), bloc AV (1er degré PR 0,24\,s ; Wenckebach ; 2:1 ; 3e degré, échappement 42/min, publié $42\pm11$), extrasystoles ventriculaires (QRS large, T discordante, VES réduit), maladie du sinus (pauses jusqu'à 4,9\,s sur 5\,h ; publié 6,9\,s sur 24\,h). Suppression des échappements par entraînement (\texttt{esc\_overdrive}, placeholder D). Golden étendu (38 cas, Rust 1466/1466), navigateur 1386/1386 au bit près, KMP 8/8. \ecart{Pause compensatrice rarement complète après une ESV (ERP nodal court).}\\
+\commit{c360746} & Changement de dose en moins de clics & Web et KMP : dose nominale éditable directement dans la ligne du schéma, boutons $\pm10$\,\% (3 chiffres significatifs) ; les prises individuelles qui suivaient la dose nominale la suivent. Bouton \og Simuler le traitement\fg{} supprimé : resimulation automatique à chaque changement de schéma, de prise ou de durée (KMP : regroupée sur 250\,ms de frappe). Patient déjà examiné sous traitement : l'examen suit le nouveau schéma au même instant. Web : le focus est conservé d'une prise à l'autre (Tab). Aucun calcul ni paramètre modifié. Vérifié : Chrome headless (furosémide 2\,mg/kg per os/12\,h, MMVD C, $t=13$\,h : $+10$\,\% $\Rightarrow$ 2,2\,mg/kg et 0,873 $\to$ 0,960\,mg/L ; prise de 12\,h omise $\Rightarrow$ 0,0016\,mg/L ; examen recalé), KMP \texttt{desktopTest} et capture relue.\\
+\textit{à venir} & Libellé du bloc \texttt{autonomic} & \og Système autonome et baroréflexe\fg{} devient \og Système autonome, baroréflexe et conduction\fg{} : le bloc porte aussi les paramètres de la conduction (nœud sinusal, nœud AV, His-Purkinje, échappements, ESV, FA). \og Autonome\fg{} plutôt que \og sympathique\fg{} : la voie vagale est modélisée. Identifiant \texttt{autonomic} inchangé (API stable). Aucun calcul modifié.\\
+\textit{à venir} & Vérification de l'ECG & Mesure de l'ECG du modèle (dérivation II, seuil 0,02\,mV, bruit soustrait) contre des ECG canins publiés \citep{santos2024ecg,lerdweeraphon2020,bispo2025,romito2022st,pasca2025,porter2001,kurogochi2026,santilli2015avb,gunasekaran2025,kanno2017} ; \texttt{docs/VERIFICATION\_ECG.md}. Conformes : FC, amplitudes de P, R et T, PR, QT ; critères de la FA, du bloc 2:1, du 3e degré (échappement 42/min), des ESV et des pauses. \ecart{Constantes de forme du générateur : P visible 94\,ms (publié 40--50), QRS visible 84\,ms pour un paramètre de 45 (publié 40--62), onde T trop large qui supprime le segment ST ; hyperkaliémie : P plus courte au lieu de plus longue, pas de perte de P ni de bloc à K 7,35 (cas publié de crise addisonienne : BAV du 3e degré à K 7,9).} Corrections proposées, non faites (référence normative). Aucun module ni paramètre modifié.\\
+\textit{à venir} & Forme des ondes de l'ECG & Validé par l'utilisateur. Constantes de forme de \texttt{signals.py} et \texttt{signals.rs} seulement (physiologie, conduction et intervalles inchangés) : P $\sigma$ 22 $\to$ 10,5\,ms ; R, Q et S resserrés pour que le QRS visible égale le paramètre \texttt{qrs} ; QRS ventriculaire visible = $2{,}2\times$\texttt{qrs} ; T 45 $\to$ 25\,ms (segment ST isoélectrique, placeholder D) ; P élargie de 25\,\% par mmol/L de K au-delà de 6 (placeholder D) ; ondes f d'amplitude proportionnelle à l'intervalle depuis l'activation atriale précédente (variabilité issue de la conduction, sans tirage). Mesuré sur le tracé, chien sain : P 42, PR 112, QRS 44, QT 202\,ms, toutes dans les plages publiées \citep{lerdweeraphon2020,bispo2025} ; à K 7,35, P passe à 52\,ms. Vérifié : nouvelle fixture de l'ECG construit depuis la conduction (8 séquences), Rust~=~Python à $10^{-9}$, contrôle d'échec et 3 mutations sur 3 détectées ; fixture M6 régénérée. \ecart{Toujours pas de perte de P ni de bloc à K 7,35 (seuils de la conduction).}\\
+\textit{à venir} & Bruits d'auscultation recalés sur le réel & Mesure de 30 enregistrements de la bibliothèque TiHo \citep{tiho} par la même chaîne que la synthèse (\texttt{tests/pcg\_calibration\_real.py}, \texttt{docs/VERIFICATION\_PCG.md}) ; aucun enregistrement copié ni embarqué. Constats : B1 trop bref (29\,ms contre 45\,ms à mi-hauteur), bruit de fond trop aigu ($+12$\,dB entre 200 et 400\,Hz), souffle mitral trop fort pour son grade (8 à 12\,dB au grade 3) et progression trop plate (9\,dB du grade 2 au grade 5 contre 20\,dB mesurés), site apex inversé à l'excès (B2/B1 0,2 contre 0,82). \texttt{auscultation.json} 1.1.0 : B1 en deux composantes (22\,ms, 0,9), fond 40--155\,Hz d'ordre 4, souffle 60--200\,Hz d'ordre 2 de niveau $\propto$ débit$^{1{,}15}$, apex 1,5 et 3,1 (evidence C). Après recalage : B1 43\,ms, fond à moins de 2\,dB du réel jusqu'à 400\,Hz, souffle des grades 2 à 5 à 3,4\,dB près (écart quadratique moyen, 10 valeurs), B2/B1 à l'apex 0,77 à 0,83. Référence Python d'abord, puis Rust ; fixtures de rejeu régénérées. Deux tests de propriété reformulés (souffle visible mesuré entre 200 et 400\,Hz ; sens du changement de site). \ecart{Non corrigé : B1$\to$B2 0,26\,s contre 0,18\,s mesuré (hémodynamique) ; un chien par grade ; l'enregistrement du site \og base\fg{} est décrit à l'apex par la bibliothèque ; seuils de grade non calibrés.} L'ancienne mention d'un souffle réel \og plus grave et moins plateau\fg{} est retirée (non confirmée par bande).\\
+\textit{à venir} & Extrasystoles non productives & Remarque de l'utilisateur : les ESV précoces devraient être non productives. Constat : le volume éjecté ne dépendait que du remplissage (ESV à RR 0,30\,s : encore 4\,mL, en partie la queue de la systole précédente) ; et la mesure par battement prenait \texttt{max}$-$\texttt{min} du volume VG jusqu'au battement suivant, si bien que le remplissage de la pause gonflait le VES de l'ESV (47\,mL affichés pour 25\,mL éjectés). Mécanismes ajoutés (\texttt{physio.beat\_schedule}, port \texttt{hemo::beat\_schedule}) : amplitude d'élastance active $c_i$ propre à chaque battement, $P = c\,e\,E_{es}(V-V_0) + (1-e)\,P_{\mathrm{passive}}$. (1)~Relation force-intervalle par recirculation du Ca$^{2+}$ à deux compartiments du réticulum \citep{schouten1987,wier1986} : libération $u(1-e^{-d/\tau})$, $d$ = temps depuis la fin de la systole précédente, recapture d'une fraction $\rho$ ; libération 1 en rythme régulier à toute fréquence. Restitution mécanique (ESV précoce faible) et potentialisation post-extrasystolique \citep{cooper1993} en émergent. (2)~Dyssynchronie des battements à QRS large (ectopiques, échappements ventriculaires), activés hors Purkinje \citep{prinzen1999} : $c \times$ \texttt{ees\_wide}. Paramètres \texttt{ca\_tau} 0,2\,s, \texttt{ca\_recirc} 0,6, \texttt{ees\_wide} 0,8 (placeholders D). Mesure corrigée : VTS = minimum sur la contraction du battement, VTD = maximum avant ce minimum. Résultat (ESV 0,8) : ESV couplée à 0,43\,s : $c=0{,}52$, VES 0 (non productive) ; ESV tardive (0,65\,s) : 38\,mL ; battement post-pause $c=1{,}21$, 58\,mL contre 40. Rythme régulier inchangé. Vérification : conformance 1466/1466, \texttt{check\_params} 12075/12075, nouveau test \texttt{force\_interval.rs}, golden et fixtures régénérés depuis la référence. \ecart{Valeurs des trois paramètres non sourcées (aucune donnée canine chiffrée lue).}\\
+\textit{à venir} & Sons battement par battement, pressions alignées, systole & Auscultation battement par battement (\texttt{pcg\_beats.py}, port \texttt{synthesize\_pcg\_beats}) : B1, B2, B3 et souffle de chaque battement suivent son hémodynamique propre (FA : B1 d'intensité variable, déficit de pouls audible) ; Rust~=~Python à $10^{-9}$. Pressions de la vue patient alignées sur l'ECG battement par battement (\texttt{beat\_pressures}). Systole raccourcie, décision de l'utilisateur : $t_s = 0{,}325\sqrt{T}$ (au lieu de 0,37), B1$\to$B2 $\approx$ 244\,ms à RR 0,57\,s (beagles 236--251\,ms, $n=14$). Golden et fixtures régénérés : conformance 1466/1466, paramètres 12075/12075, \texttt{cargo test} vert, calibration Rust/Python 164/164 (LF/HF en écart déclaré). Acceptance PCG : la référence Python suit désormais la même chaîne battement par battement que le Rust (auparavant l'ancienne synthèse périodique, d'où un faux écart d'équivalence à FC 72) ; 300 graines ; Rust équivalent sur toutes les métriques ; B2~$>$~B1 passe (83\,\%, contre 75\,\% avant). \ecart{Écarts de la référence : B1$\to$B2 0,267\,s à FC 90 (cible 0,15--0,25 ; 0,275 avant), diastole/systole 1,23 à FC 90 et 1,75 à FC 72 (cible $>1{,}8$).} \ecart{PAM saine 109,4 (cible 103) ; LF/HF 0,162 contre $0{,}28\pm0{,}11$ \citep{bogucki2015} : écart connu déclaré dans \texttt{signal\_properties.rs} (cible inchangée, borne $\pm2$ ET), décision de l'utilisateur.} Référence de l'auscultation (\texttt{pcg\_reference\_python.json}) régénérée avec la systole raccourcie, sur 200 graines au lieu de 100 (à 100, le rapport B2/B1 à FC 72 sortait à $z=3{,}1$ sur les graines 0--99 et rentrait sur 100--199 : appariement B1/B2 instable) ; fixture de toxicité régénérée ; \texttt{cargo fmt}.\\
+\bottomrule
+\end{longtable}
+
+\subsection*{18 novembre 2026}
+\begin{longtable}{@{}p{1.5cm}p{4.2cm}p{10.3cm}@{}}
+\toprule
+\textbf{Commit} & \textbf{Étape} & \textbf{Contenu, vérification, écarts}\\
+\midrule\endhead
+\commit{731c391} & Vérification maladies $\times$ médicaments ; Python secondaire & Banc Rust de 312 scénarios (12 états, 5 médicaments, $\times1$ à $\times100$ ; \texttt{examples/drug\_matrix.rs}) comparé à la littérature (\texttt{docs/VERIFICATION\_MALADIES\_MEDICAMENTS.tex}, accès « moteur »). Décision de l'utilisateur : le moteur Rust devient la référence normative, le Python une contre-vérification secondaire. CI : YAML invalide corrigé ; \texttt{ode.rs} conforme à Clippy 1.97 (mêmes bits). \ecart{K$^+$ négatif sous furosémide massif ; opioïde trop dépresseur et létal ; créatinine instantanée ; hyperréponse au furosémide en MRC ; bêtabloquant sans effet en FA ; patient vivant à PAM 24\,mmHg.}\\
+\textit{à venir} & Corrections (accès PMC ouvert) & Validé par l'utilisateur, dans l'ordre de priorité. (1)~Furosémide : PK sur Koh 2021 (texte intégral : CL 735,7\,mL/h/kg au lieu de 300, Vss 0,67\,L/kg), diurèse sur ses volumes par intervalle, pertes proportionnelles $X\,e^{-aU}$ calées sur ses K, Na, Cl et sur Wong 1977 ; K$^+$ ne peut plus être négatif (2,09 à 200\,mg/kg). (2)~Opioïde, chien vigile : FC $-32$\,\%, PAM $+6$\,\%, PaCO\textsubscript{2} $+3$\,mmHg, plateau 65\,mmHg sans apnée (Mills 2025, Amon 2021, Wunsch 2010 lus ; Maiante 2009, Bailey 1987). (3)~Créatinine et urée cinétiques dans les évolutions temporelles ($V$ 0,539 et 0,66\,L/kg). (4)~Décès si PAM $<$ 40\,mmHg (choc irréversible). (5)~Furosémide piloté par l'excrétion urinaire. (6)~Effet dromotrope du sympathique (\texttt{av\_symp} 0,5) : le bêtabloquant ralentit la FA de 13 à 16\,\%. (8)~Bêtabloquant au profil aténolol (terme toxique retiré). Cible de calibration t\textsubscript{½} IV du furosémide corrigée (1,25 $\to$ 2,07\,h). Python porté, golden et fixtures régénérés : Rust 1466/1466, paramètres 12495/12495, \texttt{cargo test} vert, 6 nouveaux tests dont 4 contrôles d'échec. \ecart{Non appliquées : POG en MMVD (structure hémodynamique), toxicité de l'atropine (pas de température). Restent : K$^+$ $\approx$ 2,1 sous 2\,mg/kg PO/12\,h pendant 7\,j (aucune source chiffrée) ; diurèse orale $+26$\,\% ; MRC encore $+21$\,\% de diurèse ; FA non traitée plus rapide (s 0,8 : 177/min) ; MMVD 0,8 létale à 3\,kg.}\\
+\textit{à venir} & POG en MMVD, furosémide chronique, guide du modèle & Demande de l'utilisateur. POG : la sensibilité au volume du modèle était plausible (Yao 2025 et Dermlim 2019 lus ; Hirakawa 1987) ; deux mécanismes manquaient. (a)~Veinodilatation du furosémide, dépendante du rein (Bayne 1979) : paramètre \texttt{ven\_cap} (capacitance veineuse, sans ajout de volume), $\times(1+0{,}36E)$. (b)~Orifice mitral dynamique (Yoran 1979) : $g = g_\mathrm{mr}(\mathrm{VTD}/72s)^{2{,}5}$, fixé par battement (point fixe amorti) ; une première version instantanée gonflait le pic régurgité (souffle de grade 6 à MMVD 0,3), abandonnée. Exposant calé sur Suzuki 2013 (POG $-27$\,\%, modèle $-27$\,\%) ; coefficients MMVD de $g_\mathrm{mr}$ recalés (0,9458\,$s^{1{,}111}$). Furosémide chronique : adaptation W ($\tau$ 12\,h, $\varphi$ 0,98) calée sur Adin 2020 et TEST (lus) ; 2\,mg/kg PO/12\,h : K 4,04 à J28 au lieu de 2,1. Guide du modèle (\texttt{docs/GUIDE\_MODELE.tex}) ; \texttt{MODEL\_SPEC.md} corrigé (\texttt{kfac}, $t_s$, allométrie des résistances). \ecart{Restent : baisse de POG trop forte à 1--2\,mg/kg ; stade C moins congestif (POG 12,0) ; PAM du chien sain $-10$\,\% sous furosémide ; Wong 1977 non reproduit ; Suzuki 2011--2013 lus en résumé seulement (téléchargement Wiley refusé).}\\
+\textit{à venir} & Congestion de la MMVD, allométrie de la fuite mitrale & Demande de l'utilisateur, après l'échec du test KMP \texttt{mmvdStageCThroughFfi} (POG du stade C 12,1 < 14). Fuites valvulaires normalisées à 20\,kg, $\times(\mathrm{bw}/20)^{0{,}75}$ (POG au milieu du stade C : 8 à 37\,mmHg de 60 à 3\,kg auparavant ; 11,4 à 12,7 de 10 à 60\,kg ensuite). Rétention hydrosodée de la MMVD 0,149 $\to$ 0,30 : stade C 9,8--22,8\,mmHg (15,2 au milieu), stade D jusqu'à 37 ; cibles du module C 14--24, D 20--32 ; repères Allen 2021 (ICC, médiane 14, 8--32, résumé), Suzuki 2012 (B2 expérimental 14,6, lu). Perfusion de Suzuki 2013 : $-25$\,\% (publié $-27$\,\%). \ecart{Aucune série invasive de POG par stade ACVIM chez le chien MMVD spontané ; stade D très hypoxémique (PaO\textsubscript{2} 54 au milieu).}\\
+\bottomrule
+\end{longtable}
+
+\section{Décisions et écarts connus}
+\begin{enumerate}
+  \item \textbf{Critère d'arrêt du baroréflexe.} La sortie de la référence est discontinue près du seuil $|d_t-d|<0{,}04$. La référence est conservée (décision du 17/11/2026), voir \texttt{docs/SOLVER.md}.
+  \item \textbf{Durée de systole.} Avec $t_s = 0{,}37\sqrt{T}$, B1$\to$B2 valait 0,27\,s à FC 90 (B2 apparié avant B1). Corrigé le 17/11/2026 : $t_s = 0{,}325\sqrt{T}$, calé sur B1$\to$B2 du beagle. Conséquence acceptée par l'utilisateur : la PAM saine monte à 109,4 et LF/HF tombe à 0,162 (cible $0{,}28\pm0{,}11$, non modifiée), déclaré écart connu. Correction de fond à faire : recaler la PAM saine sur source (résistance ou compliance).
+  \item \textbf{Hypokaliémie sous furosémide répété.} Depuis le 18/11/2026, pertes proportionnelles ($K \times e^{-0{,}00513\,U}$) calées sur Koh 2021 et Wong 1977 : K$^+$ ne peut plus être négatif. Reste K$^+$ $\approx$ 2,1\,mmol/L sous 2\,mg/kg PO toutes les 12\,h pendant 7\,j, faute de source chiffrée à cette posologie (Koh : chiens à jeun).
+  \item \textbf{Définition de la diurèse du diurétique} (\texttt{pkpd.py}). Débit induit $u(t)=0{,}25\,E(C)$\,mL/kg/min (supplément dû au médicament ; la diurèse de base n'est pas modélisée). \og Diurèse effective cumulée\fg{} $U(t)=\int 60\,u(s)\,e^{-(t-s)/24\,\mathrm{h}}\,ds$ (mL/kg) : volume induit cumulé avec oubli exponentiel. Ce n'est pas le volume d'urine émis ; il fixe les pertes d'électrolytes (K$^+ - 0{,}04\,U$, Cl$^- - 0{,}5\,U$, Na$^+ - 0{,}3\,U$). Déficit $D$ : $\dot D = 0{,}3\,u\,\mathrm{bw}\,60 - D/4\,\mathrm{h}$ (mL). Placeholders.
+  \item \textbf{Arythmie sinusale respiratoire à fréquence élevée} (remarque de l'utilisateur, 17/11/2026 : la RSA est attendue au repos et à basse fréquence). Mesure (5 graines, 120\,s) : sain FC 88, RSA 46\,bpm ; MMVD C FC 122, RSA 38\,bpm ; MMVD D FC 161, RSA 22\,bpm ; atropine 0,01\,mg/L FC 142, RSA 17\,bpm. La RSA diminue avec le tonus vagal mais reste trop ample en tachycardie. Causes (\texttt{autonomic.py}) : modulation respiratoire proportionnelle au tonus vagal moyen, effet relatif sur la FC (même variation relative, davantage de bpm à FC élevée). Correction possible (non faite, modèle normatif) : modulation non linéaire du tonus vagal ou effet vagal absolu sur la FC, à fonder sur la littérature (perte de l'arythmie sinusale dans l'insuffisance cardiaque canine).
+  \item \textbf{Approximations d'affichage.} Pressions alignées sur le son : le battement simulé est posé à chaque battement. Volume respiratoire : sans espace mort. PAS et PAD instantanées : pression pulsée constante.
+  \item \textbf{Relation force-intervalle} (17/11/2026). \texttt{ca\_tau}, \texttt{ca\_recirc} et \texttt{ees\_wide} sont des placeholders D : à caler sur des courbes de restitution mécanique et de potentialisation canines (d$P$/d$t$ en fonction de l'intervalle de couplage) et sur la perte de fonction en stimulation ventriculaire chez le chien.
+  \item \textbf{Placeholders (evidence D).} PD de l'atropine, du bêtabloquant et du pimobendane ; terme toxique de l'opioïde (borné par la littérature) ; \texttt{f\_plasma} et \texttt{tau\_refill} du furosémide ; PK de l'atropine et du bêtabloquant ; module pneumonie ; seuils de grade des souffles. Furosémide (PK et PD) et opioïde (PD) recalés le 18/11/2026.
+\end{enumerate}
+
+\section{Vérification bibliographique (17 novembre 2026)}\label{sec:verif}
+Cinq recherches, puis une sixième sur l'ionogramme de la MRC, ont été menées par des sessions IA séparées de ce projet. Ce n'est pas une relecture externe. Les valeurs du modèle viennent de \texttt{vetsim-cli} en mode déterministe (20\,kg). Accès : \emph{lu} (texte de la source), \emph{résumé}, \emph{moteur} (résumé de moteur de recherche). Le détail figure dans \texttt{docs/VERIFICATION\_LITTERATURE.md}.
+
+\textbf{Conformes.}
+\begin{itemize}
+  \item Chien sain \citep{haskins2005,cambier2004,constable2005} (résumés) : FC 87,6 contre 87 ; PAM 101 contre 103 ; PAP 13,9 contre 14 ; pH 7,38 ; PaCO\textsubscript{2} 40,2 ; P50 30 ; Bohr $-0{,}37$ ; A\textsubscript{tot} 0,469\,mmol/g.
+  \item VFC du chien sain \citep{bogucki2015} (lu) : SDNN 185 contre $208{,}9\pm77{,}1$\,ms ; LF/HF 0,23 contre $0{,}28\pm0{,}11$.
+  \item Fraction de régurgitation en B1 et C \citep{kawai2026}.
+  \item FC et PAS en ICC \citep{yin2026}.
+  \item Pimobendane per os \citep{her2020} : C\textsubscript{max} 43,8 contre $49{,}1\pm28{,}7$\,ng/mL ; ASC 149 contre $148\pm72$.
+  \item Addison \citep{adler2007,baumstark2014,hall2023} : Na:K, Na$^+$ et K$^+$ en crise.
+  \item DFG \citep{bexfield2008}.
+\end{itemize}
+
+\textbf{Écarts} (rapportés, non corrigés : la référence Python est normative).
+\begin{enumerate}
+  \item \ecart{PK du furosémide.} \texttt{fit\_pk.py} fixe la clairance à 0,30\,L/h/kg et vise $t_{1/2}=1{,}25$\,h en l'attribuant à \citet{koh2021}. L'article (lu) donne $735{,}7\pm63{,}8$\,mL/h/kg et $2{,}07\pm0{,}76$\,h. L'ASC IV est $\times2{,}4$.
+  \item \ecart{PD du furosémide (placeholder D)} sur 8\,h après 2\,mg/kg :
+  \begin{itemize}
+    \item diurèse IV 36,8 contre 24,65\,mL/kg ; per os 18,6 contre 30,9 ;
+    \item $\Delta$K$^+$ à 8\,h $-1{,}14$ contre $-0{,}33$\,mmol/L ;
+    \item $\Delta$Na$^+$ $-8{,}6$ alors que l'article ne relève pas de variation significative ;
+    \item $\Delta$Cl$^-$ $-14{,}3$ contre $-4$ à $-6$.
+  \end{itemize}
+  D'où l'hypokaliémie excessive en prises répétées.
+  \item \ecart{Fréquence respiratoire} constante en ICC : 23 contre une médiane de 64/min \citep{yin2026}.
+  \item \ecart{VFC en stade C} : SDNN 84 contre $138\pm56$\,ms ; LF/HF 0,25 contre $0{,}40\pm0{,}13$ \citep{bogucki2017}.
+  \item \ecart{RSA} : le sens est conforme. La VFC baisse avec la FC, l'atropine et la sévérité \citep{billman2013,baisan2024,keene2019}. L'ampleur n'est pas comparable (bpm contre ms ou \%RSA).
+  \item \ecart{Seuil d'œdème} : 18\,mmHg contre 20--24 \citep{yao2025}, citation secondaire de Guyton et Lindsey 1959, non lu.
+  \item \ecart{MRC} :
+  \begin{itemize}
+    \item Na$^+$, Cl$^-$ et K$^+$ constants jusqu'au stade~4 ;
+    \item acidose uniquement à trou anionique élevé ;
+    \item créatinine de 140\,µmol/L en haut de la plage IRIS1 du module, donc déjà en stade 2 \citep{iris2026}.
+  \end{itemize}
+  \item \ecart{Ionogramme de la MRC} (recherche dédiée) :
+  \begin{itemize}
+    \item K$^+$ constant à 4,1 jusqu'au stade~4, alors que les chiens en MRC ont 4,8 contre 4,3 chez les sains, et que 47\,\% font au moins un épisode d'hyperkaliémie \citep{segev2010} ;
+    \item HCO$_3^-<22$ seulement à partir du stade~3, contre 43/67/78/76\,\% des chiens aux stades~1 à 4 \citep{lippi2023} ;
+    \item phosphate dans l'étendue publiée \citep{parker2017,cortadellas2010} ;
+    \item hématocrite trop haute de 4 à 5 points \citep{lippi2021} ;
+    \item calcium non modélisé.
+  \end{itemize}
+  \item \ecart{Hyperkaliémie (Addison), relevé par l'utilisateur} : à K 6,99 la FC est de 106 (le baroréflexe annule le frein \texttt{kfac} de 0,70), alors que la littérature associe hyperkaliémie et bradycardie, avec perte des ondes P et échappements dès K~$\geq$~7. K$^+$ ne modifie que l'aspect de l'ECG, pas la conduction. Correction validée : remplacer \texttt{kfac} par les effets de K$^+$ sur la conduction (proposition rythme).
+  \item \ecart{Pimobendane} : T\textsubscript{max} 0,95 contre $2{,}1\pm0{,}9$\,h.
+\end{enumerate}
+
+Bases du futur modèle urinaire :
+\begin{itemize}
+  \item densité urinaire $1{,}040\pm0{,}011$ \citep{rudinsky2019} ;
+  \item osmolalité $1541\pm527$\,mOsm/kg \citep{vanvonderen1997} ;
+  \item FE Na/Cl/K 0,20/0,42/9,47\,\% \citep{troia2018} ;
+  \item DFG \citep{bexfield2008,kelley2022,kelly2016}.
+\end{itemize}
+Aucune collecte primaire de diurèse sur 24\,h n'a été trouvée.
+
+\section{Provenance des données}
+\begin{longtable}{@{}p{3.2cm}p{5.2cm}p{7.6cm}@{}}
+\toprule
+\textbf{Bloc} & \textbf{Source} & \textbf{Usage et limite}\\
+\midrule\endhead
+Hémodynamique, gaz & \citet{haskins2005} & FC 87, PAM 103, PAP 14, PAOP 5,5, index cardiaque, gaz artériels et veineux mêlés. Seul le résumé a été lu.\\
+Acide-base & \citet{constable2005} & Na, K, Cl, albumine, phosphate ; A\textsubscript{tot} de l'albumine. Coefficient du phosphate humain.\\
+Affinité O\textsubscript{2} & \citet{cambier2004} & P50 30,0\,mmHg, effet Bohr $-0{,}37$.\\
+VFC & \citet{bogucki2015} & RR moyen, SDNN, RMSSD, LF/HF. Source unique, à recouper.\\
+PK furosémide & \citet{koh2021,noah,ema1999} & V\textsubscript{ss}, demi-vie IV, C\textsubscript{max} per os.\\
+PK pimobendane & \citet{her2020} & C\textsubscript{max}, ASC, demi-vie. Bras oral 0,5\,mg/kg confirmé (texte intégral lu, $n=7$).\\
+MMVD & \citet{keene2019,oyama2004,msdvet} & Stades ACVIM, POG, fraction de régurgitation.\\
+MRC & \citet{iris,iris2026} & Bornes de créatininémie par stade IRIS (édition 2026 lue).\\
+Addison & \citet{msdvet} & Na:K $<27$.\\
+Auscultation & \citet{tiho} & Huit enregistrements (trois sans souffle, cinq de régurgitation mitrale ; licence CC BY-NC-ND 4.0, aucun embarqué).\\
+\bottomrule
+\end{longtable}
+
+\section{Statut des références}\label{sec:refs}
+Vérification du 17/11/2026 via OpenAlex (titre, auteurs, année, DOI) : toutes les entrées \texttt{@article}, sauf \citet{dormand1980} (vérifié antérieurement). Le champ \texttt{note} de chaque entrée indique jusqu'où la source a été lue (résumé ou texte intégral). \textbf{Documents à préciser} (édition, date de consultation) : \citet{iris,msdvet,noah,ema1999,tiho}. Sources citées dans le rapport mais non vérifiées : Wong 1977 (vue par moteur seulement), Roche-Catholy 2021.
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+\end{document}

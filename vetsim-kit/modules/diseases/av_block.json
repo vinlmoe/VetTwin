@@ -1,0 +1,146 @@
+{
+ "schema_version": "1.0.0",
+ "species": [
+  "dog"
+ ],
+ "license": "CC-BY-4.0",
+ "id": "av_block",
+ "version": "1.0.0",
+ "name": {
+  "fr": "Bloc atrioventriculaire",
+  "en": "Atrioventricular block"
+ },
+ "evidence": "C",
+ "description": {
+  "fr": "1er degré : délai nodal allongé ; 2e degré : période réfractaire nodale allongée (Wenckebach émergent) ; 3e degré : échec de la conduction infranodale, échappement ventriculaire (42/min, sourcé)."
+ },
+ "severity": {
+  "stages": {
+   "premier_degre": [
+    0.05,
+    0.33
+   ],
+   "deuxieme_degre": [
+    0.33,
+    0.66
+   ],
+   "troisieme_degre": [
+    0.66,
+    1.0
+   ]
+  },
+  "prior": {
+   "premier_degre": 0.4,
+   "deuxieme_degre": 0.35,
+   "troisieme_degre": 0.25
+  }
+ },
+ "draws": {},
+ "effects": [
+  {
+   "param": "pr",
+   "op": "add",
+   "expr": {
+    "mul": [
+     0.12,
+     {
+      "min": [
+       1.0,
+       {
+        "div": [
+         "s",
+         0.33
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "param": "av_erp",
+   "op": "mul",
+   "expr": {
+    "add": [
+     1,
+     {
+      "mul": [
+       4.0,
+       {
+        "min": [
+         1.0,
+         {
+          "max": [
+           0.0,
+           {
+            "div": [
+             {
+              "sub": [
+               "s",
+               0.33
+              ]
+             },
+             0.33
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "param": "hp_conduction",
+   "op": "mul",
+   "expr": {
+    "max": [
+     0.0,
+     {
+      "sub": [
+       1,
+       {
+        "div": [
+         {
+          "max": [
+           0.0,
+           {
+            "sub": [
+             "s",
+             0.66
+            ]
+           }
+          ]
+         },
+         0.1
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "targets": [],
+ "refs": [
+  "PR > 0,13 s (1er degré, 10.3389/fvets.2025.1622850)",
+  "Échappement 42 ± 11/min, QRS 61 ms, n = 97 (10.1111/jvim.12512)"
+ ],
+ "presentation": {
+  "difficulty": 3,
+  "owner_complaint": {
+   "fr": [
+    "syncope",
+    "faiblesse",
+    "intolérance à l'effort"
+   ]
+  },
+  "exams": [
+   "ECG",
+   "Holter",
+   "test à l'atropine"
+  ]
+ }
+}

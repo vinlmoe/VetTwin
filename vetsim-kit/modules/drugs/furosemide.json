@@ -1,0 +1,118 @@
+{
+ "schema_version": "1.0.0",
+ "species": [
+  "dog"
+ ],
+ "license": "CC-BY-4.0",
+ "id": "furosemide",
+ "version": "1.2.0",
+ "name": {
+  "fr": "Furosémide"
+ },
+ "evidence": "B",
+ "pk": {
+  "vc_L_kg": 0.2073,
+  "vp_L_kg": 0.4602,
+  "cl_mL_min_kg": 10.724,
+  "q_mL_min_kg": 3.341,
+  "ka_per_h": 0.724,
+  "f": 0.55,
+  "renal_exp": 0.7,
+  "hep_exp": 0.0
+ },
+ "pd": {
+  "type": "diuretic",
+  "emax": 1.0,
+  "ec50_mg_L": 0.2412,
+  "hill": 3.0,
+  "urine_max_mL_kg_min": 0.2044,
+  "f_plasma": 0.3,
+  "tau_refill_h": 4.0,
+  "tau_elect_h": 200.0,
+  "effects": [
+   {
+    "param": "vol_shift",
+    "op": "add",
+    "expr": {
+     "mul": [
+      -1,
+      "D"
+     ]
+    }
+   },
+   {
+    "param": "ven_cap",
+    "op": "mul",
+    "expr": {
+     "add": [
+      1,
+      {
+       "mul": [
+        0.36,
+        "E"
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "param": "k",
+    "op": "mul",
+    "expr": {
+     "exp": [
+      {
+       "mul": [
+        -0.00585,
+        "U"
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "param": "cl",
+    "op": "mul",
+    "expr": {
+     "exp": [
+      {
+       "mul": [
+        -0.00225,
+        "U"
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "param": "na",
+    "op": "mul",
+    "expr": {
+     "exp": [
+      {
+       "mul": [
+        -0.00032,
+        "U"
+       ]
+      }
+     ]
+    }
+   }
+  ],
+  "drive": "urinary_excretion",
+  "adapt_tau_h": 12.0,
+  "adapt_frac": 0.9808
+ },
+ "refs": [
+  "Koh SK et al. 2021, BMC Vet Res 17:295, doi:10.1186/s12917-021-02998-4 (texte intégral, PMC8420016)",
+  "Wong KC et al. 1977, Can Anaesth Soc J, doi:10.1007/BF03006233 (résumé)",
+  "Miyazaki H, Hirai S, Taneike T 1990, Nihon Juigaku Zasshi 52:265, doi:10.1292/jvms1939.52.265 (résumé)",
+  "Hirai S, Miyazaki H, Taneike T 1992, J Vet Pharmacol Ther 15:231 (résumé)",
+  "RCP Noah furosemide",
+  "EMA 1999 MRL report",
+  "Adin D et al. 2020, J Vet Intern Med 34:53 (PMC6979094, lu)",
+  "Chetboul V et al. 2017, essai TEST, J Vet Intern Med (PMC5697186, lu)",
+  "Bayne & Williamson 1979, Res Commun Chem Pathol Pharmacol 25:399 (résumé)",
+  "Suzuki S et al. 2013, J Vet Intern Med, doi:10.1111/jvim.12154 (résumé)"
+ ],
+ "notes": "PK calée sur Koh 2021 (2 mg/kg IV, 5 beagles d'environ 11,7 kg, lu ; clairance ramenée au chien de référence de 20 kg par l'allométrie BW^0,75) : CL 735,7 mL/h/kg, Vss 0,6675 L/kg, C0 9,65 mg/L, t½ 2,07 h ; ka et F sur le comprimé (Cmax 0,61 mg/L, F 0,55). Diurèse ajustée sur les volumes urinaires de Koh 2021 par intervalle, IV et PO ensemble (Hill fixée à 3). Effet piloté par l'excrétion urinaire (C × masse néphronique ; Miyazaki 1990, résumé). Pertes électrolytiques proportionnelles à la concentration, X ← X·exp(−a·U_eff), toujours positives. Adaptation lente (W, τ 12 h, φ 0,98 : aldostérone, apport alimentaire, baisse de la FE_K) : U_eff = U − φ·W. aK, aCl, aNa, φ ajustés sur Koh 2021 (K, Cl, Na à 1–8 h, lu) et sur les cohortes cardiaques sous furosémide chronique (Adin 2020, stade C 3,5 mg/kg/j : K 4,50 contre 4,70, Cl 106 contre 109 ; TEST 2017 : K 4,50 à J84 ; lus). τ_adapt = 12 h : placeholder D (12 et 24 h reproduisent également les cohortes ; 12 h limite le creux transitoire, non documenté). Wong 1977 (résumé, chiens anesthésiés) n'est plus reproduit (K 4,49 contre 4,09). Veinodilatation dépendante du rein : ven_cap × (1 + 0,36 E) (Bayne 1979, résumé : compliance veineuse 136 % à 60 min avec uretères ligaturés). f_plasma et tau_refill : placeholders D, compatibles avec la contraction plasmatique de Koh (protéines totales +7 % à 1 h). Limites : diurèse orale +26 % ; en MRC, diurèse effective encore ≈ +25 % ; aux faibles doses (1–2 mg/kg IV), la POG baisse plus que dans Suzuki 2011 ; ototoxicité non modélisée."
+}

@@ -1,0 +1,42 @@
+{
+ "schema_version": "1.0.0",
+ "species": [
+  "dog"
+ ],
+ "license": "CC-BY-4.0",
+ "id": "atropine",
+ "version": "1.0.0",
+ "name": {
+  "fr": "Atropine"
+ },
+ "evidence": "D",
+ "pk": {
+  "vc_L_kg": 0.7,
+  "vp_L_kg": 1.0,
+  "cl_mL_min_kg": 8.0,
+  "q_mL_min_kg": 10.0,
+  "ka_per_h": 2.0,
+  "f": 0.8,
+  "renal_exp": 0.3,
+  "hep_exp": 0.5
+ },
+ "pd": {
+  "type": "emax",
+  "emax": 1.0,
+  "ec50_mg_L": 0.004,
+  "hill": 1.5,
+  "effects": [
+   {
+    "param": "vagal_block",
+    "op": "add",
+    "expr": "E",
+    "clamp": [
+     0,
+     1
+    ]
+   }
+  ]
+ },
+ "refs": [],
+ "notes": "PLACEHOLDER (aucune donnée publiée utilisée). Pas de terme toxique : cibles toxiques (hyperthermie, iléus, effets centraux) non modélisées."
+}

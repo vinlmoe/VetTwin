@@ -1,0 +1,240 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "drug.schema.json",
+ "title": "Module médicament",
+ "type": "object",
+ "required": [
+  "schema_version",
+  "id",
+  "version",
+  "name",
+  "evidence",
+  "pk",
+  "pd"
+ ],
+ "properties": {
+  "schema_version": {
+   "const": "1.0.0"
+  },
+  "id": {
+   "type": "string"
+  },
+  "version": {
+   "type": "string"
+  },
+  "name": {
+   "type": "object",
+   "properties": {
+    "fr": {},
+    "en": {}
+   }
+  },
+  "evidence": {
+   "enum": [
+    "A",
+    "B",
+    "C",
+    "D"
+   ]
+  },
+  "pk": {
+   "type": "object",
+   "required": [
+    "vc_L_kg",
+    "vp_L_kg",
+    "cl_mL_min_kg",
+    "q_mL_min_kg",
+    "ka_per_h",
+    "f"
+   ],
+   "properties": {
+    "vc_L_kg": {
+     "type": "number"
+    },
+    "vp_L_kg": {
+     "type": "number"
+    },
+    "cl_mL_min_kg": {
+     "type": "number"
+    },
+    "q_mL_min_kg": {
+     "type": "number"
+    },
+    "ka_per_h": {
+     "type": "number"
+    },
+    "f": {
+     "type": "number"
+    },
+    "renal_exp": {
+     "type": "number"
+    },
+    "hep_exp": {
+     "type": "number"
+    }
+   }
+  },
+  "pd": {
+   "type": "object",
+   "required": [
+    "type",
+    "emax",
+    "ec50_mg_L",
+    "hill",
+    "effects"
+   ],
+   "properties": {
+    "type": {
+     "enum": [
+      "emax",
+      "diuretic"
+     ]
+    },
+    "effects": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "required": [
+       "param",
+       "op",
+       "expr"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "param": {
+        "type": "string"
+       },
+       "op": {
+        "enum": [
+         "mul",
+         "add"
+        ]
+       },
+       "expr": {
+        "$ref": "expr.schema.json"
+       },
+       "when": {
+        "$ref": "expr.schema.json"
+       },
+       "clamp": {
+        "type": "array",
+        "items": {
+         "type": "number"
+        },
+        "minItems": 2,
+        "maxItems": 2
+       }
+      }
+     }
+    },
+    "toxicity": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "required": [
+       "id",
+       "emax",
+       "ec50_mg_L",
+       "hill",
+       "effects"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+       },
+       "emax": {
+        "type": "number",
+        "minimum": 0
+       },
+       "ec50_mg_L": {
+        "type": "number",
+        "exclusiveMinimum": 0
+       },
+       "hill": {
+        "type": "number",
+        "exclusiveMinimum": 0
+       },
+       "evidence": {
+        "enum": [
+         "A",
+         "B",
+         "C",
+         "D"
+        ]
+       },
+       "source": {
+        "type": "string"
+       },
+       "effects": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "required": [
+          "param",
+          "op",
+          "expr"
+         ],
+         "additionalProperties": false,
+         "properties": {
+          "param": {
+           "type": "string"
+          },
+          "op": {
+           "enum": [
+            "mul",
+            "add"
+           ]
+          },
+          "expr": {
+           "$ref": "expr.schema.json"
+          },
+          "when": {
+           "$ref": "expr.schema.json"
+          },
+          "clamp": {
+           "type": "array",
+           "items": {
+            "type": "number"
+           },
+           "minItems": 2,
+           "maxItems": 2
+          }
+         }
+        }
+       }
+      }
+     }
+    },
+    "drive": {
+     "enum": [
+      "plasma",
+      "urinary_excretion"
+     ],
+     "description": "Diurétique : grandeur qui pilote l'effet. « plasma » (défaut) : concentration plasmatique ; « urinary_excretion » : concentration × masse néphronique, proportionnelle au débit d'excrétion urinaire du médicament (site d'action tubulaire luminal)."
+    },
+    "adapt_tau_h": {
+     "type": "number",
+     "exclusiveMinimum": 0,
+     "description": "Diurétique : constante de temps (h) de l'adaptation électrolytique (compensation rénale et alimentaire)."
+    },
+    "adapt_frac": {
+     "type": "number",
+     "minimum": 0,
+     "maximum": 1,
+     "description": "Diurétique : fraction φ de la diurèse effective compensée à l'équilibre ; les effets reçoivent U − φ·W."
+    }
+   }
+  },
+  "refs": {
+   "type": "array",
+   "items": {
+    "type": "string"
+   }
+  },
+  "notes": {
+   "type": "string"
+  }
+ }
+}
