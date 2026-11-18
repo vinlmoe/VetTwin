@@ -293,8 +293,18 @@ define_params! {
     vent_escape_rate,
     /// Dépression de l'automatisme d'échappement par mmol/L de K au-delà de 5,5.
     esc_k_gain,
-    /// Allongement du premier intervalle d'échappement après un battement conduit.
-    esc_overdrive,
+    /// Suppression des foyers d'échappement par entraînement : allongement du premier
+    /// intervalle d'échappement = 1 + esc_sup_gain·max(0, cycle_échappement/RR_entraîné − 1)·
+    /// (1 − exp(−durée d'entraînement/esc_sup_tau)).
+    esc_sup_gain,
+    /// Constante de temps d'installation de la suppression par entraînement (s).
+    esc_sup_tau,
+    /// Accélération des foyers d'échappement (jonctionnel et ventriculaire) par le tonus
+    /// sympathique effectif : × (1 + esc_a_s·s_eff)/(1 + esc_a_s·0,2).
+    esc_a_s,
+    /// Ralentissement du foyer jonctionnel par le tonus vagal effectif :
+    /// × (1 − esc_a_v·v_eff)/(1 − esc_a_v·0,6) ; sans effet sur le foyer ventriculaire.
+    esc_a_v,
     /// Décharges ectopiques ventriculaires (/min).
     vpc_rate,
     /// Décharges ectopiques supplémentaires par mmol/L de K sous `k_vpc` (/min).
@@ -322,6 +332,6 @@ mod tests {
             assert_eq!(p.get(n), Some(v));
         }
         assert_eq!(p.get("nope"), None);
-        assert_eq!(Params::NAMES.len(), 122); // 73 + 11 décompensation + 6 oreillettes/systole + 3 force-intervalle + 22 conduction + 7 corrections du 18/11/2026 (creat_vd, urea_vd, map_arrest, av_symp, ven_cap, mr_k, mr_vref)
+        assert_eq!(Params::NAMES.len(), 125); // 73 + 11 décompensation + 6 oreillettes/systole + 3 force-intervalle + 22 conduction + 7 corrections du 18/11/2026 (creat_vd, urea_vd, map_arrest, av_symp, ven_cap, mr_k, mr_vref) + 3 échappements (esc_overdrive → esc_sup_gain, esc_sup_tau, esc_a_s, esc_a_v)
     }
 }

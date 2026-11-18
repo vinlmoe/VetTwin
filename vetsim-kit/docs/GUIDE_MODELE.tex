@@ -212,7 +212,8 @@ Paramètre & Expression & Unité & Source (accès) & Év.\\
 \vp{baro_gain}, \vp{baro_sens} & 1,0 ; 1,0 & -- & non documenté & D\\
 \vp{s0}, \vp{v0} & 0,2 ; 0,6 & -- & tonus de référence ($S_\text{REF}$, $V_\text{REF}$ de \cmd{engine.rs}) & D\\
 \vp{a_s}, \vp{a_v} & 0,4 ; 0,75 & -- & non documenté & D\\
-\vp{rsa_depth}, \vp{vag_noise}, \vp{sym_noise} & 0,95 ; 0,025 ; 0,22 & -- & calage global VFC sur Bogucki 2015 (\acc{lu}) & C\\
+\vp{rsa_depth} & 0,64 & -- & ASR (pic inspiratoire $-$ creux expiratoire)/FC moyenne $= 40{,}1 \pm 4{,}5$~\%, $n = 23$ chiens vigiles (Grosso 2021, \acc{résumé}) ; modèle 40~\% (0,95 donnait 56~\%). RMSSD 165~ms, dans $259 \pm 120$ (Bogucki 2015) & C\\
+\vp{vag_noise}, \vp{sym_noise} & 0,025 ; 0,22 & -- & calage global VFC sur Bogucki 2015 (\acc{lu}) & C\\
 \multicolumn{5}{@{}l}{\emph{Gaz, acide-base, métabolisme}}\\
 \vp{vo2}, \vp{vco2} & $5{,}5\,s^{-0{,}25}$ ; $4{,}6\,s^{-0{,}25}$ & mL/min/kg & VO$_2$ cible 5,4 « dérivée des REE publiées » (PMC6095264, \cmd{targets.json}) ; VCO$_2$ non documentée & C\\
 \vp{va0} & 0,0748 & L/min/kg & calé (\cmd{fit\_gas.py}) & C\\
@@ -390,6 +391,13 @@ Arrêt si $|d_t - d| < 0{,}04$, sinon $d \leftarrow \tfrac12(d + d_t)$. Le bêta
 \end{equation}
 avec $\vp{av_symp} = 0{,}5$ : le sympathique raccourcit la période réfractaire et le délai AH du nœud AV ; le bêtabloquant, qui réduit $s_\text{eff}$, ralentit donc la réponse ventriculaire de la FA.
 
+\textbf{Modulation autonome des foyers d'échappement} (18/11/2026), au même passage :
+\begin{equation}
+\vp{junct_rate}' = \vp{junct_rate}\,\frac{1 + \vp{esc_a_s}\,s_\text{eff}}{1 + 0{,}2\,\vp{esc_a_s}}\cdot\frac{\max(0,\,1 - \vp{esc_a_v}\,v_\text{eff})}{1 - 0{,}6\,\vp{esc_a_v}},\qquad
+\vp{vent_escape_rate}' = \vp{vent_escape_rate}\,\frac{1 + \vp{esc_a_s}\,s_\text{eff}}{1 + 0{,}2\,\vp{esc_a_s}}.
+\end{equation}
+Le foyer jonctionnel est accéléré par le sympathique et ralenti par le vague ; le foyer ventriculaire n'est sensible qu'au sympathique. Chez le chien vigile, l'atropine raccourcit la pause d'échappement jonctionnel (4,5 $\to$ 3,4~s, soit $\times 1{,}32$ sur la fréquence : $\vp{esc_a_v} = 0{,}4$) et le practolol l'allonge (4,9 $\to$ 9,4~s ; Tanahashi 1979, \acc{résumé}). Cette pause mêle fréquence et suppression par entraînement : $\vp{esc_a_s} = 2$ n'en attribue qu'une partie à la fréquence ($\times 0{,}71$ sous blocage complet). Un gain plus fort (4,6, tout attribué à la fréquence) rend le point fixe du baroréflexe instable en bloc sino-atrial complet. \evC{}
+
 \textbf{Suppression de \vp{kfac}.} Le frein multiplicatif de K$^+$ sur la FC ($\max(0{,}4; 1 - 0{,}30\max(0, K - 6))$) a été supprimé le 17/11/2026 : K$^+$ agit désormais sur la conduction (section~\ref{sec:rythme}).
 
 \sources{\vp{map_set} = 103 (Haskins 2005). Gains (0,8 ; 0,6 ; 0,4 ; 0,5 ; 0,20 ; 45), \vp{a_s}, \vp{a_v}, \vp{s0}, \vp{v0} : non documentés (placeholders). \vp{av_symp} : calé sur la dénervation sympathique en FA, FC ventriculaire 144,5 $\to$ 121,5/min ($-16$~\%) (PMC7872775, \acc{lu} ; Rigel 1990, \acc{résumé}) ; \evC{}.}
@@ -429,7 +437,8 @@ où $r = t - t_\text{His}$ est le temps de récupération depuis la dernière tr
 \begin{itemize}
 \item Conduction infranodale avec probabilité $p_{HP} = \vp{hp_conduction}\times\bigl(1$ si $K < \vp{k_hp_block}$, sinon $\max(0, 1 - \vp{hp_k_slope}(K - \vp{k_hp_block}))\bigr)$.
 \item Période réfractaire ventriculaire $= \vp{qt}$ : un influx arrivant plus tôt après la dernière activation est perdu.
-\item Échappements jonctionnel (QRS fin) et ventriculaire (QRS large) : cycle $60/(\text{taux}\cdot k_\text{esc})$, $k_\text{esc} = \max(0, 1 - \vp{esc_k_gain}\max(0, K - 5{,}5))$, compté depuis la dernière activation ventriculaire ; après un battement conduit, le premier intervalle est multiplié par \vp{esc_overdrive} (suppression par entraînement). L'échappement jonctionnel exige $p_{HP} > 0$.
+\item Échappements jonctionnel (QRS fin) et ventriculaire (QRS large) : cycle $60/(\text{taux}\cdot k_\text{esc})$, $k_\text{esc} = \max(0, 1 - \vp{esc_k_gain}\max(0, K - 5{,}5))$, compté depuis la dernière activation ventriculaire (fréquences modulées par le système autonome, section~\ref{sec:auto}). L'échappement jonctionnel exige $p_{HP} > 0$.
+\item Suppression par entraînement (overdrive suppression) : le cycle d'un foyer est multiplié par $1 + \vp{esc_sup_gain}\max(0,\ \text{cycle}\cdot\bar f - 1)$, où $\bar f$ est la fréquence ventriculaire moyennée sur \vp{esc_sup_tau} : à chaque activation (toute origine) d'intervalle $\Delta t$, $\bar f \mathrel{+}= (1 - e^{-\Delta t/\vp{esc_sup_tau}})(1/\Delta t - \bar f)$. Un patient qui conduit part de $\bar f = 1/T_\text{sinus}$ (entraîné de longue date) ; en bloc complet ou sans influx sinusal, de $\bar f = 0$. La suppression croît avec la fréquence et la durée de l'entraînement (charge de la pompe Na/K) et s'efface en quelques dizaines de battements d'échappement. Chien sain à 90/min : premier échappement jonctionnel 3,3~s après l'arrêt du sinus (2,6 cycles), puis cycles qui se raccourcissent vers 1,28~s.
 \item Foyer ectopique ventriculaire : processus de Poisson de taux $\vp{vpc_rate} + \vp{vpc_k_gain}\max(0, \vp{k_vpc} - K)$ /min (accru en hypokaliémie) ; une ESV rend le nœud AV réfractaire (conduction rétrograde).
 \end{itemize}
 
@@ -460,14 +469,17 @@ Paramètre & Valeur & Source (accès) & Év.\\
 \vp{av_beta}, \vp{av_tau}, \vp{av_vagal}, \vp{av_k_gain} & 0,1 s ; 0,15 s ; 0,5 ; 0,1 & placeholders & D\\
 \vp{af_cycle}, \vp{af_cv} & 0,12 s ; 0,3 & placeholders & D\\
 \vp{hp_k_slope} & 0,5 & placeholder & D\\
-\vp{junct_rate} & 50 /min & placeholder & D\\
-\vp{esc_k_gain}, \vp{esc_overdrive} & 0,1 ; 1,3 & placeholders & D\\
+\vp{junct_rate} & 47 /min & au tonus de repos : $37 \pm 9$/min sous cholinergique local maximal (physostigmine dans l'artère du nœud AV, $n = 10$ ; Rosenshtraukh 1986, \acc{résumé}), ramené au repos par \vp{esc_a_v} ($37 \times 0{,}76/0{,}60$) ; reste au-dessus de l'échappement ventriculaire & C\\
+\vp{esc_sup_gain} & 1,8 & pause de 4,7 $\pm$ 1,1~s après entraînement d'un rythme jonctionnel à 2,5 fois sa fréquence, chien vigile, $n = 15$ (Tanahashi 1979, \acc{résumé}) ; pauses Holter sans échappement : 2,7~s (sains), 4,1~s (tonus vagal élevé), 6,9~s (maladie du sinus) (Flanders 2024, \acc{lu}) & C\\
+\vp{esc_sup_tau} & 60 s & suppression maximale après $\approx 3$~min d'entraînement (Krellenstein 1978, cœur isolé, \acc{résumé}) ; retour en 66--100 battements jonctionnels (Neely 1985, \acc{résumé}) & D\\
+\vp{esc_a_s}, \vp{esc_a_v} & 2,0 ; 0,4 & atropine et practolol sur la pause d'échappement (Tanahashi 1979, \acc{résumé}) ; voir section~\ref{sec:auto} & C\\
+\vp{esc_k_gain} & 0,1 & placeholder & D\\
 \vp{vpc_k_gain}, \vp{k_vpc} & 1,0 ; 3 mmol/L & placeholders & D\\
 \vp{sa_block}, \vp{af}, \vp{vpc_rate}, \vp{hp_conduction} & 0 ; 0 ; 0 ; 1 & état sain (modifiés par les maladies) & --\\
 \bottomrule
 \end{tabularx}
 
-\limite{Seuils de K$^+$ probablement trop hauts : un cas d'Addison (K 7,9 ; Pașca 2025, \acc{lu}) montre un BAV complet, et un essai de perfusion de KCl (Porter 2001, \acc{résumé}) une perte des ondes P vers 7,5 ; sources jugées insuffisantes pour recaler. Pas de bradycardie hyperkaliémique sous 8,5~mmol/L (FC de l'Addison 0,8 : 141/min). Pause compensatrice des ESV rarement complète (ERP nodal court, calé sur la FA). Depuis \vp{av_symp}, la FA non traitée accélère ($s = 0{,}8$ : 153 $\to$ 177/min). Le rythme d'échappement du BAV~3 reste insensible au bêtabloquant. Pas de mécanisme de réentrée, de tachycardie ventriculaire soutenue ni de voie accessoire.}
+\limite{Seuils de K$^+$ probablement trop hauts : un cas d'Addison (K 7,9 ; Pașca 2025, \acc{lu}) montre un BAV complet, et un essai de perfusion de KCl (Porter 2001, \acc{résumé}) une perte des ondes P vers 7,5 ; sources jugées insuffisantes pour recaler. Pas de bradycardie hyperkaliémique sous 8,5~mmol/L (FC de l'Addison 0,8 : 141/min). Pause compensatrice des ESV rarement complète (ERP nodal court, calé sur la FA). Depuis \vp{av_symp}, la FA non traitée accélère ($s = 0{,}8$ : 153 $\to$ 177/min). Les échappements suivent le tonus autonome, mais leur fréquence au repos repose sur des données expérimentales et cliniques peu nombreuses (cas isolés de Santilli 2019 : 20 à 50/min). Pas de mécanisme de réentrée, de tachycardie ventriculaire soutenue ni de voie accessoire.}
 
 %=====================================================================
 \section{Échanges gazeux et acide-base}\label{sec:gaz}

@@ -152,7 +152,8 @@ pub fn blocks_of(name: &str) -> &'static [Block] {
         // conduction (rhythm) : génération et propagation de l'influx → FC, ECG, oreillettes
         "sa_block" | "af" | "af_cycle" | "af_cv" | "hv" | "av_erp" | "av_beta" | "av_tau"
         | "av_conceal" | "av_vagal" | "av_symp" | "hp_conduction" | "junct_rate"
-        | "vent_escape_rate" | "esc_overdrive" | "vpc_rate" => &[Autonomic, Ecg],
+        | "vent_escape_rate" | "esc_sup_gain" | "esc_sup_tau" | "esc_a_s" | "esc_a_v"
+        | "vpc_rate" => &[Autonomic, Ecg],
         "av_k_gain"
         | "k_hp_block"
         | "hp_k_slope"

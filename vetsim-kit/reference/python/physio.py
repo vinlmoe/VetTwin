@@ -254,6 +254,11 @@ def _evaluate_once(p, n_beats=11):
         symp = max(0.1, 1.0 - base['av_symp'] * (s_eff - S_REF))   # effet dromotrope du sympathique (ERP, AH)
         q['av_erp'] = base['av_erp'] * symp
         q['pr'] = base['hv'] + (base['pr'] - base['hv']) * symp
+        # foyers d'échappement : accélérés par le sympathique, le jonctionnel ralenti par le vague
+        esc_s = (1.0 + base['esc_a_s'] * s_eff) / (1.0 + base['esc_a_s'] * S_REF)
+        esc_v = max(0.0, 1.0 - base['esc_a_v'] * v_eff) / (1.0 - base['esc_a_v'] * V_REF)
+        q['junct_rate'] = base['junct_rate'] * esc_s * esc_v
+        q['vent_escape_rate'] = base['vent_escape_rate'] * esc_s
         q['r_sys'] = base['r_sys'] * (1 + 0.5 * (s_tot - base['s0']))
         q['vol_shift'] = base['vol_shift'] + 0.20 * 85.0 * base['bw'] * (s_tot - base['s0'])   # recrutement du volume non contraint
         h, cond, g_eff = _hemo_with_rhythm(q, v_eff, n_beats)

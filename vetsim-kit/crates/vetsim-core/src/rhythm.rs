@@ -9,9 +9,13 @@
 //! - nœud AV : période réfractaire, délai dépendant de la récupération, conduction cachée ;
 //!   allongés par le tonus vagal et par K⁺ ;
 //! - His-Purkinje : conduction probabiliste, en échec au-delà de `k_hp_block` ;
-//! - échappements jonctionnel et ventriculaire (suppression par entraînement : premier intervalle
-//!   allongé de `esc_overdrive` après un battement conduit) ; foyer ectopique ventriculaire (Poisson),
-//!   accru en hypokaliémie ; réfractarité ventriculaire = QT.
+//! - échappements jonctionnel et ventriculaire ; suppression par entraînement : après une suite de
+//!   activations ventriculaires plus rapides que le foyer, son premier intervalle est allongé de
+//!   `1 + esc_sup_gain·max(0, cycle·f̄ − 1)`, où `f̄` est la fréquence ventriculaire moyennée sur
+//!   `esc_sup_tau` (charge de la pompe Na/K : la suppression croît avec la fréquence et la durée
+//!   de l'entraînement, et s'efface pendant un rythme d'échappement) ; foyer ectopique ventriculaire (Poisson), accru en hypokaliémie ;
+//!   réfractarité ventriculaire = QT. (La modulation autonome des foyers est appliquée en amont,
+//!   sur `junct_rate` et `vent_escape_rate`, par `engine::evaluate_once`.)
 //!
 //! L'aléa ne passe que par des tirages uniformes `u ∈ [0, 1)` fournis par l'appelant : ils sont
 //! rejouables à l'identique depuis la référence Python.
@@ -306,8 +310,22 @@ pub fn simulate_conduction(
     // --- propagation chronologique
     let mut last_v = f64::NEG_INFINITY;
     let mut last_his = f64::NEG_INFINITY;
-    // la dernière activation était conduite : suppression des échappements par entraînement
-    let mut last_conducted = true;
+    // Suppression par entraînement : fréquence ventriculaire moyennée sur `esc_sup_tau` (/s).
+    // Un patient qui conduit est supposé entraîné depuis longtemps à sa fréquence sinusale ; en
+    // bloc complet ou sans influx sinusal, les foyers battent à leur propre rythme.
+    let mut f_avg = if hp_p > 0.0 && p.sa_block < 1.0 {
+        1.0 / sinus_period
+    } else {
+        0.0
+    };
+    let suppression =
+        |cycle: f64, f: f64| -> f64 { 1.0 + p.esc_sup_gain * f64::max(0.0, cycle * f - 1.0) };
+    let beat = |t: f64, last_v: f64, f_avg: &mut f64| {
+        if last_v.is_finite() {
+            let rr = t - last_v;
+            *f_avg += (1.0 - math::exp(-rr / p.esc_sup_tau)) * (1.0 / rr - *f_avg);
+        }
+    };
     let (mut i_s, mut i_e) = (0usize, 0usize);
     let mut pending: Option<(f64, f64, f64)> = None;
     let mut pending_idx = 0usize; // influx en transit (indice dans `out.impulses`)
@@ -333,12 +351,11 @@ pub fn simulate_conduction(
             offer(tv, 2);
         }
         let base = if last_v.is_finite() { last_v } else { 0.0 };
-        let ods = if last_conducted { p.esc_overdrive } else { 1.0 };
         if junct_ok {
-            offer(base + junct_cycle * ods, 3);
+            offer(base + junct_cycle * suppression(junct_cycle, f_avg), 3);
         }
         if vesc_cycle.is_finite() {
-            offer(base + vesc_cycle * ods, 4);
+            offer(base + vesc_cycle * suppression(vesc_cycle, f_avg), 4);
         }
         let Some((t, kind)) = best else {
             break; // asystolie
@@ -400,8 +417,8 @@ pub fn simulate_conduction(
                     pr: Some(pr),
                     wide: false,
                 });
+                beat(tv, last_v, &mut f_avg);
                 last_v = tv;
-                last_conducted = true;
             }
             1 => {
                 i_e += 1;
@@ -415,8 +432,8 @@ pub fn simulate_conduction(
                     pr: None,
                     wide: true,
                 });
+                beat(t, last_v, &mut f_avg);
                 last_v = t;
-                last_conducted = false;
                 last_his = t; // conduction rétrograde : nœud AV réfractaire
             }
             3 => {
@@ -427,8 +444,8 @@ pub fn simulate_conduction(
                     pr: None,
                     wide: false,
                 });
+                beat(t, last_v, &mut f_avg);
                 last_v = t;
-                last_conducted = false;
                 last_his = t;
             }
             _ => {
@@ -439,8 +456,8 @@ pub fn simulate_conduction(
                     pr: None,
                     wide: true,
                 });
+                beat(t, last_v, &mut f_avg);
                 last_v = t;
-                last_conducted = false;
             }
         }
     }

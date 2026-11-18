@@ -26,7 +26,7 @@
 ## Conduction (`reference/python/rhythm.py`, 17/11/2026)
 - Calés : `av_erp` 0,15 s et `av_conceal` 0,75 sur la FA canine (FC Holter médiane 129,7 [116,8–156,0], CVRR 0,309 [0,247–0,442], n = 50 ; 10.3389/fcvm.2026.1890025) sous la contrainte de conduction 1:1 jusqu'à ~225/min (FC max Holter des chiens sains 204 ± 25 ; 10.1371/journal.pone.0319886). Modèle : 129,6 /min, CVRR 0,291.
 - Sourcés : `vent_escape_rate` 42 /min (42 ± 11, n = 97 ; 10.1111/jvim.12512) ; `k_atrial_standstill` 8,5 mmol/L (arrêt atrial 8,5–10 avec conduction sino-ventriculaire, Hariman 1983, résumé) ; `k_hp_block` 10 (élargissement du QRS au-delà de 10,1, Tag & Day 2008, vu par moteur seulement).
-- Placeholders D : `af_cycle`, `af_cv`, `hv`, `av_beta`, `av_tau`, `av_vagal`, `av_k_gain`, `hp_k_slope`, `junct_rate` 50, `esc_k_gain`, `vpc_k_gain`, `k_vpc`.
+- Placeholders D : `af_cycle`, `af_cv`, `hv`, `av_beta`, `av_tau`, `av_vagal`, `av_k_gain`, `hp_k_slope`, `esc_k_gain`, `esc_sup_tau`, `vpc_k_gain`, `k_vpc`.
 - Oreillette : gain `k_la` à caler sur E/A ≈ 1,39 (E 0,82, A 0,59 m/s, n = 53 ; 10.3390/ani15111524) ; k_la ≈ 1,45 donne E/A 1,39 à la FC de repos du modèle (contribution ≈ 10 % du VES). Les ondes fusionnent au-delà d'environ 120/min.
 
 ## Troubles du rythme (modules `atrial_fibrillation`, `av_block`, `ventricular_premature`, `sick_sinus`, 17/11/2026)
@@ -54,7 +54,18 @@ Ces modules n'agissent que sur les paramètres de la conduction. FC, ECG, hémod
 - **Maladie du sinus** (evidence D).
   - Effets : `sa_block` + 0,45·s ; FC sinusale × (1 − 0,3·s) ; échappements jonctionnel et ventriculaire × (1 − 0,8·s).
   - Pause la plus longue : 4,9 s sur 5 h à s = 0,85, contre 6,9 s (5,5–10,3) sur Holter de 24 h (10.1111/jvim.17071).
-- **`esc_overdrive`** = 1,3 (placeholder D) : suppression des échappements par entraînement. Sans elle, l'échappement jonctionnel s'insérait dans chaque pause de Wenckebach.
+- **Échappements et ASR (18/11/2026, evidence C, sources lues en résumé sauf mention).**
+  - `esc_overdrive` 1,3 est remplacé par une suppression par entraînement mécanistique : premier cycle × (1 + `esc_sup_gain`·max(0, cycle·f̄ − 1)), où f̄ est la fréquence ventriculaire moyennée sur `esc_sup_tau`.
+    - `esc_sup_gain` 1,8 : pause de 4,7 ± 1,1 s après un entraînement à 2,5× (Tanahashi 1979, 10.1016/s0022-0736(79)80048-5).
+    - `esc_sup_tau` 60 s, placeholder D : Krellenstein 1978 (10.1016/s0022-0736(78)80022-3) et Neely 1985 (10.1161/01.res.57.1.182).
+    - Résultat : le premier échappement jonctionnel survient 3,3 s après un arrêt sinusal chez le chien sain, dans l'ordre des pauses Holter de Flanders 2024 (PMC11099791, lu).
+  - Modulation autonome des foyers, Tanahashi 1979 :
+    - `esc_a_v` 0,4 : effet de l'atropine sur le foyer jonctionnel ;
+    - `esc_a_s` 2,0 : sympathique, sur les foyers jonctionnel et ventriculaire ; une partie seulement de l'effet du practolol est attribuée à la fréquence, et un gain plus fort déstabilise le point fixe du baroréflexe.
+  - `junct_rate` 47 /min au tonus de repos : 37 ± 9 sous cholinergique local maximal (Rosenshtraukh 1986, 10.1016/s0735-1097(86)80035-3), ramené au repos par `esc_a_v`. La valeur de 40 envisagée passait sous l'échappement ventriculaire (42).
+  - `rsa_depth` 0,95 → 0,64 : ASR 40,1 ± 4,5 % de la FC moyenne (Grosso 2021, 10.1016/j.resp.2021.103776) ; le modèle passait de 56 % à 40 %.
+    - L'ASR est déjà proportionnelle au tonus vagal effectif. En % de la FC, elle baisse avec la MMVD (sain 40 %, B2 37 %, C 27 %, D 18 %, dans le sens de Baisan 2024) et disparaît sous atropine.
+    - RMSSD 165 ms, dans 259 ± 120 (Bogucki 2015). LF/HF redevient conforme côté Rust.
 
 ## Corrections du 18/11/2026 (maladies × médicaments × surdosage)
 Détail et sources : `docs/VERIFICATION_MALADIES_MEDICAMENTS.tex`. Accès : « lu » = texte intégral (PMC), « résumé » = résumé seul.

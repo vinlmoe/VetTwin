@@ -9,52 +9,73 @@
 // Usage pédagogique uniquement.
 import { COLORS, timeChart } from './charts.js';
 
-const ACTIVE = '#ff7a2f', REST_A = '#f3d9d4', REST_V = '#efc9c3', WALL = '#9b4a43', WALL_ACT = '#5c1a14';
-const CONDUCT = '#d4a017', JET = '#c0392b', FLOW = '#2563a8';
-
-// Cavités : contour et point fixe de l'échelle (plan valvulaire : la base descend vers l'apex).
-const SHAPES = {
-  ra: { d: 'M66,72 C64,36 160,30 170,70 L172,150 C134,166 84,160 66,140 Z', c: [118, 160] },
-  la: { d: 'M252,72 C258,40 350,42 352,82 L350,146 C316,160 268,158 252,148 Z', c: [301, 160] },
-  rv: { d: 'M70,174 L198,174 L206,300 C170,322 120,292 90,252 C74,226 68,196 70,174 Z', c: [134, 168] },
-  lv: { d: 'M214,174 L352,174 C362,234 334,302 256,346 C230,322 214,282 212,240 Z', c: [283, 168] },
+// ------------------------------------------------------------------ palette
+const C = {
+  ink: '#1b2a35', muted: '#5b6b77',
+  myo: '#c9786d', myoDark: '#7d2f27', epi: '#f4dcd5', epiLine: '#d9a99f',
+  bloodV: '#c3cdee', bloodVd: '#8f9fd6', bloodA: '#f6c1bb', bloodAd: '#e48a80',
+  dep: '#ff8a1f', conduct: '#e0a800', conductDim: '#d9c27a', impulse: '#fff6c9',
+  fwd: '#0f766e', reg: '#d0211b', block: '#d0211b', conceal: '#e07b00',
 };
-// Gros vaisseaux (tronçons) au-dessus des valves sigmoïdes.
-const VESSELS = { pa: 'M178,168 L178,112 L198,112 L198,168', ao: 'M224,168 L224,104 L246,104 L246,168' };
+// Couleurs des phases mécaniques (cœur gauche).
+const PHASES = {
+  ivc: ['Contraction isovolumique', '#f2a33a'], ej: ['Éjection', '#d64545'],
+  ivr: ['Relaxation isovolumique', '#8b5cc7'], fe: ['Remplissage passif (E)', '#5aa9e6'],
+  fa: ['Systole atriale (A)', '#2e6fd1'], rest: ['Diastole, valves fermées', '#b8c2cc'],
+};
+
+// ------------------------------------------------------------------ géométrie (schéma)
+// Cavités : contour, point fixe de l'échelle (plan valvulaire), épaisseur de paroi au repos
+// et épaississement maximal sous activation.
+const SHAPES = {
+  ra: { d: 'M64,96 C58,56 146,40 176,78 L182,174 L70,174 C60,150 62,122 64,96 Z', c: [124, 176], wall: 6, gain: 3, blood: 'V' },
+  la: { d: 'M244,84 C256,48 350,54 356,96 L354,174 L240,174 Z', c: [298, 176], wall: 6, gain: 3, blood: 'A' },
+  rv: { d: 'M78,198 L196,198 C200,252 196,292 182,320 C138,302 90,262 78,198 Z', c: [137, 198], wall: 8, gain: 5, blood: 'V' },
+  lv: { d: 'M224,198 L342,198 C346,252 314,314 254,342 C232,302 218,252 224,198 Z', c: [283, 198], wall: 14, gain: 9, blood: 'A' },
+};
+// Masse ventriculaire (épicarde), contractée avec les ventricules.
+const EPI = { d: 'M60,192 C52,266 128,336 254,374 C336,326 376,262 366,192 Z', c: [213, 196] };
+// Gros vaisseaux.
+const VESSELS = [
+  { d: 'M136,8 L136,62', w: 26, col: 'V', lab: ['VCS', 150, 18] },
+  { d: 'M366,104 L398,98 M364,146 L398,152', w: 12, col: 'A', lab: ['VP', 384, 128] },
+  { d: 'M233,190 C228,132 232,72 268,44 C302,18 344,26 360,62', w: 22, col: 'A', lab: ['Ao', 316, 22] },
+  { d: 'M189,190 C188,150 198,108 228,84', w: 18, col: 'V', lab: ['AP', 212, 156] },
+];
 // Valves : extrémités de l'anneau, sens antérograde (unitaire), débit du modèle.
 const VALVES = {
-  tr: { a: [88, 168], b: [140, 168], d: [0, 1], q: 'q_tr' },
-  pu: { a: [178, 168], b: [198, 168], d: [0, -1], q: 'q_pu' },
-  ao: { a: [224, 168], b: [246, 168], d: [0, -1], q: 'q_ao' },
-  mi: { a: [272, 168], b: [330, 168], d: [0, 1], q: 'q_mi' },
+  tr: { a: [86, 186], b: [150, 186], d: [0, 1], q: 'q_tr', name: 'Tricuspide' },
+  pu: { a: [180, 190], b: [198, 190], d: [0, -1], q: 'q_pu', name: 'Pulmonaire' },
+  ao: { a: [223, 190], b: [243, 190], d: [0, -1], q: 'q_ao', name: 'Aortique' },
+  mi: { a: [264, 186], b: [334, 186], d: [0, 1], q: 'q_mi', name: 'Mitrale' },
 };
-// Tissu de conduction (coordonnées du schéma) et cavité qui le porte (il suit sa contraction).
+// Tissu de conduction et cavité qui le porte (il suit sa contraction).
 const PATHS = {
-  internodal: 'M150,54 C156,100 170,140 209,166',
-  bachmann: 'M150,54 C200,40 250,52 286,78',
-  his: 'M209,166 L208,196',
-  rbb: 'M208,196 C203,240 194,280 178,302',
-  lbb: 'M208,196 C218,240 228,292 248,330',
-  purk_r: 'M178,302 C120,292 80,232 80,184',
-  purk_l: 'M248,330 C306,300 352,240 344,184',
+  internodal: 'M148,64 C152,110 172,150 207,186',
+  bachmann: 'M148,64 C196,52 240,64 270,90',
+  his: 'M207,186 L209,214',
+  rbb: 'M209,214 C204,256 198,292 184,316',
+  lbb: 'M209,214 C218,258 230,300 252,336',
+  purk_r: 'M184,316 C128,300 86,252 84,206',
+  purk_l: 'M252,336 C310,306 346,256 338,206',
 };
 const PATH_OF = { internodal: 'ra', bachmann: 'la', rbb: 'rv', purk_r: 'rv', lbb: 'lv', purk_l: 'lv' };
-const SA = [150, 54], AVN = [209, 166], HISB = [208, 196];
-// Point de départ de la dépolarisation ventriculaire selon l'origine du battement (schéma).
-const V_ORIGIN = { sinus: [210, 250], junctional: [210, 250], ventricular_escape: [208, 296], ectopic: [326, 236] };
+const SA = [148, 64], AVN = [207, 186], HISB = [209, 214];
+const V_ORIGIN = { sinus: [210, 262], junctional: [210, 262], ventricular_escape: [209, 304], ectopic: [330, 252] };
+const LABELS = { ra: ['OD', 112, 128], la: ['OG', 300, 124], rv: ['VD', 132, 252], lv: ['VG', 282, 262] };
+
 const ORIGIN_FR = {
-  sinus: 'battement sinusal conduit', junctional: 'échappement jonctionnel (QRS fin)',
-  ventricular_escape: 'échappement ventriculaire (QRS large)', ectopic: 'extrasystole ventriculaire (QRS large)',
+  sinus: 'Battement sinusal conduit', junctional: 'Échappement jonctionnel',
+  ventricular_escape: 'Échappement ventriculaire', ectopic: 'Extrasystole ventriculaire',
 };
 const FATE_FR = {
   conducted: 'conduit', nodal_refractory: 'bloqué au nœud AV (période réfractaire)',
-  concealed: 'bloqué dans le nœud AV en réfractarité relative (conduction cachée : allonge la réfractarité)', collision: 'bloqué : influx précédent encore dans le His-Purkinje',
+  concealed: 'bloqué dans le nœud AV (conduction cachée)', collision: 'bloqué : influx précédent encore dans le His-Purkinje',
   infranodal: 'bloqué sous le His (bloc infranodal)', ventricular_refractory: 'arrivé aux ventricules réfractaires',
 };
 
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
 const within = (t, a, b) => t >= a && t <= b;
-/** Valeur d'une série échantillonnée à fs (interpolation linéaire). */
 function sample(y, fs, t) {
   const x = Math.max(0, Math.min(y.length - 1, t * fs)), i = Math.floor(x), j = Math.min(y.length - 1, i + 1);
   return y[i] + (y[j] - y[i]) * (x - i);
@@ -67,10 +88,9 @@ const mix = (c1, c2, x) => {
 };
 
 /**
- * Chronologie électrique : trajets de l'influx (voie, début, fin) et marques de blocage, tirés
- * des sorties du moteur. Conventions du modèle : l'influx atteint le nœud AV au début de l'onde P
- * (pas de délai intra-atrial), sort du nœud vers le His à `t_his`, et l'instant ventriculaire
- * est le pic R (QRS centré dessus).
+ * Chronologie électrique tirée des sorties du moteur. Conventions du modèle : l'influx atteint le
+ * nœud AV au début de l'onde P (pas de délai intra-atrial), sort du nœud vers le His à `t_his`, et
+ * l'instant ventriculaire est le pic R (QRS centré dessus).
  */
 export function heartTimeline(r) {
   const el = r.electrical, tracks = [], marks = [], nodal = [];
@@ -103,17 +123,17 @@ export function heartTimeline(r) {
   return { vent, atria: el.atrial, tracks, marks, nodal, saBlocked: el.sa_exit_blocked, impulses: el.impulses };
 }
 
-/** Phase mécanique du cœur gauche, lue sur les débits et l'activation du modèle. */
+/** Phase mécanique du cœur gauche (clé de PHASES), lue sur les débits et l'activation du modèle. */
 export function leftPhase(r, t, qmax) {
   const s = r.series, fs = r.fs;
   const qa = sample(s.q_ao, fs, t), qm = sample(s.q_mi, fs, t), av = sample(s.act_v, fs, t), aa = sample(s.act_a, fs, t);
   const dav = sample(s.act_v, fs, t + 0.005) - sample(s.act_v, fs, t - 0.005);
-  const eps = 0.02;
-  const reg = qm < -eps * qmax.mi ? ' + régurgitation mitrale' : '';
-  if (qa > eps * qmax.ao) return 'éjection' + reg;
-  if (qm > eps * qmax.mi) return aa > 0.05 ? 'remplissage actif (systole atriale, onde A)' : 'remplissage passif (onde E, diastasis)';
-  if (av > 0.02) return (dav >= 0 ? 'contraction isovolumique' : 'relaxation isovolumique') + reg;
-  return 'diastole, valves fermées' + reg;
+  const eps = 0.02, reg = qm < -eps * qmax.mi;
+  let k = 'rest';
+  if (qa > eps * qmax.ao) k = 'ej';
+  else if (qm > eps * qmax.mi) k = aa > 0.05 ? 'fa' : 'fe';
+  else if (av > 0.02) k = dav >= 0 ? 'ivc' : 'ivr';
+  return { k, reg };
 }
 
 /** Monte la vue dans `v` et lance l'animation ; `H` garde l'état (instant, vitesse, lecture). */
@@ -124,48 +144,72 @@ export function mountHeart(v, r, H, ui) {
   const arange = { la: range(s.v_la), ra: range(s.v_ra) };
   const qmax = {};
   for (const k of Object.keys(VALVES)) qmax[k] = Math.max(1e-9, ...s[VALVES[k].q]);
+  // phases précalculées (ruban)
+  const nPh = Math.floor(dur * fs), phase = new Array(nPh), regs = new Array(nPh);
+  for (let i = 0; i < nPh; i++) { const p = leftPhase(r, i / fs, qmax); phase[i] = p.k; regs[i] = p.reg; }
   const NS = 'http://www.w3.org/2000/svg';
-  const pathEl = (k) => `<path id="h-p-${k}" d="${PATHS[k]}" fill="none" stroke="${CONDUCT}" stroke-width="2.2" stroke-linecap="round" opacity="0.55"/>`;
-  const chamber = (k) => `<g id="h-${k}"><clipPath id="h-cp-${k}"><path d="${SHAPES[k].d}"/></clipPath>
-      <path id="h-wall-${k}" d="${SHAPES[k].d}" fill="${k[1] === 'a' ? REST_A : REST_V}" stroke="${WALL}" stroke-width="4" stroke-linejoin="round"/>
-      <g clip-path="url(#h-cp-${k})"><circle id="h-w-${k}" r="0" fill="${ACTIVE}" opacity="0"/><g id="h-f-${k}"></g></g>
+  const blood = (k) => `url(#h-g-${SHAPES[k].blood})`;
+  const pathEl = (k) => `<path id="h-p-${k}" d="${PATHS[k]}" class="h-cond"/>`;
+  const chamber = (k) => {
+    const S = SHAPES[k];
+    return `<g id="h-${k}">
+      <mask id="h-m-${k}" maskUnits="userSpaceOnUse" x="0" y="0" width="420" height="400"><path id="h-mp-${k}" d="${S.d}" fill="black" stroke="white" stroke-width="${S.wall}" stroke-linejoin="round"/></mask>
+      <path id="h-wall-${k}" d="${S.d}" fill="${blood(k)}" stroke="${C.myo}" stroke-width="${S.wall}" stroke-linejoin="round"/>
+      <g mask="url(#h-m-${k})"><circle id="h-w-${k}" r="0" fill="${C.dep}" opacity="0"/><g id="h-f-${k}"></g></g>
+      <text class="h-cav" x="${LABELS[k][1]}" y="${LABELS[k][2]}">${LABELS[k][0]}</text>
       ${Object.keys(PATHS).filter((p) => PATH_OF[p] === k).map(pathEl).join('')}</g>`;
+  };
   const sw = (lab, val) => `<button class="${H.speed === val ? 'on' : ''}" data-speed="${val}">${lab}</button>`;
-  v.innerHTML = `<div class="toolbar"><div class="row" style="gap:18px">
-      <button class="primary" id="h-play">${H.playing ? '❚❚ Pause' : '▶ Lecture'}</button>
-      <div class="group"><span class="lab">Vitesse</span>${sw('×1', 1)}${sw('×0,5', 0.5)}${sw('×0,25', 0.25)}${sw('×0,1', 0.1)}</div>
-      <div class="group"><button id="h-prev" title="Battement précédent">◀ battement</button><button id="h-next" title="Battement suivant">battement ▶</button></div></div>
-    <div class="sliders"><label><span>Instant : <b id="h-tl">${ui.fmt(H.t, 3)}</b> s / ${ui.fmt(dur, 0)} s</span>
-      <input id="h-t" type="range" min="0" max="${dur}" step="0.002" value="${H.t}"></label></div>
-    <div class="summary" id="h-elec">&nbsp;</div><div class="summary" id="h-mech">&nbsp;</div></div>
-    <div class="heart-grid">
-      <div class="card"><h3>Contraction et influx électrique</h3>
-        <svg id="h-svg" viewBox="30 10 360 350" role="img" aria-label="Schéma animé du cœur : cavités, valves et tissu de conduction">
-          ${Object.values(VESSELS).map((d) => `<path d="${d}" fill="#f6e3df" stroke="${WALL}" stroke-width="3"/>`).join('')}
-          <text x="188" y="106" class="h-small" text-anchor="middle">AP</text><text x="235" y="98" class="h-small" text-anchor="middle">Ao</text>
-          <text x="112" y="28" class="h-lab">OD</text><text x="302" y="28" class="h-lab">OG</text>
-          <text x="52" y="320" class="h-lab">VD</text><text x="366" y="320" class="h-lab">VG</text>
-          ${chamber('ra')}${chamber('la')}${chamber('rv')}${chamber('lv')}
-          ${Object.keys(VALVES).map((k) => `<g><path id="h-vl-${k}" fill="none" stroke="#3b2b2b" stroke-width="3.5" stroke-linecap="round"/><path id="h-vj-${k}" fill="none" stroke-linecap="round"/><path id="h-vh-${k}" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>`).join('')}
+  const vessel = (x) => `<path d="${x.d}" fill="none" stroke="${x.col === 'A' ? C.bloodAd : C.bloodVd}" stroke-width="${x.w + 5}" stroke-linecap="round"/>
+      <path d="${x.d}" fill="none" stroke="${x.col === 'A' ? C.bloodA : C.bloodV}" stroke-width="${x.w}" stroke-linecap="round"/>
+      <text class="h-vlab" x="${x.lab[1]}" y="${x.lab[2]}">${x.lab[0]}</text>`;
+  v.innerHTML = `<div class="hv">
+    <div class="hv-bar">
+      <button class="hv-play" id="h-play" aria-label="Lecture ou pause (espace)">${H.playing ? '❚❚' : '▶'}</button>
+      <div class="hv-time"><span id="h-tl">${ui.fmt(H.t, 2)}</span><small> s / ${ui.fmt(dur, 0)} s</small></div>
+      <input id="h-t" class="hv-scrub" type="range" min="0" max="${dur}" step="0.002" value="${H.t}" aria-label="Instant">
+      <div class="hv-seg" role="group" aria-label="Vitesse">${sw('×1', 1)}${sw('×½', 0.5)}${sw('×¼', 0.25)}${sw('×⅒', 0.1)}</div>
+      <div class="hv-seg"><button id="h-prev" title="Battement précédent (←)">⟨ battement</button><button id="h-next" title="Battement suivant (→)">battement ⟩</button></div>
+    </div>
+    <div class="hv-main">
+      <div class="hv-stage">
+        <div class="hv-chips"><span class="hv-chip" id="h-chip-e"><i></i><b>Électrique</b><span id="h-elec"></span></span>
+          <span class="hv-chip" id="h-chip-m"><i></i><b>Mécanique</b><span id="h-mech"></span></span></div>
+        <svg id="h-svg" viewBox="30 0 390 390" role="img" aria-label="Schéma animé du cœur : cavités, valves, gros vaisseaux et tissu de conduction">
+          <defs>
+            <radialGradient id="h-g-V" cx="40%" cy="35%" r="75%"><stop offset="0" stop-color="#dfe5f8"/><stop offset="1" stop-color="${C.bloodV}"/></radialGradient>
+            <radialGradient id="h-g-A" cx="40%" cy="35%" r="75%"><stop offset="0" stop-color="#fde1dd"/><stop offset="1" stop-color="${C.bloodA}"/></radialGradient>
+            <radialGradient id="h-g-epi" cx="45%" cy="30%" r="80%"><stop offset="0" stop-color="#fbeee9"/><stop offset="1" stop-color="${C.epi}"/></radialGradient>
+            <filter id="h-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+            <filter id="h-shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#7d2f27" flood-opacity="0.18"/></filter>
+          </defs>
+          ${VESSELS.map(vessel).join('')}
+          <g id="h-epi"><path d="${EPI.d}" fill="url(#h-g-epi)" stroke="${C.epiLine}" stroke-width="2" filter="url(#h-shadow)"/></g>
+          ${chamber('rv')}${chamber('lv')}${chamber('ra')}${chamber('la')}
+          ${Object.keys(VALVES).map((k) => `<g><path id="h-vj-${k}" class="h-jet" fill="none"/><path id="h-vh-${k}" class="h-jet" fill="none"/><path id="h-vl-${k}" class="h-leaf" fill="none"/></g>`).join('')}
           ${pathEl('his')}
-          <circle id="h-sa" cx="${SA[0]}" cy="${SA[1]}" r="6" fill="${CONDUCT}" stroke="#7a5c00"/>
-          <circle id="h-avn" cx="${AVN[0]}" cy="${AVN[1]}" r="6" fill="${CONDUCT}" stroke="#7a5c00"/>
-          <circle id="h-avn-p" cx="${AVN[0]}" cy="${AVN[1]}" r="10" fill="none" stroke="#ffd84a" stroke-width="3" opacity="0" transform="rotate(-90 ${AVN[0]} ${AVN[1]})"/>
-          <g id="h-marks"></g><g id="h-dots"></g>
-          <circle id="h-focus" r="7" fill="none" stroke="${COLORS.cursor}" stroke-width="3" opacity="0"/>
-          <text x="${SA[0] - 6}" y="${SA[1] - 10}" class="h-small" text-anchor="end">nœud sinusal</text>
-          <text x="${AVN[0] + 8}" y="${AVN[1] + 22}" class="h-small">nœud AV</text>
+          <circle id="h-sa" cx="${SA[0]}" cy="${SA[1]}" r="6" class="h-node"/>
+          <circle id="h-avn" cx="${AVN[0]}" cy="${AVN[1]}" r="6" class="h-node"/>
+          <circle id="h-avn-p" cx="${AVN[0]}" cy="${AVN[1]}" r="10.5" fill="none" stroke-width="3.5" opacity="0" transform="rotate(-90 ${AVN[0]} ${AVN[1]})"/>
+          <g id="h-marks"></g><g id="h-dots" filter="url(#h-glow)"></g>
+          <circle id="h-focus" r="8" fill="none" stroke="${C.block}" stroke-width="3" opacity="0"/>
+          <text class="h-small" x="${SA[0] - 12}" y="${SA[1] + 22}" text-anchor="end">nœud sinusal</text>
+          <text class="h-small" x="${AVN[0] + 22}" y="${AVN[1] + 26}">nœud AV</text>
         </svg>
-        <div class="legend"><span><i style="background:${ACTIVE}"></i>myocarde dépolarisé (fenêtres de l'ECG)</span><span><i style="background:${WALL_ACT}"></i>paroi épaissie = activation mécanique</span><span><i style="background:${CONDUCT}"></i>tissu de conduction, influx</span><span><i style="background:${FLOW}"></i>débit antérograde</span><span><i style="background:${JET}"></i>régurgitation, blocage, foyer</span></div>
+        <canvas id="h-ribbon" class="hv-ribbon" aria-label="Phases du cœur gauche"></canvas>
+        <div class="hv-legend">${Object.values(PHASES).map(([l, c]) => `<span><i style="background:${c}"></i>${l}</span>`).join('')}<span><i class="hatch"></i>Régurgitation mitrale</span></div>
+        <div class="hv-legend"><span><i style="background:${C.dep}"></i>Myocarde dépolarisé</span><span><i style="background:${C.myoDark}"></i>Paroi active (épaissie)</span><span><i style="background:${C.conduct}"></i>Tissu de conduction</span><span><i style="background:${C.fwd}"></i>Débit antérograde</span><span><i style="background:${C.reg}"></i>Régurgitation, blocage, foyer</span></div>
       </div>
-      <div class="col">
-        ${ui.card('ECG, dérivation II (fenêtre de 3 s)', ui.canvas('h-ecg', 100))}
-        ${ui.card('Activation mécanique (0–1)', ui.canvas('h-act', 80) + ui.legend([['Ventricules (élastance active × amplitude)', COLORS.lv], ['Oreillettes', COLORS.la]]))}
-        ${ui.card('Pressions (mmHg)', ui.canvas('h-pr', 100) + ui.legend([['Aorte', COLORS.ao], ['VG', COLORS.lv], ['OG', COLORS.la]]))}
-        ${ui.card('Débits valvulaires (mL/s ; négatif = régurgitation)', ui.canvas('h-q', 100) + ui.legend([['Mitral', COLORS.la], ['Aortique', COLORS.ao]]))}
-        ${ui.card('Volumes ventriculaires (mL)', ui.canvas('h-vol', 80) + ui.legend([['VG', COLORS.lv], ['VD', COLORS.pa]]))}
-        <div class="note">Tout ce qui est animé vient du moteur : séquence de conduction et devenir de chaque influx au nœud AV, bornes des ondes P, QRS et T de l'ECG, activation mécanique, volumes, pressions et débits simulés battement par battement. Conventions du modèle : l'influx atteint le nœud AV au début de l'onde P, la mécanique ventriculaire démarre au pic R, l'oreillette n'a pas de repolarisation tracée (pas d'onde Ta) : elle est affichée repolarisée à la fin de sa systole. Géométrie et trajets schématiques ; ventricules à l'échelle de la racine cubique du volume ; oreillettes amplifiées (leur volume inclut les veines). Usage pédagogique uniquement.</div>
-      </div></div>`;
+      <div class="hv-side">
+        ${ui.card('ECG, dérivation II', ui.canvas('h-ecg', 96))}
+        ${ui.card('Activation mécanique', ui.canvas('h-act', 74) + ui.legend([['Ventricules (élastance active)', COLORS.lv], ['Oreillettes', COLORS.la]]))}
+        ${ui.card('Pressions (mmHg)', ui.canvas('h-pr', 96) + ui.legend([['Aorte', COLORS.ao], ['VG', COLORS.lv], ['OG', COLORS.la]]))}
+        ${ui.card('Débits valvulaires (mL/s)', ui.canvas('h-q', 96) + ui.legend([['Mitral', COLORS.la], ['Aortique', COLORS.ao], ['< 0 : régurgitation', '#9aa5b1']]))}
+        ${ui.card('Volumes ventriculaires (mL)', ui.canvas('h-vol', 74) + ui.legend([['VG', COLORS.lv], ['VD', COLORS.pa]]))}
+      </div>
+    </div>
+    <div class="note">Tout ce qui est animé vient du moteur : séquence de conduction et devenir de chaque influx au nœud AV, bornes des ondes P, QRS et T de l'ECG, activation mécanique, volumes, pressions et débits simulés battement par battement. Conventions du modèle : l'influx atteint le nœud AV au début de l'onde P ; la mécanique ventriculaire démarre au pic R ; pas de repolarisation atriale tracée (onde Ta), l'oreillette est affichée repolarisée à la fin de sa systole. Géométrie et trajets schématiques ; ventricules à l'échelle de la racine cubique du volume, oreillettes amplifiées (leur volume inclut les veines). Clavier : espace (lecture), ← → (battement). Usage pédagogique uniquement.</div>
+  </div>`;
   const svg = v.querySelector('#h-svg');
   const el = (id) => svg.querySelector('#' + id);
   const pathLen = {};
@@ -175,20 +219,13 @@ export function mountHeart(v, r, H, ui) {
     const [cx, cy] = SHAPES[k].c, f = sc[k];
     return [cx + f * (x - cx), cy + f * (y - cy)];
   };
-  const dot = (layer, x, y) => {
-    const c = document.createElementNS(NS, 'circle');
-    c.setAttribute('cx', x); c.setAttribute('cy', y); c.setAttribute('r', '5.5');
-    c.setAttribute('fill', '#fff7c2'); c.setAttribute('stroke', '#b8860b'); c.setAttribute('stroke-width', '2');
-    layer.appendChild(c);
-  };
-  const arrow = (jet, head, mx, my, dx, dy, len, color, width) => {
+  const setT = (node, k, cx, cy, f) => node.setAttribute('transform', `translate(${cx} ${cy}) scale(${f.toFixed(4)}) translate(${-cx} ${-cy})`);
+  const arrow = (jet, head, mx, my, dx, dy, len, color) => {
     jet.setAttribute('d', `M${mx},${my} l${(dx * len).toFixed(1)},${(dy * len).toFixed(1)}`);
-    jet.setAttribute('stroke', color); jet.setAttribute('stroke-width', width); jet.setAttribute('opacity', '0.8');
     const ex = mx + dx * len, ey = my + dy * len, nx = -dy, ny = dx;
-    head.setAttribute('d', `M${(ex - 7 * dx + 6 * nx).toFixed(1)},${(ey - 7 * dy + 6 * ny).toFixed(1)} L${(ex + 3 * dx).toFixed(1)},${(ey + 3 * dy).toFixed(1)} L${(ex - 7 * dx - 6 * nx).toFixed(1)},${(ey - 7 * dy - 6 * ny).toFixed(1)}`);
-    head.setAttribute('stroke', color); head.setAttribute('stroke-width', '3.5'); head.setAttribute('opacity', '0.8');
+    head.setAttribute('d', `M${(ex - 8 * dx + 7 * nx).toFixed(1)},${(ey - 8 * dy + 7 * ny).toFixed(1)} L${(ex + 3 * dx).toFixed(1)},${(ey + 3 * dy).toFixed(1)} L${(ex - 8 * dx - 7 * nx).toFixed(1)},${(ey - 8 * dy - 7 * ny).toFixed(1)}`);
+    for (const n of [jet, head]) { n.style.stroke = color; n.style.opacity = '1'; }
   };
-
   const drawValve = (k, t) => {
     const V = VALVES[k], q = sample(s[V.q], fs, t);
     const [ax, ay] = V.a, [bx, by] = V.b, [dx, dy] = V.d;
@@ -198,9 +235,31 @@ export function mountHeart(v, r, H, ui) {
     const pb = [bx + L * (-Math.cos(th) * ux + Math.sin(th) * dx), by + L * (-Math.cos(th) * uy + Math.sin(th) * dy)];
     el('h-vl-' + k).setAttribute('d', `M${ax},${ay} L${pa[0].toFixed(1)},${pa[1].toFixed(1)} M${bx},${by} L${pb[0].toFixed(1)},${pb[1].toFixed(1)}`);
     const mx = (ax + bx) / 2, my = (ay + by) / 2, jet = el('h-vj-' + k), head = el('h-vh-' + k);
-    if (q > 0.02 * qmax[k]) arrow(jet, head, mx, my, dx, dy, 10 + 30 * clamp01(q / qmax[k]), FLOW, 5);
-    else if (q < -0.02 * qmax[k]) arrow(jet, head, mx, my, -dx, -dy, 10 + 45 * clamp01(-q / qmax[k]), JET, 4);
-    else { jet.setAttribute('opacity', '0'); head.setAttribute('opacity', '0'); }
+    if (q > 0.02 * qmax[k]) arrow(jet, head, mx, my, dx, dy, 12 + 30 * clamp01(q / qmax[k]), C.fwd);
+    else if (q < -0.02 * qmax[k]) arrow(jet, head, mx, my, -dx, -dy, 12 + 48 * clamp01(-q / qmax[k]), C.reg);
+    else { jet.style.opacity = '0'; head.style.opacity = '0'; }
+  };
+
+  // ruban des phases (fenêtre de 3 s, comme les tracés)
+  const ribbon = v.querySelector('#h-ribbon');
+  const drawRibbon = (t, x0, x1) => {
+    const dpr = window.devicePixelRatio || 1, w = ribbon.clientWidth, h = ribbon.clientHeight;
+    if (ribbon.width !== Math.round(w * dpr)) { ribbon.width = Math.round(w * dpr); ribbon.height = Math.round(h * dpr); }
+    const ctx = ribbon.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+    const X = (tt) => ((tt - x0) / (x1 - x0)) * w;
+    const i0 = Math.max(0, Math.floor(x0 * fs)), i1 = Math.min(nPh - 1, Math.ceil(x1 * fs));
+    let a = i0;
+    for (let i = i0 + 1; i <= i1 + 1; i++) {
+      if (i > i1 || phase[i] !== phase[a] || regs[i] !== regs[a]) {
+        ctx.fillStyle = PHASES[phase[a]][1];
+        const xa = X(a / fs), xb = X(i / fs);
+        ctx.fillRect(xa, 4, xb - xa + 0.5, h - 8);
+        if (regs[a]) { ctx.fillStyle = 'rgba(208,33,27,0.55)'; for (let x = xa; x < xb; x += 5) ctx.fillRect(x, 4, 2, h - 8); }
+        a = i;
+      }
+    }
+    ctx.fillStyle = C.ink; ctx.fillRect(X(t) - 1, 0, 2, h);
   };
 
   const draw = () => {
@@ -209,15 +268,17 @@ export function mountHeart(v, r, H, ui) {
     const scale = {};
     const av = sample(s.act_v, fs, t), aa = sample(s.act_a, fs, t);
     for (const k of ['lv', 'rv', 'la', 'ra']) {
-      const vol = sample(s['v_' + k], fs, t);
+      const S = SHAPES[k], vol = sample(s['v_' + k], fs, t);
       const f = k[1] === 'v' ? Math.cbrt(vol / vmax[k]) : 0.84 + 0.16 * clamp01((vol - arange[k][0]) / (arange[k][1] - arange[k][0] || 1));
       scale[k] = f;
-      const [cx, cy] = SHAPES[k].c;
-      el('h-' + k).setAttribute('transform', `translate(${cx} ${cy}) scale(${f.toFixed(4)}) translate(${-cx} ${-cy})`);
-      const act = k[1] === 'v' ? av : aa, base = k === 'lv' ? 6 : k === 'rv' ? 4 : 3;
-      el('h-wall-' + k).setAttribute('stroke-width', (base + (k[1] === 'v' ? 7 : 4) * clamp01(act)).toFixed(2));
-      el('h-wall-' + k).setAttribute('stroke', mix(WALL, WALL_ACT, act));
+      setT(el('h-' + k), k, S.c[0], S.c[1], f);
+      const act = clamp01(k[1] === 'v' ? av : aa), w = (S.wall + S.gain * act).toFixed(2);
+      el('h-wall-' + k).setAttribute('stroke-width', w);
+      el('h-mp-' + k).setAttribute('stroke-width', w);
+      el('h-wall-' + k).setAttribute('stroke', mix(C.myo, C.myoDark, act));
     }
+    // la masse ventriculaire varie moins que les cavités (épaississement des parois)
+    setT(el('h-epi'), 'epi', EPI.c[0], EPI.c[1], 1 - 0.7 * (1 - (0.6 * scale.lv + 0.4 * scale.rv)));
     for (const k of Object.keys(VALVES)) drawValve(k, t);
     // --- oreillettes : dépolarisation pendant l'onde P (ou f), repolarisée en fin de systole atriale
     const a = lastBefore(tl.atria, t, 'on');
@@ -230,18 +291,18 @@ export function mountHeart(v, r, H, ui) {
         const end = a.t + aRepol;
         if (t > end) continue;
         wv.setAttribute('cx', SA[0]); wv.setAttribute('cy', SA[1]);
-        wv.setAttribute('r', (230 * clamp01((t - a.on) / (a.off - a.on))).toFixed(1));
-        wv.setAttribute('opacity', (0.9 * (1 - clamp01((t - (end - 0.04)) / 0.04))).toFixed(3));
+        wv.setAttribute('r', (240 * clamp01((t - a.on) / (a.off - a.on))).toFixed(1));
+        wv.setAttribute('opacity', (1 - clamp01((t - (end - 0.04)) / 0.04)).toFixed(3));
       } else {
         // FA : ondelettes à chaque onde f (positions pseudo-aléatoires, durée = onde f de l'ECG)
         const idx = tl.atria.indexOf(a), [cx, cy] = SHAPES[k].c;
-        for (let j = 0; j < 4; j++) {
+        for (let j = 0; j < 5; j++) {
           const h = Math.sin((idx + 1) * 12.9898 + j * 78.233 + (k === 'la' ? 3.1 : 0)) * 43758.5453;
           const u = h - Math.floor(h), w2 = h * 7.13 - Math.floor(h * 7.13);
           const c = document.createElementNS(NS, 'circle');
-          c.setAttribute('cx', cx - 45 + 90 * u); c.setAttribute('cy', cy - 100 + 80 * w2);
-          c.setAttribute('r', (6 + 22 * clamp01((t - a.on) / (a.off - a.on || 1))).toFixed(1));
-          c.setAttribute('fill', ACTIVE); c.setAttribute('opacity', (0.75 * (1 - clamp01((t - a.off) / 0.06))).toFixed(3));
+          c.setAttribute('cx', cx - 55 + 110 * u); c.setAttribute('cy', cy - 120 + 110 * w2);
+          c.setAttribute('r', (8 + 26 * clamp01((t - a.on) / (a.off - a.on || 1))).toFixed(1));
+          c.setAttribute('fill', C.dep); c.setAttribute('opacity', (0.9 * (1 - clamp01((t - a.off) / 0.06))).toFixed(3));
           f.appendChild(c);
         }
       }
@@ -256,62 +317,73 @@ export function mountHeart(v, r, H, ui) {
       if (!b || t > b.t_end) continue;
       const [ox, oy] = V_ORIGIN[b.origin] || V_ORIGIN.sinus;
       wv.setAttribute('cx', ox); wv.setAttribute('cy', oy);
-      wv.setAttribute('r', (270 * clamp01((t - b.qrs_on) / b.w)).toFixed(1));
-      wv.setAttribute('opacity', (0.9 * (1 - clamp01((t - b.t_peak) / (b.t_end - b.t_peak)))).toFixed(3));
+      wv.setAttribute('r', (280 * clamp01((t - b.qrs_on) / b.w)).toFixed(1));
+      wv.setAttribute('opacity', (1 - clamp01((t - b.t_peak) / (b.t_end - b.t_peak))).toFixed(3));
       if (b.t_his === null && t < b.qrs_off) {
-        const [fx, fy] = moved(ox > 212 ? 'lv' : 'rv', ox, oy, scale);
+        const [fx, fy] = moved(ox > 214 ? 'lv' : 'rv', ox, oy, scale);
         focus.setAttribute('cx', fx); focus.setAttribute('cy', fy); focus.setAttribute('opacity', '1');
       }
     }
     // --- tissu de conduction
     const dots = el('h-dots'), marks = el('h-marks');
     dots.replaceChildren(); marks.replaceChildren();
-    for (const k of Object.keys(PATHS)) { const p = el('h-p-' + k); p.setAttribute('opacity', '0.55'); p.setAttribute('stroke-width', '2.2'); }
+    for (const k of Object.keys(PATHS)) el('h-p-' + k).classList.remove('on');
     for (const tr of tl.tracks) {
       if (t < tr.t0 || t > tr.t1 + 0.03) continue;
       const p = el('h-p-' + tr.p);
-      p.setAttribute('opacity', '1'); p.setAttribute('stroke-width', '4');
+      p.classList.add('on');
       if (t > tr.t1) continue;
       const pt = p.getPointAtLength(pathLen[tr.p] * clamp01((t - tr.t0) / (tr.t1 - tr.t0 || 1)));
       const [px, py] = moved(PATH_OF[tr.p], pt.x, pt.y, scale);
-      dot(dots, px, py);
+      const c = document.createElementNS(NS, 'circle');
+      c.setAttribute('cx', px); c.setAttribute('cy', py); c.setAttribute('r', '5.5'); c.setAttribute('class', 'h-imp');
+      dots.appendChild(c);
     }
     const sa = (a && a.organized && within(t, a.on, a.off)) || tl.saBlocked.some((x) => within(t, x, x + 0.03));
     const [sx, sy] = moved('ra', SA[0], SA[1], scale);
-    el('h-sa').setAttribute('cx', sx); el('h-sa').setAttribute('cy', sy); el('h-sa').setAttribute('r', sa ? '9' : '6');
-    // nœud AV : anneau de progression de la conduction nodale (AH) jusqu'au His
+    const saN = el('h-sa');
+    saN.setAttribute('cx', sx); saN.setAttribute('cy', sy); saN.setAttribute('r', sa ? '9' : '6'); saN.classList.toggle('on', !!sa);
     const nd = tl.nodal.find((x) => within(t, x.t0, x.t1));
     const ring = el('h-avn-p');
     if (nd) {
-      const x = clamp01((t - nd.t0) / (nd.t1 - nd.t0 || 1)), C = 2 * Math.PI * 10;
-      ring.setAttribute('opacity', '1'); ring.setAttribute('stroke-dasharray', `${(C * x).toFixed(1)} ${C.toFixed(1)}`);
-      ring.setAttribute('stroke', nd.ok ? '#ffd84a' : JET);
+      const x = clamp01((t - nd.t0) / (nd.t1 - nd.t0 || 1)), Cc = 2 * Math.PI * 10.5;
+      ring.setAttribute('opacity', '1'); ring.setAttribute('stroke-dasharray', `${(Cc * x).toFixed(1)} ${Cc.toFixed(1)}`);
+      ring.setAttribute('stroke', nd.ok ? C.conduct : C.block);
     } else ring.setAttribute('opacity', '0');
-    el('h-avn').setAttribute('fill', nd ? '#ffd84a' : CONDUCT);
+    el('h-avn').classList.toggle('on', !!nd);
     for (const m of tl.marks) {
       if (!within(t, m.t0, m.t1)) continue;
       const g = document.createElementNS(NS, 'path'), [x, y] = m.at;
       g.setAttribute('d', `M${x - 9},${y - 9} l18,18 m0,-18 l-18,18`);
-      g.setAttribute('stroke', m.fate === 'concealed' ? '#e08a00' : JET); g.setAttribute('stroke-width', '4'); g.setAttribute('stroke-linecap', 'round');
+      g.setAttribute('class', 'h-x'); g.style.stroke = m.fate === 'concealed' ? C.conceal : C.block;
       marks.appendChild(g);
     }
-    // --- états courants
+    // --- états courants (puces)
     const e = [];
     const im = lastBefore(tl.impulses, t, 't');
-    if (b) e.push(`dernier battement : ${a && !a.organized && b.origin === 'sinus' ? 'conduit depuis les oreillettes fibrillantes' : ORIGIN_FR[b.origin] || b.origin}`);
-    if (im && t - im.t < 0.6) e.push(`dernier influx au nœud AV : ${FATE_FR[im.fate] || im.fate}${im.t_his !== null ? `, AH ${ui.fmt((im.t_his - im.t) * 1000, 0)} ms` : ''}`);
-    if (tl.saBlocked.some((x) => within(t, x, x + 0.4))) e.push('décharge sinusale bloquée à la sortie (bloc sino-atrial)');
+    let ecol = C.conduct;
+    if (b) e.push(a && !a.organized && b.origin === 'sinus' ? 'Conduit depuis les oreillettes fibrillantes' : ORIGIN_FR[b.origin] || b.origin);
+    if (b && b.t_his === null) ecol = C.block;
+    if (im && t - im.t < 0.6) {
+      e.push(`influx au nœud AV : ${FATE_FR[im.fate] || im.fate}${im.t_his !== null ? ` (AH ${ui.fmt((im.t_his - im.t) * 1000, 0)} ms)` : ''}`);
+      if (im.fate !== 'conducted') ecol = C.block;
+    }
+    if (tl.saBlocked.some((x) => within(t, x, x + 0.4))) { e.push('décharge sinusale bloquée à la sortie'); ecol = C.block; }
     if (a && !a.organized) e.push('oreillettes en fibrillation');
     if (!tl.atria.length) e.push('aucune activation atriale (arrêt atrial)');
-    v.querySelector('#h-elec').textContent = 'Électrique : ' + (e.join(' · ') || '—');
+    v.querySelector('#h-elec').textContent = e.join(' · ') || '—';
+    v.querySelector('#h-chip-e i').style.background = ecol;
+    const ph = leftPhase(r, t, qmax);
     const vol = sample(s.v_lv, fs, t), plv = sample(s.p_lv, fs, t), pla = sample(s.p_la, fs, t), pao = sample(s.p_ao, fs, t);
-    v.querySelector('#h-mech').textContent = `Mécanique (cœur gauche) : ${leftPhase(r, t, qmax)} · VG ${ui.fmt(vol, 0)} mL · PVG ${ui.fmt(plv, 0)}, POG ${ui.fmt(pla, 0)}, PAo ${ui.fmt(pao, 0)} mmHg · activation ${ui.fmt(av, 2)}`;
-    v.querySelector('#h-tl').textContent = ui.fmt(t, 3);
+    v.querySelector('#h-mech').textContent = `${PHASES[ph.k][0]}${ph.reg ? ' + régurgitation mitrale' : ''} · VG ${ui.fmt(vol, 0)} mL · PVG ${ui.fmt(plv, 0)} / POG ${ui.fmt(pla, 0)} / PAo ${ui.fmt(pao, 0)} mmHg`;
+    v.querySelector('#h-chip-m i').style.background = PHASES[ph.k][1];
+    v.querySelector('#h-tl').textContent = ui.fmt(t, 2);
     v.querySelector('#h-t').value = t;
     // --- tracés synchronisés
     const x0 = Math.max(0, Math.min(dur - 3, t - 1.5)), x1 = x0 + Math.min(3, dur), dt = 1 / fs;
     const ser = (y, color) => ({ y, dt, color });
-    timeChart(v.querySelector('#h-ecg'), { series: [{ y: r.ecg, dt: 1 / r.ecg_fs, color: COLORS.ecg }], x0, x1, cursor: t, yMin: ui.ecgMin, yMax: ui.ecgMax });
+    drawRibbon(t, x0, x1);
+    timeChart(v.querySelector('#h-ecg'), { series: [{ y: r.ecg, dt: 1 / r.ecg_fs, color: COLORS.ecg }], x0, x1, cursor: t, yMin: ui.ecgMin, yMax: ui.ecgMax, paper: true });
     timeChart(v.querySelector('#h-act'), { series: [ser(s.act_v, COLORS.lv), ser(s.act_a, COLORS.la)], x0, x1, cursor: t, yMin: 0, yMax: 1.3 });
     timeChart(v.querySelector('#h-pr'), { series: [ser(s.p_ao, COLORS.ao), ser(s.p_lv, COLORS.lv), ser(s.p_la, COLORS.la)], x0, x1, cursor: t, yMin: 0 });
     timeChart(v.querySelector('#h-q'), { series: [ser(s.q_mi, COLORS.la), ser(s.q_ao, COLORS.ao)], x0, x1, cursor: t, refLines: [0] });
@@ -327,7 +399,7 @@ export function mountHeart(v, r, H, ui) {
     H.raf = requestAnimationFrame(loop);
   };
   const start = () => { if (H.raf) cancelAnimationFrame(H.raf); H.last = null; H.raf = requestAnimationFrame(loop); };
-  const setPlaying = (on) => { H.playing = on; v.querySelector('#h-play').textContent = on ? '❚❚ Pause' : '▶ Lecture'; if (on) start(); };
+  const setPlaying = (on) => { H.playing = on; v.querySelector('#h-play').textContent = on ? '❚❚' : '▶'; if (on) start(); };
   v.querySelector('#h-play').onclick = () => setPlaying(!H.playing);
   // pas à pas : se placer juste avant l'activation du battement précédent / suivant
   const jump = (dir) => {
@@ -344,6 +416,14 @@ export function mountHeart(v, r, H, ui) {
     for (const o of v.querySelectorAll('button[data-speed]')) o.classList.toggle('on', o === btn);
   };
   v.querySelector('#h-t').oninput = (e) => { H.t = +e.target.value; if (!H.playing) draw(); };
+  // clavier (une seule écoute, retirée quand la vue disparaît)
+  if (H.onKey) window.removeEventListener('keydown', H.onKey);
+  H.onKey = (e) => {
+    if (!svg.isConnected) { window.removeEventListener('keydown', H.onKey); H.onKey = null; return; }
+    if (e.target.closest && e.target.closest('input, select, textarea')) return;
+    if (e.key === ' ') { e.preventDefault(); setPlaying(!H.playing); } else if (e.key === 'ArrowRight') jump(1); else if (e.key === 'ArrowLeft') jump(-1);
+  };
+  window.addEventListener('keydown', H.onKey);
   draw();
   if (H.playing) start();
 }

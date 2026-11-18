@@ -414,6 +414,12 @@ fn evaluate_once(base: &Params) -> Result<Evaluation, Error> {
         let symp = f64::max(0.1, 1.0 - base.av_symp * (s_eff - S_REF));
         q.av_erp = base.av_erp * symp;
         q.pr = base.hv + (base.pr - base.hv) * symp;
+        // Foyers d'échappement : accélérés par le sympathique, le jonctionnel ralenti par le vague
+        // (Tanahashi 1979, chien vigile : atropine et practolol modifient la pause d'échappement).
+        let esc_s = (1.0 + base.esc_a_s * s_eff) / (1.0 + base.esc_a_s * S_REF);
+        let esc_v = f64::max(0.0, 1.0 - base.esc_a_v * v_eff) / (1.0 - base.esc_a_v * V_REF);
+        q.junct_rate = base.junct_rate * esc_s * esc_v;
+        q.vent_escape_rate = base.vent_escape_rate * esc_s;
         q.r_sys = base.r_sys * (1.0 + 0.5 * (s_tot - base.s0));
         q.vol_shift = base.vol_shift + 0.20 * 85.0 * base.bw * (s_tot - base.s0);
         let ((h, cond, beats), g_eff) = hemo_with_rhythm(&q, v_eff, N_BEATS)?;

@@ -259,8 +259,8 @@
    "tol": 126.9,
    "unit": "ms",
    "source": "Bogucki 2015 (ET publi\u00e9)",
-   "model_mean": 694.8615681372588,
-   "model_sd": 58.64779185914207,
+   "model_mean": 696.5383361353179,
+   "model_sd": 59.709967435461394,
    "ok": true,
    "frac_in": 1.0
   },
@@ -271,8 +271,8 @@
    "tol": 77.1,
    "unit": "ms",
    "source": "Bogucki 2015 (ET publi\u00e9)",
-   "model_mean": 178.97399262555686,
-   "model_sd": 19.545258751219137,
+   "model_mean": 139.84458560967295,
+   "model_sd": 20.83415805041796,
    "ok": true,
    "frac_in": 1.0
   },
@@ -283,8 +283,8 @@
    "tol": 120.2,
    "unit": "ms",
    "source": "Bogucki 2015 (ET publi\u00e9)",
-   "model_mean": 248.2773847952203,
-   "model_sd": 35.4426694287378,
+   "model_mean": 173.65881982257457,
+   "model_sd": 29.060253059084133,
    "ok": true,
    "frac_in": 1.0
   },
@@ -295,10 +295,10 @@
    "tol": 0.11,
    "unit": "",
    "source": "Bogucki 2015 (ET publi\u00e9)",
-   "model_mean": 0.18168213256140686,
-   "model_sd": 0.09703010273068768,
-   "ok": true,
-   "frac_in": 0.9
+   "model_mean": 0.40305530081287133,
+   "model_sd": 0.22298699413440418,
+   "ok": false,
+   "frac_in": 0.65
   }
  ],
  "pk": [
