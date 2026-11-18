@@ -60,9 +60,9 @@ Ces modules n'agissent que sur les paramètres de la conduction. FC, ECG, hémod
     - `esc_sup_tau` 60 s, placeholder D : Krellenstein 1978 (10.1016/s0022-0736(78)80022-3) et Neely 1985 (10.1161/01.res.57.1.182).
     - Résultat : le premier échappement jonctionnel survient 3,3 s après un arrêt sinusal chez le chien sain, dans l'ordre des pauses Holter de Flanders 2024 (PMC11099791, lu).
   - Modulation autonome des foyers, Tanahashi 1979 :
-    - `esc_a_v` 0,4 : effet de l'atropine sur le foyer jonctionnel ;
+    - `esc_a_v` 0,72 : effet de l'atropine sur le foyer jonctionnel, calé en boucle fermée (×1,32 en bloc sino-atrial complet, avec le baroréflexe convergé) ;
     - `esc_a_s` 2,0 : sympathique, sur les foyers jonctionnel et ventriculaire ; une partie seulement de l'effet du practolol est attribuée à la fréquence, et un gain plus fort déstabilise le point fixe du baroréflexe.
-  - `junct_rate` 47 /min au tonus de repos : 37 ± 9 sous cholinergique local maximal (Rosenshtraukh 1986, 10.1016/s0735-1097(86)80035-3), ramené au repos par `esc_a_v`. La valeur de 40 envisagée passait sous l'échappement ventriculaire (42).
+  - `junct_rate` 47 /min au tonus de repos (D) : retenu entre 37 ± 9 sous cholinergique local (Rosenshtraukh 1986, 10.1016/s0735-1097(86)80035-3) et l'échappement ventriculaire (42). La valeur de 40 envisagée passait sous l'échappement ventriculaire.
   - `rsa_depth` 0,95 → 0,64 : ASR 40,1 ± 4,5 % de la FC moyenne (Grosso 2021, 10.1016/j.resp.2021.103776) ; le modèle passait de 56 % à 40 %.
     - L'ASR est déjà proportionnelle au tonus vagal effectif. En % de la FC, elle baisse avec la MMVD (sain 40 %, B2 37 %, C 27 %, D 18 %, dans le sens de Baisan 2024) et disparaît sous atropine.
     - RMSSD 165 ms, dans 259 ± 120 (Bogucki 2015). LF/HF redevient conforme côté Rust.
@@ -101,3 +101,18 @@ Accès : « lu » = texte intégral, « résumé » = résumé seul. Detail : `d
   - Le VES des ESV est plus bas que chez Potfay 2015 (PMC4618025, lu ; chiens anesthésiés, thorax ouvert) pour des couplages de 300 à 380 ms.
   - Gradient VD–AP de 8 mmHg.
   - Le module `ventricular_premature` dépasse, dès son stade « rares », les 20 à 50 ESV/24 h des chiens sains (Meurs 2001, résumé ; Holter 7 j, PMC12129169, lu).
+
+## Solveur du baroréflexe (18/11/2026)
+- L'ancienne itération amortie (5 passages, arrêt à |d_t − d| < 0,04) pouvait s'arrêter sur un état non convergé. Exemples :
+  - opioïde : PAM 88 mmHg avec un sympathique en baisse ;
+  - MMVD C : PAM 124 et FC 114.
+- Elle est remplacée par un solveur encadré (`engine::baro_next`) :
+  - pas amorti, puis sécante, avec bisection de secours ;
+  - arrêt à |g| < 0,01, au plus 16 évaluations.
+- Résultats au point fixe :
+  - opioïde 0,1 mg/L : PAM 102,4, FC −32,5 %, conforme à Mills 2025 (−32 %) et à Maiante 2009 (PAM conservée) ;
+  - MMVD C : PAM 114, FC 105, POG 13,3, RF 0,56.
+- La PTDVG est désormais interpolée au début mécanique exact. Le premier échantillon pouvait en être décalé de 2 ms, d'où des sauts de 4 à 10 mmHg à 190/min qui rendaient le point fixe de décompensation discontinu (faux « cercle vicieux » sous pimobendane massif).
+- Recalages qui en découlent :
+  - `sym_noise` 0,22 → 0,14 : LF/HF de la cohorte de 0,57 à 0,31 (Bogucki 2015) ;
+  - `esc_a_v` 0,4 → 0,72.

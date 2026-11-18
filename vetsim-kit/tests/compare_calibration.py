@@ -24,9 +24,10 @@ RS = json.loads(subprocess.check_output(shlex.split(a.cmd) + ['calibrate', '--n-
 N_PY_H, N_PY_D, N_PY_HRV = 50, 24, 20
 NAMES = {'MMVD': 'mmvd', 'CKD': 'ckd', 'Addison': 'addison'}
 HRV = {'RR moyen', 'SDNN', 'RMSSD', 'LF/HF'}
-# Écart connu (décision de l'utilisateur du 17/11/2026) : systole calée sur B1→B2 du beagle
-# (ts_coef 0,325) → PAM saine plus haute → LF/HF sous la cible. Même règle que signal_properties.rs.
-KNOWN = {'LF/HF'}
+# Écart connu sur LF/HF (décision de l'utilisateur du 17/11/2026) levé le 18/11/2026 : PAM saine
+# recalée à 103, solveur du baroréflexe, sym_noise 0,14 → LF/HF conforme. Même règle que
+# signal_properties.rs (ensemble vide : les quatre indicateurs doivent tenir ±1 ET).
+KNOWN = set()
 bad, rels, lines = [], [], []
 
 def verdict(label, m_py, sd_py, n_py, m_rs, sd_rs, n_rs):

@@ -80,6 +80,24 @@ def _initial_volumes(p):
     return np.array([lv, rv, ao, sv, pa, pv])
 
 
+def _edp_at(t, plv, tb):
+    """PTDVG au début mécanique exact tb, interpolée entre les deux échantillons qui l'encadrent
+    (miroir de hemo::simulate_hemo_pr)."""
+    n = len(t)
+    k = min(max(int(np.searchsorted(t, tb, side='right')) - 1, 0), n - 2)
+    a, b = float(plv[k]), float(plv[k + 1])
+    return a + (b - a) * (tb - float(t[k])) / (float(t[k + 1]) - float(t[k]))
+
+
+def _edp_beat(t, plv, m, a):
+    """PTDVG au début mécanique a d'un battement (interpolation avec l'échantillon qui précède)."""
+    j = int(np.argmax(m))
+    if j > 0:
+        i = j - 1
+        return float(plv[i]) + (float(plv[j]) - float(plv[i])) * (a - float(t[i])) / (float(t[j]) - float(t[i]))
+    return float(plv[j])
+
+
 def simulate_hemo(p, n_beats=11, dt=0.002, pr=None):
     """Simule la circulation (rythme régulier) ; renvoie séries temporelles du dernier cycle et
     indices. `pr` : délai oreillette → ventricule de la conduction (défaut : paramètre `pr`)."""
@@ -122,7 +140,7 @@ def simulate_hemo(p, n_beats=11, dt=0.002, pr=None):
         reg_fraction=float(v_reg / sv_tot) if sv_tot > 0 else 0.0,
         la_mean=P['pv'][last].mean(), la_max=P['pv'][last].max(),
         pap_mean=P['pa'][last].mean(), cvp=P['sv'][last].mean(),
-        lv_edp=P['lv'][last][0], converged=abs(sv_tot - sv_prev) / max(sv_tot, 1e-6) < 0.03)
+        lv_edp=_edp_at(t, P['lv'], t_end - T), converged=abs(sv_tot - sv_prev) / max(sv_tot, 1e-6) < 0.03)
     # flux mitral : pic protodiastolique E (hors activation atriale) et pic télédiastolique A (pendant)
     ea = _atrial_act(t[last], T, p, pr)
     qf = np.maximum(qmi, 0.0)
@@ -250,11 +268,27 @@ def _hemo_with_rhythm_static(q, v_eff, n_beats):
     return simulate_hemo_beats(q, cond, RHYTHM_T_END, RHYTHM_WARM, T_s), cond
 
 
+BARO_MAX_ITER, BARO_TOL = 16, 0.01
+
+
+def baro_next(d, g, prev, lo, hi):
+    """Solveur du point fixe g(d) = d_t(d) − d = 0 sur [−1, 1] (miroir de engine::baro_next) :
+    premier pas amorti d + g/2, puis sécante ; bisection de l'encadrement [lo, hi] si elle en sort."""
+    if prev is not None and abs(g - prev[1]) > 1e-12:
+        nxt = d - g * (d - prev[0]) / (g - prev[1])
+    else:
+        nxt = d + 0.5 * g
+    if not (lo < nxt < hi):
+        nxt = 0.5 * (lo + hi)
+    return min(1.0, max(-1.0, nxt))
+
+
 def _evaluate_once(p, n_beats=11):
     """Une passe : baroréflexe, hémodynamique, aval métabolique (paramètres déjà couplés)."""
     base = dict(p)
     d = 0.0                                   # commande barorécepteur (>0 : hypotension)
-    for it in range(5):
+    lo, hi, prev = -1.0, 1.0, None
+    for it in range(BARO_MAX_ITER):
         s_tot = float(np.clip(base['s0'] + 0.8 * d, 0.0, 1.0))
         v_tot = float(np.clip(base['v0'] + base['vagal_add'] - 0.6 * d, 0.0, 1.0))
         s_eff = s_tot * (1 - base['beta_block'])          # voie chronotrope/inotrope bloquable
@@ -277,14 +311,22 @@ def _evaluate_once(p, n_beats=11):
         h, cond, g_eff = _hemo_with_rhythm(q, v_eff, n_beats)
         q['g_mr'], q['mr_k'] = g_eff, 0.0       # orifice retenu, réutilisé en aval (signaux, son)
         d_t = float(np.clip(base['baro_gain'] * (base['map_set'] - h['map']) / 45.0, -1, 1))
-        if abs(d_t - d) < 0.04:
+        g = d_t - d
+        d_used = d
+        if abs(g) < BARO_TOL:
             break
-        d = 0.5 * d + 0.5 * d_t
+        if g > 0:
+            lo = max(lo, d)
+        else:
+            hi = min(hi, d)
+        nxt = baro_next(d, g, prev, lo, hi)
+        prev = (d, g)
+        d = nxt
     p = q
     p['hr_sinus'] = q['hr']
     p['hr'] = h['hr_v']                       # FC rapportée : FC ventriculaire
     p['sympathetic'] = s_tot
-    auto = dict(s=s_tot, v=v_tot, s_eff=s_eff, v_eff=v_eff, d=d, map=h['map'])
+    auto = dict(s=s_tot, v=v_tot, s_eff=s_eff, v_eff=v_eff, d=d_used, map=h['map'])
     bw = p['bw']
     # --- perfusion -> DO2, lactate
     gas0 = dict(p)
@@ -553,7 +595,7 @@ def simulate_hemo_beats(p, cond, t_end, warm, period0, dt=0.002):
         esv_b, edv_b = float(vs[j_es]), float(vs[:j_es + 1].max())
         per_beat.append(dict(t=a, rr=b - a, relaxed=relaxed.get(a, True), ts=ts_a, c=bt[3] if bt is not None else 1.0,
                              edv=edv_b, esv=esv_b, sv=edv_b - esv_b,
-                             sap=P['ao'][m].max(), dap=P['ao'][m].min(), lv_edp=P['lv'][m][0],
+                             sap=P['ao'][m].max(), dap=P['ao'][m].min(), lv_edp=_edp_beat(t, P['lv'], m, a),
                              v_reg=(-np.minimum(qmi, 0).sum() - np.minimum(qao, 0).sum()) * dt,
                              mitral_e=float(qf[ea[m] <= 0].max()) if np.any(ea[m] <= 0) else 0.0,
                              mitral_a=float(qf[ea[m] > 0].max()) if np.any(ea[m] > 0) else 0.0))

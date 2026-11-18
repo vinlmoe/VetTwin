@@ -195,10 +195,26 @@ pub fn metabolic_state(p: &Params, h: &HemoInputs) -> Result<MetabolicState, Err
 pub const S_REF: f64 = 0.2;
 /// Tonus vagal de référence.
 pub const V_REF: f64 = 0.6;
-/// Nombre maximal d'itérations du baroréflexe.
-pub const BARO_MAX_ITER: usize = 5;
-/// Seuil d'arrêt sur la commande barorécepteur.
-pub const BARO_TOL: f64 = 0.04;
+/// Nombre maximal d'évaluations hémodynamiques du solveur du baroréflexe.
+pub const BARO_MAX_ITER: usize = 16;
+/// Seuil d'arrêt sur le résidu de la commande barorécepteur `|d_t(d) − d|` (0,01 ≈ 0,45 mmHg).
+pub const BARO_TOL: f64 = 0.01;
+
+/// Prochaine commande barorécepteur du solveur du point fixe `g(d) = d_t(d) − d = 0` sur
+/// `[−1, 1]`. `g` décroît avec `d` (plus de sympathique, PAM plus haute), `g(−1) ≥ 0 ≥ g(1)` :
+/// la racine est unique et encadrée. Premier pas amorti `d + g/2` (l'ancienne itération), puis
+/// sécante sur les deux derniers points ; bisection de l'encadrement courant si la sécante en
+/// sort (ou est dégénérée). `lo` : plus grand `d` avec `g > 0`, `hi` : plus petit `d` avec `g < 0`.
+pub fn baro_next(d: f64, g: f64, prev: Option<(f64, f64)>, lo: f64, hi: f64) -> f64 {
+    let mut next = match prev {
+        Some((dp, gp)) if (g - gp).abs() > 1e-12 => d - g * (d - dp) / (g - gp),
+        _ => d + 0.5 * g,
+    };
+    if !(next > lo && next < hi) {
+        next = 0.5 * (lo + hi);
+    }
+    next.clamp(-1.0, 1.0)
+}
 
 /// Effet multiplicatif sympathique (accélérateur) et vagal (frein) sur la FC du nœud sinusal.
 pub fn hr_factor(s: f64, v: f64, p: &Params) -> f64 {
@@ -393,12 +409,15 @@ fn hemo_with_rhythm_static(q: &Params, v_eff: f64, n_beats: usize) -> Result<Rhy
 /// À chaque passage, la commande `d` (> 0 en hypotension) augmente le tonus sympathique et
 /// réduit le tonus vagal ; ils modulent la FC (avec la dépression par l'hyperkaliémie au-delà de
 /// 6 mmol/L), l'inotropisme, la résistance systémique et le recrutement du volume non contraint.
-/// Arrêt si `|d_t − d| < 0,04`, sinon `d ← ½(d + d_t)`, au plus 5 passages.
+/// Le point fixe `d = d_t(d)` est résolu par [`baro_next`] (arrêt si `|d_t − d| < BARO_TOL`) ;
+/// l'état retenu est celui de la dernière évaluation.
 fn evaluate_once(base: &Params) -> Result<Evaluation, Error> {
     use crate::hemo::N_BEATS;
     let mut d = 0.0;
     let mut last = None;
     let mut iterations = 0;
+    let (mut lo, mut hi) = (-1.0_f64, 1.0_f64);
+    let mut prev: Option<(f64, f64)> = None;
     for _ in 0..BARO_MAX_ITER {
         iterations += 1;
         let s_tot = (base.s0 + 0.8 * d).clamp(0.0, 1.0);
@@ -428,12 +447,19 @@ fn evaluate_once(base: &Params) -> Result<Evaluation, Error> {
         q.g_mr = g_eff;
         q.mr_k = 0.0;
         let d_t = (base.baro_gain * (base.map_set - h.summary.map) / 45.0).clamp(-1.0, 1.0);
-        let done = (d_t - d).abs() < BARO_TOL;
+        let g = d_t - d;
         last = Some((q, h, s_tot, v_tot, s_eff, v_eff, cond, beats));
-        if done {
+        if g.abs() < BARO_TOL {
             break;
         }
-        d = 0.5 * d + 0.5 * d_t;
+        if g > 0.0 {
+            lo = lo.max(d);
+        } else {
+            hi = hi.min(d);
+        }
+        let next = baro_next(d, g, prev, lo, hi);
+        prev = Some((d, g));
+        d = next;
     }
     let (mut q, h, s_tot, v_tot, s_eff, v_eff, conduction, beats) =
         last.expect("au moins un passage");

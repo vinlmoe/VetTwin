@@ -389,6 +389,19 @@ pub fn simulate_hemo_pr(p: &Params, n_beats: usize, pr: Option<f64>) -> Result<H
         w.v_sv.push(samples[i][3]);
         w.v_pv.push(samples[i][5]);
     }
+    // PTDVG au début mécanique exact du dernier cycle (t_end − T), interpolée entre les deux
+    // échantillons qui l'encadrent : le premier échantillon de la fenêtre peut en être décalé
+    // d'un pas (2 ms), en pleine montée de pression si la systole atriale chevauche.
+    let tb = t_end - tm.period;
+    let k = t_eval
+        .partition_point(|&x| x <= tb)
+        .saturating_sub(1)
+        .min(n - 2);
+    let p_at = |i: usize| flows(&samples[i], t_eval[i], p, &tm).0.lv;
+    let lv_edp = {
+        let (a, b) = (p_at(k), p_at(k + 1));
+        a + (b - a) * (tb - t_eval[k]) / (t_eval[k + 1] - t_eval[k])
+    };
     let mean = |v: &[f64]| v.iter().sum::<f64>() / v.len() as f64;
     let max = |v: &[f64]| v.iter().copied().fold(f64::NEG_INFINITY, f64::max);
     let min = |v: &[f64]| v.iter().copied().fold(f64::INFINITY, f64::min);
@@ -414,7 +427,7 @@ pub fn simulate_hemo_pr(p: &Params, n_beats: usize, pr: Option<f64>) -> Result<H
         la_max: max(&w.p_pv),
         pap_mean: mean(&w.p_pa),
         cvp: mean(&w.p_sv),
-        lv_edp: w.p_lv[0],
+        lv_edp,
         converged: (sv_tot - sv_prev).abs() / sv_tot.max(1e-6) < 0.03,
         mitral_e: 0.0,
         mitral_a: 0.0,
@@ -780,7 +793,13 @@ pub fn simulate_hemo_beats(
             sv: edv - esv,
             sap: fold(&|i| w.p_ao[i], f64::NEG_INFINITY, f64::max),
             dap: fold(&|i| w.p_ao[i], f64::INFINITY, f64::min),
-            lv_edp: w.p_lv[idx[0]],
+            // au début mécanique exact du battement (interpolation entre les échantillons)
+            lv_edp: if idx[0] > 0 {
+                let (i, j) = (idx[0] - 1, idx[0]);
+                w.p_lv[i] + (w.p_lv[j] - w.p_lv[i]) * (a - w.t[i]) / (w.t[j] - w.t[i])
+            } else {
+                w.p_lv[idx[0]]
+            },
             v_reg,
             mitral_e: peak(&|e| e <= 0.0),
             mitral_a: peak(&|e| e > 0.0),

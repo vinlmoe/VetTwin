@@ -11,7 +11,7 @@ Unités : pression mmHg, volume mL, temps s, débit mL/s (L/min en sortie), conc
 - Pression ventriculaire : `P = e·ees·(V−v0) + (1−e)·a·(exp(clip(b(V−v0), −20, 8)) − 1)`.
 - Compartiments vasculaires : `P = (V−v0)/C`.
 - Valve (diode lisse) : `σ = 0.5(1+tanh(Δp/0.3))`, `Q = σ·Δp/r_valve + (1−σ)·g·Δp` (fuite `g` : `g_mr, g_ar, g_tr, g_pr`, normalisées au chien de 20 kg et multipliées par `(bw/20)^0.75` dans l'hémodynamique, comme les débits et `1/r_valve` ; `hemo::leak_scale`, 18/11/2026).
-- **Orifice mitral dynamique** (18/11/2026, `engine::hemo_with_rhythm`) : l'orifice effectif grandit avec le VG (Yoran 1979, chiens, résumé). Il est fixe pendant le battement : `g = g_mr·(VTD/mr_vref)^mr_k`, point fixe amorti sur ln g (relaxation ½, tolérance 1e-3, au plus 12 simulations), ignoré si `g_mr < 0,05`. `mr_k` = 2,5 et `mr_vref` = 72·s mL (VTD du chien sain) ; calé sur Suzuki 2013 (furosémide 0,17 mg/kg/h × 6 h, IM expérimentale : POG −27 %, modèle −27 %). La conductance retenue est reportée dans les paramètres de l'évaluation (`g_mr`, `mr_k = 0`) pour les recalculs en aval.
+- **Orifice mitral dynamique** (18/11/2026, `engine::hemo_with_rhythm`) : l'orifice effectif grandit avec le VG (Yoran 1979, chiens, résumé). Il est fixe pendant le battement : `g = g_mr·(VTD/mr_vref)^mr_k`, point fixe amorti sur ln g (relaxation ½, tolérance 1e-3, au plus 12 simulations), ignoré si `g_mr < 0,05`. `mr_k` = 2,5 et `mr_vref` = 68,5·s mL (VTD du chien sain depuis le recalage de la systole du 18/11/2026) ; calé sur Suzuki 2013 (furosémide 0,17 mg/kg/h × 6 h, IM expérimentale : POG −27 %, modèle −27 %). La conductance retenue est reportée dans les paramètres de l'évaluation (`g_mr`, `mr_k = 0`) pour les recalculs en aval.
 - **Capacitance veineuse** `ven_cap` (1 au repos) : multiplie `c_sv` dans la pression veineuse systémique, pas dans le volume initial (une veinodilatation redistribue le volume sans en ajouter).
 - Débits : mitrale `(Ppv−Plv)`, aortique `(Plv−Pao)`, tricuspide `(Psv−Prv)`, pulmonaire `(Prv−Ppa)`, systémique `(Pao−Psv)/r_sys`, pulmonaire `(Ppa−Ppv)/r_pul`.
 - Volumes initiaux : voir `_initial_volumes` (inclut `bvf` et `vol_shift`).
@@ -78,6 +78,10 @@ d_t = clip(baro_gain·(map_set − MAP)/45, −1, 1)
   - ischémie coronaire : `f_cor = max(0,1 ; 1 − cpp_ees·max(0, cpp_min − (PAD − PTDVG)))` sur `fc` ;
   - `f ← ½(f + f_cible)` jusqu'à `|f_cible − f| < 1e-3`, au plus 30 passes.
 - Hypokaliémie (direct) : `vent_drive × max(0,1 ; 1 − k_weak_vent·max(0, k_weak − K))`.
+- **Solveur du baroréflexe** (18/11/2026, `engine::baro_next`) : le point fixe `g(d) = d_t(d) − d = 0` est résolu sur [−1, 1].
+  - Premier pas amorti `d + g/2`, puis sécante, avec bisection de l'encadrement si la sécante en sort.
+  - Arrêt si |g| < 0,01, au plus 16 évaluations.
+  - Il remplace l'itération amortie (5 passages, |g| < 0,04), qui pouvait s'arrêter sur un état non convergé.
 - **Effet dromotrope du sympathique** (18/11/2026) : à chaque passage du baroréflexe, `av_erp` et le délai AH (`pr − hv`) sont multipliés par `max(0,1 ; 1 − av_symp·(s_eff − 0,2))`, `av_symp` = 0,5 (dénervation sympathique en FA : FC ventriculaire −16 %, PMC7872775). Le bêtabloquant (qui réduit `s_eff`) ralentit donc la réponse ventriculaire de la FA.
 - **Décès** (exception `NonViable`, erreur `Error::NonViable` en Rust) : FC < `hr_arrest` (`cardiac_arrest`) ; DC < `co_arrest_frac`·3,29·(bw/20)^0,75 (`circulatory_collapse`) ; PAM < `map_arrest` = 40 mmHg (`irreversible_shock` : PAM maintenue vers 40 mmHg, choc irréversible en 1 à 3 h, Morales 1999, Granot 1985) ; `er ≥ 1`, VO2 > DO2 (`oxygen_debt`) ; racine introuvable (`no_steady_state`) ; pas de convergence (`vicious_circle`).
 - **Décompensé** si au moins un mécanisme est actif : les trois couplages, la faiblesse hypokaliémique, la bradycardie hyperkaliémique (K > 6, déjà présente), `er > 0,55` (anaérobiose), POG > 18 (œdème), PAM < 75 (hypoperfusion rénale), tonus sympathique saturé.

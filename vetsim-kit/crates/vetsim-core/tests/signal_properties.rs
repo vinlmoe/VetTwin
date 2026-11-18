@@ -58,11 +58,11 @@ fn eval_with(c: &Catalog, disease: Option<(&str, f64)>) -> Evaluation {
 fn hrv_targets_within_one_sd_over_20_seeds() {
     let c = catalog();
     let targets = parse_hrv_targets(&read("calibration/targets.json"), "targets.json").unwrap();
-    // Écart connu (décision de l'utilisateur du 17/11/2026, docs/NOUVELLE_REFERENCE.md) : avec la
-    // systole calée sur B1→B2 du beagle (ts_coef 0,325), la PAM saine monte (≈ 109,5) et le
-    // baroréflexe renforce le vagal : LF/HF 0,16 pour 0,28 ± 0,11. La cible n'est pas modifiée ;
-    // l'écart doit rester dans ±2 ET, et le test le signale s'il redevient conforme.
-    const KNOWN: [&str; 1] = ["LF/HF"];
+    // Écart connu levé le 18/11/2026 : l'écart sur LF/HF (décision de l'utilisateur du
+    // 17/11/2026) venait de la PAM saine trop haute ; avec la systole recalée (PAM 103), le
+    // solveur du baroréflexe et sym_noise 0,14, LF/HF vaut 0,31 pour 0,28 ± 0,11. Les quatre
+    // indicateurs doivent tenir ±1 ET. (Mécanisme conservé pour un écart futur déclaré.)
+    const KNOWN: [&str; 0] = [];
     let rows = hrv_cohort(&c, &targets, 20).unwrap();
     for r in &rows {
         eprintln!(

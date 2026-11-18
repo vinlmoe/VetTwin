@@ -44,7 +44,7 @@ def healthy_params(bw=20.0):
         s0=0.20, v0=0.60,            # tonus sympathique / vagal à la PAM de consigne (chien au repos : vagal dominant)
         a_s=0.40, a_v=0.75,          # gains chronotropes sympathique / vagal sur le nœud sinusal
         vagal_add=0.0, vagal_block=0.0, beta_block=0.0,   # modifiés par médicaments / maladies
-        rsa_depth=0.64, vag_noise=0.025, sym_noise=0.22,              # profondeur de modulation respiratoire du tonus vagal central
+        rsa_depth=0.64, vag_noise=0.025, sym_noise=0.14,              # profondeur de modulation respiratoire du tonus vagal central
         baro_sens=1.0,               # sensibilité du baroréflexe (réduite en insuffisance cardiaque)
         # --- décompensation : couplages mécanistiques (PLACEHOLDERS evidence D, docs/PROVENANCE.md) ---
         acid_ph0=7.20,               # pH artériel sous lequel l'acidémie déprime myocarde et tonus vasculaire
@@ -78,13 +78,13 @@ def healthy_params(bw=20.0):
         av_vagal=0.5, av_symp=0.5, av_k_gain=0.10,   # av_symp : dénervation sympathique en FA −16 % de FC ventriculaire (PMC7872775) ; allongement nodal par le tonus vagal et par mmol/L de K au-delà de 5,5
         hp_conduction=1.0,           # probabilité de conduction His-Purkinje (bloc infranodal)
         k_hp_block=10.0, hp_k_slope=0.5,   # K au-delà duquel la conduction infranodale échoue (QRS large > 10,1) ; pente /mmol/L
-        junct_rate=47.0,             # automatisme jonctionnel au tonus de repos (/min) : 37 ± 9 sous cholinergique local maximal (Rosenshtraukh 1986), ramené au repos par esc_a_v ; au-dessus de l'échappement ventriculaire
+        junct_rate=47.0,             # automatisme jonctionnel au tonus de repos (/min, D) : entre 37 ± 9 sous cholinergique local (Rosenshtraukh 1986) et l'échappement ventriculaire (42)
         vent_escape_rate=42.0,       # échappement ventriculaire (/min) : 42 ± 11 en BAV de haut degré (n = 97)
         esc_k_gain=0.10,             # dépression de l'automatisme d'échappement par mmol/L de K au-delà de 5,5
         esc_sup_gain=1.8,            # suppression par entraînement : 1er intervalle × (1 + g·max(0, cycle·f_moy − 1)) ; pause 4,7 s après entraînement à 2,5× (Tanahashi 1979)
         esc_sup_tau=60.0,            # moyenne glissante de la fréquence d'entraînement (s) ; suppression maximale après ~3 min (Krellenstein 1978), placeholder D
         esc_a_s=2.0,                 # accélération des foyers d'échappement par le sympathique effectif (practolol : pause ×1,9, Tanahashi 1979 ; part attribuée à la fréquence)
-        esc_a_v=0.4,                 # ralentissement du foyer jonctionnel par le vague effectif (atropine : pause ×0,76, Tanahashi 1979)
+        esc_a_v=0.72,                 # ralentissement du foyer jonctionnel par le vague effectif (atropine : pause ×0,76, Tanahashi 1979)
         vpc_rate=0.0, vpc_k_gain=1.0, k_vpc=3.0,   # foyer ectopique (/min), gain hypokaliémique (/min par mmol/L sous k_vpc)
         k_atrial_standstill=8.5,     # K d'arrêt atrial, conduction sino-ventriculaire conservée (8,5-10 ; Hariman 1983)
     )
