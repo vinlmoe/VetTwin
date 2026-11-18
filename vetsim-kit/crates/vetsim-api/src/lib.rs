@@ -684,6 +684,77 @@ impl Engine {
         })
     }
 
+    /// Cœur animé : `{"duration_s": 8, "fs": 100, "seed": ..., "conc"|"doses"+"at_h", "hr"}` →
+    /// volumes des quatre cavités (`lv`, `rv` ; `la` = OG + veines pulmonaires, `ra` = OD + veines
+    /// systémiques), pressions (`p_lv`, `p_ao`, `p_la`), ECG (500 Hz) et événements de conduction
+    /// (activations atriales, activations ventriculaires avec origine, onde P conduite et PR) sur
+    /// la même fenêtre : mêmes battements que l'ECG et le son. Intervalles du patient (`pr`,
+    /// `qrs`, `hv`, `qt`, `ta_atr`, en s). Sert à l'animation de la contraction et de l'influx.
+    pub fn heart(&mut self, patient_id: &str, options: &str) -> String {
+        self.respond(|e| {
+            use vetsim_core::signals::{patient_conduction, streams, SIGNAL_WARM_S};
+            let o = parse(options, "options")?;
+            let m = obj(&o, "")?.clone();
+            let s = e.session(patient_id)?.clone();
+            let p = e.drugged_params(&s, &m)?;
+            let ev = alive(&p)?;
+            let seed = opt_u64(&m, "seed", s.seed)?;
+            let dur = opt_f64(&m, "duration_s", 8.0)?;
+            if !(1.0..=30.0).contains(&dur) {
+                return Err(ApiError::one("/duration_s", "durée entre 1 et 30 s"));
+            }
+            let fs = opt_f64(&m, "fs", 100.0)?;
+            if !(20.0..=500.0).contains(&fs) {
+                return Err(ApiError::one("/fs", "fréquence entre 20 et 500 Hz"));
+            }
+            let sg = patient_signals(
+                &ev,
+                &SignalOptions { duration_s: dur, ecg_fs: 500.0, pcg_beats: 1 },
+                seed,
+            );
+            let w = SIGNAL_WARM_S;
+            let cond = patient_conduction(&ev, &sg.autonomic.beats, seed.wrapping_add(streams::RHYTHM));
+            let r = vetsim_core::hemo::simulate_hemo_beats(&ev.params, &cond, w + dur + 0.5, w, 60.0 / ev.params.hr)?;
+            let wf = &r.waveforms;
+            let dt = wf.t[1] - wf.t[0];
+            let at = |series: &[f64], t: f64| -> f64 {
+                let x = ((t - wf.t[0]) / dt).clamp(0.0, (series.len() - 1) as f64);
+                let i = x.floor() as usize;
+                let j = (i + 1).min(series.len() - 1);
+                series[i] + (series[j] - series[i]) * (x - i as f64)
+            };
+            let n = (dur * fs) as usize;
+            let pick = |v: &[f64]| -> Vec<f64> {
+                (0..n).map(|i| at(v, w + i as f64 / fs) as f32 as f64).collect()
+            };
+            let atrial: Vec<Json> = cond
+                .atrial
+                .iter()
+                .filter(|a| a.t >= w && a.t < w + dur)
+                .map(|a| json!({ "t": a.t - w, "organized": a.organized }))
+                .collect();
+            let ventricular: Vec<Json> = cond
+                .ventricular
+                .iter()
+                .filter(|b| b.t >= w && b.t < w + dur)
+                .map(|b| {
+                    json!({ "t": b.t - w, "origin": b.origin.as_str(), "wide": b.wide,
+                            "t_a": b.t_a.map(|x| x - w), "pr": b.pr })
+                })
+                .collect();
+            let q = &ev.params;
+            Ok(json!({
+                "ok": true, "duration_s": dur, "fs": fs, "hr": q.hr,
+                "volumes": { "lv": pick(&wf.v_lv), "rv": pick(&wf.v_rv), "la": pick(&wf.v_pv), "ra": pick(&wf.v_sv) },
+                "pressures": { "p_lv": pick(&wf.p_lv), "p_ao": pick(&wf.p_ao), "p_la": pick(&wf.p_pv) },
+                "ecg": sg.ecg.v.iter().map(|x| *x as f32 as f64).collect::<Vec<_>>(), "ecg_fs": 500.0,
+                "atrial": atrial, "ventricular": ventricular,
+                "intervals": { "pr": q.pr, "qrs": q.qrs, "hv": q.hv, "qt": q.qt, "ta_atr": q.ta_atr },
+                "note": "volumes et pressions simulés battement par battement sur la séquence de conduction de l'ECG ; usage pédagogique uniquement",
+            }))
+        })
+    }
+
     /// Message JSON générique `{"op": ..., "patient": ..., "options": {...}}` : `pcg`, `state`,
     /// `signals`, `timecourse`, `add_disease`, `new_patient`, `list_modules`, `api_version`.
     pub fn message(&mut self, text: &str) -> String {
@@ -703,6 +774,7 @@ impl Engine {
             .unwrap_or_else(|| "{}".into());
         match op {
             "pcg" => self.pcg(&pid, &opts),
+            "heart" => self.heart(&pid, &opts),
             "state" => self.state(&pid, &opts),
             "signals" => self.signals(&pid, &opts),
             "timecourse" => self.timecourse(&pid, &opts),
@@ -1224,6 +1296,69 @@ mod tests {
             j(&e.state(&id, &json!({ "doses": doses }).to_string()))["ok"],
             false
         );
+    }
+
+    #[test]
+    fn heart_animation_events_match_ecg_and_volumes() {
+        let mut e = Engine::new();
+        e.load_modules(&bundle());
+        for (dis, sev) in [("", 0.0), ("av_block", 0.85), ("atrial_fibrillation", 0.8)] {
+            let id = j(&e.new_patient(r#"{"variability": false}"#))["patient_id"]
+                .as_str()
+                .unwrap()
+                .to_string();
+            if !dis.is_empty() {
+                e.add_disease(&id, &json!({"id": dis, "severity": sev}).to_string());
+            }
+            let r = j(&e.heart(&id, r#"{"duration_s": 6, "fs": 100, "seed": 3}"#));
+            assert_eq!(r["ok"], true, "{dis}: {r}");
+            let lv: Vec<f64> = r["volumes"]["lv"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_f64().unwrap())
+                .collect();
+            assert_eq!(lv.len(), 600);
+            let (lo, hi) = lv
+                .iter()
+                .fold((f64::MAX, f64::MIN), |a, &x| (a.0.min(x), a.1.max(x)));
+            assert!(hi - lo > 5.0, "{dis}: contraction VG {lo}–{hi}");
+            // Pic R de l'ECG à l'instant de chaque activation ventriculaire (± 25 ms).
+            let ecg: Vec<f64> = r["ecg"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_f64().unwrap())
+                .collect();
+            let vent = r["ventricular"].as_array().unwrap();
+            assert!(vent.len() >= 3, "{dis}: {vent:?}");
+            for b in vent {
+                let t = b["t"].as_f64().unwrap();
+                let i = (t * 500.0) as usize;
+                if i < 30 || i + 30 >= ecg.len() || b["wide"] == true {
+                    continue;
+                }
+                let k = (i - 30..i + 30)
+                    .max_by(|&a, &c| ecg[a].abs().total_cmp(&ecg[c].abs()))
+                    .unwrap();
+                assert!(
+                    k.abs_diff(i) <= 12,
+                    "{dis}: R à {} s, événement {t}",
+                    k as f64 / 500.0
+                );
+            }
+            if dis == "av_block" {
+                // BAV 3 : ondes P non conduites, plus nombreuses que les QRS
+                assert!(r["atrial"].as_array().unwrap().len() > vent.len());
+            }
+            if dis == "atrial_fibrillation" {
+                assert!(r["atrial"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .all(|a| a["organized"] == false));
+            }
+        }
     }
 
     #[test]

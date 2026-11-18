@@ -3,6 +3,7 @@
 // Usage pédagogique uniquement.
 import { Controller, planDoses } from './engine.js';
 import { COLORS, timeChart, spectrogram, computeSpectrogram, dayLabel } from './charts.js';
+import { mountHeart } from './heart.js';
 
 const $ = (sel) => document.querySelector(sel);
 const fmt = (v, d) => (v === undefined || v === null || Number.isNaN(v) ? '—' : Number(v).toFixed(d).replace('.', ','));
@@ -15,6 +16,7 @@ const S = {
   ausc: { hr: null, site: 'base', r: null, spec: null, window: 8, start: 0, cursor: null, playing: false, audio: null, src: null, loop: false, zoomOnly: false, played: false, gain: 1, gainNode: null },
   treat: { regimens: [], days: 3, r: null, cursor: 0, shown: ['hr', 'map', 'k'], ref: null, editing: null, open: null },
   model: { selected: null },
+  heart: { r: null, t: 0, speed: 0.25, playing: true, raf: null, last: null },
 };
 
 // ------------------------------------------------------------------ données d'affichage
@@ -78,6 +80,8 @@ function applyHash() {
   if (q.get('t')) S.treat.cursor = +q.get('t');
   S.treat.autoSim = q.get('sim') === '1' && S.treat.regimens.length > 0;
   if (q.get('window')) S.ausc.window = +q.get('window');
+  if (q.get('speed')) S.heart.speed = +q.get('speed');
+  if (q.get('ht')) { S.heart.t = +q.get('ht'); S.heart.playing = false; }
 }
 
 function fillStages() {
@@ -104,6 +108,7 @@ function evaluate() {
     $('#error').hidden = true;
     S.res = S.ctl.evaluate(S.inputs);
     stopAusc(false); S.ausc.r = null; S.ausc.played = false; // nouvelle auscultation pour ce patient
+    S.heart.r = null;
   } catch (e) { showError(e); }
   render();
 }
@@ -137,7 +142,7 @@ function render() {
   }
   renderOutcome(S.res.st.outcome);
   const v = $('#view');
-  ({ patient: renderPatient, respiration: renderRespiration, model: renderModel, auscultation: renderAuscultation, treatment: renderTreatment })[S.tab](v);
+  ({ patient: renderPatient, respiration: renderRespiration, model: renderModel, auscultation: renderAuscultation, heart: renderHeart, treatment: renderTreatment })[S.tab](v);
 }
 
 // ------------------------------------------------------------------ Issue (décompensation, décès)
@@ -462,6 +467,16 @@ function stopAusc(rerender = true) {
   if (A.src) { const s = A.src; A.src = null; try { s.stop(); } catch (e) { /* déjà arrêté */ } }
   A.playing = false;
   if (rerender && S.tab === 'auscultation') render();
+}
+
+// ------------------------------------------------------------------ Cœur animé
+function renderHeart(v) {
+  const H = S.heart;
+  if (isDead()) { v.innerHTML = deadView('contraction ni d\'activité électrique'); return; }
+  if (!H.r) {
+    try { H.r = S.ctl.heart(S.inputs); } catch (e) { showError(e); return; }
+  }
+  mountHeart(v, H.r, H, { card, canvas, legend, fmt, ecgMin: ECG_MIN, ecgMax: ECG_MAX });
 }
 
 // ------------------------------------------------------------------ Traitement (PK/PD)

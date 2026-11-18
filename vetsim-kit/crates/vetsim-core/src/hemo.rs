@@ -245,6 +245,12 @@ pub struct Waveforms {
     pub q_pul: Vec<f64>,
     /// Volume VG (mL).
     pub v_lv: Vec<f64>,
+    /// Volume VD (mL).
+    pub v_rv: Vec<f64>,
+    /// Volume veines systémiques + OD (mL).
+    pub v_sv: Vec<f64>,
+    /// Volume veines pulmonaires + OG (mL).
+    pub v_pv: Vec<f64>,
 }
 
 /// Résultat d'une simulation hémodynamique.
@@ -342,6 +348,9 @@ pub fn simulate_hemo_pr(p: &Params, n_beats: usize, pr: Option<f64>) -> Result<H
         w.q_sys.push(q.sys);
         w.q_pul.push(q.pul);
         w.v_lv.push(samples[i][0]);
+        w.v_rv.push(samples[i][1]);
+        w.v_sv.push(samples[i][3]);
+        w.v_pv.push(samples[i][5]);
     }
     let mean = |v: &[f64]| v.iter().sum::<f64>() / v.len() as f64;
     let max = |v: &[f64]| v.iter().copied().fold(f64::NEG_INFINITY, f64::max);
@@ -655,6 +664,9 @@ pub fn simulate_hemo_beats(
         w.q_sys.push(q.sys);
         w.q_pul.push(q.pul);
         w.v_lv.push(s[0]);
+        w.v_rv.push(s[1]);
+        w.v_sv.push(s[3]);
+        w.v_pv.push(s[5]);
         ea_s.push(ea);
     }
     let starts: Vec<f64> = beats.iter().map(|b| b.t).filter(|&t| t >= warm).collect();
@@ -803,6 +815,9 @@ impl BeatsResult {
             q_sys: pick(&w.q_sys),
             q_pul: pick(&w.q_pul),
             v_lv: pick(&w.v_lv),
+            v_rv: pick(&w.v_rv),
+            v_sv: pick(&w.v_sv),
+            v_pv: pick(&w.v_pv),
         };
         let mut timing = Timing::from_hr_coef(self.hr_v, p.ts_coef);
         timing.pr = Some(p.pr);
