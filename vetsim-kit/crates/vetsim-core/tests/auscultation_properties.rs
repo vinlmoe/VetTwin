@@ -4,9 +4,10 @@
 
 use std::path::PathBuf;
 use vetsim_core::autonomic::{simulate_autonomic, AutonomicOptions};
+use vetsim_core::dsp::butter_bandpass;
 use vetsim_core::pcg::{patient_pcg, AuscultationConfig, PcgOptions};
 use vetsim_core::rng::SimRng;
-use vetsim_core::signals::{streams, Murmur};
+use vetsim_core::signals::{sosfilt, streams, Murmur};
 use vetsim_core::{evaluate, DiseaseModule, Evaluation, NoNoise, Patient, PatientModule};
 
 fn read(rel: &str) -> String {
@@ -149,19 +150,24 @@ fn mild_mmvd_has_a_visible_holosystolic_murmur_and_s1_not_below_healthy() {
         healthy.features.s1
     );
     // « visible » : en systole, l'énergie du signal entre la fin de B1 et A2 dépasse nettement
-    // celle du sain. Synthèse battement par battement : B1 et A2 sont placés aux fermetures
+    // celle du sain, DANS LA BANDE 200–400 Hz. C'est là que le souffle mitral réel ressort du
+    // bruit de fond (grades 2 et 3 de la bibliothèque TiHo : +8 et +12 dB sur la diastole, contre
+    // 0 à +5 dB sous 200 Hz ; docs/VERIFICATION_PCG.md). L'ancien critère large bande supposait un
+    // souffle environ 20 dB plus fort que les enregistrements réels. Synthèse battement par battement : B1 et A2 sont placés aux fermetures
     // mitrale et aortique de chaque battement ; fenêtre de t_mc + durée de B1 (configuration) à
     // t_ac − 0,02 s de CE battement (l'éjection raccourcit sur les RR courts).
     let a = serde_json::from_str::<serde_json::Value>(&read("modules/auscultation.json")).unwrap();
     let s1_dur = a["s1"]["duration_s"].as_f64().unwrap();
     let systolic_rms = |r: &vetsim_core::pcg::PcgResult| {
+        let sos = butter_bandpass(4, 200.0, 400.0, r.fs).unwrap();
+        let band = sosfilt(&sos, &r.samples);
         let mut acc = (0.0, 0usize);
         for (k, b) in r.beats.iter().enumerate() {
             let (i0, i1) = (
                 ((b + r.beat_t_mc[k] + s1_dur) * r.fs) as usize,
                 ((b + r.beat_t_ac[k] - 0.02) * r.fs) as usize,
             );
-            for x in &r.samples[i0.min(r.samples.len())..i1.min(r.samples.len())] {
+            for x in &band[i0.min(band.len())..i1.min(band.len())] {
                 acc.0 += x * x;
                 acc.1 += 1;
             }
@@ -169,11 +175,14 @@ fn mild_mmvd_has_a_visible_holosystolic_murmur_and_s1_not_below_healthy() {
         (acc.0 / acc.1 as f64).sqrt()
     };
     let (h, m) = (systolic_rms(&healthy), systolic_rms(&mmvd));
-    assert!(m > 3.0 * h, "énergie systolique MMVD {m} / sain {h}");
+    assert!(
+        m > 3.0 * h,
+        "énergie systolique 200–400 Hz MMVD {m} / sain {h}"
+    );
 }
 
 #[test]
-fn apex_site_inverts_s1_s2_and_unknown_site_is_refused() {
+fn apex_site_strengthens_s1_and_unknown_site_is_refused() {
     let c = cfg();
     let ev = dog(None, None);
     let base = patient_pcg(&ev, &c, &PcgOptions::default(), 1)
@@ -190,8 +199,11 @@ fn apex_site_inverts_s1_s2_and_unknown_site_is_refused() {
     )
     .unwrap()
     .features;
+    // `s1` est l'amplitude d'UNE composante de B1 (mitrale) : avec la seconde composante,
+    // le B1 entendu à l'apex domine B2 (rapport B2/B1 mesuré ≈ 0,8, docs/VERIFICATION_PCG.md)
+    // alors que apex.s1 < apex.s2. On vérifie donc le sens du changement de site.
     assert!(
-        base.s2 > base.s1 && apex.s1 > apex.s2,
+        base.s2 > base.s1 && apex.s1 / apex.s2 > 2.0 * base.s1 / base.s2,
         "base {base:?} / apex {apex:?}"
     );
     assert!(patient_pcg(

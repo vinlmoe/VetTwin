@@ -4,8 +4,14 @@ ECG : modèle phénoménologique (somme de gaussiennes) piloté par FC, K+, etc.
 PCG : sons déclenchés par les événements valvulaires SIMULÉS ; le souffle est modulé
       par le débit régurgitant simulé (pas de règle de maladie codée en dur).
 """
+import json
+import os
 import numpy as np
 from scipy.signal import butter, sosfilt
+
+# Paramètres recalés sur les enregistrements réels (docs/VERIFICATION_PCG.md) : lus dans
+# modules/auscultation.json (B1 en deux composantes, souffle, bruit de fond).
+CFG = json.load(open(os.path.join(os.path.dirname(__file__), '..', '..', 'modules', 'auscultation.json'), encoding='utf-8'))
 
 
 # ------------------------------------------------------------------ ECG
@@ -98,8 +104,11 @@ def _s_sound(n, fs, f0, tau, amp, rng):
 def make_pcg(h, fs=4000, n_beats=None, seed=1, beat_times=None, resp_hz=0.35, dur=8.0):
     """PCG synthétique. beat_times : instants des battements (arythmie sinusale du module autonome).
     Réalisme : intervalles variables, gain par battement, modulation respiratoire,
-    souffle = bruit filtré 50-300 Hz modulé par le débit régurgitant (compression en racine),
-    bruit de fond basse fréquence (respiration, contact du stéthoscope)."""
+    B1 = composante mitrale puis composante tricuspidienne retardée,
+    souffle = bruit filtré dont le niveau suit (débit régurgitant maximal)^flow_exp et la forme
+    √(débit / débit maximal), bruit de fond basse fréquence (respiration, contact du stéthoscope).
+    Ordre des tirages par battement : 2 lognormales, 3 + 3 phases (B1), 3 + 3 phases (B2), [1 uniforme si souffle]."""
+    cm, cb, c1 = CFG['murmur'], CFG['background'], CFG['s1']
     rng = np.random.default_rng(seed)
     dt = h['t'][1] - h['t'][0]
     ev = _beat_events(h, dt)
@@ -113,7 +122,7 @@ def make_pcg(h, fs=4000, n_beats=None, seed=1, beat_times=None, resp_hz=0.35, du
     peak_reg = float(q_reg.max())
     tc = np.arange(int(T * fs)) / fs
     q_reg_u = np.interp(tc, h['t'], q_reg)
-    sos = butter(3, [60, 250], btype='band', fs=fs, output='sos')
+    sos = butter(cm['filter_order'], cm['band_hz'], btype='band', fs=fs, output='sos')
     noise = sosfilt(sos, rng.standard_normal(N)); noise /= noise.std()
     t_mc, t_ac = ev['i_mc'] * dt, ev['i_ac'] * dt
     # garde-fou : en RM sévère le modèle raccourcit trop l'éjection aortique ; S2 pas avant 0,7 x durée de contraction
@@ -122,7 +131,7 @@ def make_pcg(h, fs=4000, n_beats=None, seed=1, beat_times=None, resp_hz=0.35, du
     s1_amp = 0.7 * 0.5 * min(2.0, ev['dpdt_max'] / 1800.0)
     s2_amp = 3.1 * 0.4 * min(2.0, ev['dp_close'] / 190.0)
     s3_amp = 0.35 * max(0.0, (ev['q_early'] - 160.0) / 160.0) if h['la_mean'] > 15 else 0.0
-    m_amp = 0.7 * 0.016 * np.sqrt(peak_reg) if peak_reg > 3.0 else 0.0     # souffle relatif à S1 (S1 ~0,5)
+    m_amp = 0.7 * cm['amp'] * peak_reg ** cm['flow_exp'] if peak_reg > 3.0 else 0.0
     rr_prev = T
     for i, b in enumerate(beat_times):
         rr = (beat_times[i + 1] - b) if i + 1 < len(beat_times) else T
@@ -134,6 +143,7 @@ def make_pcg(h, fs=4000, n_beats=None, seed=1, beat_times=None, resp_hz=0.35, du
             i0 = int(t0 * fs); seg = sig[i0:i0 + len(x)]
             sig[i0:i0 + len(seg)] += x[:len(seg)]
         put(b + t_mc, _s_sound(int(0.12 * fs), fs, 70, 0.020, s1_amp * g1, rng))
+        put(b + t_mc + c1['split_s'], _s_sound(int(0.12 * fs), fs, 70, 0.020, s1_amp * g1 * c1['second_amp'], rng))
         insp = max(0.0, np.sin(2 * np.pi * resp_hz * b))           # inspiration : dédoublement physiologique de B2
         split = 0.008 + 0.030 * insp
         put(b + t_mc + ts, _s_sound(int(0.10 * fs), fs, 96, 0.015, s2_amp * g2 * (1.0 - 0.25 * insp), rng))
@@ -146,10 +156,10 @@ def make_pcg(h, fs=4000, n_beats=None, seed=1, beat_times=None, resp_hz=0.35, du
             i0 = int(b * fs); seg = sig[i0:i0 + len(env)]
             sig[i0:i0 + len(seg)] += env[:len(seg)] * noise[i0:i0 + len(seg)]
     # bruit de fond : respiration/frottement (très basse fréquence) + bruit large de contact
-    sos_b = butter(2, [35, 220], btype='band', fs=fs, output='sos')
+    sos_b = butter(cb['filter_order'], cb['band_hz'], btype='band', fs=fs, output='sos')
     bg = sosfilt(sos_b, rng.standard_normal(N)); bg /= bg.std()
     swell = 0.6 + 0.4 * np.sin(2 * np.pi * resp_hz * np.arange(N) / fs + 1.0) ** 2
-    sig += 0.010 * bg * swell
+    sig += cb['amp'] * bg * swell
     thr = [10, 25, 50, 80, 120]
     grade = int(np.searchsorted(thr, peak_reg)) + 1
     grade = min(grade, 6) if peak_reg > 3.0 else 0

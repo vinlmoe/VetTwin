@@ -377,7 +377,7 @@ function renderAuscultation(v) {
   const chip = (lab, on, act) => `<button class="${on ? 'on' : ''}" data-act="${act}">${lab}</button>`;
   v.innerHTML = `<div class="toolbar"><div class="row" style="gap:18px">
       <div class="group"><span class="lab">FC</span>${chip('Patient', A.hr === null, 'hr:')}${chip('Repos 72', A.hr === 72, 'hr:72')}${chip('90', A.hr === 90, 'hr:90')}</div>
-      <div class="group"><span class="lab">Site</span>${chip('Base', A.site === 'base', 'site:base')}${chip('Apex (non calibré)', A.site === 'apex', 'site:apex')}</div></div>
+      <div class="group"><span class="lab">Site</span>${chip('Base', A.site === 'base', 'site:base')}${chip('Apex', A.site === 'apex', 'site:apex')}</div></div>
     <div class="row" style="gap:18px"><button class="primary" id="play">${A.playing ? '■ Arrêter' : A.played ? '↻ Rejouer' : '▶ Écouter'}</button>
       <label class="inline"><input type="checkbox" id="loop" ${A.loop ? 'checked' : ''}> en boucle</label>
       <label class="inline"><input type="checkbox" id="zoomonly" ${A.zoomOnly ? 'checked' : ''}> fenêtre affichée seulement</label>

@@ -74,7 +74,7 @@ fn configuration_loads_with_provenance() {
     assert_eq!(c.fs, 4000.0);
     assert_eq!(c.components.len(), 3);
     assert!(c.site("base").is_some() && c.site("apex").is_some());
-    assert_eq!(c.site("apex").unwrap().evidence, "D");
+    assert_eq!(c.site("apex").unwrap().evidence, "C");
     // provenance obligatoire
     let mut j: Json = serde_json::from_str(&read("modules/auscultation.json")).unwrap();
     j["s1"].as_object_mut().unwrap().remove("source");
