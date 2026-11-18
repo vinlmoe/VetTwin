@@ -379,6 +379,10 @@ fn evaluate_once(base: &Params) -> Result<Evaluation, Error> {
         q.hr = base.hr * hr_factor(s_eff, v_eff, base) / hr_factor(S_REF, V_REF, base);
         q.ees_lv = base.ees_lv * (1.0 + 0.4 * (s_eff - base.s0));
         q.ees_rv = base.ees_rv * (1.0 + 0.4 * (s_eff - base.s0));
+        // Effet dromotrope du sympathique (bloquable par les bêtabloquants) : ERP et AH nodaux.
+        let symp = f64::max(0.1, 1.0 - base.av_symp * (s_eff - S_REF));
+        q.av_erp = base.av_erp * symp;
+        q.pr = base.hv + (base.pr - base.hv) * symp;
         q.r_sys = base.r_sys * (1.0 + 0.5 * (s_tot - base.s0));
         q.vol_shift = base.vol_shift + 0.20 * 85.0 * base.bw * (s_tot - base.s0);
         let (h, cond, beats) = hemo_with_rhythm(&q, v_eff, N_BEATS)?;
@@ -483,7 +487,8 @@ fn is_physiological_failure(e: &Error) -> bool {
 /// résultat identique à la passe simple.
 ///
 /// Renvoie [`Error::NonViable`] si la pompe s'arrête (FC < `hr_arrest`), si la circulation
-/// s'effondre (DC < `co_arrest_frac` × DC de référence), si VO2 dépasse DO2 (`er ≥ 1`), si
+/// s'effondre (DC < `co_arrest_frac` × DC de référence), si la PAM est sous `map_arrest`
+/// (choc irréversible), si VO2 dépasse DO2 (`er ≥ 1`), si
 /// aucun état stationnaire n'existe ou si la spirale ne converge pas en 30 passes.
 pub fn evaluate(p0: &Params) -> Result<Evaluation, Error> {
     let co_ref = 3.29 * math::pow(p0.bw / 20.0, 0.75);
@@ -513,6 +518,8 @@ pub fn evaluate(p0: &Params) -> Result<Evaluation, Error> {
             Some("cardiac_arrest")
         } else if e.hemo.summary.co < p0.co_arrest_frac * co_ref {
             Some("circulatory_collapse")
+        } else if e.hemo.summary.map < p0.map_arrest {
+            Some("irreversible_shock")
         } else if e.metabolic.er >= 1.0 {
             Some("oxygen_debt")
         } else {

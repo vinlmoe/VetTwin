@@ -9,9 +9,10 @@ from scipy.integrate import solve_ivp
 from params import copy_params
 
 DRUGS = {
-    # calé sur données canines publiées (Noah RCP, EMA 1999, Her 2020, BMC Vet Res 2021) : voir fit_pk.py
-    'furosemide': dict(vc=0.34, vp=0.18, cl=5.0, q=15.7, ka=1.93, f=0.39,      # L/kg ; mL/min/kg ; 1/h
-                       renal_exp=0.7, hep_exp=0.0, ec50=1.0, emax=1.0, hill=1.5),   # PD : placeholder
+    # furosémide : PK et PD calées sur Koh 2021 (BMC Vet Res 17:295, texte intégral) et Wong 1977 ;
+    # voir modules/drugs/furosemide.json (notes) et docs/VERIFICATION_MALADIES_MEDICAMENTS.tex
+    'furosemide': dict(vc=0.2073, vp=0.4602, cl=10.724, q=3.341, ka=0.724, f=0.55,   # L/kg ; mL/min/kg ; 1/h
+                       renal_exp=0.7, hep_exp=0.0, ec50=0.2412, emax=1.0, hill=3.0),
     'pimobendan': dict(vc=2.0, vp=1.1, cl=27.9, q=16.7, ka=1.08, f=0.5,        # Her 2020 (0,5 mg/kg PO) ; F=0,5 supposé
                        renal_exp=0.0, hep_exp=1.0, ec50=0.03, emax=1.0, hill=1.2),  # PD : placeholder
     'atropine': dict(vc=0.70, vp=1.0, cl=8.0, q=10.0, ka=2.0, f=0.8,
@@ -28,13 +29,13 @@ DRUGS = {
 # émergente via D et U.
 TOX = {
     'pimobendan': [dict(id='vasodilation', emax=1.0, ec50=0.3, hill=3.0)],
-    'opioide': [dict(id='respiratory_arrest', emax=1.0, ec50=0.15, hill=3.0)],
-    'betabloquant': [dict(id='cardiodepression', emax=1.0, ec50=1.5, hill=3.0)],
+    'opioide': [dict(id='respiratory_depression', emax=1.0, ec50=1.0, hill=3.0)],   # chien vigile : pas d'apnée (Bailey 1987)
 }
-URINE_MAX = 0.25      # mL/kg/min à effet maximal (furosemide)
+URINE_MAX = 0.2044    # mL/kg/min à effet maximal (furosémide, Koh 2021)
 F_PLASMA = 0.3        # fraction du volume urinaire prélevée sur le volume sanguin
 TAU_REFILL = 4.0      # h, retour du volume (apport hydrique, transfert interstitiel)
-TAU_ELECT = 24.0      # h, récupération des pertes électrolytiques
+TAU_ELECT = 56.67     # h, récupération des pertes électrolytiques (Koh 2021 + Wong 1977)
+A_K, A_CL, A_NA = 0.00513, 0.00170, 0.00029   # pertes proportionnelles : X ← X·exp(−a·U) (par mL/kg)
 
 
 def _k(d, p):
@@ -87,7 +88,8 @@ def timecourse(p, doses, t_end_h, t_eval_h):
         u = 0.0
         if 'furosemide' in idx:
             i = 3 * idx['furosemide']
-            u = URINE_MAX * effect('furosemide', y[i + 1] / pars['furosemide'][1])   # mL/kg/min
+            # site d'action luminal : effet piloté par l'excrétion urinaire (C × masse néphronique)
+            u = URINE_MAX * effect('furosemide', y[i + 1] / pars['furosemide'][1] * p['nephron_mass'])   # mL/kg/min
         dy[-2] = F_PLASMA * u * bw * 60.0 - D / TAU_REFILL        # mL/h
         dy[-1] = u * 60.0 - U / TAU_ELECT                         # diurèse 'effective' (mL/kg), récupération lente
         return dy
@@ -130,21 +132,19 @@ def apply_drug_effects(p, conc, D, U):
         q['r_sys'] *= 1 - 0.8 * t             # toxique : vasodilatation excessive (inhibition PDE3)
     if 'opioide' in conc:
         e = effect('opioide', conc['opioide'])
-        q['vent_drive'] *= 1 - 0.55 * e
-        q['vagal_add'] += 0.25 * e            # augmentation du tonus vagal -> bradycardie, RSA accrue
+        q['vent_drive'] *= 1 - 0.25 * e       # chien vigile : PaCO2 +2,5 à +3 mmHg (Wunsch 2010, Maiante 2009)
+        q['vagal_add'] += 0.27 * e            # tonus vagal accru -> bradycardie (FC −32 % : Mills 2025)
+        q['r_sys'] *= 1 + 0.36 * e            # vasoconstriction : PAM conservée (Maiante 2009, Garofalo 2012)
         t = tox_effect(TOX['opioide'][0], conc['opioide'])
-        q['vent_drive'] *= 1 - 0.99 * t        # toxique : dépression du centre respiratoire -> apnée
+        q['vent_drive'] *= 1 - 0.8 * t         # toxique : plateau de PaCO2 ≈ 65 mmHg, sans apnée (Bailey 1987)
     if 'atropine' in conc:
         q['vagal_block'] = min(1.0, q['vagal_block'] + effect('atropine', conc['atropine']))
     if 'betabloquant' in conc:
         q['beta_block'] = min(1.0, q['beta_block'] + effect('betabloquant', conc['betabloquant']))
-        t = tox_effect(TOX['betabloquant'][0], conc['betabloquant'])
-        q['ees_lv'] *= 1 - 0.8 * t            # toxique : dépression myocardique directe (stabilisation de membrane)
-        q['ees_rv'] *= 1 - 0.8 * t
-        q['hr'] *= 1 - 0.8 * t                # toxique : dépression directe du nœud sinusal
+        # profil aténolol : pas de terme toxique de stabilisation de membrane (propranolol)
     if D or U:
         q['vol_shift'] -= D
-        q['k'] -= 0.04 * U
-        q['cl'] -= 0.50 * U
-        q['na'] -= 0.30 * U
+        q['k'] *= np.exp(-A_K * U)        # pertes proportionnelles à la concentration : jamais négatives
+        q['cl'] *= np.exp(-A_CL * U)
+        q['na'] *= np.exp(-A_NA * U)
     return q

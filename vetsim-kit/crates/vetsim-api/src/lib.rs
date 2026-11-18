@@ -432,6 +432,36 @@ impl Engine {
                 Json::Array(s.patient.cases.iter().map(case_json).collect()),
             );
             let alive = outcome["state"] != "dead";
+            // Examen à l'instant `at_h` d'un schéma : créatinine et urée cinétiques (grille de
+            // 12 pas sur [0, at_h]) au lieu des valeurs d'équilibre.
+            if alive && m.contains_key("doses") {
+                let at = opt_f64(&m, "at_h", 0.0)?;
+                if at > 0.0 {
+                    let mut base = s.patient.params.clone();
+                    if let Some(hr) = m.get("hr").and_then(Json::as_f64) {
+                        base.hr = hr;
+                    }
+                    let grid: Vec<f64> = (0..=12).map(|i| at * i as f64 / 12.0).collect();
+                    let c = e.catalog()?;
+                    let ds = parse_doses(&m)?;
+                    let tcs = timecourse(&base, &c.drugs, &ds, at, &grid)?;
+                    let mut states = Vec::with_capacity(tcs.t.len());
+                    for i in 0..tcs.t.len() {
+                        let conc_i: Vec<(String, f64)> =
+                            tcs.conc.iter().map(|(d, v)| (d.clone(), v[i])).collect();
+                        let pi = apply_drug_effects(&base, &c.drugs, &conc_i, tcs.d[i], tcs.u[i])?;
+                        states.push(state_entry(&pi)?);
+                    }
+                    apply_marker_kinetics(&mut states, &tcs.t, &base)?;
+                    if let Some(last) = states.last() {
+                        for key in ["creat", "urea"] {
+                            if let Some(v) = last[key].as_f64() {
+                                out.insert(key.into(), Json::from(v));
+                            }
+                        }
+                    }
+                }
+            }
             out.insert("outcome".into(), outcome);
             let signs = match &ev {
                 Some(ev) if alive => emergent_signs(ev),
@@ -570,6 +600,7 @@ impl Engine {
                     states.push(st);
                 }
                 out["state_t"] = json!(tcs.t);
+                apply_marker_kinetics(&mut states, &tcs.t, &s.patient.params)?;
                 out["states_at"] = Json::Array(states);
                 out["death_t_h"] = json!(death);
             }
@@ -591,6 +622,7 @@ impl Engine {
                     }
                     states.push(st);
                 }
+                apply_marker_kinetics(&mut states, &tc.t, &s.patient.params)?;
                 out["states"] = Json::Array(states);
             }
             Ok(out)
@@ -842,6 +874,7 @@ fn death_label_fr(cause: &str) -> &'static str {
     match cause {
         "cardiac_arrest" => "arrêt cardiaque (FC sous le seuil de pompe)",
         "circulatory_collapse" => "effondrement circulatoire (débit cardiaque effondré)",
+        "irreversible_shock" => "choc irréversible (PAM sous le seuil de perfusion)",
         "oxygen_debt" => "dette d'oxygène (consommation d'O₂ supérieure à l'apport)",
         "no_steady_state" => "aucun état stationnaire viable",
         "vicious_circle" => "spirale de décompensation non résolue",
@@ -897,6 +930,37 @@ fn alive(p: &vetsim_core::Params) -> Result<Evaluation, ApiError> {
 
 /// Entrée d'une série d'états : valeurs plates (absentes en cas de décès), `outcome` (état),
 /// `mechanisms` (identifiants) et `cause` si décès.
+/// Créatinine et urée cinétiques le long d'une série d'états (`kinetics::lagged_marker`) :
+/// départ à l'équilibre du patient sans médicament, production constante, élimination par le
+/// DFG de chaque état. Remplace les valeurs d'équilibre `creat` et `urea` des états (l'état
+/// stationnaire, CLI `eval` et golden, n'est pas concerné). Patient non viable sans
+/// médicament : séries laissées telles quelles.
+fn apply_marker_kinetics(
+    states: &mut [Json],
+    t: &[f64],
+    base: &vetsim_core::Params,
+) -> Result<(), ApiError> {
+    let ev0 = match evaluate(base) {
+        Ok(ev) => ev,
+        Err(vetsim_core::Error::NonViable { .. }) => return Ok(()),
+        Err(e) => return Err(e.into()),
+    };
+    let gfr: Vec<Option<f64>> = states.iter().map(|s| s["gfr"].as_f64()).collect();
+    for (key, c0, vd) in [
+        ("creat", ev0.metabolic.chem.creat, base.creat_vd),
+        ("urea", ev0.metabolic.chem.urea, base.urea_vd),
+    ] {
+        let css: Vec<Option<f64>> = states.iter().map(|s| s[key].as_f64()).collect();
+        let lagged = vetsim_core::kinetics::lagged_marker(t, c0, &gfr, &css, vd * base.bw);
+        for (st, c) in states.iter_mut().zip(lagged) {
+            if let Some(c) = c {
+                st[key] = Json::from(c);
+            }
+        }
+    }
+    Ok(())
+}
+
 fn state_entry(p: &vetsim_core::Params) -> Result<Json, ApiError> {
     let (ev, outcome) = assess(p)?;
     if outcome["state"] == "dead" {
@@ -1180,9 +1244,10 @@ mod tests {
         assert_eq!(r["ok"], true, "{r}");
         assert_eq!(r["murmur"], "holosystolique apexien gauche");
         assert!(r["grade"].as_u64().unwrap() >= 2);
-        // préréglage : FC intrinsèque du nœud sinusal ; le baroréflexe l'ajuste ensuite
+        // préréglage : FC intrinsèque du nœud sinusal ; le baroréflexe l'ajuste ensuite (et,
+        // depuis l'effet dromotrope du sympathique, le PR suit le tonus : 92,2 à 90 imposés)
         assert!(
-            (r["hr"].as_f64().unwrap() - 90.0).abs() < 2.0,
+            (r["hr"].as_f64().unwrap() - 90.0).abs() < 3.0,
             "{}",
             r["hr"]
         );
@@ -1250,19 +1315,26 @@ mod tests {
             .map(|m| m["id"].as_str().unwrap())
             .collect();
         assert!(ids.contains(&"coronary_ischemia"), "{ids:?}");
-        // surdosage d'opioïde : décès par dette d'O2, dernière passe viable rapportée
-        let st = j(&e.state(&id, r#"{"conc": {"opioide": 2}, "signals": true}"#));
+        // chien vigile : l'opioïde massif ne tue plus (ni apnée ni PaCO2 > 67 mmHg, Bailey 1987)
+        let st = j(&e.state(&id, r#"{"conc": {"opioide": 2}}"#));
+        assert_ne!(st["outcome"]["state"], "dead", "{st}");
+        // crise addisonienne + pimobendane massif : choc irréversible (PAM < 40 mmHg),
+        // dernière passe viable rapportée
+        let p = j(&e.new_patient(r#"{"bw": 20, "variability": false}"#));
+        let id = p["patient_id"].as_str().unwrap().to_string();
+        e.add_disease(&id, r#"{"id": "addison", "severity": 0.85}"#);
+        let st = j(&e.state(&id, r#"{"conc": {"pimobendan": 3}, "signals": true}"#));
         assert_eq!(st["ok"], true);
         assert_eq!(st["outcome"]["state"], "dead");
-        assert_eq!(st["outcome"]["cause"], "oxygen_debt");
+        assert_eq!(st["outcome"]["cause"], "irreversible_shock");
         assert!(st["map"].is_number());
         assert!(st["signals"].is_null());
-        let pcg = j(&e.pcg(&id, r#"{"conc": {"opioide": 2}}"#));
+        let pcg = j(&e.pcg(&id, r#"{"conc": {"pimobendan": 3}}"#));
         assert_eq!(pcg["ok"], false);
         // au cours d'un traitement : l'instant du décès est daté
         let tc = j(&e.timecourse(
             &id,
-            r#"{"doses": [{"t_h": 1, "drug": "opioide", "mg_per_kg": 20, "route": "iv"}],
+            r#"{"doses": [{"t_h": 1, "drug": "pimobendan", "mg_per_kg": 20, "route": "iv"}],
                 "t_end_h": 6, "t_eval_h": [0, 1], "state_times_h": [0, 1.05, 6]}"#,
         ));
         assert_eq!(tc["ok"], true, "{tc}");

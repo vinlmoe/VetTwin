@@ -206,6 +206,13 @@
        }
       }
      }
+    },
+    "drive": {
+     "enum": [
+      "plasma",
+      "urinary_excretion"
+     ],
+     "description": "Diurétique : grandeur qui pilote l'effet. « plasma » (défaut) : concentration plasmatique ; « urinary_excretion » : concentration × masse néphronique, proportionnelle au débit d'excrétion urinaire du médicament (site d'action tubulaire luminal)."
     }
    }
   },

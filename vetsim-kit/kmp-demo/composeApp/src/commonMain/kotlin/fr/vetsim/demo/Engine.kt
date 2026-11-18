@@ -139,6 +139,7 @@ val MECH_FR = mapOf(
 val DEATH_FR = mapOf(
     "cardiac_arrest" to "arrêt cardiaque",
     "circulatory_collapse" to "effondrement circulatoire",
+    "irreversible_shock" to "choc irréversible",
     "oxygen_debt" to "dette d'oxygène (consommation > apport)",
     "no_steady_state" to "aucun état stationnaire viable",
     "vicious_circle" to "spirale de décompensation non résolue",

@@ -12,7 +12,7 @@ Sortie : objet plat de flottants avec les clés
 `hr, map, sap, dap, co, sv, edv, esv, ef, reg_fraction, la_mean, pap_mean, cvp, lv_edp, ph, pco2, hco3, be, pao2, sao2, p50, rr, lactate, ph_v, pco2_v, po2_v, hco3_v, na, k, cl, glucose, creat, urea, phos, alb, hct, gfr, anion_gap, do2_kg, er, s_tone, v_tone`
 (unités : mmHg, mL, L/min, µmol/L pour creat, mmol/L pour urea, Na, K, Cl, glucose, phos, lactate; g/L pour alb; voir `reference/python/cli.py`).
 
-Patient non viable (décès mécanistique : arrêt cardiaque, effondrement circulatoire, dette d'O2, absence d'état stationnaire, spirale non résolue ; voir MODEL_SPEC §6 bis) : message `patient non viable : <cause>` sur stderr, code ≠ 0. Aucun cas du golden n'est concerné.
+Patient non viable (décès mécanistique : arrêt cardiaque, effondrement circulatoire, choc irréversible (PAM < 40 mmHg), dette d'O2, absence d'état stationnaire, spirale non résolue ; voir MODEL_SPEC §6 bis) : message `patient non viable : <cause>` sur stderr, code ≠ 0. Aucun cas du golden n'est concerné.
 
 ## `pk`
 ```
@@ -27,7 +27,7 @@ Dose en mg/kg à t = 0, `route` = `iv` (bolus central) ou `po` (dépôt, biodisp
 ```
 vetsim-cli params --bw 20 [--disease mmvd:0.5 ...]
 ```
-Paramètres du patient (objet plat, 84 clés de `Params`) après application des maladies en mode déterministe. Sert à `tests/check_params_cli.py` (comparaison avec la référence Python, rel 1e-9). Peut changer sans incrément d'`api_version`; ne pas l'utiliser depuis une application.
+Paramètres du patient (objet plat, toutes les clés de `Params`, 119 au 18/11/2026) après application des maladies en mode déterministe. Sert à `tests/check_params_cli.py` (comparaison avec la référence Python, rel 1e-9). Peut changer sans incrément d'`api_version`; ne pas l'utiliser depuis une application.
 
 ```
 vetsim-cli calibrate [--targets calibration/targets.json] [--n-healthy 50] [--n-disease 24] [--seed0 100] [--n-hrv 20]

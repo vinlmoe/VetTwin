@@ -5,30 +5,30 @@
  ],
  "license": "CC-BY-4.0",
  "id": "furosemide",
- "version": "1.0.0",
+ "version": "1.1.0",
  "name": {
   "fr": "Furosémide"
  },
  "evidence": "B",
  "pk": {
-  "vc_L_kg": 0.34,
-  "vp_L_kg": 0.18,
-  "cl_mL_min_kg": 5.0,
-  "q_mL_min_kg": 15.7,
-  "ka_per_h": 1.93,
-  "f": 0.39,
+  "vc_L_kg": 0.2073,
+  "vp_L_kg": 0.4602,
+  "cl_mL_min_kg": 10.724,
+  "q_mL_min_kg": 3.341,
+  "ka_per_h": 0.724,
+  "f": 0.55,
   "renal_exp": 0.7,
   "hep_exp": 0.0
  },
  "pd": {
   "type": "diuretic",
   "emax": 1.0,
-  "ec50_mg_L": 1.0,
-  "hill": 1.5,
-  "urine_max_mL_kg_min": 0.25,
+  "ec50_mg_L": 0.2412,
+  "hill": 3.0,
+  "urine_max_mL_kg_min": 0.2044,
   "f_plasma": 0.3,
   "tau_refill_h": 4.0,
-  "tau_elect_h": 24.0,
+  "tau_elect_h": 56.67,
   "effects": [
    {
     "param": "vol_shift",
@@ -42,40 +42,56 @@
    },
    {
     "param": "k",
-    "op": "add",
+    "op": "mul",
     "expr": {
-     "mul": [
-      -0.04,
-      "U"
+     "exp": [
+      {
+       "mul": [
+        -0.00513,
+        "U"
+       ]
+      }
      ]
     }
    },
    {
     "param": "cl",
-    "op": "add",
+    "op": "mul",
     "expr": {
-     "mul": [
-      -0.5,
-      "U"
+     "exp": [
+      {
+       "mul": [
+        -0.0017,
+        "U"
+       ]
+      }
      ]
     }
    },
    {
     "param": "na",
-    "op": "add",
+    "op": "mul",
     "expr": {
-     "mul": [
-      -0.3,
-      "U"
+     "exp": [
+      {
+       "mul": [
+        -0.00029,
+        "U"
+       ]
+      }
      ]
     }
    }
-  ]
+  ],
+  "drive": "urinary_excretion"
  },
  "refs": [
+  "Koh SK et al. 2021, BMC Vet Res 17:295, doi:10.1186/s12917-021-02998-4 (texte intégral, PMC8420016)",
+  "Wong KC et al. 1977, Can Anaesth Soc J, doi:10.1007/BF03006233 (résumé)",
+  "Miyazaki H, Hirai S, Taneike T 1990, Nihon Juigaku Zasshi 52:265, doi:10.1292/jvms1939.52.265 (résumé)",
+  "Hirai S, Miyazaki H, Taneike T 1992, J Vet Pharmacol Ther 15:231 (résumé)",
   "RCP Noah furosemide",
-  "EMA 1999 MRL report",
-  "BMC Vet Res 2021 (s12917-021-02998-4)"
+  "EMA 1999 MRL report"
  ],
- "notes": "PK calée (fit_pk.py). PD placeholder. D = déficit de volume (mL), U = diurèse effective cumulée (mL/kg), voir MODEL_SPEC. Pas de terme toxique : toxicité volémique et électrolytique émergente via D et U."
+ "notes": "PK calée sur Koh 2021 (2 mg/kg IV, 5 beagles d'environ 11,7 kg, lu ; clairance ramenée au chien de référence de 20 kg par l'allométrie BW^0,75 du moteur) : CL 735,7 mL/h/kg, Vss 0,6675 L/kg, C0 9,65 mg/L, t½ 2,07 h ; ka et F sur le comprimé (Cmax 0,61 mg/L, F 0,55). PD (18/11/2026) : diurèse ajustée sur les volumes urinaires de Koh 2021 par intervalle, débit de base soustrait, IV et PO ensemble (urine_max, EC50 ; Hill fixée à 3, borne : l'ajustement libre donne ≈ 5). L'EC50 plasmatique de 0,24 mg/L diffère de la demi-réponse de 1,5 µg/mL de Hirai 1992 (chiens anesthésiés, 5 mg/kg, résumé). Effet piloté par l'excrétion urinaire (drive: urinary_excretion, C × masse néphronique) : chez le chien en insuffisance rénale, la relation excrétion urinaire–effet est inchangée alors que la relation plasma–effet est déplacée (Miyazaki 1990, résumé). Pertes électrolytiques proportionnelles à la concentration, X ← X·exp(−a·U), donc toujours positives : aK, aCl, aNa et tau_elect ajustés ensemble sur Koh 2021 (K, Cl, Na sériques à 1–8 h, IV et PO, lu) et Wong 1977 (1 mg/kg IV/j × 7 j : K 4,48 → 4,09, résumé). D = déficit de volume (mL), U = diurèse effective cumulée (mL/kg), voir MODEL_SPEC. f_plasma et tau_refill restent des placeholders D. Limite connue : 2 mg/kg PO q12h pendant 7 j donne K ≈ 2,1 mmol/L, sans source chiffrée à cette posologie (Koh : chiens à jeun). Ototoxicité non modélisée."
 }

@@ -84,11 +84,11 @@ def pk_checks():
         mod = dict(cmax=c.max() * 1000, tmax=t[i], auc=np.trapezoid(c, t) * 1000)
         for k, (tv, u, _, src) in ref.items():
             rows.append(dict(module='PK ' + drug, var=f'{k} ({dose} mg/kg PO)', target=tv, unit=u, source=src, model_mean=float(mod[k])))
-    # furosémide IV 2 mg/kg : demi-vie 1-1,5 h (BMC Vet Res 2021)
+    # furosémide IV 2 mg/kg : demi-vie 2,07 ± 0,76 h (Koh 2021, BMC Vet Res 17:295, texte intégral)
     tc = pkpd.timecourse(p, [(0.0, 'furosemide', 2.0, 'iv')], 12.0, list(np.linspace(0, 12, 241)))
     t = np.array(tc['t']); c = np.array(tc['furosemide']); m = (t > 2) & (t < 8)
     k = -np.polyfit(t[m], np.log(c[m]), 1)[0]
-    rows.append(dict(module='PK furosemide', var='t1/2 IV', target=1.25, unit='h', source='BMC Vet Res 2021 (1-1,5 h)', model_mean=float(np.log(2) / k)))
+    rows.append(dict(module='PK furosemide', var='t1/2 IV', target=2.07, unit='h', source='Koh 2021, BMC Vet Res (2,07 ± 0,76 h)', model_mean=float(np.log(2) / k)))
     return rows
 
 

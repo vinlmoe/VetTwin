@@ -366,7 +366,7 @@ pub fn pk_checks(cat: &Catalog) -> Result<Vec<PkRow>, Error> {
             });
         }
     }
-    // Demi-vie IV du furosémide 2 mg/kg : pente de ln C sur ]2, 8[ h (BMC Vet Res 2021 : 1-1,5 h).
+    // Demi-vie IV du furosémide 2 mg/kg : pente de ln C sur ]2, 8[ h (Koh 2021, BMC Vet Res 17:295, texte intégral : 2,07 ± 0,76 h).
     let grid = linspace(12.0, 241);
     let d = Dose {
         t_h: 0.0,
@@ -392,9 +392,9 @@ pub fn pk_checks(cat: &Catalog) -> Result<Vec<PkRow>, Error> {
     rows.push(PkRow {
         module: "PK furosemide".into(),
         var: "t1/2 IV".into(),
-        target: 1.25,
+        target: 2.07,
         unit: "h".into(),
-        source: "BMC Vet Res 2021 (1-1,5 h)".into(),
+        source: "Koh 2021, BMC Vet Res (2,07 ± 0,76 h)".into(),
         model: std::f64::consts::LN_2 / -slope,
     });
     Ok(rows)

@@ -60,13 +60,15 @@ d_t = clip(baro_gain·(map_set − MAP)/45, −1, 1)
 - Excès de base (van Slyke simplifié) : voir `base_excess`.
 - Sang veineux mêlé : `CvO2 = CaO2 − vo2/(co·10)` ; `PvO2` par inversion de la courbe ; `PvCO2 = PaCO2 + 5.5·(125·bw/1000)/max(co, 0.2)` ; pH veineux par Stewart avec `PvCO2`.
 
-## 6. PK/PD (`pkpd.py`)
+## 6. PK/PD (`pkpd.rs` ; port secondaire `pkpd.py`)
 - 2 compartiments + dépôt oral. `CL = cl·1e-3·60·20·s^0.75·nephron_mass^renal_exp·hepatic_fn^hep_exp` (L/h), `Vc = vc·bw`, `Vp = vp·bw`, `Q = q·1e-3·60·bw`.
 - Oral : la dose × `f` va au dépôt (`ka`); IV : dose dans le compartiment central. Concentration = quantité centrale / `Vc` (mg/L).
 - Effet Emax : `E = emax·C^hill/(ec50^hill + C^hill)`.
-- Furosémide (PD `diuretic`) : `u = 0.25·E(C)` mL/kg/min ; `dD/dt = 0.3·u·bw·60 − D/4` (mL/h) ; `dU/dt = u·60 − U/24`. Effets : `vol_shift −= D`, `K −= 0.04 U`, `Cl −= 0.5 U`, `Na −= 0.3 U`.
+- Furosémide (PD `diuretic`, recalé le 18/11/2026 sur Koh 2021 et Wong 1977) : `u = urine_max·E(X)` mL/kg/min avec `urine_max = 0,2044`, `X = C·nephron_mass` (`drive: urinary_excretion` : l'effet suit l'excrétion urinaire, Miyazaki 1990) ; `dD/dt = f_plasma·u·bw·60 − D/τ_refill` (mL/h ; `f_plasma` 0,3 et `τ_refill` 4 h : placeholders D) ; `dU/dt = u·60 − U/τ_elect` (`τ_elect` 56,67 h). Effets : `vol_shift −= D` ; pertes **proportionnelles à la concentration**, `K ×= exp(−0,00513·U)`, `Cl ×= exp(−0,00170·U)`, `Na ×= exp(−0,00029·U)` : jamais négatives.
 - Les effets PD des autres médicaments sont des effets JSON (variable `E`) appliqués aux paramètres.
-- **Termes toxiques** (`pd.toxicity`, variable `T`) : `T = emax·C^hill/(ec50^hill + C^hill)` avec des constantes propres, appliqués après l'effet thérapeutique du même médicament. L'effet thérapeutique reste plafonné (occupation des récepteurs) ; la toxicité prolonge la relation dose-réponse au-delà. Opioïde → `vent_drive ×(1 − 0,99 T)` ; bêtabloquant → `ees_lv`, `ees_rv`, `hr ×(1 − 0,8 T)` ; pimobendane → `r_sys ×(1 − 0,8 T)`. EC50 toxique = 10 × EC50, Hill 3 : placeholders D.
+- **Termes toxiques** (`pd.toxicity`, variable `T`) : `T = emax·C^hill/(ec50^hill + C^hill)` avec des constantes propres, appliqués après l'effet thérapeutique du même médicament. L'effet thérapeutique reste plafonné (occupation des récepteurs) ; la toxicité prolonge la relation dose-réponse au-delà. Opioïde → `vent_drive ×(1 − 0,8 T)` (EC50 toxique 1 mg/L : plateau de PaCO2 ≈ 65 mmHg sans apnée chez le chien vigile, Bailey 1987) ; pimobendane → `r_sys ×(1 − 0,8 T)` (EC50 toxique = 10 × EC50, Hill 3, placeholder D). Bêtabloquant (profil aténolol) : pas de terme toxique depuis le 18/11/2026.
+- Opioïde (chien vigile, 18/11/2026) : `vent_drive ×(1 − 0,25 E)`, `vagal_add += 0,27 E`, `r_sys ×(1 + 0,36 E)` : FC −32 %, PAM +6 %, PaCO2 +3 mmHg à effet maximal (Mills 2025, Maiante 2009, Wunsch 2010).
+- **Créatinine et urée en évolution temporelle** (`kinetics.rs`, API `timecourse` et `state` avec `doses`/`at_h`) : compartiment unique `V·dC/dt = P − DFG(t)·C`, soit `dC/dt = (DFG/V)(C_ss − C)`, départ à l'équilibre du patient sans médicament ; `V = creat_vd·bw` (0,539 L/kg, Collignon 2012) et `urea_vd·bw` (0,66 L/kg, Bowsher 1985). L'état stationnaire (CLI `eval`, golden) reste `C_ss = C0/ratio_DFG`. Non porté en Python.
 
 ## 6 bis. Décompensation et viabilité (`physio.evaluate`, `physio._evaluate_once`)
 - `_evaluate_once` = l'ancienne évaluation (baroréflexe, hémodynamique, aval). `evaluate` l'enveloppe d'un point fixe amorti sur deux facteurs, `fc` (élastances VG et VD) et `fr` (`r_sys`) :
@@ -75,9 +77,10 @@ d_t = clip(baro_gain·(map_set − MAP)/45, −1, 1)
   - ischémie coronaire : `f_cor = max(0,1 ; 1 − cpp_ees·max(0, cpp_min − (PAD − PTDVG)))` sur `fc` ;
   - `f ← ½(f + f_cible)` jusqu'à `|f_cible − f| < 1e-3`, au plus 30 passes.
 - Hypokaliémie (direct) : `vent_drive × max(0,1 ; 1 − k_weak_vent·max(0, k_weak − K))`.
-- **Décès** (exception `NonViable`, erreur `Error::NonViable` en Rust) : FC < `hr_arrest` (`cardiac_arrest`) ; DC < `co_arrest_frac`·3,29·(bw/20)^0,75 (`circulatory_collapse`) ; `er ≥ 1`, VO2 > DO2 (`oxygen_debt`) ; racine introuvable (`no_steady_state`) ; pas de convergence (`vicious_circle`).
+- **Effet dromotrope du sympathique** (18/11/2026) : à chaque passage du baroréflexe, `av_erp` et le délai AH (`pr − hv`) sont multipliés par `max(0,1 ; 1 − av_symp·(s_eff − 0,2))`, `av_symp` = 0,5 (dénervation sympathique en FA : FC ventriculaire −16 %, PMC7872775). Le bêtabloquant (qui réduit `s_eff`) ralentit donc la réponse ventriculaire de la FA.
+- **Décès** (exception `NonViable`, erreur `Error::NonViable` en Rust) : FC < `hr_arrest` (`cardiac_arrest`) ; DC < `co_arrest_frac`·3,29·(bw/20)^0,75 (`circulatory_collapse`) ; PAM < `map_arrest` = 40 mmHg (`irreversible_shock` : PAM maintenue vers 40 mmHg, choc irréversible en 1 à 3 h, Morales 1999, Granot 1985) ; `er ≥ 1`, VO2 > DO2 (`oxygen_debt`) ; racine introuvable (`no_steady_state`) ; pas de convergence (`vicious_circle`).
 - **Décompensé** si au moins un mécanisme est actif : les trois couplages, la faiblesse hypokaliémique, la bradycardie hyperkaliémique (K > 6, déjà présente), `er > 0,55` (anaérobiose), POG > 18 (œdème), PAM < 75 (hypoperfusion rénale), tonus sympathique saturé.
-- Tous les seuils et pentes sont des paramètres du patient (`healthy_dog.json`), placeholders D. Ils sont inactifs dans la plage du golden et de la calibration.
+- Tous les seuils et pentes sont des paramètres du patient (`healthy_dog.json`), placeholders D sauf `map_arrest` (evidence C). Ils sont inactifs dans la plage du golden et de la calibration.
 
 ## 7. Système autonome et VFC (`autonomic.py`)
 Simulation à 20 Hz : porte respiratoire (profil `rho`), tonus vagal filtré (`τ_v=0.25 s`), sympathique lent (`τ_s=3 s`, retard 2.5 s, bruit), dérive vagale lente (`vag_noise`, `τ=12 s`), baroréflexe sigmoïde, nœud sinusal à intégration de phase (IPFM) → instants des ondes R → VFC (RR moyen, SDNN, RMSSD, LF/HF, RSA). **Stochastique** : valider statistiquement (`calibration/targets.json`, section `hrv`, tolérance ±1 ET, moyenne sur ≥ 20 graines), pas au point.

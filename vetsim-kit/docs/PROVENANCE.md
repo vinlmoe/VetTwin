@@ -55,3 +55,14 @@ Ces modules n'agissent que sur les paramètres de la conduction. FC, ECG, hémod
   - Effets : `sa_block` + 0,45·s ; FC sinusale × (1 − 0,3·s) ; échappements jonctionnel et ventriculaire × (1 − 0,8·s).
   - Pause la plus longue : 4,9 s sur 5 h à s = 0,85, contre 6,9 s (5,5–10,3) sur Holter de 24 h (10.1111/jvim.17071).
 - **`esc_overdrive`** = 1,3 (placeholder D) : suppression des échappements par entraînement. Sans elle, l'échappement jonctionnel s'insérait dans chaque pause de Wenckebach.
+
+## Corrections du 18/11/2026 (maladies × médicaments × surdosage)
+Détail et sources : `docs/VERIFICATION_MALADIES_MEDICAMENTS.tex`. Accès : « lu » = texte intégral (PMC), « résumé » = résumé seul.
+- **Furosémide** (`modules/drugs/furosemide.json` 1.1.0, evidence B).
+  - PK : Koh 2021 (lu, PMC8420016) ; CL 735,7 mL/h/kg à ≈ 11,7 kg ramenée à 20 kg (10,724 mL/min/kg), Vc 0,2073, Vp 0,4602 L/kg, Q 3,341 mL/min/kg, ka 0,724 /h, F 0,55.
+  - Diurèse : `urine_max` 0,2044 mL/kg/min, EC50 0,2412 mg/L, Hill 3 (borne ; libre ≈ 5), ajustés sur les volumes urinaires de Koh par intervalle (IV et PO).
+  - Électrolytes : `X ×= exp(−a·U)`, aK 0,00513, aCl 0,00170, aNa 0,00029 (mL/kg)⁻¹, τ_elect 56,67 h ; Koh 2021 (lu) + Wong 1977 (résumé : 1 mg/kg IV/j × 7 j, K 4,48 → 4,09).
+  - `drive: urinary_excretion` : Miyazaki 1990, Hirai 1992 (résumés).
+- **Opioïde** (1.1.0, evidence C) : Mills 2025 (lu), Amon 2021 (lu), Wunsch 2010 (lu), Maiante 2009, Garofalo 2012, Bailey 1987, Arndt 1984 (résumés). Terme toxique : EC50 1 mg/L (placeholder D borné par Maiante et Bailey).
+- **Bêtabloquant** (1.1.0) : profil aténolol, terme toxique de stabilisation de membrane retiré.
+- **Patient** : `creat_vd` 0,539 L/kg (Collignon 2012, résumé, n = 50) ; `urea_vd` 0,66 L/kg (Bowsher 1985, résumé) ; `map_arrest` 40 mmHg (Morales 1999, Granot 1985, résumés ; evidence C) ; `av_symp` 0,5 (PMC7872775, lu ; Rigel 1990, résumé ; evidence C).

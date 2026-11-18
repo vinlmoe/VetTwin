@@ -228,6 +228,9 @@ def _evaluate_once(p, n_beats=11):
         q['hr'] = base['hr'] * hr_factor(s_eff, v_eff, base) / hr_factor(S_REF, V_REF, base)
         q['ees_lv'] = base['ees_lv'] * (1 + 0.4 * (s_eff - base['s0']))
         q['ees_rv'] = base['ees_rv'] * (1 + 0.4 * (s_eff - base['s0']))
+        symp = max(0.1, 1.0 - base['av_symp'] * (s_eff - S_REF))   # effet dromotrope du sympathique (ERP, AH)
+        q['av_erp'] = base['av_erp'] * symp
+        q['pr'] = base['hv'] + (base['pr'] - base['hv']) * symp
         q['r_sys'] = base['r_sys'] * (1 + 0.5 * (s_tot - base['s0']))
         q['vol_shift'] = base['vol_shift'] + 0.20 * 85.0 * base['bw'] * (s_tot - base['s0'])   # recrutement du volume non contraint
         h, cond = _hemo_with_rhythm(q, v_eff, n_beats)
@@ -336,6 +339,8 @@ def evaluate(p, n_beats=11):
             raise NonViable('cardiac_arrest', res)
         if res['hemo']['co'] < p0['co_arrest_frac'] * co_ref:
             raise NonViable('circulatory_collapse', res)
+        if res['hemo']['map'] < p0['map_arrest']:
+            raise NonViable('irreversible_shock', res)    # PAM sous le seuil de perfusion (choc irréversible)
         if res['er'] >= 1.0:
             raise NonViable('oxygen_debt', res)       # VO2 > DO2 : aucun état aérobie possible
         last = res

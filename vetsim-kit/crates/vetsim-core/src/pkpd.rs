@@ -204,7 +204,8 @@ pub const PK_ATOL: f64 = 1e-10;
 ///
 /// États par médicament : dépôt digestif, central, périphérique (mg) ; puis `D` et `U`.
 /// L'intégration est relancée à chaque instant remarquable (doses, enregistrements),
-/// comme la référence. Diurétique : `u = urine_max·E(C)` (mL/kg/min),
+/// comme la référence. Diurétique : `u = urine_max·E(X)` (mL/kg/min), `X = C` ou, avec
+/// `drive: urinary_excretion`, `X = C·masse néphronique`,
 /// `dD/dt = f_plasma·u·bw·60 − D/τ_refill`, `dU/dt = 60·u − U/τ_elect` (par heure).
 pub fn timecourse(
     p: &Params,
@@ -269,10 +270,18 @@ pub fn timecourse(
             dy[i + 2] = (k.q / k.vc) * ac - (k.q / k.vp) * ap;
             if let PdKind::Diuretic {
                 urine_max_ml_kg_min,
+                urinary_drive,
                 ..
             } = m.pd.kind
             {
-                urine += urine_max_ml_kg_min * emax_effect(m, ac / k.vc);
+                // Site d'action luminal : l'effet suit le débit d'excrétion urinaire du
+                // médicament (∝ C × masse néphronique), pas la concentration plasmatique.
+                let x = if urinary_drive {
+                    ac / k.vc * p.nephron_mass
+                } else {
+                    ac / k.vc
+                };
+                urine += urine_max_ml_kg_min * emax_effect(m, x);
             }
         }
         // Récupération : constantes du (premier) diurétique dosé ; sans diurétique, D et U

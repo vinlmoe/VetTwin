@@ -154,7 +154,7 @@ const MECH_FR = {
   baroreflex_exhausted: 'baroréflexe épuisé (tonus sympathique maximal)',
 };
 const DEATH_FR = {
-  cardiac_arrest: 'arrêt cardiaque', circulatory_collapse: 'effondrement circulatoire',
+  cardiac_arrest: 'arrêt cardiaque', circulatory_collapse: 'effondrement circulatoire', irreversible_shock: 'choc irréversible',
   oxygen_debt: "dette d'oxygène (consommation > apport)", no_steady_state: 'aucun état stationnaire viable',
   vicious_circle: 'spirale de décompensation non résolue',
 };

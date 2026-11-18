@@ -222,9 +222,11 @@ fn out_of_golden_cases_match_reference_cli() {
 fn severity_and_weight_sweep_stays_finite() {
     // Décès attendus (critère « dette d'O2 », VO2 > DO2) : MMVD sévère chez le chien de 3 kg.
     // La passe simple donnait déjà un état non physique (ER 1,56 à 2,93, PvO2 au plancher de 1 mmHg).
-    // Nouvelle référence (conduction, battement par battement) : à 3 kg, la MMVD 0,8 reste viable
-    // (tachycardie au-delà de la conduction 1:1, ER 0,37), 0,9 et 1,0 meurent (Python identique).
-    let expected_dead = [(3.0, "mmvd", 9), (3.0, "mmvd", 10)];
+    // Nouvelle référence (conduction, battement par battement) : à 3 kg, la MMVD 0,9 et 1,0 meurent.
+    // Depuis l'effet dromotrope du sympathique (av_symp, 18/11/2026), la MMVD 0,8 à 3 kg meurt aussi :
+    // POG déjà ≈ 35 mmHg et DC 0,6 L/min, le nœud AV conduit en 1:1 une tachycardie sinusale qu'il
+    // bloquait en 2:1, d'où une dette d'O2 (Python identique).
+    let expected_dead = [(3.0, "mmvd", 8), (3.0, "mmvd", 9), (3.0, "mmvd", 10)];
     let mut dead = Vec::new();
     let c = catalog();
     for bw in [3.0, 20.0, 60.0] {
