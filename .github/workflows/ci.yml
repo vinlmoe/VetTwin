@@ -33,36 +33,37 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install numpy scipy jsonschema
-      - name: Rust == Python (fixture M1 régénérée avec le Python de la CI)
+      - name: Contre-vérification Python (secondaire) — (fixture M1 régénérée avec le Python de la CI)
         run: python tests/make_m1_fixture.py && cargo test -p vetsim-core --test check_modules
-      - name: Rust == Python (fixture M2 régénérée avec le Python de la CI)
+      - name: Contre-vérification Python (secondaire) — (fixture M2 régénérée avec le Python de la CI)
         run: python tests/make_m2_fixture.py && cargo test -p vetsim-core --test metabolic
-      - name: CLI Rust == Python (paramètres, M1)
+      - name: Contre-vérification Python (secondaire) — CLI (paramètres, M1)
         run: python tests/check_params_cli.py --cmd "target/release/vetsim-cli"
-      - name: Rust == Python hors golden (fixture M3 régénérée)
+      - name: Contre-vérification Python (secondaire) — hors golden (fixture M3 régénérée)
         run: python tests/make_m3_fixture.py && cargo test --release -p vetsim-core --test hemodynamics
-      - name: Rust == Python PK/PD (fixture M4 régénérée)
+      - name: Contre-vérification Python (secondaire) — PK/PD (fixture M4 régénérée)
         run: python tests/make_m4_fixture.py && cargo test --release -p vetsim-core --test pkpd
-      - name: Rust == Python autonome, VFC, ECG, PCG en rejouant les tirages NumPy (fixture M6 régénérée)
+      - name: Contre-vérification Python (secondaire) — autonome, VFC, ECG, PCG en rejouant les tirages NumPy (fixture M6 régénérée)
         run: python tests/make_m6_fixture.py && cargo test --release -p vetsim-core --test signals
-      - name: Rust == Python ECG construit depuis la conduction (fixture régénérée)
+      - name: Contre-vérification Python (secondaire) — ECG construit depuis la conduction (fixture régénérée)
         run: python tests/make_ecg_conducted_fixture.py && cargo test --release -p vetsim-core --test ecg_conducted
-      - name: Couche de conduction : comportements émergents et contrôles d'échec (référence Python)
+      - name: "Couche de conduction : comportements émergents et contrôles d'échec (Python secondaire)"
         run: python tests/check_rhythm.py
-      - name: Rust == Python conduction (rejeu des tirages, fixture régénérée)
+      - name: Contre-vérification Python (secondaire) — conduction (rejeu des tirages, fixture régénérée)
         run: python tests/make_rhythm_fixture.py && cargo test --release -p vetsim-core --test rhythm
-      - name: Rust == Python hémodynamique battement par battement (fixture régénérée)
+      - name: Contre-vérification Python (secondaire) — hémodynamique battement par battement (fixture régénérée)
         run: python tests/make_beats_fixture.py && cargo test --release -p vetsim-core --test beats
-      - name: Rust == Python décompensation et toxicité (fixture régénérée)
+      - name: Contre-vérification Python (secondaire) — décompensation et toxicité (fixture régénérée)
         run: python tests/make_tox_fixture.py && cargo test --release -p vetsim-core --test decompensation
-      - name: Banc de calibration Rust contre la référence Python (M5, VFC M6)
+      - name: Banc de calibration Rust contre le Python secondaire (M5, VFC M6)
         run: python tests/compare_calibration.py --cmd "target/release/vetsim-cli"
       - name: Auscultation, critères mesurés par pcg_metrics.py (référence enregistrée)
         run: python tests/pcg_acceptance.py --cmd "target/release/vetsim-cli" --seeds 300 --ref-json tests/pcg_reference_python.json
       - name: Conformité golden complète (critère de la feuille de route)
         run: python tests/conformance.py --cmd "target/release/vetsim-cli"
 
-  python-reference:
+  python-secondary:
+    # Implémentation Python secondaire (contre-vérification) ; la référence normative est le Rust.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

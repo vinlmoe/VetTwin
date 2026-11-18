@@ -1,4 +1,4 @@
-# Spécification du modèle (résumé normatif ; le code Python fait foi pour tout détail)
+# Spécification du modèle (résumé normatif ; le code Rust de `crates/vetsim-core` fait foi pour tout détail, le Python de `reference/python/` est secondaire)
 
 Unités : pression mmHg, volume mL, temps s, débit mL/s (L/min en sortie), concentrations mmol/L (g/L pour l'albumine, µmol/L pour la créatinine). `bw` en kg, `s = bw/20`.
 

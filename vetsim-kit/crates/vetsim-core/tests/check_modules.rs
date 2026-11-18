@@ -1,5 +1,5 @@
 //! Port Rust de `tests/check_modules.py` (critère du jalon M1) : le moteur Rust, lisant les
-//! modules JSON, reproduit le Python normatif à 1e-9 près.
+//! modules JSON, reproduit le Python secondaire à 1e-9 près.
 //! Référence : `tests/fixtures/python_reference.json`, produite par `tests/make_m1_fixture.py`.
 
 use serde_json::Value as Json;

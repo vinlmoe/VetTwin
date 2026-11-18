@@ -190,8 +190,8 @@ impl<S: State> Step<S> {
         let mut out = self.y_old.clone();
         for (i, o) in out.as_mut_slice().iter_mut().enumerate() {
             let mut acc = 0.0;
-            for m in 0..4 {
-                acc += self.q[m].as_slice()[i] * pw[m];
+            for (qm, pm) in self.q.iter().zip(pw) {
+                acc += qm.as_slice()[i] * pm;
             }
             *o += h * acc;
         }

@@ -16,7 +16,9 @@ modules/*.json ──► vetsim-core (Rust) ◄── vetsim-cli (tests de confo
 5. **Provenance obligatoire** : chaque module porte `evidence` (A à D), `refs` et des `targets` de validation rejouées par les tests.
 
 ## Modules du noyau (miroir des fichiers Python)
-| Rust | Python de référence | Rôle |
+Le Rust est normatif ; le Python est une implémentation secondaire de contre-vérification.
+
+| Rust (normatif) | Python (secondaire) | Rôle |
 |---|---|---|
 | `dsl` | `tests/dsl_ref.py` | interpréteur d'expressions |
 | `modules` | `diseases.py`, `pkpd.py` | chargement, validation, application des effets, tirages |

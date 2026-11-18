@@ -1,4 +1,4 @@
-"""Fixture de rejeu du module auscultation : signals_pcg_v5.make_pcg (référence normative,
+"""Fixture de rejeu du module auscultation : signals_pcg_v5.make_pcg (implémentation secondaire,
 inchangée) avec un mandataire qui ENREGISTRE chaque tirage de NumPy ; le Rust les rejoue.
 Exécuter depuis la racine du kit :  python tests/make_pcg_fixture.py
 Sortie : crates/vetsim-core/tests/fixtures/python_reference_pcg.json
