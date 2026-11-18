@@ -4,6 +4,8 @@ Date : 17/11/2026. Branche `m0-m1-workspace-dsl`. Aucun module, paramètre ni go
 
 Usage pédagogique uniquement. Rien ici ne sert à décider d'une dose ou d'un traitement réel.
 
+> **Mise à jour du 18/11/2026.** La PK et la PD du furosémide (synthèse, points 1 et 2) ont été recalées sur Koh 2021, lu en texte intégral, et sur Wong 1977. Les autres corrections et l'état après correction sont dans `docs/VERIFICATION_MALADIES_MEDICAMENTS.tex`. Ce document conserve l'état du 17/11/2026 ; la PAM saine y vaut 101,2 mmHg, contre 109,4 depuis la systole raccourcie.
+
 ## Méthode
 
 - **Côté modèle.** Les valeurs viennent du binaire `vetsim-cli` (mode déterministe, chien de 20 kg) :

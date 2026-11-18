@@ -16,6 +16,7 @@ pub mod engine;
 pub mod error;
 pub mod gas;
 pub mod hemo;
+pub mod kinetics;
 pub mod math;
 pub mod modules;
 pub mod ode;

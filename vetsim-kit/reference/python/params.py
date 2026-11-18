@@ -18,10 +18,11 @@ def healthy_params(bw=20.0):
         hr=87.0 * s ** -0.25,          # Haskins 2005 : 87/min (97 chiens éveillés)
         ees_lv=7.0 * 0.649 / s, v0_lv=4.0 * s, a_lv=1.0, b_lv=0.06 * 0.258 / s,   # calage Haskins 2005
         ees_rv=1.6 / s, v0_rv=6.0 * s, a_rv=0.4, b_rv=0.05 / s,
-        c_ao=0.7 * s, c_sv=55.0 * s, c_pa=1.5 * s, c_pv=5.0 * s,
+        c_ao=0.7 * s, c_sv=55.0 * s, ven_cap=1.0, c_pa=1.5 * s, c_pv=5.0 * s,   # ven_cap : capacitance veineuse relative (pression seulement)
         v0_ao=150.0 * s, v0_sv=900.0 * s, v0_pa=60.0 * s, v0_pv=120.0 * s,
         r_sys=2.3 * 0.764 / fq, r_pul=0.15 * 1.04 / fq, r_valve=0.03 / fq,
         g_mr=0.0005, g_ar=0.0002, g_tr=0.0002, g_pr=0.0002,   # conductances de fuite (mL/s/mmHg)
+        mr_k=2.5, mr_vref=72.0 * s,   # orifice mitral dynamique g_mr·(VTD/mr_vref)^mr_k, fixé par battement (Yoran 1979 ; calé sur Suzuki 2013) ; mr_vref = VTD du chien sain
         bvf=1.0, vol_shift=-21.0 * s,          # facteur de volémie, déficit/excès de volume (mL)
         map_set=103.0, baro_gain=1.0,
         # --- respiration / gaz ---
@@ -32,7 +33,9 @@ def healthy_params(bw=20.0):
         na=150.0, k=4.1, cl=113.6, xa=-2.48, alb=3.77, phos=1.42,   # Constable 2005 (10 chiens sains)
         lact0=1.2, glucose=5.2, alt=45.0,
         # --- rein / foie ---
-        nephron_mass=1.0, gfr0=3.5, creat0=75.0, urea0=5.0, hepatic_fn=1.0,
+        nephron_mass=1.0, gfr0=3.5, creat0=75.0, urea0=5.0,
+        creat_vd=0.539, urea_vd=0.66,   # volumes de distribution (L/kg) : Collignon 2012 (créatinine, n = 50) ; Bowsher 1985 (urée) ; cinétique en évolution temporelle (moteur Rust)
+        hepatic_fn=1.0,
         # --- ECG de base (s, mV) ---
         pr=0.12, qrs=0.045, qt=0.20, r_amp=1.7, t_amp=0.30, p_amp=0.20,   # ECG Labrador/Berger allemand
         # --- états modulés par maladie / médicaments ---
@@ -55,6 +58,7 @@ def healthy_params(bw=20.0):
         cpp_ees=0.02,                # perte relative d'élastance par mmHg sous cpp_min
         hr_arrest=20.0,              # FC (/min) sous laquelle la pompe cardiaque est considérée arrêtée
         co_arrest_frac=0.15,         # débit / débit de référence sous lequel la circulation s'effondre
+        map_arrest=40.0,             # PAM (mmHg) : maintenue vers 40 mmHg, le choc devient irréversible en 1–3 h (Morales 1999, Granot 1985)
         # --- oreillettes contractiles : élastance active sur pv (OG + veines pulmonaires) et sv (OD + veines)
         #     P = (1 + k·e_a(t))·P_passive, activation PR avant le ventricule ; k = 0 : oreillettes passives
         k_la=1.45, k_ra=0.29,        # gains d'activation atriale : k_la calé sur E/A ≈ 1,39 (E 0,82, A 0,59 m/s, n = 53) ; k_ra = 0,2·k_la (placeholder D)
@@ -70,7 +74,7 @@ def healthy_params(bw=20.0):
         af=0.0, af_cycle=0.12, af_cv=0.3,   # fibrillation atriale : drapeau, cycle atrial moyen (s), CV
         hv=0.035,                    # temps His-ventricule (s)
         av_erp=0.15, av_beta=0.10, av_tau=0.15, av_conceal=0.75,   # nœud AV (s) ; ERP et conduction cachée calés sur la FA (FC 129,7, CVRR 0,309 ; n = 50) avec 1:1 sinusal jusqu'à 225/min
-        av_vagal=0.5, av_k_gain=0.10,      # allongement nodal par le tonus vagal et par mmol/L de K au-delà de 5,5
+        av_vagal=0.5, av_symp=0.5, av_k_gain=0.10,   # av_symp : dénervation sympathique en FA −16 % de FC ventriculaire (PMC7872775) ; allongement nodal par le tonus vagal et par mmol/L de K au-delà de 5,5
         hp_conduction=1.0,           # probabilité de conduction His-Purkinje (bloc infranodal)
         k_hp_block=10.0, hp_k_slope=0.5,   # K au-delà duquel la conduction infranodale échoue (QRS large > 10,1) ; pente /mmol/L
         junct_rate=50.0,             # automatisme jonctionnel (/min), au-dessus de l'échappement ventriculaire

@@ -2,7 +2,7 @@
 
 **Usage pédagogique uniquement.**
 
-- Code : `crates/vetsim-core/src/pcg.rs` (`synthesize_pcg`, `patient_pcg`), port fidèle de `reference/python/signals_pcg_v5.py` (référence normative).
+- Code : `crates/vetsim-core/src/pcg.rs` (`synthesize_pcg`, `patient_pcg`), port fidèle de `reference/python/signals_pcg_v5.py` (contre-vérification secondaire).
 - Paramètres : `modules/auscultation.json`. Chaque groupe porte `source`, `evidence` et `calibre_sur`. Schéma : `schema/auscultation.schema.json`. Aucune constante numérique dans le code.
 - Entrées : un battement simulé (`PcgInputs` : séries, période, durée de contraction, POG) et les instants de battement du module autonome. Avec la même graine et la même durée, ces instants sont ceux de l'ECG.
 - Sortie : signal normalisé (crête à 1), WAV PCM 16 bits mono, grade de souffle indicatif, type de souffle, B3.

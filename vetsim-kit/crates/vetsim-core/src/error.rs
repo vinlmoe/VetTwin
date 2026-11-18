@@ -143,7 +143,7 @@ pub enum Error {
     #[error("intégration hémodynamique : {0}")]
     Ode(crate::ode::OdeError),
     /// Aucun état stationnaire viable : décès du patient virtuel (cause mécanistique :
-    /// `cardiac_arrest`, `circulatory_collapse`, `oxygen_debt`, `no_steady_state`, `vicious_circle`).
+    /// `cardiac_arrest`, `circulatory_collapse`, `irreversible_shock`, `oxygen_debt`, `no_steady_state`, `vicious_circle`).
     #[error("patient non viable : {cause}")]
     NonViable {
         /// Cause mécanistique.

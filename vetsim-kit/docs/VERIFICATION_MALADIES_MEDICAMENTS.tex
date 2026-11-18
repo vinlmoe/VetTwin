@@ -1,0 +1,325 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage[margin=1.9cm]{geometry}
+\usepackage{booktabs,array,tabularx,longtable,ltablex}
+\keepXColumns
+\usepackage{xcolor}
+\usepackage{fancyvrb}
+\usepackage[hidelinks]{hyperref}
+\usepackage{textcomp}
+\usepackage{siunitx}
+\sisetup{locale=FR,detect-all}
+
+\setlength{\parskip}{0.4em}
+\setlength{\parindent}{0pt}
+\fvset{fontsize=\small,frame=single,framesep=2mm,rulecolor=\color{black!30}}
+\newcommand{\cmd}[1]{\texttt{#1}}
+\newcommand{\ok}{\textcolor{green!45!black}{\textbf{OK}}}
+\newcommand{\ecart}{\textcolor{red!70!black}{\textbf{Écart}}}
+\newcommand{\partiel}{\textcolor{orange!80!black}{\textbf{Partiel}}}
+\newcommand{\nc}{\textcolor{black!60}{\textbf{Non comp.}}}
+\newcommand{\absent}{\textcolor{red!70!black}{\textbf{Absent}}}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+\renewcommand{\arraystretch}{1.15}
+
+\title{Vérification du patient virtuel : maladies, médicaments et surdosages\\[0.3em]
+\large Comparaison du moteur Rust à la littérature vétérinaire canine}
+\author{Projet VetTwin}
+\date{18 novembre 2026 (vérification, puis corrections)}
+
+\begin{document}
+\sloppy
+\maketitle
+
+\begin{center}
+\fbox{\parbox{0.92\linewidth}{\textbf{Usage pédagogique uniquement.} Les multiples de dose testés ici (jusqu'à $\times 100$) servent à éprouver le modèle. Ce ne sont ni des recommandations ni des seuils de toxicité. Aucun résultat ne doit servir à décider d'une dose ou d'un traitement réel.}}
+\end{center}
+
+\section*{Résumé}
+
+Le moteur se comporte correctement au voisinage des doses usuelles pour l'atropine, le bêtabloquant et la pharmacocinétique de l'opioïde. Le sens des effets est juste dans la plupart des associations maladie\,+\,médicament. En revanche, plusieurs écarts importants apparaissent dès qu'on s'éloigne de la dose usuelle ou qu'on croise une maladie et un médicament :
+
+\begin{enumerate}
+\item \textbf{Valeurs physiquement impossibles.} Sous furosémide, la kaliémie devient \emph{négative} ($-0{,}6$~mmol/L à \SI{200}{mg/kg}) et la chlorémie descend à \SI{40}{mmol/L} : les pertes électrolytiques sont linéaires et non bornées.
+\item \textbf{Opioïde.} La dépression respiratoire est fortement surestimée : PaCO$_2$ \SI{85}{mmHg} à \SI{1}{mg/kg}, alors que la méthadone à \SI{1}{mg/kg} ne modifie pas la PaCO$_2$ du chien vigile. Le modèle tue instantanément à \SI{3}{mg/kg}, alors qu'aucune apnée n'est rapportée chez le chien vigile même avec des doses massives de fentanyl.
+\item \textbf{Créatinine instantanée.} La créatinine est calculée en équilibre avec le DFG du moment. Elle double en 5~minutes sous opioïde et atteint \SI{1340}{\micro mol/L} en 4~heures (MRC\,+\,bêtabloquant). Le signe « azotémie » se déclenche donc à tort dans tous les scénarios aigus.
+\item \textbf{Furosémide.} En MRC, le modèle produit une \emph{hyperréponse} (concentration $\times 75$ à 12~h, K$^+$ \SI{1,2}{mmol/L}), alors que la littérature décrit une réponse diurétique \emph{diminuée}. En MMVD, la baisse de la POG est environ trois fois trop faible.
+\item \textbf{Fibrillation atriale.} Le bêtabloquant ne change pas la fréquence ventriculaire, même à $\times 100$. La conduction AV du modèle ne dépend que du tonus vagal et de K$^+$, pas du tonus sympathique.
+\item \textbf{Critère de décès.} Un patient reste « vivant » avec une PAM de \SI{24}{mmHg}. Aucun critère ne porte sur la pression de perfusion.
+\item \textbf{Pimobendane.} Sens correct en surdosage (tachycardie, hypotension, survie du chien sain), mais la POG ne baisse quasiment pas en MMVD à dose usuelle. L'hypertension, observée chez 2 chiens intoxiqués sur 7, est impossible dans le modèle.
+\end{enumerate}
+
+Aucun module, paramètre ni golden n'a été modifié. Les corrections proposées (section~\ref{sec:corrections}) attendent une décision.
+
+\section*{Corrections appliquées le 18 novembre 2026}
+\addcontentsline{toc}{section}{Corrections appliquées}
+
+À la demande de l'utilisateur, les corrections de la section~\ref{sec:corrections} ont été appliquées dans l'ordre de priorité. Les sources ont d'abord été lues dans PMC et Europe PMC, dont l'accès a été ouvert pour la session. Le moteur Rust fait foi ; le Python secondaire a été mis à jour en parallèle, puis le golden et les fixtures ont été régénérés à partir de lui pour la contre-vérification. Le reste de ce document décrit l'état \emph{avant} correction.
+
+\begin{tabularx}{\linewidth}{@{}P{0.6cm}P{3.6cm}LP{3.6cm}@{}}
+\toprule
+N\textsuperscript{o} & Correction & Sources (accès) et choix & Résultat (avant $\rightarrow$ après)\\
+\midrule\endhead
+1 & Furosémide : pertes électrolytiques bornées & Pertes proportionnelles à la concentration, $X \leftarrow X\,e^{-aU}$. PK, diurèse et coefficients ajustés sur Koh 2021 (\textbf{lu}, tableaux 2 à 6, IV et PO) et Wong 1977 (résumé : 1~mg/kg IV/j $\times$ 7~j, K 4,48 $\rightarrow$ 4,09). PK : CL 735,7~mL/h/kg (au lieu de 300), Vss 0,67~L/kg. & K$^+$ à 200~mg/kg : $-0{,}60$ $\rightarrow$ 2,09~mmol/L. À 2~mg/kg IV : $\Delta$K 8~h $-1{,}14$ $\rightarrow$ $-0{,}34$ (Koh $-0{,}33$) ; $\Delta$Cl $-13$ $\rightarrow$ $-3{,}2$ (Koh $-4{,}3$) ; $\Delta$Na $-7$ $\rightarrow$ $-0{,}7$ (Koh : n.s.).\\
+2 & Opioïde : chien vigile & Mills 2025 (\textbf{lu}) : FC 110 $\rightarrow$ 75 ; Amon 2021 (\textbf{lu}) ; Wunsch 2010 (\textbf{lu}) : PaCO$_2$ max 44,4 ; Maiante 2009, Garofalo 2012 : PAM conservée, RVS en hausse (résumés) ; Bailey 1987 : ni apnée ni PaCO$_2$ > 67 (résumé). & 0,3~mg/kg : FC $-40$ $\rightarrow$ $-28$\,\% ; PAM $-31$ $\rightarrow$ $+9$\,\% ; PaCO$_2$ 50,7 $\rightarrow$ 42,7. 3~mg/kg : décès immédiat $\rightarrow$ vivant, PaCO$_2$ 47,6. 30~mg/kg : PaCO$_2$ 65, sans apnée.\\
+3 & Créatinine et urée cinétiques & $V\,dC/dt = P - \mathrm{DFG}(t)\,C$ ; $V_\text{créat}$ 0,539~L/kg (Collignon 2012, résumé, n = 50) ; $V_\text{urée}$ 0,66~L/kg (Bowsher 1985, résumé). API \cmd{timecourse} et \cmd{state} avec \cmd{doses}/\cmd{at\_h} ; régime permanent inchangé. & Opioïde 0,3~mg/kg à 5~min : 150 $\rightarrow$ 75,7~\textmu mol/L. Furosémide en MRC~3 : +6,6 en 8~h au lieu d'un saut instantané.\\
+4 & Décès si PAM < 40~mmHg & PAM maintenue vers 40~mmHg : choc irréversible en 1 à 3~h (Morales 1999 ; Granot 1985, résumés). Cause \cmd{irreversible\_shock}, paramètre \cmd{map\_arrest} (evidence C). & Addison + pimobendane $\times 100$ : « vivant » à PAM 24 $\rightarrow$ décès.\\
+5 & Furosémide : effet tubulaire & Effet piloté par l'excrétion urinaire, $X = C \times$ masse néphronique (Miyazaki 1990 ; Hirai 1992, résumés). & MRC~3 : K$^+$ à 12~h 1,24 $\rightarrow$ 3,72 (sain 3,78). \textbf{Partiel} : diurèse encore +21\,\% contre le sain, alors que la source décrit une baisse.\\
+6 & Effet dromotrope du sympathique & ERP et AH nodaux $\times\,(1 - \cmd{av\_symp}\,(s_\text{eff} - 0{,}2))$, \cmd{av\_symp} = 0,5. Calé sur la dénervation sympathique en FA : 144,5 $\rightarrow$ 121,5~/min (PMC7872775, \textbf{lu}). & FA rapide + bêtabloquant : FC ventriculaire inchangée $\rightarrow$ $-13$\,\% (dose usuelle), $-16$\,\% (maximum). Effet secondaire : la FA non traitée accélère (s = 0,8 : 153 $\rightarrow$ 177~/min).\\
+7 & POG en MMVD (appliquée dans un second temps) & Deux mécanismes sourcés. (a)~Veinodilatation dépendante du rein : \cmd{ven\_cap} $\times(1 + 0{,}36E)$ (Bayne 1979, résumé : compliance veineuse 136~\% à 60~min). (b)~Orifice mitral dynamique fixé par battement, $g = g_\text{mr}(\text{VTD}/72s)^{2{,}5}$ (Yoran 1979, résumé), exposant calé sur Suzuki 2013 ; coefficients MMVD de $g_\text{mr}$ recalés (stades conservés). La sensibilité de la POG au volume n'était pas en cause (Yao 2025, lu ; Hirakawa 1987). & Perfusion 0,17~mg/kg/h $\times$ 6~h : POG $-6$ $\rightarrow$ $-27$\,\% (publié $-27$\,\%) ; 4~mg/kg IV : 8,6~mmHg (Suzuki 2011 : 9,2) ; PAM conservée. Pimobendane 0,25~mg/kg : pic $-1{,}5$~mmHg (Suzuki 2011 : $-3{,}1$, traitement chronique). Reste : baisse trop forte à 1--2~mg/kg ; stade C moins congestif (POG 12,0 contre 13,5).\\
+8 & Bêtabloquant : profil aténolol & Terme toxique de stabilisation de membrane retiré (propriété du propranolol, Love 2000). & Sain $\times 100$ : décès $\rightarrow$ FC 81,5 ($-7$\,\%), PAM 103. Le surdosage devient bénin au repos ; aucune donnée canine chiffrée pour trancher.\\
+9 & Toxicité de l'atropine & \textbf{Non appliquée} : il faudrait une variable de température et un état neurologique, absents du moteur. & Inchangé : plateau de FC à 150, aucun effet toxique.\\
+\bottomrule
+\end{tabularx}
+
+\textbf{Écarts restants ou nouveaux à suivre.}
+\begin{itemize}
+\item \textbf{Furosémide chronique (corrigé dans un second temps).} Adaptation lente ajoutée (W, $\tau$ 12~h placeholder D, $\varphi$ 0,98), calée sur Adin 2020 (lu : stade C, 3,5~mg/kg/j, K 4,50 contre 4,70 ; Cl 106 contre 109) et l'essai TEST (lu : K 4,50 à J84). 2~mg/kg PO toutes les 12~h : K 3,67 à J2, 3,88 à J7, 4,04 à J28 en vallée (base 4,1), au lieu de 2,1. Wong 1977 (résumé, chiens anesthésiés) n'est plus reproduit.
+\item \textbf{Diurèse orale.} Elle est surestimée de 26\,\% (27,9 contre 22,1~mL/kg sur 8~h) ; la pente de Hill est à sa borne (3). L'EC50 plasmatique ajustée (0,24~mg/L) diffère de la demi-réponse de Hirai 1992 (1,5~\textmu g/mL, chiens anesthésiés, résumé).
+\item \textbf{PAM du chien sain sous furosémide.} Elle baisse de 10\,\% à 2~h ; Koh n'a pas mesuré la pression.
+\item \textbf{Maladie du sinus + opioïde massif.} Décès par « spirale non résolue » à $\times 10$ et $\times 100$, mais pas à $\times 30$ : le point fixe de décompensation est fragile.
+\item \textbf{BAV~3 + bêtabloquant.} Le rythme d'échappement (42~/min) reste insensible au blocage bêta.
+\end{itemize}
+
+Contrôles automatiques ajoutés (\cmd{crates/vetsim-core/tests/drug\_corrections.rs}) : K$^+$, Na$^+$ et Cl$^-$ restent physiologiques à 200~mg/kg ; $\Delta$K et $\Delta$Cl dans l'intervalle de Koh ; pas d'hyperréponse en MRC ; FC, PAM et PaCO$_2$ de l'opioïde dans les intervalles publiés, PaCO$_2$ $\leq$ 67 jusqu'à 30~mg/L ; décès sous 40~mmHg ; ralentissement de la FA sous bêtabloquant. Les quatre derniers sont doublés d'un contrôle d'échec (retirer la correction fait échouer le test).
+
+\section{Méthode}
+
+\subsection{Côté modèle}
+\begin{itemize}
+\item \textbf{Moteur.} Rust (\cmd{vetsim-api}, \cmd{Engine::timecourse}), désormais référence normative (section~\ref{sec:gouvernance}). Banc reproductible :
+\begin{Verbatim}
+cargo run --release -p vetsim-api --example drug_matrix > matrice.tsv
+\end{Verbatim}
+\item \textbf{Patient.} Chien de \SI{20}{kg}, sans variabilité interindividuelle (tirages sans bruit), dose unique à $t=0$, états à 0, 5~min, 15~min, 30~min, 1, 2, 4, 8 et 12~h.
+\item \textbf{Doses de référence ($\times 1$).} Furosémide \SI{2}{mg/kg} IV ; pimobendane \SI{0,25}{mg/kg} PO ; atropine \SI{0,04}{mg/kg} IV ; bêtabloquant générique \SI{1}{mg/kg} PO ; opioïde générique \SI{0,3}{mg/kg} IV. Chaque dose est testée à $\times 1$, 3, 10, 30 et 100.
+\item \textbf{Maladies (sévérité $s$).} Sain ; MMVD B2 (0,45), C (0,7), D (0,9) ; MRC IRIS~3 (0,625) ; crise addisonienne (0,85) ; pneumonie sévère (0,8) ; BAV 2\textsuperscript{e} degré (0,5) et 3\textsuperscript{e} degré (0,85) ; maladie du sinus (0,6) ; FA à réponse rapide (0,8) ; ESV fréquentes (0,5). Soit 12 états $\times$ 25 schémas = 312 scénarios.
+\item \textbf{Valeurs de base du chien sain.} FC 87,6 /min ; PAM \SI{109,4}{mmHg} ; DC \SI{3,53}{L/min} ; POG \SI{4,6}{mmHg} ; PaCO$_2$ \SI{40,2}{mmHg} ; K$^+$ \SI{4,1}{mmol/L} ; créatinine \SI{75}{\micro mol/L}.
+\end{itemize}
+
+\textbf{Remarque.} La PAM de base vaut désormais \SI{109,4}{mmHg} (CLI \cmd{eval} et API concordent). \cmd{docs/VERIFICATION\_LITTERATURE.md} indique encore \SI{101,2}{mmHg} : ce document est périmé sur ce point, sans doute depuis la couche de conduction battement par battement. L'écart avec Haskins~2005 (\SI{103}{mmHg}) est de $+6$\,\%.
+
+\subsection{Côté littérature}
+Quatre recherches ont été menées en parallèle par des sous-agents IA de cette session. Ce n'est \emph{pas} une relecture externe. Niveaux d'accès :
+\begin{itemize}
+\item \textbf{lu} : passage lu dans la source ;
+\item \textbf{résumé} : seul le résumé a été lu ;
+\item \textbf{moteur} : extrait renvoyé par le moteur de recherche, page non ouverte.
+\end{itemize}
+
+\textbf{Toutes les valeurs nouvelles de ce document sont de niveau « moteur ».} Europe PMC, PubMed, PMC, Wiley, J-STAGE, FDA et le serveur de vérification des références ont été refusés par le réseau de la session (section~\ref{sec:bloquees}). Les valeurs « lu » viennent de \cmd{VERIFICATION\_LITTERATURE.md} (Koh 2021, Billman 2013). Les DOI n'ont pas été revérifiés dans OpenAlex. Chaque chiffre doit être contrôlé sur le texte avant toute modification d'un module.
+
+Statuts : \ok{} (dans l'intervalle ou le sens publié) ; \ecart{} (hors intervalle ou sens contraire) ; \partiel{} (sens juste, ampleur ou forme fausse) ; \absent{} (effet décrit dans la littérature mais non modélisé) ; \nc{} (conditions différentes).
+
+\section{Furosémide}
+
+\begin{tabularx}{\linewidth}{@{}P{3.4cm}P{4.3cm}LP{1.8cm}@{}}
+\toprule
+Situation & Modèle & Littérature (accès) & Statut\\
+\midrule\endhead
+Sain, \SI{2}{mg/kg} IV : $\Delta$K$^+$ & $-1{,}14$ à 8~h ; $-0{,}97$ à 12~h & $-0{,}33$ à 8~h, nadir $-0{,}51$ à 2~h (Koh 2021, lu) & \ecart{} $\times 3{,}5$\\
+Sain, \SI{2}{mg/kg} IV : Na$^+$ / Cl$^-$ à 12~h & $-7$ / $-13$ mmol/L & Na$^+$ stable ; Cl$^-$ $-4$ à $-6$ (Koh 2021, lu) & \ecart{}\\
+Acide-base & HCO$_3^-$ 23,5 $\rightarrow$ 27 ; pH 7,43 & furosémide parmi les premières causes d'alcalose métabolique hypochlorémique (Ha 2013, moteur) & \ok{} (sens)\\
+MMVD C, \SI{2}{mg/kg} IV : POG & 12,9 $\rightarrow$ 11,7 mmHg ($-9$\,\%) à 3--4~h, rebond à 12,2 à 8~h & IM expérimentale, 1~mg/kg q6h : 15,1 $\rightarrow$ 10,8 ($-29$\,\%) (Suzuki 2013, moteur) ; baisse proportionnelle à la dose 1/2/4 mg/kg (Suzuki 2011, moteur) & \ecart{} (effet $\approx\times 0{,}3$)\\
+MMVD C : PAM & 118 $\rightarrow$ 107 mmHg & « peu changée », RVS augmentées (Suzuki 2011, moteur) & \partiel{}\\
+MMVD D, \SI{4}{mg/kg} IV & POG 19,2 $\rightarrow$ 17,9 ; l'œdème (POG\,>\,18) persiste & ICC aiguë : 2~mg/kg IV répété jusqu'à amélioration respiratoire (ACVIM 2019, moteur) & \ecart{} (pas de levée de l'œdème)\\
+MRC IRIS~3, \SI{2}{mg/kg} IV & C(12~h) \SI{0,343}{mg/L} contre 0,0046 chez le sain ($\times 75$) ; K$^+$ 1,24 ; Na$^+$ 129 ; créatinine 336 $\rightarrow$ 407 & clairance réduite \emph{et} réponse diurétique plus faible (étude japonaise, moteur) ; doses plus élevées nécessaires en néphropathie (MSD, moteur) & \ecart{} (sens contraire)\\
+Crise addisonienne, $\times 1$ & Na$^+$ 131 $\rightarrow$ 124 ; K$^+$ 6,99 $\rightarrow$ 6,02 ; PAM stable & aucune donnée ; prudence si déshydratation ou déséquilibre électrolytique (notices, moteur) & \nc{}\\
+Surdosage $\times 10$ (\SI{20}{mg/kg}) & K$^+$ 1,37 ; Na$^+$ 130 ; Cl$^-$ 79,5 ; PaCO$_2$ 50,7 (faiblesse hypokaliémique) & ototoxicité au-delà de 20~mg/kg IV (MSD, moteur) & \absent{} (ototoxicité)\\
+Surdosage $\times 100$ (\SI{200}{mg/kg}) & \textbf{K$^+$ $-0{,}60$} ; Cl$^-$ 54,9 ; PAM 87,5 ; vivant (sain) & DL50 IV > 300 et > 464 mg/kg ; DL50 PO > 1000 mg/kg (EMA, notice Salix, moteur) ; surdité profonde à 50--100 mg/kg (MSD, moteur) & \ecart{} (impossible)\\
+Pneumonie sévère, $\times 100$ & décès à 8~h (dette d'O$_2$) & aucune donnée & \nc{}\\
+\bottomrule
+\end{tabularx}
+
+\textbf{Mécanismes en cause} (\cmd{modules/drugs/furosemide.json}, placeholders D) :
+\begin{itemize}
+\item $\Delta$K $=-0{,}04\,U$, $\Delta$Cl $=-0{,}5\,U$ et $\Delta$Na $=-0{,}3\,U$ sont linéaires dans la diurèse cumulée $U$ (oubli de 24~h). Rien ne les borne, d'où des concentrations négatives.
+\item La PD est pilotée par la \emph{concentration plasmatique}. Or le furosémide agit depuis la lumière tubulaire, après sécrétion. En MRC, la baisse de clairance fait donc monter $C$ et l'effet, alors que la littérature décrit l'inverse.
+\item Le déficit de volume $D$ agit peu sur la POG du ventricule régurgitant.
+\end{itemize}
+
+\section{Pimobendane}
+
+\begin{tabularx}{\linewidth}{@{}P{3.4cm}P{4.3cm}LP{1.8cm}@{}}
+\toprule
+Situation & Modèle & Littérature (accès) & Statut\\
+\midrule\endhead
+Sain, \SI{0,25}{mg/kg} PO & FC 87,6 $\rightarrow$ 87,0 ; PAM 109 $\rightarrow$ 103 ; DC $+2$\,\% & 0,25~mg/kg q12h 4~semaines : FC inchangée, PAS en baisse progressive (Kanno 2007, moteur) & \ok{}\\
+Sain, IV & non testé (pas de voie IV dans le module) & 0,15~mg/kg IV : DC, FC et PAS en hausse ; RVS et PCWP en baisse (Pichayapaiboon 2021, moteur) & \nc{}\\
+MMVD C, \SI{0,25}{mg/kg} PO : POG & 12,9 $\rightarrow$ 12,8 mmHg ; DC $+5$\,\% & IM expérimentale : 15,8 $\rightarrow$ 12,7 (0,25~mg/kg q12h) et 10,8 (0,5~mg/kg q12h) (Suzuki 2011, moteur) & \ecart{} (dose unique contre traitement, en partie \nc{})\\
+MMVD C, $\times 10$ (\SI{2,5}{mg/kg}) & POG 13,5 (\emph{hausse}) ; FC 132 ; PAM 103 & contractilité maximale dès 0,5~mg/kg, pas de gain à 1~mg/kg (dossier FDA, moteur) & \partiel{}\\
+Surdosage, sain, $\times 10$ (\SI{2,5}{mg/kg}) & FC 102 ; PAM 92 & 7 chiens à 2,6--21,3~mg/kg : tachycardie sévère 4/7, hypotension 2/7, \emph{hypertension} 2/7, asymptomatiques 2/7 ; tous sortis en moins de 24~h (Reinker 2012, moteur) & \ok{}\\
+Surdosage, sain, $\times 30$ (\SI{7,5}{mg/kg}) & FC 180 ; PAM 65 ; vivant & idem & \ok{} (sens)\\
+Surdosage, sain, $\times 100$ (\SI{25}{mg/kg}) & FC 196 ; PAM 53 ; ischémie coronaire ; créatinine 204 en 1~h & idem (dose maximale 21,3~mg/kg) & \partiel{} (hypertension impossible)\\
+MMVD C, $\times 30$ & FC 205 ; PAM 62 ; POG 20,2 (œdème) & Shih Tzu MMVD, 8,24~mg/kg : tachycardie, \emph{hypertension}, SAM mitral transitoire (Tokuriki 2015, moteur) & \partiel{}\\
+Crise addisonienne, $\times 100$ & PAM \textbf{24 mmHg}, patient « vivant » & sans objet & \ecart{} (viabilité)\\
+\bottomrule
+\end{tabularx}
+
+\textbf{Point déjà connu.} T$_{\max}$ du modèle 0,95~h contre 2,1~h (Her 2020, lu).
+
+\textbf{Interprétation.} Le terme toxique « vasodilatation » (EC50 toxique = $10\times$ EC50 thérapeutique, placeholder D) donne la bonne direction pour l'hypotension. Le modèle ne peut pas produire l'hypertension observée, qui suppose une réponse inotrope et chronotrope exagérée avec maintien des résistances. L'effet sur la POG en MMVD est trop faible : l'inotropisme ($+35$\,\% d'E$_\text{es}$ à E\,=\,1) ne réduit presque pas le volume régurgité.
+
+\section{Atropine}
+
+\begin{tabularx}{\linewidth}{@{}P{3.4cm}P{4.3cm}LP{1.8cm}@{}}
+\toprule
+Situation & Modèle & Littérature (accès) & Statut\\
+\midrule\endhead
+Sain, \SI{0,04}{mg/kg} IV : pic & FC 87,6 $\rightarrow$ 150 à 5~min & FC > 135 chez 5/6 chiens vigiles à 0,04~mg/kg contre 1/6 à 0,02~mg/kg (Rishniw 1999, moteur) ; 113 $\rightarrow$ 190 (Billman 2013, lu) & \ok{}\\
+Sain : durée & 144 à 1~h, 136 à 2~h, 124 à 4~h, 104 à 8~h & t$\frac12$ plasmatique 28--52~min (voie endotrachéale ou IM, moteur) ; durée d'effet IV non trouvée & à vérifier\\
+Dose-réponse $\times 3$ à $\times 100$ & FC 151--152 : plateau ; aucun autre effet jusqu'à 4~mg/kg & signes de surdosage : excitation du SNC, tachycardie, hyperthermie, iléus (MSD, ASPCA, moteur) ; LDLo IV 60~mg/kg (compilation, moteur) & \absent{} (toxicité)\\
+Bradycardie paradoxale & absente & aggravation transitoire de la bradycardie dans 62\,\% des essais ; BAV 2\textsuperscript{e} degré transitoire chez 100\,\% des chiens en IV (Rishniw 1996, moteur) & \absent{}\\
+Maladie du sinus légère ($s$ = 0,25) / modérée (0,6) / sévère (0,85) & 75 $\rightarrow$ 124 / 61 $\rightarrow$ 83 / 53 $\rightarrow$ 72 & réponse positive (FC $\geq$ 135--140 ou $+50$ à $100$\,\%) ; 22\,\% de non-répondeurs, surtout en maladie du sinus (Ward 2016, moteur) & \partiel{} (aucun stade n'atteint 135)\\
+BAV 2\textsuperscript{e} degré ($s$ = 0,5) & 55 $\rightarrow$ 79 & proportions Mobitz I / II non trouvées & \nc{}\\
+BAV 3\textsuperscript{e} degré & 42 $\rightarrow$ 42 & « la plupart » non répondeurs (IDEXX, moteur) ; Schrope 2006 (n = 124), pourcentage non obtenu & \ok{}\\
+Crise addisonienne (K$^+$ 6,99) & FC de base 138 (pas de bradycardie) ; 178 sous atropine & BAV 3\textsuperscript{e} degré à 40/min sans réponse à l'atropine, corrigé avec K$^+$ (cas, moteur) & \nc{} (le cas n'est pas reproduit à $s$ = 0,85)\\
+FA rapide & 153 $\rightarrow$ 207 & non cherché & \nc{}\\
+\bottomrule
+\end{tabularx}
+
+\section{Bêtabloquant générique (PK de type aténolol)}
+
+\begin{tabularx}{\linewidth}{@{}P{3.4cm}P{4.3cm}LP{1.8cm}@{}}
+\toprule
+Situation & Modèle & Littérature (accès) & Statut\\
+\midrule\endhead
+Sain, \SI{1}{mg/kg} PO & FC 87,6 $\rightarrow$ 81,6 ($-7$\,\%) ; PAM 109 $\rightarrow$ 102 ; C$_{\max}$ à 2~h & aténolol 1~mg/kg q24h : effet faible mais significatif sur la FC de repos ; sous isoprotérénol 208 $\rightarrow$ 146 à 3~h (Waterman 2019, moteur) ; T$_{\max}$ 1--2~h, t$\frac12$ 3,2--7~h (moteur) & \ok{}\\
+MRC IRIS~3, \SI{1}{mg/kg} & C(24~h) 0,159 contre 0,042~mg/L chez le sain ($\times 3{,}8$) & élimination rénale ; accumulation chiffrée non trouvée & \ok{} (sens)\\
+FA rapide, $\times 1$ à $\times 100$ & \textbf{FC ventriculaire 153 inchangée} & objectif FC moyenne $\leq$ 125 ; digoxine 164, diltiazem 158, association 126 contre 194 au départ (Gelzer 2009, moteur ; sans bêtabloquant) ; effet chiffré du bêtabloquant non trouvé & \ecart{} (mécanisme absent)\\
+MMVD C / D, $\times 10$ & POG 12,9 $\rightarrow$ 8,8 / 19,2 $\rightarrow$ 11,5 (\emph{baisse}) ; DC $-55$\,\% & à éviter en ICC décompensée (avis d'experts, moteur) ; carvédilol en MMVD chronique bien toléré (Marcondes-Santos 2015, moteur) & \ecart{} probable (sens)\\
+BAV 3\textsuperscript{e} degré & FC d'échappement 42 inchangée à toutes doses & non trouvé & \absent{} probable\\
+Surdosage, sain, $\times 10$ / $\times 30$ & FC 45 / 40 ; PAM 77 / 71 ; DC 1,9 / 1,7 & signes : bradycardie, hypotension, troubles de conscience, convulsions ; doses non chiffrées (ACVP, moteur) & \ok{} (sens)\\
+Surdosage, $\times 100$ & décès à 2~h (sain, pneumonie : cercle vicieux ; Addison : 15~min, effondrement circulatoire) ; MMVD C survit & propranolol 10~mg/kg IV : baisse de FC, PAM, dP/dt et QRS élargi (Love 2000, moteur) & \nc{}\\
+Hypoglycémie & non modélisée & signalée sans chiffre & \absent{}\\
+\bottomrule
+\end{tabularx}
+
+\textbf{Incohérence de conception.} Le terme toxique « cardiodépression » est justifié par la stabilisation de membrane, propriété du propranolol. Or la PK du module (excrétion rénale 90\,\%) est celle de l'aténolol, qui n'a pas cet effet. Il faut choisir l'un des deux profils.
+
+\section{Opioïde générique (PK de type méthadone)}
+
+La PK du module ($V_c + V_p = \SI{7}{L/kg}$, $Cl = \SI{25}{mL/min/kg}$) correspond à la méthadone chez le beagle : $V_d$ 9,2~L/kg, $Cl$ 27,9~mL/min/kg, t$\frac12$ 3,9~h (Ingvast-Larsson 2010, moteur). Elle ne correspond pas à la morphine ($V_d$ 3,6~L/kg).
+
+\begin{tabularx}{\linewidth}{@{}P{3.4cm}P{4.3cm}LP{1.8cm}@{}}
+\toprule
+Situation & Modèle & Littérature (accès) & Statut\\
+\midrule\endhead
+Sain, \SI{0,3}{mg/kg} IV : FC & 87,6 $\rightarrow$ 52 ($-40$\,\%) & méthadone 0,5~mg/kg IV : $-19$ à $-28$\,\% ; 1~mg/kg : $-32$ à $-46$\,\% (Maiante 2009, moteur) & \ecart{} (trop fort à faible dose)\\
+Sain, \SI{1}{mg/kg} IV : FC & 54--56 ($-36$ à $-42$\,\%) & $-32$ à $-46$\,\% (idem) & \ok{}\\
+Sain, \SI{0,3}{mg/kg} : gaz & PaCO$_2$ 50,7 ; pH 7,29 ; PaO$_2$ 86 & hydromorphone 0,2~mg/kg SC : PaCO$_2$ max 44,4, pH min 7,31, PaO$_2$ min 82 (Smith 2010, moteur) & \partiel{}\\
+Sain, \SI{1}{mg/kg} : gaz & \textbf{PaCO$_2$ 84,7} ; pH 7,09 ; PaO$_2$ 46 & méthadone 1~mg/kg : PaCO$_2$ sans changement significatif ; PaO$_2$ $-12$ à $-13$\,\% (Maiante 2009, moteur) & \ecart{} majeur\\
+Sain, \SI{0,3}{mg/kg} : PAM & 109 $\rightarrow$ 75 ($-31$\,\%) & index cardiaque $-24$ à $-52$\,\% à 1~mg/kg (Maiante 2009, moteur) ; PA non obtenue & à vérifier\\
+Fréquence respiratoire & 23 $\rightarrow$ 20,5 & halètement sans hausse de PaCO$_2$ (revue 2023, moteur) & \partiel{}\\
+Surdosage $\geq$ \SI{3}{mg/kg} ($\times 10$) & \textbf{décès immédiat} (dette d'O$_2$) dans les 12 états & fentanyl 125 à 3000~$\mu$g/kg IV chez le chien vigile : pas d'apnée, PaCO$_2$ $\leq$ 67, tous survivants (Anesth Analg 1987, n = 86, moteur) ; l'apnée est surtout décrite sous anesthésie halogénée (moteur) & \ecart{} majeur\\
+Pneumonie sévère & $\times 1$ : PaO$_2$ 50 $\rightarrow$ 42 ; $\times 3$ : décès & aucune donnée canine chiffrée & \nc{}\\
+\bottomrule
+\end{tabularx}
+
+\textbf{Mécanismes en cause.}
+\begin{itemize}
+\item L'effet thérapeutique réduit \cmd{vent\_drive} de 55\,\% à E\,=\,1. Avec une EC50 de 0,015~mg/L, E vaut déjà 0,9 à \SI{0,3}{mg/kg}.
+\item Le terme toxique (EC50 0,15~mg/L, Hill 3, $-99$\,\%) est un placeholder D. Il est contredit par la littérature chez le chien vigile.
+\end{itemize}
+
+\section{Défauts transversaux du moteur}
+
+\begin{enumerate}
+\item \textbf{Créatinine algébrique} (\cmd{engine.rs}, \cmd{creat = creat0 / gfr\_ratio} ; urée de même). La créatinine suit le DFG du moment, sans cinétique d'accumulation. Exemples : opioïde \SI{0,3}{mg/kg}, 75 $\rightarrow$ \SI{152}{\micro mol/L} en 5~min ; bêtabloquant $\times 10$, \SI{300}{\micro mol/L} en 2~h ; MRC\,+\,bêtabloquant, \SI{1340}{\micro mol/L} en 4~h. Le signe émergent « azotémie (\,$\geq$ IRIS~2) » s'allume donc à tort. Ce modèle est correct en régime permanent (MRC), faux en aigu.
+\item \textbf{Électrolytes non bornés} : K$^+$ négatif sous furosémide (voir plus haut).
+\item \textbf{Viabilité sans critère de pression} : patient vivant à PAM 24, 29 et \SI{42}{mmHg} (Addison, BAV~3 et BAV~2 avec pimobendane $\times 100$). Les seuls critères sont la FC, le DC, la dette d'O$_2$ et la convergence.
+\item \textbf{Conduction AV indépendante du sympathique} (\cmd{rhythm.rs::av\_constants} : tonus vagal et K$^+$ seulement). Conséquences : le bêtabloquant n'agit pas sur la réponse ventriculaire de la FA ni sur un échappement, et le tonus sympathique ne raccourcit pas le PR.
+\item \textbf{Toxicités uniformes} : les trois termes toxiques ont la même forme (EC50 $\times 10$, Hill 3), sans source. Atropine et furosémide n'en ont pas (hyperthermie, SNC, ototoxicité absents).
+\item \textbf{Effets de dose unique seulement} pour le pimobendane : les études (Suzuki 2011, Kanno 2007, EPIC) portent sur des traitements de plusieurs jours. Le banc devrait aussi tester des schémas répétés.
+\end{enumerate}
+
+\section{Corrections proposées (à arbitrer)}\label{sec:corrections}
+
+Par ordre de priorité. Aucune n'est appliquée. Toutes touchent \cmd{modules/} ou le moteur et demandent l'accord de l'utilisateur et des sources lues.
+
+\begin{enumerate}
+\item \textbf{Bornes physiologiques des pertes du furosémide.} Pertes saturantes, par exemple proportionnelles à la concentration restante. Mieux : bilan urinaire (excrétion fractionnelle) dans le futur modèle rénal. Dans tous les cas, contrôle d'échec : « K$^+$ > 0 pour toute dose ».
+\item \textbf{Opioïde.} Recaler l'effet respiratoire du chien vigile (PaCO$_2$ quasi inchangée à 1~mg/kg) et la bradycardie à faible dose. Supprimer ou fortement relever le terme d'apnée, ou ne l'activer qu'avec un état « anesthésié », qui n'existe pas encore.
+\item \textbf{Créatinine et urée cinétiques} dans \cmd{timecourse} : état intégré avec production constante et clairance = DFG. Le régime permanent (CLI \cmd{eval}, golden) reste inchangé.
+\item \textbf{Critère de décès sur la PAM}, ou sur la pression de perfusion coronaire et cérébrale, avec seuil sourcé.
+\item \textbf{Furosémide tubulaire} : effet piloté par l'excrétion urinaire du médicament ($\propto$ DFG $\times$ C) plutôt que par C plasmatique. L'hyperréponse en MRC devient alors une résistance.
+\item \textbf{Effet dromotrope du sympathique} sur le nœud AV (ERP et AH), pour la FA sous bêtabloquant.
+\item \textbf{POG en MMVD} sous furosémide et pimobendane : revoir le couplage volume -- remplissage -- fraction régurgitée, sur Suzuki 2011 et 2013 lus en texte intégral.
+\item \textbf{Bêtabloquant} : choisir le profil aténolol (sans stabilisation de membrane) ou propranolol, et sourcer le terme toxique.
+\item \textbf{Toxicité de l'atropine} : hyperthermie, iléus et SNC, si la pédagogie le demande.
+\end{enumerate}
+
+\section{Gouvernance : Python devient secondaire}\label{sec:gouvernance}
+
+Décision du 18/11/2026 : le moteur Rust (\cmd{crates/vetsim-core}) est la référence normative. Le Python de \cmd{reference/python/} devient une implémentation \emph{secondaire} de contre-vérification. Fichiers mis à jour :
+\begin{itemize}
+\item \cmd{CLAUDE.md}, \cmd{README.md}, \cmd{PROMPT.md}, \cmd{reference/python/README.md} ;
+\item \cmd{docs/MODEL\_SPEC.md}, \cmd{docs/ARCHITECTURE.md}, \cmd{docs/AUSCULTATION.md} ;
+\item commentaires d'en-tête des générateurs de fixtures et de \cmd{pcg.rs}, \cmd{rhythm.py} et \cmd{check\_modules.rs} ;
+\item intitulés de la CI. Le job \cmd{python-reference} est renommé \cmd{python-secondary}.
+\end{itemize}
+
+Règles et comportement de la CI :
+\begin{itemize}
+\item Toute nouveauté s'écrit d'abord en Rust. En cas d'écart Rust/Python, l'écart est analysé, puis le Python est mis à jour ou l'écart est documenté.
+\item Les contre-vérifications Python restent \emph{bloquantes} en CI : un écart reste un signal utile. On peut les rendre non bloquantes (\cmd{continue-on-error}) sur simple demande.
+\item Les documents historiques (journal, propositions, vérifications du 17/11) ne sont pas réécrits.
+\end{itemize}
+
+Deux défauts préexistants ont été corrigés au passage :
+\begin{enumerate}
+\item \cmd{.github/workflows/ci.yml} n'était pas du YAML valide : l'intitulé « Couche de conduction : comportements\ldots » contenait « : » sans guillemets. GitHub refuse un tel fichier, donc la CI ne tournait probablement pas.
+\item Clippy 1.97 refusait \cmd{ode.rs} (\cmd{needless\_range\_loop}). La boucle est réécrite en itérateur, avec le même ordre de sommation : les résultats sont identiques au bit près.
+\end{enumerate}
+
+\section{Sources bloquées et non lues}\label{sec:bloquees}
+Une source bloquée n'est pas une preuve d'absence.
+\begin{itemize}
+\item \textbf{Refusés par le réseau de la session :} www.ebi.ac.uk (Europe PMC), pubmed.ncbi.nlm.nih.gov, pmc.ncbi.nlm.nih.gov, onlinelibrary.wiley.com, jstage.jst.go.jp, animaldrugsatfda.fda.gov, kglmeridian (JAAHA), idexx.com, frontiersin.org, vtechworks.lib.vt.edu, ainsi que le serveur de vérification des références. Les hôtes à autoriser en priorité sont les quatre premiers.
+\item \textbf{À lire en priorité :}
+\begin{itemize}
+\item Suzuki 2011 et 2013 (POG sous furosémide et pimobendane) ;
+\item Maiante 2009 (méthadone) ;
+\item Reinker 2012 (surdosage de pimobendane) ;
+\item Rishniw 1996 et 1999 (atropine) ;
+\item Ward 2016 (maladie du sinus) ;
+\item Anesth Analg 1987 (fentanyl, auteurs à confirmer) ;
+\item Waterman 2019 (aténolol).
+\end{itemize}
+\item \textbf{Non trouvés :} effet chiffré d'un bêtabloquant sur la réponse ventriculaire de la FA chez le chien ; intoxications canines chiffrées par aténolol ; aggravation de l'hypoxémie par un opioïde en pneumonie ; durée d'effet de l'atropine IV.
+\end{itemize}
+
+\section*{Références (niveau « moteur » sauf mention ; DOI non revérifiés)}
+\small
+\begin{itemize}
+\item Keene BW et al. ACVIM consensus guidelines for MMVD in dogs. J Vet Intern Med 2019;33:1127--1140. doi:10.1111/jvim.15488
+\item Koh SK et al. BMC Vet Res 2021;17:295. doi:10.1186/s12917-021-02998-4 (\textbf{lu})
+\item Suzuki S et al. J Vet Intern Med 2011;25:244--250. doi:10.1111/j.1939-1676.2010.0672.x (furosémide)
+\item Suzuki S et al. J Vet Intern Med 2013. doi:10.1111/jvim.12154 (furosémide, POG)
+\item Suzuki S et al. J Vet Intern Med 2011;25(6):1328--1333. doi:10.1111/j.1939-1676.2011.00800.x (pimobendane)
+\item Ha YS et al. J Vet Intern Med 2013. doi:10.1111/jvim.12122 (premier auteur à vérifier)
+\item Kanno N et al. J Vet Med Sci 2007;69(4):373--377
+\item Pichayapaiboon P et al. Front Vet Sci 2021. doi:10.3389/fvets.2021.656902
+\item Reinker LN, Lee JA, Hovda LR, Rishniw M. J Am Anim Hosp Assoc 2012;48(4):250--255
+\item Tokuriki T, Miyagawa Y, Takemura N. Adv Anim Cardiol 2015;48(1):21--28
+\item Her J et al. Front Vet Sci 2020;7:423. doi:10.3389/fvets.2020.00423 (\textbf{lu})
+\item Rishniw M, Tobias AH, Slinker BK. Am J Vet Res 1996;57(3):337--341
+\item Rishniw M, Kittleson MD, Jaffe RS, Kass PH. Am J Vet Res 1999;60(8):1000--1003
+\item Billman GE. Front Physiol 2013;4:222. doi:10.3389/fphys.2013.00222 (\textbf{lu})
+\item Ward JL et al. J Vet Cardiol 2016;18:199--212. doi:10.1016/j.jvc.2016.04.004
+\item Schrope DP, Kelch WJ. J Am Vet Med Assoc 2006;228(11):1710--1717. doi:10.2460/javma.228.11.1710
+\item Waterman et al. Am J Vet Res 2019 (PMID 30801219)
+\item Love JN et al. J Toxicol Clin Toxicol 2000;38:421--428. doi:10.1081/CLT-100100952
+\item Gelzer ARM et al. J Vet Intern Med 2009;23:499--508. doi:10.1111/j.1939-1676.2009.0301.x
+\item Marcondes-Santos M et al. Braz J Med Biol Res 2015. doi:10.1590/1414-431x20154568
+\item Ingvast-Larsson C et al. J Vet Pharmacol Ther 2010 (PMID 20017819)
+\item Maiante AA et al. J Vet Pharmacol Ther 2009;32:317--328
+\item Smith et al. Res Vet Sci, vers 2010 (hydromorphone SC, PMC4235959)
+\item « Is fentanyl an anesthetic in the dog? » Anesth Analg 1987;66:542--548. doi:10.1213/00000539-198706000-00010 (auteurs à confirmer)
+\end{itemize}
+
+\end{document}

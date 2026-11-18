@@ -107,11 +107,13 @@ class ScreenshotTest {
     @Test
     fun renderOverdoseDeath() {
         val c = DemoController()
-        val inputs = DemoInputs()
-        val plan = TreatmentPlan(listOf(Regimen("opioide", 20.0, "iv", 24.0, 1, startH = 2.0)), horizonH = 24.0)
+        // Depuis le 18/11/2026, l'opioïde seul ne tue plus le chien vigile (Bailey 1987) :
+        // surdosage de pimobendane en crise addisonienne, choc irréversible (PAM < 40 mmHg).
+        val inputs = DemoInputs(diseaseId = "addison", stage = "crise")
+        val plan = TreatmentPlan(listOf(Regimen("pimobendan", 20.0, "iv", 24.0, 1, startH = 2.0)), horizonH = 24.0)
         val r = c.treatment(inputs, plan)
-        val death = assertNotNull(r.death, "surdosage d'opioïde : décès attendu")
-        assertEquals("oxygen_debt", death.cause)
+        val death = assertNotNull(r.death, "surdosage de pimobendane en crise addisonienne : décès attendu")
+        assertEquals("irreversible_shock", death.cause)
         // décès absorbant : plus aucun instant « vivant » après le décès
         val i = r.stateT.indexOfFirst { it >= death.tH }
         assertTrue(r.outcomes.drop(i).all { it == "dead" })
@@ -120,7 +122,7 @@ class ScreenshotTest {
         val ex = c.evaluate(inputs.copy(plan = plan, atH = 12.0, death = death))
         assertTrue(ex.outcome.dead)
         assertTrue(ex.ecg.isEmpty())
-        capture("deces_opioide", inputs.copy(plan = plan, atH = 12.0, death = death), tab = 0)
+        capture("deces_surdosage", inputs.copy(plan = plan, atH = 12.0, death = death), tab = 0)
     }
 
     @Test

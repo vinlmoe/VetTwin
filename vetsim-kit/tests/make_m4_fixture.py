@@ -1,4 +1,4 @@
-"""Génère la fixture de référence du jalon M4 (PK/PD) depuis le Python normatif.
+"""Génère la fixture de référence du jalon M4 (PK/PD) depuis le Python secondaire (contre-vérification).
 Exécuter depuis la racine du kit :  python tests/make_m4_fixture.py
 Sortie : crates/vetsim-core/tests/fixtures/python_reference_m4.json
  - effects : pkpd.apply_drug_effects(p, conc, D, U) (algébrique) pour des concentrations autour de l'EC50,

@@ -206,6 +206,24 @@
        }
       }
      }
+    },
+    "drive": {
+     "enum": [
+      "plasma",
+      "urinary_excretion"
+     ],
+     "description": "Diurétique : grandeur qui pilote l'effet. « plasma » (défaut) : concentration plasmatique ; « urinary_excretion » : concentration × masse néphronique, proportionnelle au débit d'excrétion urinaire du médicament (site d'action tubulaire luminal)."
+    },
+    "adapt_tau_h": {
+     "type": "number",
+     "exclusiveMinimum": 0,
+     "description": "Diurétique : constante de temps (h) de l'adaptation électrolytique (compensation rénale et alimentaire)."
+    },
+    "adapt_frac": {
+     "type": "number",
+     "minimum": 0,
+     "maximum": 1,
+     "description": "Diurétique : fraction φ de la diurèse effective compensée à l'équilibre ; les effets reçoivent U − φ·W."
     }
    }
   },

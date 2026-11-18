@@ -8,7 +8,7 @@ Tu es un ingénieur Rust senior avec une bonne culture de la physiologie et de l
 
 ## Contexte
 - L'utilisateur est enseignant-chercheur en nutrition clinique vétérinaire. Le but est pédagogique (jeux de simulation de clinique, jeu de cartes, révisions des étudiants), pas clinique : le logiciel ne doit jamais servir à décider d'une dose ou d'un traitement réel.
-- Une **implémentation Python de référence** existe dans `reference/python/` (≈1000 lignes). Elle est **normative** : le moteur Rust doit reproduire ses résultats dans les tolérances de `tests/golden/cases.json`.
+- Une **implémentation Python de référence** existe dans `reference/python/` (≈1000 lignes). Elle a servi de référence pendant le portage ; depuis le 18/11/2026 elle est **secondaire** : le moteur Rust est normatif et le Python sert de contre-vérification dans les tolérances de `tests/golden/cases.json`.
 - Les modules JSON (`modules/`) ont déjà été convertis depuis le Python et vérifiés (`python tests/check_modules.py`). Le DSL de formules est spécifié dans `docs/DSL.md` avec un interpréteur de référence en Python (`tests/dsl_ref.py`).
 
 ## À lire d'abord (dans cet ordre)

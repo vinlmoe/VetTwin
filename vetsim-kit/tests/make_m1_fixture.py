@@ -1,4 +1,4 @@
-"""Génère la fixture de référence du jalon M1 à partir du Python normatif.
+"""Génère la fixture de référence du jalon M1 à partir du Python secondaire (contre-vérification).
 Exécuter depuis la racine du kit :  python tests/make_m1_fixture.py
 Sortie : crates/vetsim-core/tests/fixtures/python_reference.json (consommée par les tests Rust).
 

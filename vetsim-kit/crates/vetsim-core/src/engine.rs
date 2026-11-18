@@ -325,9 +325,40 @@ type RhythmHemo = (
     Vec<crate::hemo::BeatMetrics>,
 );
 
-/// Hémodynamique d'une passe : périodique si la conduction est sinusale 1:1 à PR constant (PR de
-/// la conduction), sinon battement par battement (miroir de `physio._hemo_with_rhythm`).
-fn hemo_with_rhythm(q: &Params, v_eff: f64, n_beats: usize) -> Result<RhythmHemo, Error> {
+/// Fuite sous laquelle l'orifice dynamique est ignoré (chien sain : `g_mr` 0,0005 mL/s/mmHg).
+const MR_DYN_MIN_G: f64 = 0.05;
+/// Itérations au plus du point fixe de l'orifice dynamique.
+const MR_DYN_MAX_ITER: usize = 12;
+
+/// Hémodynamique d'une passe avec orifice mitral dynamique (Yoran 1979 : l'orifice effectif
+/// grandit avec le VG). L'orifice est fixe pendant le battement et suit la taille du VG :
+/// `g = g_mr·(VTD/mr_vref)^mr_k`, point fixe amorti sur ln g (relaxation ½, tolérance 1e-3).
+/// Renvoie aussi la conductance retenue (`g_mr` si l'orifice est fixe).
+fn hemo_with_rhythm(q: &Params, v_eff: f64, n_beats: usize) -> Result<(RhythmHemo, f64), Error> {
+    if q.mr_k == 0.0 || q.g_mr < MR_DYN_MIN_G {
+        return Ok((hemo_with_rhythm_static(q, v_eff, n_beats)?, q.g_mr));
+    }
+    let mut qq = q.clone();
+    let mut lg = 0.0; // ln(g/g_mr)
+    let mut out = None;
+    for _ in 0..MR_DYN_MAX_ITER {
+        qq.g_mr = q.g_mr * math::exp(lg);
+        let r = hemo_with_rhythm_static(&qq, v_eff, n_beats)?;
+        let target = q.mr_k * math::ln(f64::max(r.0.summary.edv, 1e-6) / q.mr_vref);
+        let done = (target - lg).abs() < 1e-3;
+        out = Some(r);
+        if done {
+            break;
+        }
+        lg = 0.5 * lg + 0.5 * target;
+    }
+    Ok((out.expect("au moins une itération"), qq.g_mr))
+}
+
+/// Hémodynamique d'une passe à orifice fixe : périodique si la conduction est sinusale 1:1 à PR
+/// constant (PR de la conduction), sinon battement par battement (miroir de
+/// `physio._hemo_with_rhythm`).
+fn hemo_with_rhythm_static(q: &Params, v_eff: f64, n_beats: usize) -> Result<RhythmHemo, Error> {
     use crate::hemo::{simulate_hemo_beats, simulate_hemo_pr};
     use crate::rhythm::{is_trivial, simulate_conduction, steady_pr};
     if !(q.hr.is_finite() && q.hr > 0.0) {
@@ -379,9 +410,16 @@ fn evaluate_once(base: &Params) -> Result<Evaluation, Error> {
         q.hr = base.hr * hr_factor(s_eff, v_eff, base) / hr_factor(S_REF, V_REF, base);
         q.ees_lv = base.ees_lv * (1.0 + 0.4 * (s_eff - base.s0));
         q.ees_rv = base.ees_rv * (1.0 + 0.4 * (s_eff - base.s0));
+        // Effet dromotrope du sympathique (bloquable par les bêtabloquants) : ERP et AH nodaux.
+        let symp = f64::max(0.1, 1.0 - base.av_symp * (s_eff - S_REF));
+        q.av_erp = base.av_erp * symp;
+        q.pr = base.hv + (base.pr - base.hv) * symp;
         q.r_sys = base.r_sys * (1.0 + 0.5 * (s_tot - base.s0));
         q.vol_shift = base.vol_shift + 0.20 * 85.0 * base.bw * (s_tot - base.s0);
-        let (h, cond, beats) = hemo_with_rhythm(&q, v_eff, N_BEATS)?;
+        let ((h, cond, beats), g_eff) = hemo_with_rhythm(&q, v_eff, N_BEATS)?;
+        // orifice retenu : les recalculs en aval (signaux, son) le réutilisent tel quel
+        q.g_mr = g_eff;
+        q.mr_k = 0.0;
         let d_t = (base.baro_gain * (base.map_set - h.summary.map) / 45.0).clamp(-1.0, 1.0);
         let done = (d_t - d).abs() < BARO_TOL;
         last = Some((q, h, s_tot, v_tot, s_eff, v_eff, cond, beats));
@@ -483,7 +521,8 @@ fn is_physiological_failure(e: &Error) -> bool {
 /// résultat identique à la passe simple.
 ///
 /// Renvoie [`Error::NonViable`] si la pompe s'arrête (FC < `hr_arrest`), si la circulation
-/// s'effondre (DC < `co_arrest_frac` × DC de référence), si VO2 dépasse DO2 (`er ≥ 1`), si
+/// s'effondre (DC < `co_arrest_frac` × DC de référence), si la PAM est sous `map_arrest`
+/// (choc irréversible), si VO2 dépasse DO2 (`er ≥ 1`), si
 /// aucun état stationnaire n'existe ou si la spirale ne converge pas en 30 passes.
 pub fn evaluate(p0: &Params) -> Result<Evaluation, Error> {
     let co_ref = 3.29 * math::pow(p0.bw / 20.0, 0.75);
@@ -513,6 +552,8 @@ pub fn evaluate(p0: &Params) -> Result<Evaluation, Error> {
             Some("cardiac_arrest")
         } else if e.hemo.summary.co < p0.co_arrest_frac * co_ref {
             Some("circulatory_collapse")
+        } else if e.hemo.summary.map < p0.map_arrest {
+            Some("irreversible_shock")
         } else if e.metabolic.er >= 1.0 {
             Some("oxygen_debt")
         } else {

@@ -28,78 +28,78 @@ Généré par `tests/pcg_acceptance.py` ; mesures par `reference/python/pcg_metr
 
 | Cas | Métrique | Cible | Obtenu (médiane de 300 graines) | Référence Python | Statut |
 |---|---|---|---|---|---|
-| sain FC 72 | Centroïde spectral (Hz) | 90 ± 15 | 88.957 | 88.903 | OK |
+| sain FC 72 | Centroïde spectral (Hz) | 90 ± 15 | 89.023 | 88.896 | OK |
 | sain FC 72 | Énergie 20–50 Hz | ≤ 8 % | 4.9 % | 4.9 % | OK |
-| sain FC 72 | Énergie 50–100 Hz | 60–75 % | 66.1 % | 65.8 % | OK |
+| sain FC 72 | Énergie 50–100 Hz | 60–75 % | 65.9 % | 65.8 % | OK |
 | sain FC 72 | Énergie 100–200 Hz | 20–35 % | 28.6 % | 28.8 % | OK |
 | sain FC 72 | Énergie 200–400 Hz | ≤ 5 % (> 200 Hz) | 0.4 % | 0.4 % | OK |
 | sain FC 72 | B2 > B1 (part des paires) | ≥ 80 % | 1.000 | 1.000 | OK |
-| sain FC 72 | Rapport B2/B1 médian | 1,5–2,3 | 1.878 | 1.902 | OK |
-| sain FC 72 | Diastole / systole | > 1,8 | 1.774 | 1.803 | à la limite du seuil (Rust équivalent à la référence, de part et d'autre) |
-| sain FC 72 | Informations |  | paires B1/B2 par graine : médiane 5, graines sans paire 0 ; FC 71.2/min, SD RR 187 ms, grade [0], souffle ['aucun'], B3 [False], écrêtage 300, finis True, échantillons [32000] |  |  |
-| sain FC 90 | Centroïde spectral (Hz) | 90 ± 15 | 88.016 | 87.960 | OK |
-| sain FC 90 | Énergie 20–50 Hz | ≤ 8 % | 5.1 % | 5.1 % | OK |
-| sain FC 90 | Énergie 50–100 Hz | 60–75 % | 66.8 % | 66.6 % | OK |
-| sain FC 90 | Énergie 100–200 Hz | 20–35 % | 27.6 % | 27.9 % | OK |
+| sain FC 72 | Rapport B2/B1 médian | 1,5–2,3 | 1.866 | 1.923 | OK |
+| sain FC 72 | Diastole / systole | > 1,8 | 1.784 | 1.801 | à la limite du seuil (Rust équivalent à la référence, de part et d'autre) |
+| sain FC 72 | Informations |  | paires B1/B2 par graine : médiane 5, graines sans paire 0 ; FC 71.1/min, SD RR 188 ms, grade [0], souffle ['aucun'], B3 [False], écrêtage 302, finis True, échantillons [32000] |  |  |
+| sain FC 90 | Centroïde spectral (Hz) | 90 ± 15 | 88.039 | 88.011 | OK |
+| sain FC 90 | Énergie 20–50 Hz | ≤ 8 % | 5.2 % | 5.1 % | OK |
+| sain FC 90 | Énergie 50–100 Hz | 60–75 % | 66.6 % | 66.9 % | OK |
+| sain FC 90 | Énergie 100–200 Hz | 20–35 % | 27.9 % | 27.5 % | OK |
 | sain FC 90 | Énergie 200–400 Hz | ≤ 5 % (> 200 Hz) | 0.4 % | 0.4 % | OK |
-| sain FC 90 | B2 > B1 (part des paires) | ≥ 80 % | 85.7 % | 85.7 % | OK |
-| sain FC 90 | Rapport B2/B1 médian | 1,5–2,3 | 1.608 | 1.604 | OK |
-| sain FC 90 | B1→B2 médian (s), FC 90 | 0,15–0,25 | 0.258 | 0.259 | écart connu (référence) |
-| sain FC 90 | Diastole / systole | > 1,8 | 1.328 | 1.306 | écart connu (référence) |
-| sain FC 90 | Informations |  | paires B1/B2 par graine : médiane 7, graines sans paire 0 ; FC 90.8/min, SD RR 151 ms, grade [0], souffle ['aucun'], B3 [False], écrêtage 300, finis True, échantillons [32000] |  |  |
-| MMVD 0,3 (léger) | Centroïde spectral (Hz) | 90 ± 15 | 90.138 | 90.118 | (dans la cible) |
-| MMVD 0,3 (léger) | Énergie 20–50 Hz | ≤ 8 % | 5.2 % | 5.1 % | (dans la cible) |
-| MMVD 0,3 (léger) | Énergie 50–100 Hz | 60–75 % | 65.2 % | 65.0 % | (dans la cible) |
-| MMVD 0,3 (léger) | Énergie 100–200 Hz | 20–35 % | 28.7 % | 28.5 % | (dans la cible) |
-| MMVD 0,3 (léger) | Énergie 200–400 Hz | ≤ 5 % (> 200 Hz) | 1.0 % | 1.0 % | (dans la cible) |
+| sain FC 90 | B2 > B1 (part des paires) | ≥ 80 % | 85.7 % | 83.3 % | OK |
+| sain FC 90 | Rapport B2/B1 médian | 1,5–2,3 | 1.586 | 1.546 | OK |
+| sain FC 90 | B1→B2 médian (s), FC 90 | 0,15–0,25 | 0.258 | 0.258 | écart connu (référence) |
+| sain FC 90 | Diastole / systole | > 1,8 | 1.316 | 1.295 | écart connu (référence) |
+| sain FC 90 | Informations |  | paires B1/B2 par graine : médiane 7, graines sans paire 0 ; FC 91.0/min, SD RR 149 ms, grade [0], souffle ['aucun'], B3 [False], écrêtage 300, finis True, échantillons [32000] |  |  |
+| MMVD 0,3 (léger) | Centroïde spectral (Hz) | 90 ± 15 | 92.499 | 92.284 | (dans la cible) |
+| MMVD 0,3 (léger) | Énergie 20–50 Hz | ≤ 8 % | 5.0 % | 5.0 % | (dans la cible) |
+| MMVD 0,3 (léger) | Énergie 50–100 Hz | 60–75 % | 63.6 % | 63.5 % | (dans la cible) |
+| MMVD 0,3 (léger) | Énergie 100–200 Hz | 20–35 % | 29.8 % | 29.6 % | (dans la cible) |
+| MMVD 0,3 (léger) | Énergie 200–400 Hz | ≤ 5 % (> 200 Hz) | 1.7 % | 1.7 % | (dans la cible) |
 | MMVD 0,3 (léger) | B2 > B1 (part des paires) | ≥ 80 % | 85.7 % | 85.7 % | (dans la cible) |
-| MMVD 0,3 (léger) | Rapport B2/B1 médian | 1,5–2,3 | 1.603 | 1.560 | (dans la cible) |
-| MMVD 0,3 (léger) | Diastole / systole | > 1,8 | 1.410 | 1.393 | (hors cible, indicatif) |
-| MMVD 0,3 (léger) | Informations |  | paires B1/B2 par graine : médiane 8, graines sans paire 0 ; FC 88.7/min, SD RR 149 ms, grade [3], souffle ['holosystolique apexien gauche'], B3 [False], écrêtage 300, finis True, échantillons [32000] |  |  |
-| MMVD 0,5 (modéré) | Centroïde spectral (Hz) | 90 ± 15 | 112.266 | 112.730 | (hors cible, indicatif) |
-| MMVD 0,5 (modéré) | Énergie 20–50 Hz | ≤ 8 % | 3.7 % | 3.7 % | (dans la cible) |
-| MMVD 0,5 (modéré) | Énergie 50–100 Hz | 60–75 % | 49.8 % | 49.6 % | (hors cible, indicatif) |
-| MMVD 0,5 (modéré) | Énergie 100–200 Hz | 20–35 % | 38.9 % | 38.9 % | (hors cible, indicatif) |
-| MMVD 0,5 (modéré) | Énergie 200–400 Hz | ≤ 5 % (> 200 Hz) | 7.2 % | 7.3 % | (hors cible, indicatif) |
-| MMVD 0,5 (modéré) | B2 > B1 (part des paires) | ≥ 80 % | 77.8 % | 77.8 % | (hors cible, indicatif) |
-| MMVD 0,5 (modéré) | Rapport B2/B1 médian | 1,5–2,3 | 1.508 | 1.488 | (dans la cible) |
-| MMVD 0,5 (modéré) | Diastole / systole | > 1,8 | 1.934 | 1.934 | (dans la cible) |
-| MMVD 0,5 (modéré) | Informations |  | paires B1/B2 par graine : médiane 10, graines sans paire 0 ; FC 97.9/min, SD RR 114 ms, grade [6], souffle ['holosystolique apexien gauche'], B3 [False], écrêtage 300, finis True, échantillons [32000] |  |  |
+| MMVD 0,3 (léger) | Rapport B2/B1 médian | 1,5–2,3 | 1.577 | 1.540 | (dans la cible) |
+| MMVD 0,3 (léger) | Diastole / systole | > 1,8 | 1.481 | 1.484 | (hors cible, indicatif) |
+| MMVD 0,3 (léger) | Informations |  | paires B1/B2 par graine : médiane 8, graines sans paire 0 ; FC 88.2/min, SD RR 154 ms, grade [3, 4], souffle ['holosystolique apexien gauche'], B3 [False], écrêtage 300, finis True, échantillons [32000] |  |  |
+| MMVD 0,5 (modéré) | Centroïde spectral (Hz) | 90 ± 15 | 106.449 | 106.376 | (hors cible, indicatif) |
+| MMVD 0,5 (modéré) | Énergie 20–50 Hz | ≤ 8 % | 4.1 % | 4.1 % | (dans la cible) |
+| MMVD 0,5 (modéré) | Énergie 50–100 Hz | 60–75 % | 54.0 % | 54.2 % | (hors cible, indicatif) |
+| MMVD 0,5 (modéré) | Énergie 100–200 Hz | 20–35 % | 36.0 % | 35.7 % | (hors cible, indicatif) |
+| MMVD 0,5 (modéré) | Énergie 200–400 Hz | ≤ 5 % (> 200 Hz) | 5.5 % | 5.6 % | (hors cible, indicatif) |
+| MMVD 0,5 (modéré) | B2 > B1 (part des paires) | ≥ 80 % | 70.0 % | 72.7 % | (hors cible, indicatif) |
+| MMVD 0,5 (modéré) | Rapport B2/B1 médian | 1,5–2,3 | 1.417 | 1.418 | (hors cible, indicatif) |
+| MMVD 0,5 (modéré) | Diastole / systole | > 1,8 | 1.794 | 1.789 | (hors cible, indicatif) |
+| MMVD 0,5 (modéré) | Informations |  | paires B1/B2 par graine : médiane 9, graines sans paire 0 ; FC 98.0/min, SD RR 112 ms, grade [5], souffle ['holosystolique apexien gauche'], B3 [False], écrêtage 300, finis True, échantillons [32000] |  |  |
 
 ## Équivalence statistique avec la référence Python
 
 ```
-OK  sain FC 72         Centroïde spectral (Hz)      Rust   88.9573  référence   88.9027  écart   0.1 %  z  0.3
-OK  sain FC 72         Énergie 20–50 Hz             Rust    0.0493  référence    0.0490  écart   0.6 %  z  0.3
-OK  sain FC 72         Énergie 50–100 Hz            Rust    0.6605  référence    0.6579  écart   0.4 %  z  0.8
-OK  sain FC 72         Énergie 100–200 Hz           Rust    0.2864  référence    0.2881  écart   0.6 %  z  0.5
-OK  sain FC 72         Énergie 200–400 Hz           Rust    0.0043  référence    0.0041  écart   4.4 %  z  1.7
+OK  sain FC 72         Centroïde spectral (Hz)      Rust   89.0226  référence   88.8961  écart   0.1 %  z  0.7
+OK  sain FC 72         Énergie 20–50 Hz             Rust    0.0494  référence    0.0487  écart   1.3 %  z  0.7
+OK  sain FC 72         Énergie 50–100 Hz            Rust    0.6586  référence    0.6579  écart   0.1 %  z  0.2
+OK  sain FC 72         Énergie 100–200 Hz           Rust    0.2859  référence    0.2883  écart   0.9 %  z  0.7
+OK  sain FC 72         Énergie 200–400 Hz           Rust    0.0043  référence    0.0041  écart   5.1 %  z  2.1
 OK  sain FC 72         B2 > B1 (part des paires)    Rust    1.0000  référence    1.0000  écart   0.0 %  z  0.0
-OK  sain FC 72         Rapport B2/B1 médian         Rust    1.8781  référence    1.9016  écart   1.2 %  z  0.5
-OK  sain FC 72         Diastole / systole           Rust    1.7737  référence    1.8030  écart   1.6 %  z  0.8
-OK  sain FC 90         Centroïde spectral (Hz)      Rust   88.0158  référence   87.9599  écart   0.1 %  z  0.3
-OK  sain FC 90         Énergie 20–50 Hz             Rust    0.0514  référence    0.0513  écart   0.4 %  z  0.2
-OK  sain FC 90         Énergie 50–100 Hz            Rust    0.6683  référence    0.6662  écart   0.3 %  z  0.7
-OK  sain FC 90         Énergie 100–200 Hz           Rust    0.2765  référence    0.2790  écart   0.9 %  z  0.9
-OK  sain FC 90         Énergie 200–400 Hz           Rust    0.0041  référence    0.0040  écart   0.9 %  z  0.4
-OK  sain FC 90         B2 > B1 (part des paires)    Rust    0.8571  référence    0.8571  écart   0.0 %  z  0.0
-OK  sain FC 90         Rapport B2/B1 médian         Rust    1.6082  référence    1.6040  écart   0.3 %  z  0.1
-OK  sain FC 90         B1→B2 médian (s), FC 90      Rust    0.2578  référence    0.2588  écart   0.4 %  z  1.4
-OK  sain FC 90         Diastole / systole           Rust    1.3275  référence    1.3057  écart   1.7 %  z  0.8
-OK  MMVD 0,3 (léger)   Centroïde spectral (Hz)      Rust   90.1384  référence   90.1176  écart   0.0 %  z  0.1
-OK  MMVD 0,3 (léger)   Énergie 20–50 Hz             Rust    0.0520  référence    0.0514  écart   1.1 %  z  0.7
-OK  MMVD 0,3 (léger)   Énergie 50–100 Hz            Rust    0.6521  référence    0.6498  écart   0.3 %  z  0.8
-OK  MMVD 0,3 (léger)   Énergie 100–200 Hz           Rust    0.2865  référence    0.2855  écart   0.4 %  z  0.4
-OK  MMVD 0,3 (léger)   Énergie 200–400 Hz           Rust    0.0103  référence    0.0104  écart   0.6 %  z  0.4
+OK  sain FC 72         Rapport B2/B1 médian         Rust    1.8657  référence    1.9227  écart   3.0 %  z  1.3
+OK  sain FC 72         Diastole / systole           Rust    1.7842  référence    1.8009  écart   0.9 %  z  0.4
+OK  sain FC 90         Centroïde spectral (Hz)      Rust   88.0395  référence   88.0108  écart   0.0 %  z  0.2
+OK  sain FC 90         Énergie 20–50 Hz             Rust    0.0518  référence    0.0512  écart   1.1 %  z  0.6
+OK  sain FC 90         Énergie 50–100 Hz            Rust    0.6658  référence    0.6688  écart   0.5 %  z  1.0
+OK  sain FC 90         Énergie 100–200 Hz           Rust    0.2787  référence    0.2749  écart   1.4 %  z  1.3
+OK  sain FC 90         Énergie 200–400 Hz           Rust    0.0041  référence    0.0040  écart   2.6 %  z  1.2
+OK  sain FC 90         B2 > B1 (part des paires)    Rust    0.8571  référence    0.8333  écart   2.9 %  z  1.6
+OK  sain FC 90         Rapport B2/B1 médian         Rust    1.5861  référence    1.5462  écart   2.6 %  z  1.2
+OK  sain FC 90         B1→B2 médian (s), FC 90      Rust    0.2575  référence    0.2583  écart   0.3 %  z  1.1
+OK  sain FC 90         Diastole / systole           Rust    1.3163  référence    1.2954  écart   1.6 %  z  0.8
+OK  MMVD 0,3 (léger)   Centroïde spectral (Hz)      Rust   92.4993  référence   92.2841  écart   0.2 %  z  1.2
+OK  MMVD 0,3 (léger)   Énergie 20–50 Hz             Rust    0.0495  référence    0.0496  écart   0.1 %  z  0.0
+OK  MMVD 0,3 (léger)   Énergie 50–100 Hz            Rust    0.6360  référence    0.6346  écart   0.2 %  z  0.5
+OK  MMVD 0,3 (léger)   Énergie 100–200 Hz           Rust    0.2977  référence    0.2957  écart   0.7 %  z  0.8
+OK  MMVD 0,3 (léger)   Énergie 200–400 Hz           Rust    0.0167  référence    0.0171  écart   2.4 %  z  1.5
 OK  MMVD 0,3 (léger)   B2 > B1 (part des paires)    Rust    0.8571  référence    0.8571  écart   0.0 %  z  0.0
-OK  MMVD 0,3 (léger)   Rapport B2/B1 médian         Rust    1.6026  référence    1.5603  écart   2.7 %  z  1.3
-OK  MMVD 0,3 (léger)   Diastole / systole           Rust    1.4102  référence    1.3934  écart   1.2 %  z  0.6
-OK  MMVD 0,5 (modéré)  Centroïde spectral (Hz)      Rust  112.2665  référence  112.7297  écart   0.4 %  z  1.5
-OK  MMVD 0,5 (modéré)  Énergie 20–50 Hz             Rust    0.0371  référence    0.0374  écart   0.7 %  z  0.4
-OK  MMVD 0,5 (modéré)  Énergie 50–100 Hz            Rust    0.4979  référence    0.4960  écart   0.4 %  z  0.6
-OK  MMVD 0,5 (modéré)  Énergie 100–200 Hz           Rust    0.3888  référence    0.3891  écart   0.1 %  z  0.1
-OK  MMVD 0,5 (modéré)  Énergie 200–400 Hz           Rust    0.0719  référence    0.0725  écart   0.8 %  z  0.7
-OK  MMVD 0,5 (modéré)  B2 > B1 (part des paires)    Rust    0.7778  référence    0.7778  écart   0.0 %  z  0.0
-OK  MMVD 0,5 (modéré)  Rapport B2/B1 médian         Rust    1.5077  référence    1.4877  écart   1.3 %  z  0.7
-OK  MMVD 0,5 (modéré)  Diastole / systole           Rust    1.9342  référence    1.9341  écart   0.0 %  z  0.0
+OK  MMVD 0,3 (léger)   Rapport B2/B1 médian         Rust    1.5772  référence    1.5396  écart   2.4 %  z  1.2
+OK  MMVD 0,3 (léger)   Diastole / systole           Rust    1.4812  référence    1.4843  écart   0.2 %  z  0.1
+OK  MMVD 0,5 (modéré)  Centroïde spectral (Hz)      Rust  106.4491  référence  106.3758  écart   0.1 %  z  0.3
+OK  MMVD 0,5 (modéré)  Énergie 20–50 Hz             Rust    0.0413  référence    0.0414  écart   0.3 %  z  0.2
+OK  MMVD 0,5 (modéré)  Énergie 50–100 Hz            Rust    0.5397  référence    0.5420  écart   0.4 %  z  0.8
+OK  MMVD 0,5 (modéré)  Énergie 100–200 Hz           Rust    0.3596  référence    0.3568  écart   0.8 %  z  1.1
+OK  MMVD 0,5 (modéré)  Énergie 200–400 Hz           Rust    0.0552  référence    0.0559  écart   1.3 %  z  1.0
+OK  MMVD 0,5 (modéré)  B2 > B1 (part des paires)    Rust    0.7000  référence    0.7273  écart   3.8 %  z  1.7
+OK  MMVD 0,5 (modéré)  Rapport B2/B1 médian         Rust    1.4170  référence    1.4179  écart   0.1 %  z  0.0
+OK  MMVD 0,5 (modéré)  Diastole / systole           Rust    1.7941  référence    1.7893  écart   0.3 %  z  0.1
 ```

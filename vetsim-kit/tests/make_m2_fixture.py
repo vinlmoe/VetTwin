@@ -46,7 +46,7 @@ for bw, combo, over in PATIENTS:
     p0.update(over)
     for label, (co20, mp, la) in HEMO.items():
         hemo = dict(co=scale(bw, co20), map=mp, la_mean=la)
-        physio._hemo_with_rhythm = lambda q, v_eff, n_beats=11, h=hemo: (dict(h, hr_v=q['hr']), None)   # tout rythme : hémodynamique imposée
+        physio._hemo_with_rhythm = lambda q, v_eff, n_beats=11, h=hemo: (dict(h, hr_v=q['hr']), None, q['g_mr'])   # tout rythme : hémodynamique imposée (orifice inchangé)
         entry = dict(bw=float(bw), diseases=[[n, s] for n, s in combo], overrides=over, hemo_profile=label, hemo=hemo)
         try:
             entry["expected"] = flat(physio._evaluate_once(dict(p0)))   # une passe, sans couplage de décompensation

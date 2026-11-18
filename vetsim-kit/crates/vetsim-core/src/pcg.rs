@@ -1,5 +1,5 @@
 //! Auscultation : synthèse des bruits du cœur du chien (port fidèle de
-//! `reference/python/signals_pcg_v5.py::make_pcg`, référence normative).
+//! `reference/python/signals_pcg_v5.py::make_pcg`, contre-vérification secondaire).
 //!
 //! Par battement (instants du module autonome, donc avec l'arythmie sinusale respiratoire) :
 //! - **B1** à la fermeture mitrale : 3 sinusoïdes amorties de fréquences voisines (spectre

@@ -162,27 +162,36 @@ fn decompensation_matches_python() {
     assert!(bad.is_empty(), "{} écarts\n{}", bad.len(), bad.join("\n"));
 }
 
-/// Contrôle d'échec : sans terme toxique, le surdosage d'opioïde ne tue plus (le test ci-dessus
-/// échouerait donc si la toxicité n'était pas appliquée).
+/// Contrôle d'échec : c'est le terme toxique qui prolonge la relation dose-réponse au-delà du
+/// plateau thérapeutique. Opioïde massif chez le chien vigile (18/11/2026) : PaCO2 > 60 mmHg et
+/// dépression par acidémie, sans décès (Bailey 1987) ; sans terme toxique, plateau thérapeutique.
 #[test]
-fn toxicity_terms_are_what_kills() {
+fn toxicity_terms_extend_dose_response() {
     let mut c = catalog();
     let healthy = Patient::healthy(&c.patient, 20.0).unwrap();
-    let conc = vec![("opioide".to_string(), 2.0)];
+    let conc = vec![("opioide".to_string(), 30.0)];
     let q = apply_drug_effects(&healthy.params, &c.drugs, &conc, 0.0, 0.0).unwrap();
-    assert!(matches!(
-        evaluate(&q),
-        Err(Error::NonViable {
-            cause: "oxygen_debt",
-            ..
-        })
-    ));
+    let e = evaluate(&q).expect("chien vigile : pas de décès par opioïde seul");
+    assert!(
+        e.metabolic.art.pco2 > 60.0,
+        "PaCO2 {}",
+        e.metabolic.art.pco2
+    );
+    assert!(e
+        .outcome
+        .mechanisms
+        .iter()
+        .any(|m| m.id == "acidemia_depression"));
     for d in &mut c.drugs {
         d.pd.toxicity.clear();
     }
     let q = apply_drug_effects(&healthy.params, &c.drugs, &conc, 0.0, 0.0).unwrap();
-    let e = evaluate(&q)
-        .expect("sans toxicité, l'effet thérapeutique plafonné laisse le patient en vie");
+    let e = evaluate(&q).unwrap();
+    assert!(
+        e.metabolic.art.pco2 < 46.0,
+        "PaCO2 {}",
+        e.metabolic.art.pco2
+    );
     assert!(!e
         .outcome
         .mechanisms

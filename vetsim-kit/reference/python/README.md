@@ -1,4 +1,6 @@
-# vetsim — patient virtuel mécaniste (prototype)
+# vetsim — patient virtuel mécaniste (implémentation Python secondaire)
+
+Depuis le 18/11/2026, la référence normative est le moteur Rust (`crates/vetsim-core`). Ce code sert de contre-vérification indépendante (fixtures, golden, calibration) ; en cas d'écart, il est mis à jour après analyse.
 
 Patient canin sain + modules maladie probabilistes + PK/PD + système nerveux autonome. Sorties : hémodynamique,
 gaz du sang (artériel et veineux), biochimie, ECG (dérivation II, intervalles RR issus du modèle autonome),

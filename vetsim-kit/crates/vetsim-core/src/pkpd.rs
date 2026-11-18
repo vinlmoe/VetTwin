@@ -143,7 +143,17 @@ pub fn apply_drug_effects(
             continue;
         }
         let mut env = Env::new();
-        env.set_num("E", c.map_or(0.0, |c| emax_effect(m, c)));
+        // Diurétique à site d'action luminal : E suit l'excrétion urinaire (C × masse néphronique),
+        // comme la diurèse dans `timecourse` ; effets dépendants du rein (veinodilatation).
+        let urinary = matches!(
+            m.pd.kind,
+            PdKind::Diuretic {
+                urinary_drive: true,
+                ..
+            }
+        );
+        let x = |c: f64| if urinary { c * p.nephron_mass } else { c };
+        env.set_num("E", c.map_or(0.0, |c| emax_effect(m, x(c))));
         if diuretic {
             env.set_num("D", d);
             env.set_num("U", u);
@@ -204,8 +214,10 @@ pub const PK_ATOL: f64 = 1e-10;
 ///
 /// États par médicament : dépôt digestif, central, périphérique (mg) ; puis `D` et `U`.
 /// L'intégration est relancée à chaque instant remarquable (doses, enregistrements),
-/// comme la référence. Diurétique : `u = urine_max·E(C)` (mL/kg/min),
-/// `dD/dt = f_plasma·u·bw·60 − D/τ_refill`, `dU/dt = 60·u − U/τ_elect` (par heure).
+/// comme la référence. Diurétique : `u = urine_max·E(X)` (mL/kg/min), `X = C` ou, avec
+/// `drive: urinary_excretion`, `X = C·masse néphronique`,
+/// `dD/dt = f_plasma·u·bw·60 − D/τ_refill`, `dU/dt = 60·u − U/τ_elect` (par heure) ; avec
+/// adaptation, `dW/dt = (U − W)/τ_adapt` et la série `u` renvoyée vaut `U − φ·W`.
 pub fn timecourse(
     p: &Params,
     catalog_drugs: &[DrugModule],
@@ -243,7 +255,8 @@ pub fn timecourse(
         })
         .collect::<Result<_, _>>()?;
     let pars: Vec<PkConstants> = mods.iter().map(|m| pk_constants(m, p)).collect();
-    let n = 3 * mods.len() + 2;
+    // états : (dépôt, central, périphérique) × médicaments, puis D, U et W (adaptation)
+    let n = 3 * mods.len() + 3;
     let mut state = vec![0.0; n];
     let mut events: Vec<&Dose> = doses.iter().collect();
     events.sort_by(|a, b| {
@@ -269,10 +282,18 @@ pub fn timecourse(
             dy[i + 2] = (k.q / k.vc) * ac - (k.q / k.vp) * ap;
             if let PdKind::Diuretic {
                 urine_max_ml_kg_min,
+                urinary_drive,
                 ..
             } = m.pd.kind
             {
-                urine += urine_max_ml_kg_min * emax_effect(m, ac / k.vc);
+                // Site d'action luminal : l'effet suit le débit d'excrétion urinaire du
+                // médicament (∝ C × masse néphronique), pas la concentration plasmatique.
+                let x = if urinary_drive {
+                    ac / k.vc * p.nephron_mass
+                } else {
+                    ac / k.vc
+                };
+                urine += urine_max_ml_kg_min * emax_effect(m, x);
             }
         }
         // Récupération : constantes du (premier) diurétique dosé ; sans diurétique, D et U
@@ -281,17 +302,32 @@ pub fn timecourse(
             f_plasma,
             tau_refill_h,
             tau_elect_h,
+            adapt,
             ..
         }) = mods
             .iter()
             .map(|m| &m.pd.kind)
             .find(|k| matches!(k, PdKind::Diuretic { .. }))
         {
-            dy[n - 2] = f_plasma * urine * bw * 60.0 - y[n - 2] / tau_refill_h;
-            dy[n - 1] = urine * 60.0 - y[n - 1] / tau_elect_h;
+            dy[n - 3] = f_plasma * urine * bw * 60.0 - y[n - 3] / tau_refill_h;
+            dy[n - 2] = urine * 60.0 - y[n - 2] / tau_elect_h;
+            if let Some((tau_a, _)) = adapt {
+                dy[n - 1] = (y[n - 2] - y[n - 1]) / tau_a;
+            }
         }
         dy
     };
+    // fraction compensée φ du (premier) diurétique dosé (0 sans adaptation)
+    let adapt_frac = mods
+        .iter()
+        .find_map(|m| match m.pd.kind {
+            PdKind::Diuretic {
+                adapt: Some((_, phi)),
+                ..
+            } => Some(phi),
+            _ => None,
+        })
+        .unwrap_or(0.0);
     let opts = Options {
         rtol: PK_RTOL,
         atol: PK_ATOL,
@@ -317,8 +353,9 @@ pub fn timecourse(
         }
         if t_eval_h.contains(&a) {
             out.t.push(a);
-            out.d.push(state[n - 2]);
-            out.u.push(state[n - 1]);
+            out.d.push(state[n - 3]);
+            // U des effets : diurèse effective moins la part compensée par l'adaptation
+            out.u.push(state[n - 2] - adapt_frac * state[n - 1]);
             for (k, (_, series)) in out.conc.iter_mut().enumerate() {
                 series.push(state[3 * k + 1] / pars[k].vc);
             }

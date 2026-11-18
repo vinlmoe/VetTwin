@@ -1,4 +1,4 @@
-"""Génère la fixture de référence du jalon M6 (autonome, VFC, ECG, PCG) depuis le Python normatif.
+"""Génère la fixture de référence du jalon M6 (autonome, VFC, ECG, PCG) depuis le Python secondaire (contre-vérification).
 Exécuter depuis la racine du kit :  python tests/make_m6_fixture.py
 Sortie : crates/vetsim-core/tests/fixtures/python_reference_m6.json
 

@@ -1,6 +1,6 @@
 """Couche de conduction : génération et propagation de l'influx, battement par battement.
 
-Simulation par événements (référence normative ; port Rust : `crates/vetsim-core/src/rhythm.rs`).
+Simulation par événements (implémentation secondaire ; référence normative : `crates/vetsim-core/src/rhythm.rs`).
 Chaque trouble du rythme naît d'un mécanisme, rien n'est plaqué :
 - nœud sinusal : décharges à la période sinusale ; bloc de sortie sino-atrial (pauses) avec la
   probabilité `sa_block` ;

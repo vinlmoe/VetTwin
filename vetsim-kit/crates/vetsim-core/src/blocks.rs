@@ -114,8 +114,8 @@ pub fn blocks_of(name: &str) -> &'static [Block] {
         | "sympathetic" => &[Autonomic],
         "ees_lv" | "v0_lv" | "a_lv" | "b_lv" => &[LeftHeart],
         "ees_rv" | "v0_rv" | "a_rv" | "b_rv" => &[RightHeart],
-        "r_valve" | "g_mr" | "g_ar" | "g_tr" | "g_pr" => &[Valves],
-        "c_ao" | "c_sv" | "v0_ao" | "v0_sv" | "r_sys" => &[SystemicCirculation],
+        "r_valve" | "g_mr" | "g_ar" | "g_tr" | "g_pr" | "mr_k" | "mr_vref" => &[Valves],
+        "c_ao" | "c_sv" | "ven_cap" | "v0_ao" | "v0_sv" | "r_sys" => &[SystemicCirculation],
         "c_pa" | "c_pv" | "v0_pa" | "v0_pv" | "r_pul" => &[PulmonaryCirculation],
         "bvf" | "vol_shift" => &[Volume],
         "vco2" | "va0" | "vent_drive" | "aagrad" | "fio2" | "pb" | "rq" => &[Ventilation],
@@ -129,7 +129,7 @@ pub fn blocks_of(name: &str) -> &'static [Block] {
         "vo2" => &[Metabolism],
         "lact0" | "glucose" => &[Metabolism],
         // masse néphronique : DFG, créatinine, urée, et clairance rénale des médicaments
-        "nephron_mass" | "gfr0" | "creat0" | "urea0" => &[Kidney],
+        "nephron_mass" | "gfr0" | "creat0" | "urea0" | "creat_vd" | "urea_vd" => &[Kidney],
         "hepatic_fn" | "alt" => &[Liver],
         // PR : intervalle de l'ECG et délai mécanique oreillette → ventricule
         "pr" => &[Ecg, PulmonaryCirculation, SystemicCirculation],
@@ -141,7 +141,7 @@ pub fn blocks_of(name: &str) -> &'static [Block] {
         "cpp_min" | "cpp_ees" => &[SystemicCirculation, LeftHeart, RightHeart],
         "k_weak" | "k_weak_vent" => &[Ventilation],
         "hr_arrest" => &[Autonomic],
-        "co_arrest_frac" => &[SystemicCirculation],
+        "co_arrest_frac" | "map_arrest" => &[SystemicCirculation],
         // oreillettes contractiles : OG dans pv, OD dans sv ; activation PR avant le ventricule
         "k_la" => &[PulmonaryCirculation, LeftHeart],
         "k_ra" => &[SystemicCirculation, RightHeart],
@@ -151,8 +151,8 @@ pub fn blocks_of(name: &str) -> &'static [Block] {
         "ca_tau" | "ca_recirc" | "ees_wide" => &[LeftHeart, RightHeart],
         // conduction (rhythm) : génération et propagation de l'influx → FC, ECG, oreillettes
         "sa_block" | "af" | "af_cycle" | "af_cv" | "hv" | "av_erp" | "av_beta" | "av_tau"
-        | "av_conceal" | "av_vagal" | "hp_conduction" | "junct_rate" | "vent_escape_rate"
-        | "esc_overdrive" | "vpc_rate" => &[Autonomic, Ecg],
+        | "av_conceal" | "av_vagal" | "av_symp" | "hp_conduction" | "junct_rate"
+        | "vent_escape_rate" | "esc_overdrive" | "vpc_rate" => &[Autonomic, Ecg],
         "av_k_gain"
         | "k_hp_block"
         | "hp_k_slope"
