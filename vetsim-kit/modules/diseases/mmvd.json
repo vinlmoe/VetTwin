@@ -5,7 +5,7 @@
  ],
  "license": "CC-BY-4.0",
  "id": "mmvd",
- "version": "1.0.0",
+ "version": "1.1.0",
  "name": {
   "fr": "Maladie valvulaire mitrale dégénérative (MMVD)",
   "en": "Myxomatous mitral valve disease"
@@ -196,7 +196,7 @@
      },
      {
       "mul": [
-       0.149,
+       0.3,
        "ret",
        "z_bvf"
       ]
@@ -285,7 +285,11 @@
  "refs": [
   "MSD Vet Manual — Myxomatous AV valve degeneration",
   "Echocardiographic estimation of mean LA pressure in a canine model of acute MR, JVIM 2004;18(5)",
-  "ACVIM consensus 2019 (Keene et al.)"
+  "ACVIM consensus 2019 (Keene et al.)",
+  "Allen et al. 2021, JAVMA 258:638, doi:10.2460/javma.258.6.638 (POG invasive en ICC, résumé)",
+  "Suzuki et al. 2012, BMC Vet Res (PMC3489586, lu)",
+  "Yoran et al. 1979, PMID 445720 (résumé)",
+  "Suzuki et al. 2013, J Vet Intern Med, doi:10.1111/jvim.12154 (résumé)"
  ],
  "presentation": {
   "difficulty": 2,
@@ -302,5 +306,6 @@
    "échocardiographie",
    "NT-proBNP"
   ]
- }
+ },
+ "notes": "18/11/2026 : fuite mitrale à orifice dynamique (g_mr·(VTD/mr_vref)^2,5, Yoran 1979) et normalisée à 20 kg (échelle (bw/20)^0,75 dans le moteur) ; coefficients 0,9458·s^1,111. Rétention hydrosodée portée de 0,149 à 0,30 : POG au milieu du stade C 15,2 mmHg (12,1 avant), stade C 9,8–22,8, stade D jusqu'à 37 ; repères : POG invasive en ICC (C/D) médiane 14 mmHg (8–32), Allen 2021 (résumé) ; IM expérimentale B2 14,6 ± 3,8 (Suzuki 2012, lu) ; œdème expérimental aigu au-delà de 20–25 mmHg (Nakata 1986, Magno 1976, résumés)."
 }

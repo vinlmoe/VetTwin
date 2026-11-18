@@ -222,10 +222,10 @@ fn out_of_golden_cases_match_reference_cli() {
 fn severity_and_weight_sweep_stays_finite() {
     // Décès attendus (critère « dette d'O2 », VO2 > DO2) : MMVD sévère chez le chien de 3 kg.
     // La passe simple donnait déjà un état non physique (ER 1,56 à 2,93, PvO2 au plancher de 1 mmHg).
-    // Nouvelle référence (conduction, battement par battement) : à 3 kg, les MMVD 0,8, 0,9 et 1,0
-    // meurent (dette d'O2 ; POG déjà ≈ 35 mmHg et DC ≈ 0,6 L/min à 0,8). Inchangé avec l'orifice
-    // mitral dynamique (mr_k = 2,5, 18/11/2026) ; Python identique.
-    let expected_dead = [(3.0, "mmvd", 8), (3.0, "mmvd", 9), (3.0, "mmvd", 10)];
+    // Depuis la normalisation allométrique des fuites valvulaires ((bw/20)^0,75, 18/11/2026), aucun
+    // décès : à 3 kg, la MMVD 1,0 donne POG 36 mmHg et PaO2 30 mmHg, comme à 20 kg. Auparavant, la
+    // fuite absolue tuait les MMVD 0,8 à 1,0 du chien de 3 kg (Python identique).
+    let expected_dead: [(f64, &str, i32); 0] = [];
     let mut dead = Vec::new();
     let c = catalog();
     for bw in [3.0, 20.0, 60.0] {
