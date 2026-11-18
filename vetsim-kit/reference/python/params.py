@@ -16,14 +16,14 @@ def healthy_params(bw=20.0):
         bw=bw,
         # --- cardiovasculaire (unités : mmHg, mL, s) ---
         hr=87.0 * s ** -0.25,          # Haskins 2005 : 87/min (97 chiens éveillés)
-        ees_lv=7.0 * 0.649 / s, v0_lv=4.0 * s, a_lv=1.0, b_lv=0.06 * 0.258 / s,   # calage Haskins 2005
+        ees_lv=4.4915 / s, v0_lv=4.0 * s, a_lv=1.0, b_lv=0.028137 / s,   # calage Haskins 2005 (recalé le 18/11/2026 avec la chronologie systolique)
         ees_rv=1.6 / s, v0_rv=6.0 * s, a_rv=0.4, b_rv=0.05 / s,
-        c_ao=0.7 * s, c_sv=55.0 * s, ven_cap=1.0, c_pa=1.5 * s, c_pv=5.0 * s,   # ven_cap : capacitance veineuse relative (pression seulement)
+        c_ao=0.7 * s, c_sv=55.0 * s, ven_cap=1.0, c_pa=2.5 * s, c_pv=5.0 * s,   # ven_cap : capacitance veineuse relative (pression seulement)
         v0_ao=150.0 * s, v0_sv=900.0 * s, v0_pa=60.0 * s, v0_pv=120.0 * s,
-        r_sys=2.3 * 0.764 / fq, r_pul=0.15 * 1.04 / fq, r_valve=0.03 / fq,
+        r_sys=1.7925 / fq, r_pul=0.15626 / fq, r_valve=0.03 / fq,
         g_mr=0.0005, g_ar=0.0002, g_tr=0.0002, g_pr=0.0002,   # conductances de fuite (mL/s/mmHg)
-        mr_k=2.5, mr_vref=72.0 * s,   # orifice mitral dynamique g_mr·(VTD/mr_vref)^mr_k, fixé par battement (Yoran 1979 ; calé sur Suzuki 2013) ; mr_vref = VTD du chien sain
-        bvf=1.0, vol_shift=-21.0 * s,          # facteur de volémie, déficit/excès de volume (mL)
+        mr_k=2.5, mr_vref=68.5 * s,   # orifice mitral dynamique g_mr·(VTD/mr_vref)^mr_k, fixé par battement (Yoran 1979 ; calé sur Suzuki 2013) ; mr_vref = VTD du chien sain
+        bvf=1.0, vol_shift=-22.43 * s,          # facteur de volémie, déficit/excès de volume (mL)
         map_set=103.0, baro_gain=1.0,
         # --- respiration / gaz ---
         vo2=5.5 * s ** -0.25, vco2=4.6 * s ** -0.25, va0=0.0748, vent_drive=1.0,   # mL/min/kg, mL/min/kg, L/min/kg
@@ -65,11 +65,11 @@ def healthy_params(bw=20.0):
         ta_atr=0.09, tra_atr=0.06,   # durées de contraction et de relaxation atriales (s ; placeholders D)
         ts_restitution=0.1,          # restitution de la systole au RR précédent (battement par battement ; placeholder D)
         # relation force-intervalle (battement par battement, physio.beat_schedule ; placeholders D)
-        ca_tau=0.2,                  # constante de transfert du Ca²⁺ du compartiment de captation vers celui de libération (s)
+        ca_tau=0.12,                  # constante de transfert du Ca²⁺ du compartiment de captation vers celui de libération (s)
         ca_recirc=0.6,               # fraction du Ca²⁺ libéré recaptée par le réticulum (le reste est extrudé)
         ees_wide=0.8,                # amplitude d'élastance d'un battement à QRS large (activation hors Purkinje, dyssynchronie)
-        act_gamma=1.0, tr_frac=0.4, emd_v=0.0225, emd_a=0.0, pa_ia=0.0,   # chronologie : montée de l'activation, relaxation, délais électromécaniques, conduction intra-atriale
-        ts_coef=0.325,               # durée de systole ts = ts_coef·√T : B1→B2 ≈ 244 ms à RR 0,57 s (beagles 236–251 ms, n = 14)
+        act_gamma=0.55, tr_frac=0.35, emd_v=0.022, emd_a=0.0, pa_ia=0.041,   # chronologie : montée de l'activation, relaxation, délais électromécaniques, conduction intra-atriale
+        ts_coef=0.25,               # durée de systole ts = ts_coef·√T : B1→B2 ≈ 244 ms à RR 0,57 s (beagles 236–251 ms, n = 14)
         # --- conduction (rhythm.py) ; placeholders D sauf mention (docs/PROVENANCE.md)
         sa_block=0.0,                # probabilité de bloc de sortie sino-atrial (maladie du sinus)
         af=0.0, af_cycle=0.12, af_cv=0.3,   # fibrillation atriale : drapeau, cycle atrial moyen (s), CV

@@ -38,10 +38,11 @@ def _atrial_act(t, T, p, pr=None):
 
 def mech_offset(p, wide):
     """Début mécanique d'un battement ventriculaire par rapport à son pic R (s) : début du QRS
-    (R − QRS/2, QRS élargi d'un battement ventriculaire) + délai électromécanique emd_v."""
-    from signals import WIDE_QRS
-    q = p['qrs'] * (WIDE_QRS if wide else 1.0)
-    return p['emd_v'] - 0.5 * q
+    tracé par l'ECG (bornes ± 2 σ, comme signals::ecg_windows du moteur) + délai électromécanique emd_v."""
+    from signals import WIDE_QRS, WIDE_R_SIGMA, Q_POS, Q_SIGMA
+    K = 2.0                                  # bornes des ondes : ± 2 écarts-types (signals::ecg_windows)
+    lead = K * WIDE_R_SIGMA * p['qrs'] * WIDE_QRS if wide else (Q_POS + K * Q_SIGMA) * p['qrs']
+    return p['emd_v'] - lead
 
 
 def _flows(V, t, p, T, ts, tr, pr=None):

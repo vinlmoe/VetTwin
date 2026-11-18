@@ -135,11 +135,16 @@ impl Timing {
     }
 }
 
-/// Début mécanique d'un battement ventriculaire par rapport à son pic R (s) : début du QRS
-/// (`R − QRS/2`, QRS élargi d'un battement ventriculaire) + délai électromécanique `emd_v`.
+/// Début mécanique d'un battement ventriculaire par rapport à son pic R (s) : début du QRS tracé
+/// par l'ECG (mêmes bornes que [`crate::signals::ecg_windows`]) + délai électromécanique `emd_v`.
 pub fn mech_offset(p: &Params, wide: bool) -> f64 {
-    let q = p.qrs * if wide { crate::signals::WIDE_QRS } else { 1.0 };
-    p.emd_v - 0.5 * q
+    use crate::signals::{Q_POS, Q_SIGMA, WAVE_HALF_SIGMAS, WIDE_QRS, WIDE_R_SIGMA};
+    let lead = if wide {
+        WAVE_HALF_SIGMAS * WIDE_R_SIGMA * p.qrs * WIDE_QRS
+    } else {
+        (Q_POS + WAVE_HALF_SIGMAS * Q_SIGMA) * p.qrs
+    };
+    p.emd_v - lead
 }
 
 /// Activation atriale (rythme régulier). L'origine des temps est le début mécanique

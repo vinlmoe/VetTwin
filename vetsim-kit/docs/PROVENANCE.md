@@ -80,3 +80,24 @@ Détail et sources : `docs/VERIFICATION_MALADIES_MEDICAMENTS.tex`. Accès : « l
 - **Patient** : `creat_vd` 0,539 L/kg (Collignon 2012, résumé, n = 50) ; `urea_vd` 0,66 L/kg (Bowsher 1985, résumé) ; `map_arrest` 40 mmHg (Morales 1999, Granot 1985, résumés ; evidence C) ; `av_symp` 0,5 (PMC7872775, lu ; Rigel 1990, résumé ; evidence C).
 - **Orifice mitral dynamique** (`mr_k` 2,5, `mr_vref` 72·s mL ; evidence C) : forme d'après Yoran 1979 (Circulation 60:170, 6 chiens, résumé) ; exposant calé sur Suzuki 2013 (résumé : POG 14,75 → 10,77 sous furosémide 0,17 mg/kg/h × 6 h). Coefficients MMVD de `g_mr` recalés en conséquence (0,9458·s^1,111) pour conserver la fraction régurgitée et la POG par stade.
 - **MMVD, congestion par stade** (`mmvd.json` 1.1.0, 18/11/2026) : rétention hydrosodée portée de 0,149 à 0,30 (`bvf`), fuites valvulaires normalisées à 20 kg ((bw/20)^0,75). POG au milieu du stade C 15,2 mmHg (12,1 avant), stade C 9,8–22,8, stade D jusqu'à 37. Repères : POG invasive en ICC (stades C/D) médiane 14 mmHg (8–32), Allen 2021, JAVMA 258:638 (résumé) ; IM expérimentale B2 14,6 ± 3,8 (Suzuki 2012, PMC3489586, lu) ; œdème expérimental aigu au-delà de 20–25 mmHg (Nakata 1986 ; Magno & Szidon 1976 ; résumés). Cibles du module : C 14–24, D 20–32.
+
+## Chronologie cardiaque et extrasystoles (18/11/2026, mise en évidence par le cœur animé)
+Accès : « lu » = texte intégral, « résumé » = résumé seul. Detail : `docs/GUIDE_MODELE.tex`, tableau `tab:sti`.
+
+- **Systole recalée.** `ts_coef` 0,325 → 0,25, `act_gamma` 0,55 (montée ½(1 − cos(π(t/ts)^γ))), `tr_frac` 0,4 → 0,35.
+  - Cibles du chien vigile : PEP 58,8 ± 4,8 ms (Trikhun 2020, PMC7750241, lu) ; LVET 170,6 ± 18,4 (Gicana 2022, PMC9394128, lu) ; IVRT 61,4 ± 9,7 (Favier 2025, PMC12153602, lu) ; Tei 0,41–0,54 (Baumwart 2005, résumé ; Guglielmini 2019, lu).
+  - Modèle : PEP 54 ms, LVET 178, IVRT 61, IVCT 35, Tei 0,54. Avant : PEP 120, IVCT 90, IVRT 88, Tei 1,0.
+- **Recalage global** (mêmes cibles que `fit_hemo.py`, sur le moteur Rust) : `r_sys` 1,7925, `vol_shift` −22,43, `ees_lv` 4,4915, `r_pul` 0,15626, `b_lv` 0,028137. PAM 103,0 (109,4 avant).
+- **`mr_vref`** 72 → 68,5 (nouveau VTD sain). RF par stade B1/B2/C/D : 0,10/0,31/0,58/0,73 ; POG au milieu du stade C : 14,4 mmHg.
+- **`c_pa`** 1,5 → 2,5 : PAP 19,5/13,7/7,8 mmHg (Yuchi 2021, PMC8415444, lu : 20,0/12,8/6,4, chien vigile). Le débit pulmonaire en diastole disparaît.
+- **`emd_v`** 0,022 s (Kettunen 1985, résumé : Q → montée de PVG 22 ± 4 ms) : le début mécanique suit le début du QRS de l'ECG, y compris pour un QRS large.
+- **`pa_ia`** 0,041 s (Traunecker 1988, résumé : PA 41, AH 66, HV 37 ms).
+- **Onde Ta** ajoutée à l'ECG (Perego 2014 ; Mirvis 1986, résumés).
+- **`emd_a`** 0 : placeholder D, aucune donnée chez le chien sain.
+- **`ca_tau`** 0,2 → 0,12 s : restitution mécanique in situ, τ = 122 ± 26 ms (Freeman & Colston 1990, résumé).
+- **`ees_wide`** 0,8 confirmé : dP/dt −22 % en BBG aigu (Strik 2012, lu) ; pic de PVG −26 ± 10 % (Burkhoff 1986).
+- **Limites.**
+  - La pause compensatrice des ESV est souvent incomplète ; aucune donnée canine chiffrée sur ce point.
+  - Le VES des ESV est plus bas que chez Potfay 2015 (PMC4618025, lu ; chiens anesthésiés, thorax ouvert) pour des couplages de 300 à 380 ms.
+  - Gradient VD–AP de 8 mmHg.
+  - Le module `ventricular_premature` dépasse, dès son stade « rares », les 20 à 50 ESV/24 h des chiens sains (Meurs 2001, résumé ; Holter 7 j, PMC12129169, lu).

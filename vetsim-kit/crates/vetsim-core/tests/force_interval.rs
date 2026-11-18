@@ -84,7 +84,10 @@ fn premature_beat_is_weak_and_post_pause_beat_is_potentiated() {
     let (c, i) = sequence(Some(0.40));
     let (beats, _) = beat_schedule(&c, PERIOD, &p);
     assert!((beats[i - 1].c - 1.0).abs() < 1e-9);
-    assert!(beats[i].c < 0.8 * p.ees_wide, "extrasystole {}", beats[i].c);
+    // restitution incomplète : à 0,40 s de couplage (≈ 190 ms après la fin de la systole
+    // précédente) et τ = ca_tau = 0,12 s (Freeman & Colston 1990), libération ≈ 1 − e^(−1,6) ≈ 0,8
+    assert!(beats[i].c < 0.9 * p.ees_wide, "extrasystole {}", beats[i].c);
+    assert!(beats[i].c > 0.6 * p.ees_wide, "extrasystole {}", beats[i].c);
     assert!(beats[i + 1].c > 1.05, "post-pause {}", beats[i + 1].c);
     // retour progressif au régime établi
     assert!(beats[i + 1].c > beats[i + 2].c && beats[i + 2].c > 1.0);

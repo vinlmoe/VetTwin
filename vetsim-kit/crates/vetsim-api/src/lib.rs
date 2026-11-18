@@ -749,7 +749,7 @@ impl Engine {
                 .iter()
                 .zip(&aw)
                 .filter(|(a, _)| inside(a.t))
-                .map(|(a, x)| json!({ "t": a.t, "organized": a.organized, "on": x.on, "off": x.off }))
+                .map(|(a, x)| json!({ "t": a.t, "organized": a.organized, "on": x.on, "off": x.off, "ta_end": x.ta_end }))
                 .collect();
             let ventricular: Vec<Json> = sc
                 .ventricular
@@ -1504,8 +1504,12 @@ mod tests {
             .iter()
             .map(|v| v.as_f64().unwrap())
             .collect();
+        // les battements sonores suivent le début mécanique (début du QRS + délai
+        // électromécanique) : au pic R à 1 ms près pour un QRS fin
         assert!(
-            !beats.is_empty() && rt.starts_with(&beats),
+            !beats.is_empty()
+                && beats.len() <= rt.len()
+                && beats.iter().zip(&rt).all(|(b, r)| (b - r).abs() < 1e-3),
             "{beats:?} / {rt:?}"
         );
         assert_eq!(r["ecg"].as_array().unwrap().len(), 3000);

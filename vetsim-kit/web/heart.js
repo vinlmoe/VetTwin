@@ -89,8 +89,8 @@ const mix = (c1, c2, x) => {
 
 /**
  * Chronologie électrique tirée des sorties du moteur. Conventions du modèle : l'influx atteint le
- * nœud AV au début de l'onde P (pas de délai intra-atrial), sort du nœud vers le His à `t_his`, et
- * l'instant ventriculaire est le pic R (QRS centré dessus).
+ * nœud AV `t_avn` (début de l'onde P + conduction intra-atriale PA), sort du nœud vers le His à
+ * `t_his`, et l'instant ventriculaire est le pic R (QRS centré dessus).
  */
 export function heartTimeline(r) {
   const el = r.electrical, tracks = [], marks = [], nodal = [];
@@ -211,7 +211,7 @@ export function mountHeart(v, r, H, ui) {
         ${ui.card('Volumes ventriculaires (mL)', ui.canvas('h-vol', 74) + ui.legend([['VG', COLORS.lv], ['VD', COLORS.pa]]))}
       </div>
     </div>
-    <div class="note">Tout ce qui est animé vient du moteur : séquence de conduction et devenir de chaque influx au nœud AV, bornes des ondes P, QRS et T de l'ECG, activation mécanique, volumes, pressions et débits simulés battement par battement. Conventions du modèle : l'influx atteint le nœud AV au début de l'onde P ; la mécanique ventriculaire démarre au pic R ; pas de repolarisation atriale tracée (onde Ta), l'oreillette est affichée repolarisée à la fin de sa systole. Géométrie et trajets schématiques ; ventricules à l'échelle de la racine cubique du volume, oreillettes amplifiées (leur volume inclut les veines). Clavier : espace (lecture), ← → (battement). Usage pédagogique uniquement.</div>
+    <div class="note">Tout ce qui est animé vient du moteur : séquence de conduction et devenir de chaque influx au nœud AV, bornes des ondes P, QRS et T de l'ECG, activation mécanique, volumes, pressions et débits simulés battement par battement. Conventions du modèle : l'influx atteint le nœud AV après la conduction intra-atriale (PA) ; la mécanique ventriculaire démarre au début du QRS + délai électromécanique ; la repolarisation atriale suit l'onde Ta de l'ECG. Géométrie et trajets schématiques ; ventricules à l'échelle de la racine cubique du volume, oreillettes amplifiées (leur volume inclut les veines). Clavier : espace (lecture), ← → (battement). Usage pédagogique uniquement.</div>
   </div>`;
   const svg = v.querySelector('#h-svg');
   const el = (id) => svg.querySelector('#' + id);
@@ -291,7 +291,7 @@ export function mountHeart(v, r, H, ui) {
       f.replaceChildren(); wv.setAttribute('opacity', '0');
       if (!a) continue;
       if (a.organized) {
-        const end = a.t + aRepol;
+        const end = a.ta_end ?? a.t + aRepol; // fin de l'onde Ta (repolarisation atriale)
         if (t > end) continue;
         wv.setAttribute('cx', SA[0]); wv.setAttribute('cy', SA[1]);
         wv.setAttribute('r', (240 * clamp01((t - a.on) / (a.off - a.on))).toFixed(1));

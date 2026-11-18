@@ -44,6 +44,19 @@ pub struct EcgFeatures {
 // les durées visibles (seuil 0,02 mV) soient celles des intervalles publiés.
 /// Largeur de P (s) : 45 ms visibles à 0,2 mV.
 pub const P_SIGMA: f64 = 0.0105;
+/// Onde Ta (repolarisation atriale) : amplitude en fraction de celle de P (négative) et largeur en
+/// multiple de celle de P. Perego 2014 (BAV 3, n = 36, résumé) : Ta/P −0,35 en amplitude, 2,3 en
+/// durée ; pic pendant le segment PR (Mirvis 1986). Evidence C.
+pub const TA_AMP: f64 = -0.35;
+/// Largeur de Ta (multiple de la largeur de P).
+pub const TA_WIDTH: f64 = 2.3;
+
+/// Centre et largeur de l'onde Ta d'une onde P de centre `p_c` et de largeur `p_w` : Ta débute à
+/// la fin de P (± 2 σ) et culmine dans le segment PR.
+pub fn ta_wave(p_c: f64, p_w: f64) -> (f64, f64) {
+    let w = TA_WIDTH * p_w;
+    (p_c + 2.0 * p_w + w, w)
+}
 /// Élargissement relatif de P par mmol/L de K au-delà de 6 (placeholder D).
 pub const P_WIDEN_K: f64 = 0.25;
 /// Largeur de R (fraction de `qrs`).
@@ -152,6 +165,8 @@ pub fn make_ecg(
     for &tr in &t_r {
         let q = f.qrs;
         add(tr - f.pr + 0.5 * 0.03, f.p_amp, f.p_w); // P
+        let (tc, tw) = ta_wave(tr - f.pr + 0.5 * 0.03, f.p_w);
+        add(tc, TA_AMP * f.p_amp, tw); // Ta
         add(tr - Q_POS * q, -0.12 * f.r_amp, Q_SIGMA * q); // Q
         add(tr, f.r_amp, R_SIGMA * q); // R
         add(tr + S_POS * q, -0.20 * f.r_amp, S_SIGMA * q); // S
@@ -210,6 +225,8 @@ pub fn make_ecg_conducted(
         }
         if a.organized {
             add(a.t + 0.5 * 0.03, f.p_amp, f.p_w); // P
+            let (tc, tw) = ta_wave(a.t + 0.5 * 0.03, f.p_w);
+            add(tc, TA_AMP * f.p_amp, tw); // Ta
         } else {
             let rec = prev_a.map_or(1.0, |q| f64::min(F_WAVE_MAX, (a.t - q) / p.af_cycle));
             add(a.t, F_WAVE * p.p_amp * rec, 0.012); // onde f
@@ -269,6 +286,8 @@ pub struct AtrialWindow {
     pub on: f64,
     /// Fin de la dépolarisation tracée.
     pub off: f64,
+    /// Fin de la repolarisation tracée (onde Ta ; fin de l'onde f en fibrillation).
+    pub ta_end: f64,
 }
 
 /// Fenêtre électrique d'une activation ventriculaire dans l'ECG (s).
@@ -307,10 +326,17 @@ pub fn ecg_windows(
             } else {
                 (a.t, 0.012)
             };
+            let ta_end = if a.organized {
+                let (tc, tw) = ta_wave(c, w);
+                tc + k * tw
+            } else {
+                c + k * w
+            };
             AtrialWindow {
                 t: a.t,
                 on: f64::max(a.t, c - k * w),
                 off: c + k * w,
+                ta_end,
             }
         })
         .collect();

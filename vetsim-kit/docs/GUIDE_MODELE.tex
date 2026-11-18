@@ -187,16 +187,21 @@ Paramètre & Expression & Unité & Source (accès) & Év.\\
 \midrule\endhead
 \multicolumn{5}{@{}l}{\emph{Cœur}}\\
 \vp{hr} & $87\,s^{-0{,}25}$ & /min & FC 87, Haskins 2005 (97 chiens vigiles ; \acc{résumé}) & A\\
-\vp{ees_lv}, \vp{ees_rv} & $4{,}543/s$ ; $1{,}6/s$ & mmHg/mL & \vp{ees_lv} calé (\cmd{fit\_hemo.py}) ; \vp{ees_rv} non documenté & C\\
+\vp{ees_lv}, \vp{ees_rv} & $4{,}4915/s$ ; $1{,}6/s$ & mmHg/mL & \vp{ees_lv} calé (\cmd{fit\_hemo.py}) ; \vp{ees_rv} non documenté & C\\
 \vp{v0_lv}, \vp{v0_rv} & $4\,s$ ; $6\,s$ & mL & non documenté & --\\
 \vp{a_lv}, \vp{a_rv} & 1,0 ; 0,4 & mmHg & non documenté & --\\
-\vp{b_lv}, \vp{b_rv} & $0{,}01548/s$ ; $0{,}05/s$ & 1/mL & \vp{b_lv} calé (\cmd{fit\_hemo.py}) & C\\
-\vp{ts_coef} & 0,325 & -- & B1$\to$B2 du beagle 236--251 ms, $n = 14$, PMC9394128 & C\\
+\vp{b_lv}, \vp{b_rv} & $0{,}028137/s$ ; $0{,}05/s$ & 1/mL & \vp{b_lv} calé (\cmd{fit\_hemo.py}) & C\\
+\vp{ts_coef}, \vp{act_gamma}, \vp{tr_frac} & 0,25 ; 0,55 ; 0,35 & -- & calés le 18/11/2026 sur les intervalles systoliques et diastoliques du chien vigile (tableau~\ref{tab:sti}) & C\\
+\vp{emd_v} & 0,022 s & s & début de Q $\to$ début de la montée de pression VG $22 \pm 4$~ms, $n = 56$ (Kettunen 1985, \acc{résumé}) ; $\approx 30$~ms (Strik 2012, \acc{lu}) & B\\
+\vp{emd_a} & 0 & s & aucune valeur chez le chien sain (PA-TDI seulement chez des cardiopathes, Neves 2018) & D\\
 \vp{ts_restitution} & 0,1 & -- & non documenté & D\\
-\vp{ca_tau}, \vp{ca_recirc}, \vp{ees_wide} & 0,2 s ; 0,6 ; 0,8 & -- & structure : Schouten 1987, Wier 1986 ; valeurs : placeholders & D\\
+\vp{ca_tau} & 0,12 s & s & restitution mécanique in situ, thorax fermé, chien vigile instrumenté : $\tau = 122 \pm 26$~ms sous stimulation ventriculaire, $64 \pm 11$~ms sous stimulation atriale, $n = 9$ (Freeman \& Colston 1990, \acc{résumé}) ; 82~ms (Prabhu 1998) & C\\
+\vp{ca_recirc} & 0,6 & -- & structure : Schouten 1987, Wier 1986 ; valeur : placeholder & D\\
+\vp{ees_wide} & 0,8 & -- & activation hors Purkinje : d$P$/d$t_\text{max}$ $-22$~\% en BBG aigu (Vernooy 2007, cité par Strik 2012, \acc{lu}) ; pic de PVG $-26 \pm 10$~\% en stimulation de paroi libre VD (Burkhoff 1986, \acc{résumé}) ; PVG télésystolique $-11$~\% en stimulation de l'apex VD (Zhou 2014, \acc{lu}) & C\\
 \multicolumn{5}{@{}l}{\emph{Vaisseaux et volémie}}\\
 \vp{c_ao}, \vp{c_sv} & $0{,}7\,s$ ; $55\,s$ & mL/mmHg & non documenté & --\\
-\vp{c_pa}, \vp{c_pv} & $1{,}5\,s$ ; $5\,s$ & mL/mmHg & non documenté & --\\
+\vp{c_pa} & $2{,}5\,s$ & mL/mmHg & PAP du chien vigile 20,0/12,8/6,4~mmHg (systolique/moyenne/diastolique, médianes, $n = 7$ ; Yuchi 2021, \acc{lu}) ; modèle 19,5/13,7/7,8 (1,5 donnait 22/13,5/5,6 et un débit pulmonaire en diastole) & C\\
+\vp{c_pv} & $5\,s$ & mL/mmHg & non documenté & --\\
 \vp{v0_ao}, \vp{v0_sv}, \vp{v0_pa}, \vp{v0_pv} & $150\,s$ ; $900\,s$ ; $60\,s$ ; $120\,s$ & mL & non documenté & --\\
 \vp{ven_cap} & 1,0 & -- & capacitance relative (1 = basale) & --\\
 \vp{r_sys}, \vp{r_pul} & $1{,}7572/s^{0{,}75}$ ; $0{,}156/s^{0{,}75}$ & mmHg·s/mL & calés (\cmd{fit\_hemo.py}) sur Haskins 2005 & A\\
@@ -204,7 +209,7 @@ Paramètre & Expression & Unité & Source (accès) & Év.\\
 \multicolumn{5}{@{}l}{\emph{Valves et oreillettes}}\\
 \vp{r_valve} & $0{,}03/s^{0{,}75}$ & mmHg·s/mL & non documenté & --\\
 \vp{g_mr}, \vp{g_ar}, \vp{g_tr}, \vp{g_pr} & 0,0005 ; 0,0002 ; 0,0002 ; 0,0002 & mL/s/mmHg & fuite résiduelle quasi nulle, non documentée & --\\
-\vp{mr_k}, \vp{mr_vref} & 2,5 ; $72\,s$ & -- ; mL & Yoran 1979 (forme) ; calé sur Suzuki 2013 (section~\ref{sec:valves}) & C\\
+\vp{mr_k}, \vp{mr_vref} & 2,5 ; $68{,}5\,s$ & -- ; mL & Yoran 1979 (forme) ; calé sur Suzuki 2013 (section~\ref{sec:valves}) & C\\
 \vp{k_la}, \vp{k_ra} & 1,45 ; 0,29 & -- & \vp{k_la} : E/A $\approx 1{,}39$, $n = 53$, 10.3390/ani15111524 ; \vp{k_ra} $= 0{,}2\,\vp{k_la}$, placeholder & C / D\\
 \vp{ta_atr}, \vp{tra_atr} & 0,09 ; 0,06 & s & non documenté & D\\
 \multicolumn{5}{@{}l}{\emph{Autonome et baroréflexe}}\\
@@ -240,7 +245,7 @@ Les paramètres de conduction et de décompensation du même fichier sont donné
 
 \textbf{Valeurs de sortie du chien sain de 20~kg} (mode déterministe ; \cmd{VERIFICATION\_MALADIES\_MEDICAMENTS.tex}, 18/11/2026, avant l'orifice mitral dynamique) : FC 87,6/min ; PAM 109,4~mmHg ; DC 3,53~L/min ; POG 4,6~mmHg ; PaCO$_2$ 40,2~mmHg ; K$^+$ 4,1~mmol/L ; créatinine 75~\textmu mol/L. Avec $\vp{g_mr} = 0{,}0005$, l'orifice dynamique ne devrait pas changer ces valeurs de façon visible (non recalculé).
 
-\limite{PAM saine 109,4 contre 103 (Haskins) depuis le raccourcissement de la systole ($\vp{ts_coef}$ 0,37 $\to$ 0,325) ; la correction de fond (recaler la PAM sur source) n'est pas faite. Haskins 2005 n'a été lu qu'en résumé (moyennes sans écart-type) ; le DC cible vient de l'IC par une formule de surface corporelle. Population de référence hétérogène (races, méthodes). Calage, et non validation prospective : aucune donnée n'est tenue à part.}
+\limite{PAM saine recalée à 103 (Haskins) le 18/11/2026, avec la chronologie systolique (elle valait 109,4 depuis $\vp{ts_coef}$ 0,325). Haskins 2005 n'a été lu qu'en résumé (moyennes sans écart-type) ; le DC cible vient de l'IC par une formule de surface corporelle. Population de référence hétérogène (races, méthodes). Calage, et non validation prospective : aucune donnée n'est tenue à part.}
 
 %=====================================================================
 \section{Cœur : ventricules gauche et droit}\label{sec:coeur}
@@ -249,15 +254,34 @@ Les paramètres de conduction et de décompensation du même fichier sont donné
 \textbf{Rôle.} Pompe à élastance variable dans le temps, une pour chaque ventricule ; relation télésystolique linéaire, relation télédiastolique exponentielle.
 
 \subsection{Activation et durée de systole}
-Rythme régulier (\cmd{hemo::activation}) : période $T = 60/\text{FC}$, $t_c = t \bmod T$, systole $t_s = \vp{ts_coef}\sqrt{T}$, relaxation $t_r = 0{,}4\,t_s$,
+Rythme régulier (\cmd{hemo::activation\_g}) : période $T = 60/\text{FC}$, $t_c = t \bmod T$, systole $t_s = \vp{ts_coef}\sqrt{T}$, relaxation $t_r = \vp{tr_frac}\,t_s$,
 \begin{equation}
 e(t) = \begin{cases}
-\tfrac12\bigl(1 - \cos(\pi t_c/t_s)\bigr) & 0 \le t_c < t_s,\\
+\tfrac12\bigl(1 - \cos(\pi (t_c/t_s)^{\gamma})\bigr) & 0 \le t_c < t_s,\\
 \tfrac12\bigl(1 + \cos(\pi (t_c - t_s)/t_r)\bigr) & t_s \le t_c < t_s + t_r,\\
 0 & \text{sinon.}
 \end{cases}
 \end{equation}
-$\vp{ts_coef} = 0{,}325$ depuis le 17/11/2026 (0,37 auparavant, coefficient encore présent dans \cmd{Timing::from\_hr}).
+avec $\gamma = \vp{act_gamma}$ : $\gamma < 1$ raidit le début de la contraction. L'origine $t_c = 0$ est le \emph{début mécanique} : début du QRS tracé par l'ECG + \vp{emd_v} (\cmd{hemo::mech\_offset}) ; la contraction atriale débute \vp{emd_a} après le début de l'onde P.
+
+\textbf{Recalage de la chronologie (18/11/2026).} Le cœur animé a montré une contraction isovolumique de 90~ms, une période pré-éjectionnelle (PEP, du début du QRS à l'ouverture aortique) de 110 à 136~ms, une relaxation isovolumique (IVRT) de 88~ms et un indice de Tei de 1,0, avec un d$P$/d$t_\text{max}$ de 1\,670~mmHg/s. Avec $\vp{ts_coef} = 0{,}25$ (0,325 auparavant), $\gamma = 0{,}55$ et $\vp{tr_frac} = 0{,}35$ (0,4), puis le recalage global de \vp{r_sys}, \vp{vol_shift}, \vp{ees_lv}, \vp{r_pul} et \vp{b_lv} sur les mêmes cibles que \cmd{fit\_hemo.py} (PAM 103, IC 4,42~L/min/m$^2$, PAP 14, POG 5,5, FE 0,55), le chien sain de 20~kg à 87/min donne les valeurs du tableau~\ref{tab:sti}. PAM 103,0 (109,4 auparavant), d$P$/d$t_\text{max}$ 2\,840~mmHg/s.
+
+\begin{table}[h]\centering\small
+\caption{Intervalles du cycle cardiaque gauche et droit, chien sain : modèle et références.}\label{tab:sti}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Intervalle & Modèle & Référence (chien, accès)\\
+\midrule
+PEP aortique & 54 ms & $58{,}8 \pm 4{,}8$ (SE), $n = 12$, vigiles (Trikhun 2020, \acc{lu}) ; $33 \pm 26$, $n = 14$ (Gicana 2022, \acc{lu})\\
+Temps d'éjection VG & 178 ms & $170{,}6 \pm 18{,}4$ à 102/min (Gicana 2022) ; 173 (168--179), $n = 45$ (Baumwart 2005, \acc{résumé})\\
+IVRT & 61 ms & $61{,}4 \pm 9{,}7$, $n = 49$, vigiles (Favier 2025, \acc{lu})\\
+Contraction isovolumique & 35 ms & --\\
+Indice de Tei VG & 0,54 & $0{,}42 \pm 0{,}22$ (Gicana) ; 0,41 (Baumwart) ; $0{,}54 \pm 0{,}20$ (Guglielmini 2019, \acc{lu})\\
+Fermeture $\to$ ouverture mitrale & 273 ms & $239{,}7 \pm 34{,}2$ à 102/min (Gicana)\\
+PEP et éjection pulmonaires & 33 ; 204 ms & $52{,}8 \pm 2{,}0$ (SE) ; $147 \pm 8$ (Trikhun) ; éjection VD 187 (182--192) (Baumwart)\\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{Pression ventriculaire}
 \begin{equation}
@@ -268,7 +292,7 @@ avec $(E_{es}, V_0, a, b) = (\vp{ees_lv}, \vp{v0_lv}, \vp{a_lv}, \vp{b_lv})$ pou
 \subsection{Rythme irrégulier : battement par battement}
 Quand la conduction n'est pas sinusale 1:1 (section~\ref{sec:rythme}), chaque battement $i$ a sa systole et son amplitude (\cmd{hemo::beat\_schedule}) :
 \begin{align}
-t_{s,i} &= \vp{ts_coef}\sqrt{T_0}\,\bigl(RR_i/T_0\bigr)^{\vp{ts_restitution}}, \qquad t_{r,i} = 0{,}4\,t_{s,i},\\
+t_{s,i} &= \vp{ts_coef}\sqrt{T_0}\,\bigl(RR_i/T_0\bigr)^{\vp{ts_restitution}}, \qquad t_{r,i} = \vp{tr_frac}\,t_{s,i},\\
 x &= \exp\bigl(-\max(0, RR_i - t_{s,i-1})/\vp{ca_tau}\bigr),\quad \text{rel} = u\,(1 - x),\quad u \leftarrow u\,x + \rho\,\text{rel} + (1 - \rho),\\
 c_i &= \text{rel}\times\begin{cases}\vp{ees_wide} & \text{QRS large}\\ 1 & \text{sinon}\end{cases},\qquad u_0 = \frac{1}{1 - \exp(-(T_0 - t_{s,0})/\vp{ca_tau})},
 \end{align}
@@ -276,9 +300,17 @@ avec $\rho = \vp{ca_recirc}$ et $T_0$ la période moyenne. C'est un modèle de r
 
 \sources{Structure du modèle calcique : Schouten 1987, Biophys J, 10.1016/s0006-3495(87)83307-6 ; principe : Wier 1986, J Physiol, 10.1113/jphysiol.1986.sp016167 ; potentialisation : Cooper 1993, Circulation, 10.1161/01.cir.88.6.2962 ; dyssynchronie du QRS large : Prinzen 1999, JACC, 10.1016/s0735-1097(99)00068-6 (DOI vérifiés dans OpenAlex, accès non précisé). \vp{ts_coef} : PMC9394128 (beagle, $n = 14$). \vp{ees_lv}, \vp{b_lv} : calés globalement (\cmd{fit\_hemo.py}).}
 
-\textbf{Statut.} Valeurs de \vp{ca_tau}, \vp{ca_recirc}, \vp{ees_wide}, \vp{ts_restitution} : \evD{}. \vp{ts_coef} : \evC{}.
+\textbf{Statut.} \vp{ca_recirc}, \vp{ts_restitution}, \vp{emd_a} : \evD{}. \vp{ts_coef}, \vp{act_gamma}, \vp{tr_frac}, \vp{ca_tau}, \vp{ees_wide} : \evC{}. \vp{emd_v} : \evB{}.
 
-\limite{Le modèle à élastance ne représente ni la précharge recrutable de Frank--Starling au-delà de la relation $E_{es}$, ni la relaxation active (lusitropie) : le sympathique et le pimobendane n'agissent que sur $E_{es}$. B1$\to$B2 reste trop long dans les sons (0,26~s contre 0,18~s mesuré), ce qui pointe la durée d'éjection. Le caractère productif d'une ESV émerge du remplissage écourté et de $c_i$, sans calage sur des courbes canines de d$P$/d$t$ en fonction du couplage.}
+\textbf{Extrasystoles (vérification du 18/11/2026).} Sur 19 ESV isolées (patient à ESV, sévérité 0,8, $6 \times 30$~s) :
+\begin{itemize}
+\item \textbf{ECG.} QRS de 82~ms (bornes $\pm 2\sigma$), contre 44~ms en sinusal ; onde T discordante (environ $-0{,}5$~mV, contre $+0{,}3$).
+\item \textbf{Volume d'éjection selon le couplage.} Nul sous environ 300~ms de couplage, puis 21 à 32~\% du VES sinusal vers 380--410~ms et 45 à 70~\% de 450 à 640~ms. Le déficit de pouls est bien présent.
+\item \textbf{Potentialisation.} Le battement suivant est potentialisé : $c$ jusqu'à 1,34, VES jusqu'à $+36$~\%.
+\end{itemize}
+Repère : le VES de l'ESV est de 2,5 à 4,1~mL à 200~ms de couplage, et de 10,2 à 14,8~mL à 375~ms, pour 16,4 à 17,3~mL en stimulation régulière à 400~ms (Potfay 2015, PMC4618025, \acc{lu}). Ces chiens étaient anesthésiés, thorax ouvert : la pression aortique y est plus basse que chez le chien vigile modélisé, ce qui favorise l'éjection précoce. Le modèle reste en dessous de ces valeurs entre 300 et 380~ms.
+
+\limite{Le modèle à élastance ne représente ni la précharge recrutable de Frank--Starling au-delà de la relation $E_{es}$, ni la relaxation active (lusitropie) : le sympathique et le pimobendane n'agissent que sur $E_{es}$. La pause compensatrice après une ESV est souvent incomplète et les ESV interpolées sont fréquentes, car le nœud AV ne reste réfractaire que \vp{av_erp} (0,15~s, calé sur la FA) et la pénétration rétrograde de l'ESV dans la jonction n'est pas représentée. Aucune donnée canine chiffrée n'a été trouvée sur la fréquence des pauses complètes ; selon Shoureshi 2023 (PMC10513922, \acc{lu}), le chien ne semblerait pas conduire de façon rétrograde vers les oreillettes pendant les ESV. Le gradient VD--AP en systole atteint 8~mmHg (résistance valvulaire commune aux quatre valves).}
 
 %=====================================================================
 \section{Circulations systémique et pulmonaire, volémie}\label{sec:circ}
@@ -335,9 +367,9 @@ avec $\Delta p = P_{pv} - P_{lv}$ (mitrale), $P_{lv} - P_{ao}$ (aortique), $P_{s
 
 \subsection{Orifice mitral dynamique (18/11/2026)}
 \begin{equation}
-g_\text{eff} = \vp{g_mr}\left(\frac{\text{VTD}}{\vp{mr_vref}}\right)^{\vp{mr_k}}, \qquad \vp{mr_k} = 2{,}5,\quad \vp{mr_vref} = 72\,s~\text{mL}
+g_\text{eff} = \vp{g_mr}\left(\frac{\text{VTD}}{\vp{mr_vref}}\right)^{\vp{mr_k}}, \qquad \vp{mr_k} = 2{,}5,\quad \vp{mr_vref} = 68{,}5\,s~\text{mL}
 \end{equation}
-L'orifice est \emph{fixe pendant le battement} et suit la taille du VG d'un battement à l'autre : \cmd{engine::hemo\_with\_rhythm} simule l'hémodynamique avec un orifice statique, lit le VTD, puis itère un point fixe amorti sur $\ln g$ (relaxation $\tfrac12$, tolérance $10^{-3}$, au plus 12 simulations). Il est ignoré si $\vp{g_mr} < 0{,}05$ (chien sain). La conductance retenue est reportée dans les paramètres de l'évaluation (\vp{g_mr}, $\vp{mr_k} = 0$) pour que l'ECG et le son recalculés en aval restent cohérents. Une première version (18/11) faisait dépendre l'orifice du volume \emph{instantané} : le pic de débit régurgité en début de systole était multiplié par 4,7 (souffle de grade 6 à MMVD 0,3) ; la forme par battement le ramène à 46~mL/s (grade 3, contre 33~mL/s avant l'orifice dynamique). Une baisse de précharge (diurétique, veinodilatation) réduit l'orifice et la fraction régurgitée, ce qui permet à la POG de baisser. \vp{mr_vref} correspond au VTD du chien sain (72~mL à 20~kg).
+L'orifice est \emph{fixe pendant le battement} et suit la taille du VG d'un battement à l'autre : \cmd{engine::hemo\_with\_rhythm} simule l'hémodynamique avec un orifice statique, lit le VTD, puis itère un point fixe amorti sur $\ln g$ (relaxation $\tfrac12$, tolérance $10^{-3}$, au plus 12 simulations). Il est ignoré si $\vp{g_mr} < 0{,}05$ (chien sain). La conductance retenue est reportée dans les paramètres de l'évaluation (\vp{g_mr}, $\vp{mr_k} = 0$) pour que l'ECG et le son recalculés en aval restent cohérents. Une première version (18/11) faisait dépendre l'orifice du volume \emph{instantané} : le pic de débit régurgité en début de systole était multiplié par 4,7 (souffle de grade 6 à MMVD 0,3) ; la forme par battement le ramène à 46~mL/s (grade 3, contre 33~mL/s avant l'orifice dynamique). Une baisse de précharge (diurétique, veinodilatation) réduit l'orifice et la fraction régurgitée, ce qui permet à la POG de baisser. \vp{mr_vref} correspond au VTD du chien sain (68,5~mL à 20~kg depuis le recalage du 18/11/2026, 72 auparavant).
 
 \sources{Forme : Yoran C, Yellin EL, Becker RM et al. 1979, PMID 445720 (6 chiens à thorax ouvert, \acc{résumé} : l'expansion volémique augmente surtout l'orifice régurgitant effectif ; la noradrénaline, qui réduit le VG, le diminue). Exposant : calé sur Suzuki 2013 (IM expérimentale, furosémide 0,17~mg/kg/h pendant 6~h : POG 14,75 $\to$ 10,77~mmHg, $-27$~\% ; \acc{résumé}, J Vet Intern Med, doi:10.1111/jvim.12154 non revérifié) ; le modèle donnait 13,66 $\to$ 9,95~mmHg ($-27$~\%) ; après le recalage de la congestion, 14,92 $\to$ 11,21~mmHg ($-25$~\%) à MMVD 0,72, sévérité dont la POG de base égale celle de l'étude. Le test \cmd{furosemide\_lowers\_lap\_in\_mitral\_regurgitation} (\cmd{tests/drug\_corrections.rs}) exige une baisse d'au moins 18~\% de la POG à MMVD 0,78 avec une PAM conservée à 90~\%, et vérifie qu'avec orifice fixe et sans veinodilatation la POG baisse de moins de 10~\%.}
 
@@ -794,7 +826,7 @@ Somme de gaussiennes construite depuis la conduction (\cmd{signals::make\_ecg\_c
 Q : -0{,}12\,R_\text{amp}\ \text{en}\ t - 0{,}34\,q,\ \sigma = q/14;\qquad R : R_\text{amp},\ \sigma = q/10;\qquad S : -0{,}20\,R_\text{amp}\ \text{en}\ t + 0{,}34\,q,\ \sigma = q/13,\\
 T : T_\text{amp}\ \text{en}\ t - 0{,}5\,q + \text{QT}_c - 2{,}2\,t_w,\ \sigma = t_w,\qquad \text{QT}_c = \text{QT}\,(95/\max(60/RR, 30))^{1/3}\ \text{(Fridericia, RR précédent)}.
 \end{gather}
-P : $\sigma = \vp{P_SIGMA} = 10{,}5$~ms ; $t_w = \vp{T_W0} = 25$~ms. Battement ventriculaire : QRS $2{,}2\,q$ (\vp{WIDE_QRS}), R $\times 1{,}2$ ($\sigma = 2{,}2q/8$), S $-0{,}35\,R_\text{amp}$ en $+0{,}40$, T discordante $-1{,}5\,T_\text{amp}$ de largeur $1{,}5\,t_w$. Onde f : amplitude $0{,}3\,\vp{p_amp}\cdot\min(2, \Delta t_a/\vp{af_cycle})$, $\sigma = 12$~ms. Bruit blanc 0,01~mV et dérive de ligne de base 0,02~mV à 0,25~Hz.
+P : $\sigma = \vp{P_SIGMA} = 10{,}5$~ms ; $t_w = \vp{T_W0} = 25$~ms. Onde Ta (repolarisation atriale, 18/11/2026) après chaque P organisée : amplitude $-0{,}35\,\vp{p_amp}$, $\sigma_{Ta} = 2{,}3\,\sigma_P$, centrée $2\sigma_P + \sigma_{Ta}$ après le centre de P (début à la fin de P, pic dans le segment PR) ; Perego 2014 (BAV~3, $n = 36$, \acc{résumé} : Ta/P $-0{,}35$ en amplitude, 2,3 en durée, $-0{,}09$~mV en D2) et Mirvis 1986 (pic dans le segment PR) ; masquée par le QRS en rythme sinusal (Romito 2022, \acc{lu}). Conduction intra-atriale \vp{pa_ia} = 41~ms (PA $41 \pm 1$~ms, AH $66 \pm 2$, HV $37 \pm 1$, $n = 97$ chiens anesthésiés ; Traunecker 1988, \acc{résumé}) : l'influx atteint le nœud AV $\vp{pa_ia}$ après le début de P et $\text{AH} = \text{PR} - \vp{hv} - \vp{pa_ia}$ (seul AH est modulé par le tonus autonome). Battement ventriculaire : QRS $2{,}2\,q$ (\vp{WIDE_QRS}), R $\times 1{,}2$ ($\sigma = 2{,}2q/8$), S $-0{,}35\,R_\text{amp}$ en $+0{,}40$, T discordante $-1{,}5\,T_\text{amp}$ de largeur $1{,}5\,t_w$. Onde f : amplitude $0{,}3\,\vp{p_amp}\cdot\min(2, \Delta t_a/\vp{af_cycle})$, $\sigma = 12$~ms. Bruit blanc 0,01~mV et dérive de ligne de base 0,02~mV à 0,25~Hz.
 
 \textbf{Effets de K$^+$} (\cmd{ecg\_features}) : si $K > 5{,}5$ ($\delta = K - 5{,}5$) : $T_\text{amp} \times (1 + 0{,}45\delta)$ ; $t_w = \vp{T_W0}\max(0{,}025, 0{,}045 - 0{,}006\delta)/0{,}045$ ; P élargie $\times (1 + 0{,}25\max(0, K - 6))$ et aplatie $\times\max(0, 1 - 0{,}25\max(0, K - 6))$ ; QT $\times \max(0{,}8, 1 - 0{,}04\delta)$ ; PR $\times (1 + 0{,}07\max(0, K - 6))$ ; QRS $\times (1 + 0{,}12\max(0, K - 6{,}5))$. Si $K < 3{,}2$ : T $\times \max(0{,}2, 1 - 0{,}3(3{,}2 - K))$, QT $\times (1 + 0{,}08(3{,}2 - K))$. La disparition de P à 8,5~mmol/L vient de la conduction.
 
@@ -815,7 +847,7 @@ Voir la section~\ref{sec:auto} : les instants R viennent de la simulation autono
 \item Variabilité lognormale ($\sigma$ 0,18) de B1 et B2, modulation respiratoire $1 + 0{,}15\sin$ ; bruit de fond 40--155~Hz (ordre 4, amplitude 0,014) modulé par la respiration. Sites : base (gains B1 0,7 ; B2 3,1) et apex (1,5 ; 3,1), souffle 0,7.
 \end{itemize}
 \sources{Heartsound Library de la TiHo Hannover (Vörös, Ehlers, Kleinsorgen, Nolte ; CC BY-NC-ND 4.0, aucun enregistrement embarqué) : 3 enregistrements sans souffle et 5 de régurgitation mitrale, un chien par grade. Calés (\evC{}) : durée de B1 (45 contre 43~ms), bruit de fond par bande, niveau du souffle par grade (écart quadratique moyen 3,4~dB sur 10 valeurs), rapport B2/B1 à l'apex (médiane 0,82). Systole : B1$\to$B2 du beagle (PMC9394128).}
-\limite{B1$\to$B2 trop long (0,26 contre 0,18~s), cause hémodynamique. Attribution du site « base » à revoir (l'enregistrement de calage est décrit comme pris à l'apex). Pas de souffle à la base ni de souffle diastolique enregistrés ; B3 non calé ; correspondance grade--débit non calibrée ; mp3 avec pertes.}
+\limite{B1$\to$B2 : 0,15~s depuis le recalage de la systole du 18/11/2026 (0,26~s avant), contre 0,18~s enregistré. B1 est placé au croisement P$_\text{VG}$/P$_\text{OG}$, que la systole atriale encore active au début de la contraction retarde (environ 60~ms après le début mécanique). Attribution du site « base » à revoir (l'enregistrement de calage est décrit comme pris à l'apex). Pas de souffle à la base ni de souffle diastolique enregistrés ; B3 non calé ; correspondance grade--débit non calibrée ; mp3 avec pertes.}
 
 %=====================================================================
 \section{Synthèse des sources et des placeholders}\label{sec:synthese}
