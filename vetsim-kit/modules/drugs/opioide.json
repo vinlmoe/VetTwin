@@ -1,0 +1,85 @@
+{
+ "schema_version": "1.0.0",
+ "species": [
+  "dog"
+ ],
+ "license": "CC-BY-4.0",
+ "id": "opioide",
+ "version": "1.0.0",
+ "name": {
+  "fr": "Opioïde (générique)"
+ },
+ "evidence": "D",
+ "pk": {
+  "vc_L_kg": 3.0,
+  "vp_L_kg": 4.0,
+  "cl_mL_min_kg": 25.0,
+  "q_mL_min_kg": 30.0,
+  "ka_per_h": 1.0,
+  "f": 0.5,
+  "renal_exp": 0.0,
+  "hep_exp": 1.0
+ },
+ "pd": {
+  "type": "emax",
+  "emax": 1.0,
+  "ec50_mg_L": 0.015,
+  "hill": 1.3,
+  "effects": [
+   {
+    "param": "vent_drive",
+    "op": "mul",
+    "expr": {
+     "add": [
+      1,
+      {
+       "mul": [
+        -0.55,
+        "E"
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "param": "vagal_add",
+    "op": "add",
+    "expr": {
+     "mul": [
+      0.25,
+      "E"
+     ]
+    }
+   }
+  ],
+  "toxicity": [
+   {
+    "id": "respiratory_arrest",
+    "emax": 1.0,
+    "ec50_mg_L": 0.15,
+    "hill": 3.0,
+    "evidence": "D",
+    "source": "Placeholder pédagogique (evidence D) : EC50 toxique = 10 × EC50 thérapeutique, Hill 3, aucune source ; ne jamais utiliser pour une dose réelle. Mécanisme : dépression du centre respiratoire (apnée).",
+    "effects": [
+     {
+      "param": "vent_drive",
+      "op": "mul",
+      "expr": {
+       "add": [
+        1,
+        {
+         "mul": [
+          -0.99,
+          "T"
+         ]
+        }
+       ]
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "refs": [],
+ "notes": "PLACEHOLDER. Termes toxiques (pd.toxicity) : placeholders D."
+}

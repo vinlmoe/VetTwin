@@ -1,0 +1,145 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+defaults:
+  run:
+    working-directory: vetsim-kit
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: vetsim-kit
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+      - name: Noyau compatible wasm32 (sans I/O ni entropie système)
+        run: cargo check -p vetsim-core --target wasm32-unknown-unknown
+      - run: cargo build --release -p vetsim-cli
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install numpy scipy jsonschema
+      - name: Rust == Python (fixture M1 régénérée avec le Python de la CI)
+        run: python tests/make_m1_fixture.py && cargo test -p vetsim-core --test check_modules
+      - name: Rust == Python (fixture M2 régénérée avec le Python de la CI)
+        run: python tests/make_m2_fixture.py && cargo test -p vetsim-core --test metabolic
+      - name: CLI Rust == Python (paramètres, M1)
+        run: python tests/check_params_cli.py --cmd "target/release/vetsim-cli"
+      - name: Rust == Python hors golden (fixture M3 régénérée)
+        run: python tests/make_m3_fixture.py && cargo test --release -p vetsim-core --test hemodynamics
+      - name: Rust == Python PK/PD (fixture M4 régénérée)
+        run: python tests/make_m4_fixture.py && cargo test --release -p vetsim-core --test pkpd
+      - name: Rust == Python autonome, VFC, ECG, PCG en rejouant les tirages NumPy (fixture M6 régénérée)
+        run: python tests/make_m6_fixture.py && cargo test --release -p vetsim-core --test signals
+      - name: Rust == Python ECG construit depuis la conduction (fixture régénérée)
+        run: python tests/make_ecg_conducted_fixture.py && cargo test --release -p vetsim-core --test ecg_conducted
+      - name: Couche de conduction : comportements émergents et contrôles d'échec (référence Python)
+        run: python tests/check_rhythm.py
+      - name: Rust == Python conduction (rejeu des tirages, fixture régénérée)
+        run: python tests/make_rhythm_fixture.py && cargo test --release -p vetsim-core --test rhythm
+      - name: Rust == Python hémodynamique battement par battement (fixture régénérée)
+        run: python tests/make_beats_fixture.py && cargo test --release -p vetsim-core --test beats
+      - name: Rust == Python décompensation et toxicité (fixture régénérée)
+        run: python tests/make_tox_fixture.py && cargo test --release -p vetsim-core --test decompensation
+      - name: Banc de calibration Rust contre la référence Python (M5, VFC M6)
+        run: python tests/compare_calibration.py --cmd "target/release/vetsim-cli"
+      - name: Auscultation, critères mesurés par pcg_metrics.py (référence enregistrée)
+        run: python tests/pcg_acceptance.py --cmd "target/release/vetsim-cli" --seeds 300 --ref-json tests/pcg_reference_python.json
+      - name: Conformité golden complète (critère de la feuille de route)
+        run: python tests/conformance.py --cmd "target/release/vetsim-cli"
+
+  python-reference:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install numpy scipy jsonschema
+      - run: python tests/validate_modules.py
+      - run: python tests/check_modules.py
+
+  cross-platform:
+    # Mêmes bits sur Linux x86_64 (natif) et wasm32-wasip1 (wasmtime) : sorties JSON identiques.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: vetsim-kit
+      - name: Installer wasmtime
+        run: |
+          curl -fsSL -o wt.tar.xz https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.2/wasmtime-v50.0.2-x86_64-linux.tar.xz
+          tar xf wt.tar.xz && echo "$PWD/wasmtime-v50.0.2-x86_64-linux" >> "$GITHUB_PATH"
+      - run: cargo build --release -p vetsim-cli && cargo build --release -p vetsim-cli --target wasm32-wasip1
+      - run: python3 tests/cross_platform.py --ref target/release/vetsim-cli --cmd "wasmtime run --dir . target/wasm32-wasip1/release/vetsim-cli.wasm"
+
+  kmp-demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android, x86_64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: vetsim-kit
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - run: cargo install cargo-ndk --locked
+      - run: cargo build --release -p vetsim-cli
+      - name: Tests JVM par la FFI, capture d'écran, APK
+        working-directory: vetsim-kit/kmp-demo
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_LATEST_HOME }}
+        run: ./gradlew :composeApp:desktopTest :composeApp:assembleDebug --console=plain
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vettwins-demo
+          path: |
+            vetsim-kit/kmp-demo/composeApp/build/screenshots/
+            vetsim-kit/kmp-demo/composeApp/build/outputs/apk/debug/
+
+  web:
+    # Application web : moteur WebAssembly + autotest dans Chrome sans interface (bit à bit avec le natif).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: vetsim-kit
+      - run: cargo install wasm-bindgen-cli --version 0.2.100 --locked
+      - run: sh web/build.sh
+      - name: Autotest dans le navigateur
+        run: |
+          python3 -m http.server -d web 8000 &
+          sleep 2
+          google-chrome --headless=new --disable-gpu --no-sandbox --virtual-time-budget=60000 --dump-dom http://localhost:8000/selftest.html > selftest.html
+          grep -o "SELFTEST [0-9]*/[0-9]*" selftest.html
+          python3 -c "import re,sys; m=re.search(r'SELFTEST (\d+)/(\d+)', open('selftest.html').read()); sys.exit(0 if m and m.group(1)==m.group(2) else 1)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vettwins-web
+          path: vetsim-kit/web/

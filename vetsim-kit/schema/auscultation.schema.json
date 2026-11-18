@@ -1,0 +1,630 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "auscultation.schema.json",
+ "title": "Configuration du module auscultation (synthèse du PCG)",
+ "type": "object",
+ "required": [
+  "schema_version",
+  "id",
+  "version",
+  "defaults",
+  "presets",
+  "events",
+  "sound",
+  "s1",
+  "s2",
+  "s3",
+  "murmur",
+  "variability",
+  "background",
+  "grade",
+  "sites"
+ ],
+ "properties": {
+  "schema_version": {
+   "const": "1.0.0"
+  },
+  "id": {
+   "const": "auscultation"
+  },
+  "version": {
+   "type": "string",
+   "pattern": "^\\d+\\.\\d+\\.\\d+$"
+  },
+  "description": {
+   "type": "object"
+  },
+  "defaults": {
+   "type": "object",
+   "required": [
+    "fs",
+    "duration_s",
+    "resp_hz",
+    "first_beat_s",
+    "end_margin_s",
+    "source",
+    "evidence",
+    "calibre_sur"
+   ],
+   "properties": {
+    "fs": {
+     "type": "number",
+     "exclusiveMinimum": 0
+    },
+    "duration_s": {
+     "type": "number",
+     "exclusiveMinimum": 0
+    },
+    "resp_hz": {
+     "type": "number",
+     "exclusiveMinimum": 0
+    },
+    "first_beat_s": {
+     "type": "number"
+    },
+    "end_margin_s": {
+     "type": "number"
+    },
+    "source": {
+     "type": "string"
+    },
+    "evidence": {
+     "enum": [
+      "A",
+      "B",
+      "C",
+      "D"
+     ]
+    },
+    "calibre_sur": {
+     "type": "string"
+    }
+   }
+  },
+  "presets": {
+   "type": "object",
+   "required": [
+    "rest_hr",
+    "source",
+    "evidence",
+    "calibre_sur"
+   ],
+   "properties": {
+    "rest_hr": {
+     "type": "number",
+     "exclusiveMinimum": 0
+    },
+    "source": {
+     "type": "string"
+    },
+    "evidence": {
+     "enum": [
+      "A",
+      "B",
+      "C",
+      "D"
+     ]
+    },
+    "calibre_sur": {
+     "type": "string"
+    }
+   }
+  },
+  "events": {
+   "type": "object",
+   "required": [
+    "guard_systole_frac",
+    "source",
+    "evidence",
+    "calibre_sur"
+   ],
+   "properties": {
+    "guard_systole_frac": {
+     "type": "number"
+    },
+    "source": {
+     "type": "string"
+    },
+    "evidence": {
+     "enum": [
+      "A",
+      "B",
+      "C",
+      "D"
+     ]
+    },
+    "calibre_sur": {
+     "type": "string"
+    }
+   }
+  },
+  "sound": {
+   "type": "object",
+   "required": [
+    "components",
+    "attack_tau_s",
+    "source",
+    "evidence",
+    "calibre_sur"
+   ],
+   "properties": {
+    "components": {
+     "type": "array",
+     "minItems": 1,
+     "items": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "minItems": 3,
+      "maxItems": 3
+     }
+    },
+    "attack_tau_s": {
+     "type": "number",
+     "exclusiveMinimum": 0
+    },
+    "source": {
+     "type": "string"
+    },
+    "evidence": {
+     "enum": [
+      "A",
+      "B",
+      "C",
+      "D"
+     ]
+    },
+    "calibre_sur": {
+     "type": "string"
+    }
+   }
+  },
+  "s1": {
+   "type": "object",
+   "required": [
+    "f0_hz",
+    "tau_s",
+    "split_s",
+    "second_amp",
+    "duration_s",
+    "base_amp",
+    "dpdt_ref",
+    "cap",
+    "source",
+    "evidence",
+    "calibre_sur"
+   ],
+   "properties": {
+    "f0_hz": {
+     "type": "number",
+     "exclusiveMinimum": 0
+    },
+    "tau_s": {
+     "type": "number",
+     "exclusiveMinimum": 0
+    },
+    "duration_s": {
+     "type": "number",
+     "exclusiveMinimum": 0
+    },
+    "dpdt_ref": {
+     "type": "number",
+     "exclusiveMinimum": 0
+    },
+    "base_amp": {
+     "type": "number"
+    },
+    "cap": {
+     "type": "number"
+    },
+    "source": {
+     "type": "string"
+    },
+    "evidence": {
+     "enum": [
+      "A",
+      "B",
+      "C",
+      "D"
+     ]
+    },
+    "calibre_sur": {
+     "type": "string"
+    },
+    "split_s": {
+     "type": "number",
+     "minimum": 0
+    },
+    "second_amp": {
+     "type": "number",
+     "minimum": 0
+    }
+   }
+  },
+  "s2": {
+   "type": "object",
+   "required": [
+    "f0_aortic_hz",
+    "f0_pulmonic_hz",
+    "tau_s",
+    "duration_s",
+    "base_amp",
+    "dp_ref",
+    "cap",
+    "aortic_insp_drop",
+    "pulmonic_base",
+    "pulmonic_insp",
+    "split_base_s",
+    "split_insp_s",
+    "systole_rr_exp",
+    "gain_rr_exp",
+    "source",
+    "evidence",
+    "calibre_sur"
+   ],
+   "properties": {
+    "f0_aortic_hz": {
+     "type": "number",
+     "exclusiveMinimum": 0
+    },
+    "f0_pulmonic_hz": {
+     "type": "number",
+     "exclusiveMinimum": 0
+    },
+    "tau_s": {
+     "type": "number",
+     "exclusiveMinimum": 0
+    },
+    "duration_s": {
+     "type": "number",
+     "exclusiveMinimum": 0
+    },
+    "dp_ref": {
+     "type": "number",
+     "exclusiveMinimum": 0
+    },
+    "base_amp": {
+     "type": "number"
+    },
+    "cap": {
+     "type": "number"
+    },
+    "aortic_insp_drop": {
+     "type": "number"
+    },
+    "pulmonic_base": {
+     "type": "number"
+    },
+    "pulmonic_insp": {
+     "type": "number"
+    },
+    "split_base_s": {
+     "type": "number"
+    },
+    "split_insp_s": {
+     "type": "number"
+    },
+    "systole_rr_exp": {
+     "type": "number"
+    },
+    "gain_rr_exp": {
+     "type": "number"
+    },
+    "source": {
+     "type": "string"
+    },
+    "evidence": {
+     "enum": [
+      "A",
+      "B",
+      "C",
+      "D"
+     ]
+    },
+    "calibre_sur": {
+     "type": "string"
+    }
+   }
+  },
+  "s3": {
+   "type": "object",
+   "required": [
+    "la_threshold_mmhg",
+    "f0_hz",
+    "tau_s",
+    "duration_s",
+    "amp",
+    "q_ref",
+    "delay_s",
+    "audible_threshold",
+    "source",
+    "evidence",
+    "calibre_sur"
+   ],
+   "properties": {
+    "f0_hz": {
+     "type": "number",
+     "exclusiveMinimum": 0
+    },
+    "tau_s": {
+     "type": "number",
+     "exclusiveMinimum": 0
+    },
+    "duration_s": {
+     "type": "number",
+     "exclusiveMinimum": 0
+    },
+    "q_ref": {
+     "type": "number",
+     "exclusiveMinimum": 0
+    },
+    "la_threshold_mmhg": {
+     "type": "number"
+    },
+    "amp": {
+     "type": "number"
+    },
+    "delay_s": {
+     "type": "number"
+    },
+    "audible_threshold": {
+     "type": "number"
+    },
+    "source": {
+     "type": "string"
+    },
+    "evidence": {
+     "enum": [
+      "A",
+      "B",
+      "C",
+      "D"
+     ]
+    },
+    "calibre_sur": {
+     "type": "string"
+    }
+   }
+  },
+  "murmur": {
+   "type": "object",
+   "required": [
+    "band_hz",
+    "filter_order",
+    "amp",
+    "flow_exp",
+    "flow_threshold",
+    "jitter",
+    "source",
+    "evidence",
+    "calibre_sur"
+   ],
+   "properties": {
+    "band_hz": {
+     "type": "array",
+     "items": {
+      "type": "number",
+      "exclusiveMinimum": 0
+     },
+     "minItems": 2,
+     "maxItems": 2
+    },
+    "filter_order": {
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 8
+    },
+    "amp": {
+     "type": "number"
+    },
+    "flow_threshold": {
+     "type": "number"
+    },
+    "jitter": {
+     "type": "array",
+     "items": {
+      "type": "number",
+      "exclusiveMinimum": 0
+     },
+     "minItems": 2,
+     "maxItems": 2
+    },
+    "source": {
+     "type": "string"
+    },
+    "evidence": {
+     "enum": [
+      "A",
+      "B",
+      "C",
+      "D"
+     ]
+    },
+    "calibre_sur": {
+     "type": "string"
+    },
+    "flow_exp": {
+     "type": "number",
+     "exclusiveMinimum": 0
+    }
+   }
+  },
+  "variability": {
+   "type": "object",
+   "required": [
+    "gain_lognormal_sd",
+    "resp_modulation",
+    "source",
+    "evidence",
+    "calibre_sur"
+   ],
+   "properties": {
+    "gain_lognormal_sd": {
+     "type": "number",
+     "minimum": 0
+    },
+    "resp_modulation": {
+     "type": "number"
+    },
+    "source": {
+     "type": "string"
+    },
+    "evidence": {
+     "enum": [
+      "A",
+      "B",
+      "C",
+      "D"
+     ]
+    },
+    "calibre_sur": {
+     "type": "string"
+    }
+   }
+  },
+  "background": {
+   "type": "object",
+   "required": [
+    "band_hz",
+    "filter_order",
+    "amp",
+    "swell_base",
+    "swell_amp",
+    "swell_phase",
+    "source",
+    "evidence",
+    "calibre_sur"
+   ],
+   "properties": {
+    "band_hz": {
+     "type": "array",
+     "items": {
+      "type": "number",
+      "exclusiveMinimum": 0
+     },
+     "minItems": 2,
+     "maxItems": 2
+    },
+    "filter_order": {
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 8
+    },
+    "amp": {
+     "type": "number"
+    },
+    "swell_base": {
+     "type": "number"
+    },
+    "swell_amp": {
+     "type": "number"
+    },
+    "swell_phase": {
+     "type": "number"
+    },
+    "source": {
+     "type": "string"
+    },
+    "evidence": {
+     "enum": [
+      "A",
+      "B",
+      "C",
+      "D"
+     ]
+    },
+    "calibre_sur": {
+     "type": "string"
+    }
+   }
+  },
+  "grade": {
+   "type": "object",
+   "required": [
+    "thresholds_ml_s",
+    "min_flow_ml_s",
+    "max",
+    "source",
+    "evidence",
+    "calibre_sur"
+   ],
+   "properties": {
+    "thresholds_ml_s": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     },
+     "minItems": 1
+    },
+    "min_flow_ml_s": {
+     "type": "number"
+    },
+    "max": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 6
+    },
+    "source": {
+     "type": "string"
+    },
+    "evidence": {
+     "enum": [
+      "A",
+      "B",
+      "C",
+      "D"
+     ]
+    },
+    "calibre_sur": {
+     "type": "string"
+    }
+   }
+  },
+  "sites": {
+   "type": "object",
+   "required": [
+    "base"
+   ],
+   "additionalProperties": {
+    "type": "object",
+    "required": [
+     "s1_gain",
+     "s2_gain",
+     "murmur_gain",
+     "source",
+     "evidence",
+     "calibre_sur"
+    ],
+    "properties": {
+     "s1_gain": {
+      "type": "number",
+      "exclusiveMinimum": 0
+     },
+     "s2_gain": {
+      "type": "number",
+      "exclusiveMinimum": 0
+     },
+     "murmur_gain": {
+      "type": "number",
+      "minimum": 0
+     },
+     "source": {
+      "type": "string"
+     },
+     "evidence": {
+      "enum": [
+       "A",
+       "B",
+       "C",
+       "D"
+      ]
+     },
+     "calibre_sur": {
+      "type": "string"
+     }
+    }
+   }
+  }
+ }
+}

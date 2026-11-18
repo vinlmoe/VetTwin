@@ -1,0 +1,91 @@
+{
+ "schema_version": "1.0.0",
+ "species": [
+  "dog"
+ ],
+ "license": "CC-BY-4.0",
+ "id": "atrial_fibrillation",
+ "version": "1.0.0",
+ "name": {
+  "fr": "Fibrillation atriale",
+  "en": "Atrial fibrillation"
+ },
+ "evidence": "C",
+ "description": {
+  "fr": "Activations atriales désorganisées (af = 1) ; la sévérité règle la période réfractaire du nœud AV, donc la réponse ventriculaire. FC et irrégularité émergent de la conduction (cachée) ; la perte de la contraction atriale abaisse le débit."
+ },
+ "severity": {
+  "stages": {
+   "reponse_lente": [
+    0.05,
+    0.35
+   ],
+   "reponse_moderee": [
+    0.35,
+    0.7
+   ],
+   "reponse_rapide": [
+    0.7,
+    1.0
+   ]
+  },
+  "prior": {
+   "reponse_lente": 0.3,
+   "reponse_moderee": 0.4,
+   "reponse_rapide": 0.3
+  }
+ },
+ "draws": {
+  "z_av": {
+   "dist": "lognormal_mean1",
+   "sd": 0.1
+  }
+ },
+ "effects": [
+  {
+   "param": "af",
+   "op": "add",
+   "expr": 1.0
+  },
+  {
+   "param": "av_erp",
+   "op": "mul",
+   "expr": {
+    "mul": [
+     {
+      "sub": [
+       1.25,
+       {
+        "mul": [
+         0.5,
+         "s"
+        ]
+       }
+      ]
+     },
+     "z_av"
+    ]
+   }
+  }
+ ],
+ "targets": [],
+ "refs": [
+  "Gunasekaran 2026 Front Cardiovasc Med (10.3389/fcvm.2026.1890025) : FC Holter 129,7 [116,8-156,0], CVRR 0,309",
+  "ORCA (10.1111/jvim.16666) : FC ECG > 150 chez 80 % avant traitement"
+ ],
+ "presentation": {
+  "difficulty": 3,
+  "owner_complaint": {
+   "fr": [
+    "intolérance à l'effort",
+    "toux",
+    "rythme irrégulier perçu"
+   ]
+  },
+  "exams": [
+   "ECG",
+   "Holter",
+   "échocardiographie"
+  ]
+ }
+}

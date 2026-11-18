@@ -1,0 +1,81 @@
+{
+ "schema_version": "1.0.0",
+ "species": [
+  "dog"
+ ],
+ "license": "CC-BY-4.0",
+ "id": "furosemide",
+ "version": "1.0.0",
+ "name": {
+  "fr": "Furosémide"
+ },
+ "evidence": "B",
+ "pk": {
+  "vc_L_kg": 0.34,
+  "vp_L_kg": 0.18,
+  "cl_mL_min_kg": 5.0,
+  "q_mL_min_kg": 15.7,
+  "ka_per_h": 1.93,
+  "f": 0.39,
+  "renal_exp": 0.7,
+  "hep_exp": 0.0
+ },
+ "pd": {
+  "type": "diuretic",
+  "emax": 1.0,
+  "ec50_mg_L": 1.0,
+  "hill": 1.5,
+  "urine_max_mL_kg_min": 0.25,
+  "f_plasma": 0.3,
+  "tau_refill_h": 4.0,
+  "tau_elect_h": 24.0,
+  "effects": [
+   {
+    "param": "vol_shift",
+    "op": "add",
+    "expr": {
+     "mul": [
+      -1,
+      "D"
+     ]
+    }
+   },
+   {
+    "param": "k",
+    "op": "add",
+    "expr": {
+     "mul": [
+      -0.04,
+      "U"
+     ]
+    }
+   },
+   {
+    "param": "cl",
+    "op": "add",
+    "expr": {
+     "mul": [
+      -0.5,
+      "U"
+     ]
+    }
+   },
+   {
+    "param": "na",
+    "op": "add",
+    "expr": {
+     "mul": [
+      -0.3,
+      "U"
+     ]
+    }
+   }
+  ]
+ },
+ "refs": [
+  "RCP Noah furosemide",
+  "EMA 1999 MRL report",
+  "BMC Vet Res 2021 (s12917-021-02998-4)"
+ ],
+ "notes": "PK calée (fit_pk.py). PD placeholder. D = déficit de volume (mL), U = diurèse effective cumulée (mL/kg), voir MODEL_SPEC. Pas de terme toxique : toxicité volémique et électrolytique émergente via D et U."
+}
