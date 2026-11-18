@@ -87,7 +87,7 @@ export class Controller {
   /** Cœur animé : volumes, pressions, ECG et événements de conduction sur une même fenêtre. */
   heart(inp, durationS = 8) {
     const { id } = this.patient(inp);
-    return this.call('heart', id, JSON.stringify({ ...Controller.exposure(inp), seed: inp.seed, duration_s: durationS, fs: 100 }));
+    return this.call('heart', id, JSON.stringify({ ...Controller.exposure(inp), seed: inp.seed, duration_s: durationS, fs: 200 }));
   }
 
   treatment(inp, plan) {

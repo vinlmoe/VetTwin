@@ -257,6 +257,99 @@ pub fn make_ecg_conducted(
     }
 }
 
+/// Demi-largeur (en écarts-types) retenue pour les bornes d'une onde gaussienne de l'ECG.
+pub const WAVE_HALF_SIGMAS: f64 = 2.0;
+
+/// Fenêtre électrique d'une activation atriale dans l'ECG (s).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AtrialWindow {
+    /// Activation (début de l'onde P ou instant de l'onde f).
+    pub t: f64,
+    /// Début de la dépolarisation tracée.
+    pub on: f64,
+    /// Fin de la dépolarisation tracée.
+    pub off: f64,
+}
+
+/// Fenêtre électrique d'une activation ventriculaire dans l'ECG (s).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct VentricularWindow {
+    /// Pic R.
+    pub t: f64,
+    /// Début du QRS.
+    pub qrs_on: f64,
+    /// Fin du QRS.
+    pub qrs_off: f64,
+    /// Sommet de l'onde T.
+    pub t_peak: f64,
+    /// Fin de l'onde T (fin de la repolarisation tracée).
+    pub t_end: f64,
+    /// QT de ce battement (corrigé par le RR précédent).
+    pub qt: f64,
+}
+
+/// Bornes des ondes de [`make_ecg_conducted`] pour la même séquence : mêmes centres et largeurs
+/// (P, ondes f, Q-R-S, T), bornées à ± [`WAVE_HALF_SIGMAS`] écarts-types. Sert à synchroniser
+/// une animation sur l'ECG sans dupliquer ses constantes.
+pub fn ecg_windows(
+    p: &Params,
+    cond: &crate::rhythm::Conduction,
+    hr: f64,
+) -> (Vec<AtrialWindow>, Vec<VentricularWindow>) {
+    let f = ecg_features(p);
+    let k = WAVE_HALF_SIGMAS;
+    let atrial = cond
+        .atrial
+        .iter()
+        .map(|a| {
+            let (c, w) = if a.organized {
+                (a.t + 0.5 * 0.03, f.p_w)
+            } else {
+                (a.t, 0.012)
+            };
+            AtrialWindow {
+                t: a.t,
+                on: f64::max(a.t, c - k * w),
+                off: c + k * w,
+            }
+        })
+        .collect();
+    let mut prev: Option<f64> = None;
+    let mut vent = Vec::with_capacity(cond.ventricular.len());
+    for b in &cond.ventricular {
+        let tv = b.t;
+        let rr = prev.map_or(60.0 / hr, |q| tv - q);
+        prev = Some(tv);
+        let qt = f.qt * math::pow(95.0 / f64::max(60.0 / rr, 30.0), 1.0 / 3.0);
+        let (on, off, tc, tw) = if b.wide {
+            let q = f.qrs * WIDE_QRS;
+            (
+                tv - k * WIDE_R_SIGMA * q,
+                tv + WIDE_S_POS * q + k * WIDE_S_SIGMA * q,
+                tv - 0.5 * q + qt - 2.2 * f.t_w,
+                1.5 * f.t_w,
+            )
+        } else {
+            let q = f.qrs;
+            (
+                tv - Q_POS * q - k * Q_SIGMA * q,
+                tv + S_POS * q + k * S_SIGMA * q,
+                tv - 0.5 * q + qt - 2.2 * f.t_w,
+                f.t_w,
+            )
+        };
+        vent.push(VentricularWindow {
+            t: tv,
+            qrs_on: on,
+            qrs_off: off,
+            t_peak: tc,
+            t_end: tc + k * tw,
+            qt,
+        });
+    }
+    (atrial, vent)
+}
+
 /// Chauffe (s) avant la fenêtre des signaux : l'hémodynamique battement par battement du son
 /// atteint son régime ; ECG et son partagent la même fenêtre décalée.
 pub const SIGNAL_WARM_S: f64 = 5.0;
@@ -279,6 +372,22 @@ pub fn shift_conduction(cond: &crate::rhythm::Conduction, w: f64) -> crate::rhyt
                 t_a: b.t_a.map(|x| x - w),
                 ..*b
             })
+            .collect(),
+        impulses: cond
+            .impulses
+            .iter()
+            .filter(|i| i.t >= w)
+            .map(|i| crate::rhythm::Impulse {
+                t: i.t - w,
+                t_his: i.t_his.map(|x| x - w),
+                ..*i
+            })
+            .collect(),
+        sa_exit_blocked: cond
+            .sa_exit_blocked
+            .iter()
+            .filter(|&&t| t >= w)
+            .map(|t| t - w)
             .collect(),
     }
 }

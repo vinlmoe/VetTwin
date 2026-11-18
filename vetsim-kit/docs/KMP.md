@@ -39,7 +39,18 @@ Un écran : choix du poids, d'une maladie et d'un stade; boutons « évaluer » 
 - `timecourse` : `{"doses": [...], "t_end_h", "t_eval_h", "states", "state_times_h"}` ; renvoie `t`, `conc_mg_L`, `effect` (effet Emax E(t) par médicament), `D`, `U` ; `states` : état plat à chaque instant de `t_eval_h` ; `state_times_h` (≤ 400 instants) : `state_t` et `states_at`, l'état aux instants choisis (moins coûteux pour un traitement de plusieurs jours).
 - Examen sous traitement : `state`, `signals` et `pcg` acceptent `{"doses": [...], "at_h": t}` à la place de `conc`/`D`/`U`. Le moteur simule la PK du patient jusqu'à `t`, avec sa fonction rénale et hépatique, puis applique les concentrations et l'état de volume à cet instant.
 - `pcg(patientId, options)` (module auscultation, `docs/AUSCULTATION.md`) : options `site` (`base` ou `apex`), `hr` (FC de repos imposée, réglage d'usage), `fs`, `duration_s`, `seed`, `conc`/`D`/`U`, `with_ecg`, `with_pressures`. Renvoie `wav_base64` (WAV PCM 16 bits mono), `fs`, `grade`, `murmur`, `s3`, plus `s1`, `s2`, `beats`, `t_mc`, `t_ac`, `hr`. Avec `with_ecg`, l'ECG a les mêmes battements que le son. Avec `with_pressures`, les pressions aorte, VG et OG à 250 Hz sont alignées sur le son : le battement simulé est posé à chaque instant de battement, sans être recalculé battement par battement. `loadModules` accepte la clé optionnelle `auscultation` (contenu de `modules/auscultation.json`).
-- `heart(patientId, options)` (cœur animé) : options `duration_s` (1–30, 8 par défaut), `fs` (20–500 Hz, 100 par défaut), `seed`, `hr`, `conc`/`D`/`U` ou `doses` + `at_h`. Renvoie `volumes` (`lv`, `rv`, `la` = OG + veines pulmonaires, `ra` = OD + veines systémiques, mL), `pressures` (`p_lv`, `p_ao`, `p_la`, mmHg) simulés battement par battement sur la séquence de conduction de l'ECG, `ecg` (500 Hz, mêmes battements), `atrial` (`t` = début de P, `organized`), `ventricular` (`t` = pic R, `origin`, `wide`, `t_a` = onde P conduite ou `null`, `pr`) et `intervals` (`pr`, `qrs`, `hv`, `qt`, `ta_atr`, s). Erreur pour un patient décédé.
+- `heart(patientId, options)` (cœur animé, entièrement piloté par le modèle) : options `duration_s` (1–30, 8 par défaut), `fs` (20–500 Hz, 100 par défaut), `seed`, `hr`, `conc`/`D`/`U` ou `doses` + `at_h`. Renvoie, sur la même fenêtre et les mêmes battements que l'ECG :
+  - `series` à `fs` : volumes `v_lv`, `v_rv`, `v_la` (OG + veines pulmonaires), `v_ra` (OD + veines systémiques) ; pressions `p_lv`, `p_rv`, `p_ao`, `p_pa`, `p_la`, `p_ra` ; débits valvulaires `q_mi`, `q_ao`, `q_tr`, `q_pu` (mL/s, négatif = régurgitation) ; activations `act_v` (élastance active × amplitude calcique du battement) et `act_a`.
+  - `ecg` : 500 Hz.
+  - `electrical` :
+    - `atrial` : `t`, `organized`, `on`/`off` de l'onde P ou f.
+    - `ventricular` : `t` = pic R, `origin`, `wide`, `t_a`, `pr`, `t_his`, `qrs_on`, `qrs_off`, `t_peak`, `t_end`, `qt`. Les bornes des ondes valent ± 2 σ des gaussiennes de l'ECG (`signals::ecg_windows`).
+    - `impulses` : influx arrivés au nœud AV, avec `t`, `t_his` et `fate` = `conducted`, `nodal_refractory`, `concealed`, `collision`, `infranodal` ou `ventricular_refractory`.
+    - `sa_exit_blocked` : décharges sinusales bloquées à la sortie.
+  - `mechanics` : `beats` (`t`, `ts`, `tr`, `c`), `ta_atr`, `tra_atr`.
+  - `intervals`.
+
+  Renvoie une erreur pour un patient décédé.
 - `message(json)` : `{"op": "pcg"|"heart"|"state"|"signals"|"timecourse"|"add_disease"|"new_patient"|"list_modules"|"api_version", "patient": id, "options": {...}}`. Même réponse que la méthode correspondante. `hr` (FC imposée) est accepté aussi par `state` et `signals`.
 
 ### Diurétique : définition de `D` et `U`

@@ -251,6 +251,11 @@ pub struct Waveforms {
     pub v_sv: Vec<f64>,
     /// Volume veines pulmonaires + OG (mL).
     pub v_pv: Vec<f64>,
+    /// Activation ventriculaire active (élastance active normalisée × amplitude du battement ;
+    /// simulation battement par battement seulement).
+    pub act_v: Vec<f64>,
+    /// Activation atriale (0–1 ; simulation battement par battement seulement).
+    pub act_a: Vec<f64>,
 }
 
 /// Résultat d'une simulation hémodynamique.
@@ -667,6 +672,8 @@ pub fn simulate_hemo_beats(
         w.v_rv.push(s[1]);
         w.v_sv.push(s[3]);
         w.v_pv.push(s[5]);
+        w.act_v.push(activations_at(t_eval[i], &beats, &atr, p).1);
+        w.act_a.push(ea);
         ea_s.push(ea);
     }
     let starts: Vec<f64> = beats.iter().map(|b| b.t).filter(|&t| t >= warm).collect();
@@ -818,6 +825,8 @@ impl BeatsResult {
             v_rv: pick(&w.v_rv),
             v_sv: pick(&w.v_sv),
             v_pv: pick(&w.v_pv),
+            act_v: pick(&w.act_v),
+            act_a: pick(&w.act_a),
         };
         let mut timing = Timing::from_hr_coef(self.hr_v, p.ts_coef);
         timing.pr = Some(p.pr);

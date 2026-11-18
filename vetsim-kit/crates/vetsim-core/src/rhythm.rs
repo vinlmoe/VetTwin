@@ -98,6 +98,49 @@ pub struct VentricularEvent {
     pub wide: bool,
 }
 
+/// Devenir d'un influx supraventriculaire arrivé au nœud AV.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImpulseFate {
+    /// Conduit jusqu'aux ventricules.
+    Conducted,
+    /// Bloqué dans le nœud AV en période réfractaire effective.
+    NodalRefractory,
+    /// Conduction cachée : pénétration partielle du nœud AV (réfractaire relatif), sans sortie.
+    Concealed,
+    /// Bloqué : un influx précédent est encore en transit dans le His-Purkinje.
+    Collision,
+    /// Passé le nœud AV, bloqué sous le His (bloc infranodal).
+    Infranodal,
+    /// Arrivé aux ventricules encore réfractaires (battement ectopique ou d'échappement récent).
+    VentricularRefractory,
+}
+
+impl ImpulseFate {
+    /// Identifiant.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ImpulseFate::Conducted => "conducted",
+            ImpulseFate::NodalRefractory => "nodal_refractory",
+            ImpulseFate::Concealed => "concealed",
+            ImpulseFate::Collision => "collision",
+            ImpulseFate::Infranodal => "infranodal",
+            ImpulseFate::VentricularRefractory => "ventricular_refractory",
+        }
+    }
+}
+
+/// Influx supraventriculaire arrivé au nœud AV et son devenir (trace de la couche de
+/// conduction, sans effet sur la séquence ; non porté par la référence Python).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Impulse {
+    /// Arrivée au nœud AV (s) : activation atriale, onde f ou décharge sinusale.
+    pub t: f64,
+    /// Devenir.
+    pub fate: ImpulseFate,
+    /// Sortie du nœud AV vers le His (s), si l'influx a franchi le nœud.
+    pub t_his: Option<f64>,
+}
+
 /// Séquence d'événements de conduction.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Conduction {
@@ -105,6 +148,10 @@ pub struct Conduction {
     pub atrial: Vec<AtrialEvent>,
     /// Activations ventriculaires.
     pub ventricular: Vec<VentricularEvent>,
+    /// Influx supraventriculaires et leur devenir au nœud AV et sous le His.
+    pub impulses: Vec<Impulse>,
+    /// Décharges sinusales bloquées à la sortie du nœud sinusal (bloc sino-atrial).
+    pub sa_exit_blocked: Vec<f64>,
 }
 
 /// Délai nodal minimal `AH0` et période réfractaire nodale `ERP` (s), modulés par le vagal et K⁺.
@@ -236,6 +283,7 @@ pub fn simulate_conduction(
                 break;
             }
             if p.sa_block > 0.0 && rand() < p.sa_block {
+                out.sa_exit_blocked.push(t);
                 continue; // bloc de sortie sino-atrial
             }
             if !standstill {
@@ -262,6 +310,7 @@ pub fn simulate_conduction(
     let mut last_conducted = true;
     let (mut i_s, mut i_e) = (0usize, 0usize);
     let mut pending: Option<(f64, f64, f64)> = None;
+    let mut pending_idx = 0usize; // influx en transit (indice dans `out.impulses`)
     loop {
         // prochain événement : plus petit (t, type), comme `min` sur des tuples en Python
         let mut best: Option<(f64, u8)> = None;
@@ -302,6 +351,18 @@ pub fn simulate_conduction(
                 i_s += 1;
                 let rec = t - last_his;
                 if rec < erp || pending.is_some() {
+                    let fate = if pending.is_some() {
+                        ImpulseFate::Collision
+                    } else if rec >= 0.5 * erp {
+                        ImpulseFate::Concealed
+                    } else {
+                        ImpulseFate::NodalRefractory
+                    };
+                    out.impulses.push(Impulse {
+                        t,
+                        fate,
+                        t_his: None,
+                    });
                     // conduction cachée en réfractarité relative
                     if pending.is_none() && rec >= 0.5 * erp {
                         last_his += p.av_conceal * rec;
@@ -311,13 +372,25 @@ pub fn simulate_conduction(
                 let ah = ah0 + p.av_beta * math::exp(-(rec - erp) / p.av_tau);
                 last_his = t + ah;
                 if rand() >= hp_p {
+                    out.impulses.push(Impulse {
+                        t,
+                        fate: ImpulseFate::Infranodal,
+                        t_his: Some(t + ah),
+                    });
                     continue; // bloc infranodal
                 }
+                pending_idx = out.impulses.len();
+                out.impulses.push(Impulse {
+                    t,
+                    fate: ImpulseFate::Conducted,
+                    t_his: Some(t + ah),
+                });
                 pending = Some((t + ah + p.hv, t, ah + p.hv));
             }
             2 => {
                 let (tv, ta, pr) = pending.take().expect("influx en cours");
                 if tv - last_v < vrp {
+                    out.impulses[pending_idx].fate = ImpulseFate::VentricularRefractory;
                     continue;
                 }
                 out.ventricular.push(VentricularEvent {
