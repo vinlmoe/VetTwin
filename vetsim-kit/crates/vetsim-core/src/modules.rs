@@ -947,6 +947,10 @@ pub enum PdKind {
         /// Effet piloté par l'excrétion urinaire du médicament (`drive: urinary_excretion`) :
         /// concentration × masse néphronique au lieu de la concentration plasmatique.
         urinary_drive: bool,
+        /// Adaptation électrolytique (compensation rénale et alimentaire lente) : constante (h)
+        /// et fraction compensée φ ; `U` des effets vaut `U − φ·W`, `dW/dt = (U − W)/τ`.
+        /// `None` : pas d'adaptation.
+        adapt: Option<(f64, f64)>,
     },
 }
 
@@ -1099,6 +1103,20 @@ impl DrugModule {
                         false
                     }
                 };
+                let adapt = match (m.get("adapt_tau_h"), m.get("adapt_frac")) {
+                    (None, None) => None,
+                    _ => {
+                        let at = c.req_num_in(m, p, "adapt_tau_h", pos, "> 0");
+                        let af = c.req_num_in(
+                            m,
+                            p,
+                            "adapt_frac",
+                            |x| (0.0..=1.0).contains(&x),
+                            "0 ≤ φ ≤ 1",
+                        );
+                        at.zip(af)
+                    }
+                };
                 match (u, fp, tr, te) {
                     (Some(u), Some(fp), Some(tr), Some(te)) => Some(PdKind::Diuretic {
                         urine_max_ml_kg_min: u,
@@ -1106,6 +1124,7 @@ impl DrugModule {
                         tau_refill_h: tr,
                         tau_elect_h: te,
                         urinary_drive,
+                        adapt,
                     }),
                     _ => None,
                 }

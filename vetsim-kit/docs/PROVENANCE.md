@@ -58,11 +58,13 @@ Ces modules n'agissent que sur les paramètres de la conduction. FC, ECG, hémod
 
 ## Corrections du 18/11/2026 (maladies × médicaments × surdosage)
 Détail et sources : `docs/VERIFICATION_MALADIES_MEDICAMENTS.tex`. Accès : « lu » = texte intégral (PMC), « résumé » = résumé seul.
-- **Furosémide** (`modules/drugs/furosemide.json` 1.1.0, evidence B).
+- **Furosémide** (`modules/drugs/furosemide.json` 1.2.0, evidence B).
   - PK : Koh 2021 (lu, PMC8420016) ; CL 735,7 mL/h/kg à ≈ 11,7 kg ramenée à 20 kg (10,724 mL/min/kg), Vc 0,2073, Vp 0,4602 L/kg, Q 3,341 mL/min/kg, ka 0,724 /h, F 0,55.
   - Diurèse : `urine_max` 0,2044 mL/kg/min, EC50 0,2412 mg/L, Hill 3 (borne ; libre ≈ 5), ajustés sur les volumes urinaires de Koh par intervalle (IV et PO).
-  - Électrolytes : `X ×= exp(−a·U)`, aK 0,00513, aCl 0,00170, aNa 0,00029 (mL/kg)⁻¹, τ_elect 56,67 h ; Koh 2021 (lu) + Wong 1977 (résumé : 1 mg/kg IV/j × 7 j, K 4,48 → 4,09).
+  - Électrolytes : `X ×= exp(−a·U_eff)`, aK 0,00585, aCl 0,00225, aNa 0,00032 (mL/kg)⁻¹, τ_elect 200 h, adaptation W (τ 12 h placeholder D, φ 0,9808) ; Koh 2021 (lu), Adin 2020 (PMC6979094, lu : stade C 3,5 mg/kg/j, K 4,50 contre 4,70), TEST 2017 (PMC5697186, lu : K 4,50 à J84). Wong 1977 (résumé) n'est plus reproduit.
+  - Veinodilatation `ven_cap ×(1 + 0,36 E)` : Bayne & Williamson 1979 (résumé : compliance veineuse 120 % à 10 min, 136 % à 60 min, chien aux uretères ligaturés ; nulle chez le néphrectomisé).
   - `drive: urinary_excretion` : Miyazaki 1990, Hirai 1992 (résumés).
 - **Opioïde** (1.1.0, evidence C) : Mills 2025 (lu), Amon 2021 (lu), Wunsch 2010 (lu), Maiante 2009, Garofalo 2012, Bailey 1987, Arndt 1984 (résumés). Terme toxique : EC50 1 mg/L (placeholder D borné par Maiante et Bailey).
 - **Bêtabloquant** (1.1.0) : profil aténolol, terme toxique de stabilisation de membrane retiré.
 - **Patient** : `creat_vd` 0,539 L/kg (Collignon 2012, résumé, n = 50) ; `urea_vd` 0,66 L/kg (Bowsher 1985, résumé) ; `map_arrest` 40 mmHg (Morales 1999, Granot 1985, résumés ; evidence C) ; `av_symp` 0,5 (PMC7872775, lu ; Rigel 1990, résumé ; evidence C).
+- **Orifice mitral dynamique** (`mr_k` 2,5, `mr_vref` 72·s mL ; evidence C) : forme d'après Yoran 1979 (Circulation 60:170, 6 chiens, résumé) ; exposant calé sur Suzuki 2013 (résumé : POG 14,75 → 10,77 sous furosémide 0,17 mg/kg/h × 6 h). Coefficients MMVD de `g_mr` recalés en conséquence (0,9458·s^1,111) pour conserver la fraction régurgitée et la POG par stade.

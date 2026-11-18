@@ -3,14 +3,16 @@
 Unités : pression mmHg, volume mL, temps s, débit mL/s (L/min en sortie), concentrations mmol/L (g/L pour l'albumine, µmol/L pour la créatinine). `bw` en kg, `s = bw/20`.
 
 ## 1. Patient sain
-`modules/healthy_dog.json` donne chaque paramètre comme expression de `s`. Allométrie : débits et résistances en `s^0.75`, FC et VO2 par kg en `s^-0.25`, élastances en `1/s`, volumes en `s`. Variabilité interindividuelle : multiplicateur lognormal de moyenne 1.
+`modules/healthy_dog.json` donne chaque paramètre comme expression de `s`. Allométrie : débits en `s^0.75`, résistances en `s^-0.75`, FC et VO2 par kg en `s^-0.25`, élastances en `1/s`, volumes en `s`. Variabilité interindividuelle : multiplicateur lognormal de moyenne 1.
 
 ## 2. Hémodynamique (`physio.simulate_hemo`)
 6 compartiments : VG, VD, aorte, veines systémiques, artère pulmonaire, veine pulmonaire/OG. États = volumes `V = [lv, rv, ao, sv, pa, pv]`.
-- Cycle `T = 60/hr`, `ts = 0.37·√T`, `tr = 0.4·ts`. Activation `e(t)` : demi-cosinus montant sur `[0, ts)`, descendant sur `[ts, ts+tr)`, 0 ensuite.
+- Cycle `T = 60/hr`, `ts = ts_coef·√T` (`ts_coef` = 0,325 depuis le 17/11/2026), `tr = 0.4·ts`. Activation `e(t)` : demi-cosinus montant sur `[0, ts)`, descendant sur `[ts, ts+tr)`, 0 ensuite.
 - Pression ventriculaire : `P = e·ees·(V−v0) + (1−e)·a·(exp(clip(b(V−v0), −20, 8)) − 1)`.
 - Compartiments vasculaires : `P = (V−v0)/C`.
 - Valve (diode lisse) : `σ = 0.5(1+tanh(Δp/0.3))`, `Q = σ·Δp/r_valve + (1−σ)·g·Δp` (fuite `g` : `g_mr, g_ar, g_tr, g_pr`).
+- **Orifice mitral dynamique** (18/11/2026, `engine::hemo_with_rhythm`) : l'orifice effectif grandit avec le VG (Yoran 1979, chiens, résumé). Il est fixe pendant le battement : `g = g_mr·(VTD/mr_vref)^mr_k`, point fixe amorti sur ln g (relaxation ½, tolérance 1e-3, au plus 12 simulations), ignoré si `g_mr < 0,05`. `mr_k` = 2,5 et `mr_vref` = 72·s mL (VTD du chien sain) ; calé sur Suzuki 2013 (furosémide 0,17 mg/kg/h × 6 h, IM expérimentale : POG −27 %, modèle −27 %). La conductance retenue est reportée dans les paramètres de l'évaluation (`g_mr`, `mr_k = 0`) pour les recalculs en aval.
+- **Capacitance veineuse** `ven_cap` (1 au repos) : multiplie `c_sv` dans la pression veineuse systémique, pas dans le volume initial (une veinodilatation redistribue le volume sans en ajouter).
 - Débits : mitrale `(Ppv−Plv)`, aortique `(Plv−Pao)`, tricuspide `(Psv−Prv)`, pulmonaire `(Prv−Ppa)`, systémique `(Pao−Psv)/r_sys`, pulmonaire `(Ppa−Ppv)/r_pul`.
 - Volumes initiaux : voir `_initial_volumes` (inclut `bvf` et `vol_shift`).
 - Intégration : 11 battements, `rtol=1e-6`, `atol=1e-6`, `max_step=0.004`; les indicateurs sont calculés sur le dernier battement (échantillonnage `dt=0.002`). `reg_fraction` = volume régurgité (parties négatives des débits mitral et aortique) / volume d'éjection total.
@@ -34,8 +36,7 @@ Baroréflexe en régime permanent, jusqu'à 5 itérations (arrêt si `|d_t − d
 ```
 s_tot = clip(s0 + 0.8 d, 0, 1);  v_tot = clip(v0 + vagal_add − 0.6 d, 0, 1)
 s_eff = s_tot (1 − beta_block);  v_eff = v_tot (1 − vagal_block)
-kfac  = max(0.4, 1 − 0.30·max(0, K − 6))
-hr'   = hr · hr_factor(s_eff, v_eff) / hr_factor(S_REF, V_REF) · kfac      (S_REF=0.2, V_REF=0.6)
+hr'   = hr · hr_factor(s_eff, v_eff) / hr_factor(S_REF, V_REF)      (S_REF=0.2, V_REF=0.6 ; K⁺ agit par la conduction)
 hr_factor(s, v) = (1 + a_s s)(1 − a_v v)
 ees'  = ees·(1 + 0.4 (s_eff − s0))   (VG et VD)
 r_sys' = r_sys·(1 + 0.5 (s_tot − s0))
@@ -64,7 +65,7 @@ d_t = clip(baro_gain·(map_set − MAP)/45, −1, 1)
 - 2 compartiments + dépôt oral. `CL = cl·1e-3·60·20·s^0.75·nephron_mass^renal_exp·hepatic_fn^hep_exp` (L/h), `Vc = vc·bw`, `Vp = vp·bw`, `Q = q·1e-3·60·bw`.
 - Oral : la dose × `f` va au dépôt (`ka`); IV : dose dans le compartiment central. Concentration = quantité centrale / `Vc` (mg/L).
 - Effet Emax : `E = emax·C^hill/(ec50^hill + C^hill)`.
-- Furosémide (PD `diuretic`, recalé le 18/11/2026 sur Koh 2021 et Wong 1977) : `u = urine_max·E(X)` mL/kg/min avec `urine_max = 0,2044`, `X = C·nephron_mass` (`drive: urinary_excretion` : l'effet suit l'excrétion urinaire, Miyazaki 1990) ; `dD/dt = f_plasma·u·bw·60 − D/τ_refill` (mL/h ; `f_plasma` 0,3 et `τ_refill` 4 h : placeholders D) ; `dU/dt = u·60 − U/τ_elect` (`τ_elect` 56,67 h). Effets : `vol_shift −= D` ; pertes **proportionnelles à la concentration**, `K ×= exp(−0,00513·U)`, `Cl ×= exp(−0,00170·U)`, `Na ×= exp(−0,00029·U)` : jamais négatives.
+- Furosémide (PD `diuretic`, module 1.2.0, recalé le 18/11/2026 sur Koh 2021, Adin 2020 et l'essai TEST) : `u = urine_max·E(X)` mL/kg/min avec `urine_max = 0,2044`, `X = C·nephron_mass` (`drive: urinary_excretion` : l'effet suit l'excrétion urinaire, Miyazaki 1990) ; `dD/dt = f_plasma·u·bw·60 − D/τ_refill` (mL/h ; `f_plasma` 0,3 et `τ_refill` 4 h : placeholders D) ; `dU/dt = u·60 − U/τ_elect` (`τ_elect` 200 h) ; adaptation `dW/dt = (U − W)/τ_adapt` (`adapt_tau_h` 12 h, placeholder D) et `U_eff = U − φ·W` (`adapt_frac` φ 0,9808) : c'est `U_eff` que reçoivent les effets. Effets : `vol_shift −= D` ; `ven_cap ×= 1 + 0,36·E` (veinodilatation dépendante du rein, Bayne 1979) ; pertes **proportionnelles à la concentration**, `K ×= exp(−0,00585·U_eff)`, `Cl ×= exp(−0,00225·U_eff)`, `Na ×= exp(−0,00032·U_eff)` : jamais négatives. Pour un diurétique à `drive: urinary_excretion`, `E` des effets est calculé sur `C·nephron_mass`.
 - Les effets PD des autres médicaments sont des effets JSON (variable `E`) appliqués aux paramètres.
 - **Termes toxiques** (`pd.toxicity`, variable `T`) : `T = emax·C^hill/(ec50^hill + C^hill)` avec des constantes propres, appliqués après l'effet thérapeutique du même médicament. L'effet thérapeutique reste plafonné (occupation des récepteurs) ; la toxicité prolonge la relation dose-réponse au-delà. Opioïde → `vent_drive ×(1 − 0,8 T)` (EC50 toxique 1 mg/L : plateau de PaCO2 ≈ 65 mmHg sans apnée chez le chien vigile, Bailey 1987) ; pimobendane → `r_sys ×(1 − 0,8 T)` (EC50 toxique = 10 × EC50, Hill 3, placeholder D). Bêtabloquant (profil aténolol) : pas de terme toxique depuis le 18/11/2026.
 - Opioïde (chien vigile, 18/11/2026) : `vent_drive ×(1 − 0,25 E)`, `vagal_add += 0,27 E`, `r_sys ×(1 + 0,36 E)` : FC −32 %, PAM +6 %, PaCO2 +3 mmHg à effet maximal (Mills 2025, Maiante 2009, Wunsch 2010).
@@ -91,4 +92,4 @@ ECG (dérivation II) : somme de gaussiennes P, Q, R, S, T pilotées par FC et in
 ## 9. Points sensibles connus
 - Solutions non monotones : la crise addisonienne est très sensible au déficit de volume (effondrement de PAM si la volémie stressée devient trop faible).
 - RSA nulle si fréquence respiratoire ≥ ~70/min (échantillonnage par battements) : limite connue.
-- Les valeurs PD, la PK de l'atropine, du bêtabloquant et de l'opioïde, et le module pneumonie sont des **placeholders**.
+- Placeholders : PD de l'atropine, du bêtabloquant et du pimobendane ; PK de l'atropine et du bêtabloquant ; terme toxique de l'opioïde (borné) ; `f_plasma`, `tau_refill` et `adapt_tau_h` du furosémide ; module pneumonie.

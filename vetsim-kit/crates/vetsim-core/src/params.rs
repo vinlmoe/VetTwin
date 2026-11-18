@@ -71,6 +71,9 @@ define_params! {
     c_ao,
     /// Compliance veineuse systémique (mL/mmHg).
     c_sv,
+    /// Capacitance veineuse systémique relative (1 = basale) : multiplie `c_sv` dans la pression
+    /// veineuse, pas dans le volume initial (une veinodilatation redistribue le volume).
+    ven_cap,
     /// Compliance artérielle pulmonaire (mL/mmHg).
     c_pa,
     /// Compliance veineuse pulmonaire / OG (mL/mmHg).
@@ -97,6 +100,11 @@ define_params! {
     g_tr,
     /// Conductance de fuite pulmonaire (mL/s/mmHg).
     g_pr,
+    /// Orifice mitral dynamique : `g_eff = g_mr·(VTD/mr_vref)^mr_k`, fixé par battement (point fixe,
+    /// Yoran 1979) ; 0 = orifice fixe.
+    mr_k,
+    /// Volume VG de référence de l'orifice dynamique (mL).
+    mr_vref,
     /// Facteur de volémie (sans unité).
     bvf,
     /// Déficit (−) ou excès (+) de volume (mL).
@@ -314,6 +322,6 @@ mod tests {
             assert_eq!(p.get(n), Some(v));
         }
         assert_eq!(p.get("nope"), None);
-        assert_eq!(Params::NAMES.len(), 119); // 73 + 11 décompensation + 6 oreillettes/systole + 3 force-intervalle + 22 conduction + 4 corrections du 18/11/2026 (creat_vd, urea_vd, map_arrest, av_symp)
+        assert_eq!(Params::NAMES.len(), 122); // 73 + 11 décompensation + 6 oreillettes/systole + 3 force-intervalle + 22 conduction + 7 corrections du 18/11/2026 (creat_vd, urea_vd, map_arrest, av_symp, ven_cap, mr_k, mr_vref)
     }
 }

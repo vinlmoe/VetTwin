@@ -325,9 +325,40 @@ type RhythmHemo = (
     Vec<crate::hemo::BeatMetrics>,
 );
 
-/// Hémodynamique d'une passe : périodique si la conduction est sinusale 1:1 à PR constant (PR de
-/// la conduction), sinon battement par battement (miroir de `physio._hemo_with_rhythm`).
-fn hemo_with_rhythm(q: &Params, v_eff: f64, n_beats: usize) -> Result<RhythmHemo, Error> {
+/// Fuite sous laquelle l'orifice dynamique est ignoré (chien sain : `g_mr` 0,0005 mL/s/mmHg).
+const MR_DYN_MIN_G: f64 = 0.05;
+/// Itérations au plus du point fixe de l'orifice dynamique.
+const MR_DYN_MAX_ITER: usize = 12;
+
+/// Hémodynamique d'une passe avec orifice mitral dynamique (Yoran 1979 : l'orifice effectif
+/// grandit avec le VG). L'orifice est fixe pendant le battement et suit la taille du VG :
+/// `g = g_mr·(VTD/mr_vref)^mr_k`, point fixe amorti sur ln g (relaxation ½, tolérance 1e-3).
+/// Renvoie aussi la conductance retenue (`g_mr` si l'orifice est fixe).
+fn hemo_with_rhythm(q: &Params, v_eff: f64, n_beats: usize) -> Result<(RhythmHemo, f64), Error> {
+    if q.mr_k == 0.0 || q.g_mr < MR_DYN_MIN_G {
+        return Ok((hemo_with_rhythm_static(q, v_eff, n_beats)?, q.g_mr));
+    }
+    let mut qq = q.clone();
+    let mut lg = 0.0; // ln(g/g_mr)
+    let mut out = None;
+    for _ in 0..MR_DYN_MAX_ITER {
+        qq.g_mr = q.g_mr * math::exp(lg);
+        let r = hemo_with_rhythm_static(&qq, v_eff, n_beats)?;
+        let target = q.mr_k * math::ln(f64::max(r.0.summary.edv, 1e-6) / q.mr_vref);
+        let done = (target - lg).abs() < 1e-3;
+        out = Some(r);
+        if done {
+            break;
+        }
+        lg = 0.5 * lg + 0.5 * target;
+    }
+    Ok((out.expect("au moins une itération"), qq.g_mr))
+}
+
+/// Hémodynamique d'une passe à orifice fixe : périodique si la conduction est sinusale 1:1 à PR
+/// constant (PR de la conduction), sinon battement par battement (miroir de
+/// `physio._hemo_with_rhythm`).
+fn hemo_with_rhythm_static(q: &Params, v_eff: f64, n_beats: usize) -> Result<RhythmHemo, Error> {
     use crate::hemo::{simulate_hemo_beats, simulate_hemo_pr};
     use crate::rhythm::{is_trivial, simulate_conduction, steady_pr};
     if !(q.hr.is_finite() && q.hr > 0.0) {
@@ -385,7 +416,10 @@ fn evaluate_once(base: &Params) -> Result<Evaluation, Error> {
         q.pr = base.hv + (base.pr - base.hv) * symp;
         q.r_sys = base.r_sys * (1.0 + 0.5 * (s_tot - base.s0));
         q.vol_shift = base.vol_shift + 0.20 * 85.0 * base.bw * (s_tot - base.s0);
-        let (h, cond, beats) = hemo_with_rhythm(&q, v_eff, N_BEATS)?;
+        let ((h, cond, beats), g_eff) = hemo_with_rhythm(&q, v_eff, N_BEATS)?;
+        // orifice retenu : les recalculs en aval (signaux, son) le réutilisent tel quel
+        q.g_mr = g_eff;
+        q.mr_k = 0.0;
         let d_t = (base.baro_gain * (base.map_set - h.summary.map) / 45.0).clamp(-1.0, 1.0);
         let done = (d_t - d).abs() < BARO_TOL;
         last = Some((q, h, s_tot, v_tot, s_eff, v_eff, cond, beats));

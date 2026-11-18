@@ -18,10 +18,11 @@ def healthy_params(bw=20.0):
         hr=87.0 * s ** -0.25,          # Haskins 2005 : 87/min (97 chiens éveillés)
         ees_lv=7.0 * 0.649 / s, v0_lv=4.0 * s, a_lv=1.0, b_lv=0.06 * 0.258 / s,   # calage Haskins 2005
         ees_rv=1.6 / s, v0_rv=6.0 * s, a_rv=0.4, b_rv=0.05 / s,
-        c_ao=0.7 * s, c_sv=55.0 * s, c_pa=1.5 * s, c_pv=5.0 * s,
+        c_ao=0.7 * s, c_sv=55.0 * s, ven_cap=1.0, c_pa=1.5 * s, c_pv=5.0 * s,   # ven_cap : capacitance veineuse relative (pression seulement)
         v0_ao=150.0 * s, v0_sv=900.0 * s, v0_pa=60.0 * s, v0_pv=120.0 * s,
         r_sys=2.3 * 0.764 / fq, r_pul=0.15 * 1.04 / fq, r_valve=0.03 / fq,
         g_mr=0.0005, g_ar=0.0002, g_tr=0.0002, g_pr=0.0002,   # conductances de fuite (mL/s/mmHg)
+        mr_k=2.5, mr_vref=72.0 * s,   # orifice mitral dynamique g_mr·(VTD/mr_vref)^mr_k, fixé par battement (Yoran 1979 ; calé sur Suzuki 2013) ; mr_vref = VTD du chien sain
         bvf=1.0, vol_shift=-21.0 * s,          # facteur de volémie, déficit/excès de volume (mL)
         map_set=103.0, baro_gain=1.0,
         # --- respiration / gaz ---

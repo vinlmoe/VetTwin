@@ -136,7 +136,7 @@ pub fn flows(v: &[f64; 6], t: f64, p: &Params, tm: &Timing) -> (Pressures, Flows
         lv: ventricular_pressure(lv, e, p.ees_lv, p.v0_lv, p.a_lv, p.b_lv),
         rv: ventricular_pressure(rv, e, p.ees_rv, p.v0_rv, p.a_rv, p.b_rv),
         ao: (ao - p.v0_ao) / p.c_ao,
-        sv: (1.0 + p.k_ra * ea) * (sv - p.v0_sv) / p.c_sv,
+        sv: (1.0 + p.k_ra * ea) * (sv - p.v0_sv) / (p.c_sv * p.ven_cap),
         pa: (pa - p.v0_pa) / p.c_pa,
         pv: (1.0 + p.k_la * ea) * (pv - p.v0_pv) / p.c_pv,
     };
@@ -161,6 +161,7 @@ pub fn initial_volumes(p: &Params) -> [f64; 6] {
         p.v0_lv + math::ln(1.0 + 8.0 / p.a_lv) / p.b_lv,
         p.v0_rv + math::ln(1.0 + 4.0 / p.a_rv) / p.b_rv,
         p.v0_ao + p.c_ao * 100.0,
+        // compliance de base (sans ven_cap) : une veinodilatation redistribue le volume sans en ajouter
         p.v0_sv + p.c_sv * 4.0 + (p.bvf - 1.0) * vtot + p.vol_shift,
         p.v0_pa + p.c_pa * 14.0,
         p.v0_pv + p.c_pv * 6.0,
@@ -521,7 +522,7 @@ fn flows_beats(
         lv: ventricular_pressure_beat(lv, e, e_act, p.ees_lv, p.v0_lv, p.a_lv, p.b_lv),
         rv: ventricular_pressure_beat(rv, e, e_act, p.ees_rv, p.v0_rv, p.a_rv, p.b_rv),
         ao: (ao - p.v0_ao) / p.c_ao,
-        sv: (1.0 + p.k_ra * ea) * (sv - p.v0_sv) / p.c_sv,
+        sv: (1.0 + p.k_ra * ea) * (sv - p.v0_sv) / (p.c_sv * p.ven_cap),
         pa: (pa - p.v0_pa) / p.c_pa,
         pv: (1.0 + p.k_la * ea) * (pv - p.v0_pv) / p.c_pv,
     };

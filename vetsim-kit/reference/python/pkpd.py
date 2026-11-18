@@ -34,8 +34,9 @@ TOX = {
 URINE_MAX = 0.2044    # mL/kg/min à effet maximal (furosémide, Koh 2021)
 F_PLASMA = 0.3        # fraction du volume urinaire prélevée sur le volume sanguin
 TAU_REFILL = 4.0      # h, retour du volume (apport hydrique, transfert interstitiel)
-TAU_ELECT = 56.67     # h, récupération des pertes électrolytiques (Koh 2021 + Wong 1977)
-A_K, A_CL, A_NA = 0.00513, 0.00170, 0.00029   # pertes proportionnelles : X ← X·exp(−a·U) (par mL/kg)
+TAU_ELECT = 200.0     # h, oubli de la diurèse effective (Koh 2021 : pas de récupération à jeun sur 8 h)
+TAU_ADAPT, PHI_ADAPT = 12.0, 0.9808   # adaptation (aldostérone, apport, FE_K) : U_eff = U − φ·W ; Adin 2020, TEST 2017
+A_K, A_CL, A_NA = 0.00585, 0.00225, 0.00032   # pertes proportionnelles : X ← X·exp(−a·U_eff) (par mL/kg)
 
 
 def _k(d, p):
@@ -65,7 +66,7 @@ def timecourse(p, doses, t_end_h, t_eval_h):
     bw = p['bw']
     drugs = sorted({d[1] for d in doses})
     idx = {d: i for i, d in enumerate(drugs)}
-    n = 3 * len(drugs) + 2           # (gut, central, periph) x drugs + D + U
+    n = 3 * len(drugs) + 3           # (gut, central, periph) x drugs + D + U + W (adaptation)
     state = np.zeros(n)
     events = sorted(doses)
     times = sorted({0.0, t_end_h, *[e[0] for e in events], *t_eval_h})
@@ -84,20 +85,22 @@ def timecourse(p, doses, t_end_h, t_eval_h):
             dy[i] = -ka * gut
             dy[i + 1] = ka * gut - (cl / vc) * ac - (q / vc) * ac + (q / vp) * ap
             dy[i + 2] = (q / vc) * ac - (q / vp) * ap
-        D, U = y[-2], y[-1]
+        D, U, W = y[-3], y[-2], y[-1]
         u = 0.0
         if 'furosemide' in idx:
             i = 3 * idx['furosemide']
             # site d'action luminal : effet piloté par l'excrétion urinaire (C × masse néphronique)
             u = URINE_MAX * effect('furosemide', y[i + 1] / pars['furosemide'][1] * p['nephron_mass'])   # mL/kg/min
-        dy[-2] = F_PLASMA * u * bw * 60.0 - D / TAU_REFILL        # mL/h
-        dy[-1] = u * 60.0 - U / TAU_ELECT                         # diurèse 'effective' (mL/kg), récupération lente
+        dy[-3] = F_PLASMA * u * bw * 60.0 - D / TAU_REFILL        # mL/h
+        dy[-2] = u * 60.0 - U / TAU_ELECT                         # diurèse 'effective' (mL/kg)
+        if 'furosemide' in idx:
+            dy[-1] = (U - W) / TAU_ADAPT                           # adaptation lente
         return dy
 
     def record(tt):
         out['t'].append(tt)
-        out['D'].append(state[-2])
-        out['U'].append(state[-1])
+        out['D'].append(state[-3])
+        out['U'].append(state[-2] - (PHI_ADAPT * state[-1] if 'furosemide' in idx else 0.0))
         for d in drugs:
             out[d].append(state[3 * idx[d] + 1] / pars[d][1])
 
@@ -142,6 +145,9 @@ def apply_drug_effects(p, conc, D, U):
     if 'betabloquant' in conc:
         q['beta_block'] = min(1.0, q['beta_block'] + effect('betabloquant', conc['betabloquant']))
         # profil aténolol : pas de terme toxique de stabilisation de membrane (propranolol)
+    if 'furosemide' in conc:
+        # veinodilatation dépendante du rein (Bayne 1979) : E suit l'excrétion urinaire
+        q['ven_cap'] *= 1 + 0.36 * effect('furosemide', conc['furosemide'] * p['nephron_mass'])
     if D or U:
         q['vol_shift'] -= D
         q['k'] *= np.exp(-A_K * U)        # pertes proportionnelles à la concentration : jamais négatives

@@ -41,7 +41,7 @@ def _flows(V, t, p, T, ts, tr, pr=None):
     P = dict(
         lv=_vent_p(lv, e, p['ees_lv'], p['v0_lv'], p['a_lv'], p['b_lv']),
         rv=_vent_p(rv, e, p['ees_rv'], p['v0_rv'], p['a_rv'], p['b_rv']),
-        ao=(ao - p['v0_ao']) / p['c_ao'], sv=(1 + p['k_ra'] * ea) * (sv - p['v0_sv']) / p['c_sv'],
+        ao=(ao - p['v0_ao']) / p['c_ao'], sv=(1 + p['k_ra'] * ea) * (sv - p['v0_sv']) / (p['c_sv'] * p['ven_cap']),
         pa=(pa - p['v0_pa']) / p['c_pa'], pv=(1 + p['k_la'] * ea) * (pv - p['v0_pv']) / p['c_pv'])
     rf = p['r_valve']
     Q = dict(
@@ -200,7 +200,29 @@ RHYTHM_T_END = 30.0
 RHYTHM_WARM = 10.0
 
 
+MR_DYN_MIN_G = 0.05       # fuite sous laquelle l'orifice dynamique est ignoré (chien sain)
+MR_DYN_MAX_ITER = 12
+
+
 def _hemo_with_rhythm(q, v_eff, n_beats):
+    """Orifice mitral dynamique (Yoran 1979) : g = g_mr·(VTD/mr_vref)^mr_k, fixe pendant le
+    battement, point fixe amorti sur ln g. Renvoie (hémodynamique, conduction, g retenu)."""
+    if q['mr_k'] == 0.0 or q['g_mr'] < MR_DYN_MIN_G:
+        h, cond = _hemo_with_rhythm_static(q, v_eff, n_beats)
+        return h, cond, q['g_mr']
+    qq = dict(q)
+    lg = 0.0
+    for _ in range(MR_DYN_MAX_ITER):
+        qq['g_mr'] = q['g_mr'] * np.exp(lg)
+        h, cond = _hemo_with_rhythm_static(qq, v_eff, n_beats)
+        target = q['mr_k'] * np.log(max(h['edv'], 1e-6) / q['mr_vref'])
+        if abs(target - lg) < 1e-3:
+            break
+        lg = 0.5 * lg + 0.5 * target
+    return h, cond, qq['g_mr']
+
+
+def _hemo_with_rhythm_static(q, v_eff, n_beats):
     """Hémodynamique d'une passe : périodique si la conduction est sinusale 1:1 à PR constant
     (PR de la conduction), sinon battement par battement sur la séquence de conduction."""
     import rhythm
@@ -233,7 +255,8 @@ def _evaluate_once(p, n_beats=11):
         q['pr'] = base['hv'] + (base['pr'] - base['hv']) * symp
         q['r_sys'] = base['r_sys'] * (1 + 0.5 * (s_tot - base['s0']))
         q['vol_shift'] = base['vol_shift'] + 0.20 * 85.0 * base['bw'] * (s_tot - base['s0'])   # recrutement du volume non contraint
-        h, cond = _hemo_with_rhythm(q, v_eff, n_beats)
+        h, cond, g_eff = _hemo_with_rhythm(q, v_eff, n_beats)
+        q['g_mr'], q['mr_k'] = g_eff, 0.0       # orifice retenu, réutilisé en aval (signaux, son)
         d_t = float(np.clip(base['baro_gain'] * (base['map_set'] - h['map']) / 45.0, -1, 1))
         if abs(d_t - d) < 0.04:
             break
@@ -456,7 +479,7 @@ def _flows_beats(V, t, p, beats, atr):
     P = dict(
         lv=_vent_p(lv, e, p['ees_lv'], p['v0_lv'], p['a_lv'], p['b_lv'], e_act),
         rv=_vent_p(rv, e, p['ees_rv'], p['v0_rv'], p['a_rv'], p['b_rv'], e_act),
-        ao=(ao - p['v0_ao']) / p['c_ao'], sv=(1 + p['k_ra'] * ea) * (sv - p['v0_sv']) / p['c_sv'],
+        ao=(ao - p['v0_ao']) / p['c_ao'], sv=(1 + p['k_ra'] * ea) * (sv - p['v0_sv']) / (p['c_sv'] * p['ven_cap']),
         pa=(pa - p['v0_pa']) / p['c_pa'], pv=(1 + p['k_la'] * ea) * (pv - p['v0_pv']) / p['c_pv'])
     rf = p['r_valve']
     Q = dict(
