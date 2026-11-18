@@ -96,8 +96,13 @@ fn early_vpc_is_not_productive() {
     let p = params();
     let (c, i) = sequence(Some(0.40));
     let r = simulate_hemo_beats(&p, &c, 30.0, 12.0, PERIOD).unwrap();
-    let t_vpc = c.ventricular[i].t;
-    let k = r.beats.iter().position(|b| b.t == t_vpc).unwrap();
+    // les battements mécaniques débutent au début du QRS + délai électromécanique
+    let t_vpc = c.ventricular[i].t + vetsim_core::hemo::mech_offset(&p, true);
+    let k = r
+        .beats
+        .iter()
+        .position(|b| (b.t - t_vpc).abs() < 1e-12)
+        .unwrap();
     let (before, vpc, after) = (r.beats[k - 1], r.beats[k], r.beats[k + 1]);
     assert!(
         vpc.sv < 0.25 * before.sv,

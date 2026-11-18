@@ -413,7 +413,8 @@ fn evaluate_once(base: &Params) -> Result<Evaluation, Error> {
         // Effet dromotrope du sympathique (bloquable par les bêtabloquants) : ERP et AH nodaux.
         let symp = f64::max(0.1, 1.0 - base.av_symp * (s_eff - S_REF));
         q.av_erp = base.av_erp * symp;
-        q.pr = base.hv + (base.pr - base.hv) * symp;
+        // AH seul est modulé (la conduction intra-atriale pa_ia et HV ne le sont pas)
+        q.pr = base.hv + base.pa_ia + (base.pr - base.hv - base.pa_ia) * symp;
         // Foyers d'échappement : accélérés par le sympathique, le jonctionnel ralenti par le vague
         // (Tanahashi 1979, chien vigile : atropine et practolol modifient la pause d'échappement).
         let esc_s = (1.0 + base.esc_a_s * s_eff) / (1.0 + base.esc_a_s * S_REF);

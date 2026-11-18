@@ -379,6 +379,7 @@ pub fn shift_conduction(cond: &crate::rhythm::Conduction, w: f64) -> crate::rhyt
             .filter(|i| i.t >= w)
             .map(|i| crate::rhythm::Impulse {
                 t: i.t - w,
+                t_avn: i.t_avn - w,
                 t_his: i.t_his.map(|x| x - w),
                 ..*i
             })

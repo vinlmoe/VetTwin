@@ -769,7 +769,7 @@ impl Engine {
                 .impulses
                 .iter()
                 .filter(|i| inside(i.t))
-                .map(|i| json!({ "t": i.t, "fate": i.fate.as_str(), "t_his": i.t_his }))
+                .map(|i| json!({ "t": i.t, "t_avn": i.t_avn, "fate": i.fate.as_str(), "t_his": i.t_his }))
                 .collect();
             let (beats, _) = vetsim_core::hemo::beat_schedule(&cond, 60.0 / q.hr, q);
             let mech: Vec<Json> = beats
@@ -792,7 +792,8 @@ impl Engine {
                     "sa_exit_blocked": sc.sa_exit_blocked.iter().copied().filter(|&t| inside(t)).collect::<Vec<_>>(),
                 },
                 "mechanics": { "beats": mech, "ta_atr": q.ta_atr, "tra_atr": q.tra_atr },
-                "intervals": { "pr": q.pr, "qrs": q.qrs, "hv": q.hv, "qt": q.qt },
+                "intervals": { "pr": q.pr, "qrs": q.qrs, "hv": q.hv, "qt": q.qt, "pa_ia": q.pa_ia },
+                "timing": { "emd_v": q.emd_v, "emd_a": q.emd_a, "act_gamma": q.act_gamma, "tr_frac": q.tr_frac },
                 "note": "séquence de conduction, ondes de l'ECG, activations, volumes, pressions et débits du modèle ; géométrie schématique ; usage pédagogique uniquement",
             }))
         })

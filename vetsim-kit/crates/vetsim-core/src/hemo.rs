@@ -15,9 +15,15 @@ use crate::params::Params;
 /// Activation ventriculaire `e(t)` ∈ [0, 1] : demi-cosinus montant sur `[0, ts)`,
 /// descendant sur `[ts, ts + tr)`, nulle en diastole.
 pub fn activation(t: f64, period: f64, ts: f64, tr: f64) -> f64 {
+    activation_g(t, period, ts, tr, 1.0)
+}
+
+/// Activation périodique, montée de forme `γ` : `½(1 − cos(π·(t/ts)^γ))` ; `γ < 1` raidit le
+/// début de la contraction (phase isovolumique plus brève), `γ = 1` : demi-cosinus.
+pub fn activation_g(t: f64, period: f64, ts: f64, tr: f64, gamma: f64) -> f64 {
     let tc = t % period;
     if tc < ts {
-        0.5 * (1.0 - math::cos(std::f64::consts::PI * tc / ts))
+        0.5 * (1.0 - math::cos(std::f64::consts::PI * math::pow(tc / ts, gamma)))
     } else if tc < ts + tr {
         0.5 * (1.0 + math::cos(std::f64::consts::PI * (tc - ts) / tr))
     } else {
@@ -97,6 +103,8 @@ pub struct Timing {
     pub tr: f64,
     /// Délai oreillette → ventricule (s) ; `None` : paramètre `pr`.
     pub pr: Option<f64>,
+    /// Forme de la montée de l'activation ventriculaire (`act_gamma`).
+    pub gamma: f64,
 }
 
 impl Timing {
@@ -114,13 +122,32 @@ impl Timing {
             ts,
             tr: 0.4 * ts,
             pr: None,
+            gamma: 1.0,
         }
+    }
+
+    /// Rythme du patient : systole `ts_coef·√T`, relaxation `tr_frac·ts`, montée `act_gamma`.
+    pub fn for_params(p: &Params) -> Self {
+        let mut tm = Self::from_hr_coef(p.hr, p.ts_coef);
+        tm.tr = p.tr_frac * tm.ts;
+        tm.gamma = p.act_gamma;
+        tm
     }
 }
 
-/// Activation atriale : débute `pr` avant l'activation ventriculaire du même battement.
+/// Début mécanique d'un battement ventriculaire par rapport à son pic R (s) : début du QRS
+/// (`R − QRS/2`, QRS élargi d'un battement ventriculaire) + délai électromécanique `emd_v`.
+pub fn mech_offset(p: &Params, wide: bool) -> f64 {
+    let q = p.qrs * if wide { crate::signals::WIDE_QRS } else { 1.0 };
+    p.emd_v - 0.5 * q
+}
+
+/// Activation atriale (rythme régulier). L'origine des temps est le début mécanique
+/// ventriculaire, `emd_v − QRS/2` après le pic R ; l'onde P débute `pr` avant le pic R et la
+/// contraction atriale `emd_a` après le début de l'onde P.
 pub fn atrial_activation(t: f64, p: &Params, tm: &Timing) -> f64 {
-    activation(t + tm.pr.unwrap_or(p.pr), tm.period, p.ta_atr, p.tra_atr)
+    let lead = tm.pr.unwrap_or(p.pr) + mech_offset(p, false) - p.emd_a;
+    activation(t + lead, tm.period, p.ta_atr, p.tra_atr)
 }
 
 /// Échelle allométrique des fuites valvulaires : les conductances `g_*` sont normalisées au
@@ -136,7 +163,7 @@ pub fn leak_scale(p: &Params) -> f64 {
 /// `P = (1 + k·e_a(t))·P_passive` ; `k = 0` : oreillettes passives (modèle d'origine).
 pub fn flows(v: &[f64; 6], t: f64, p: &Params, tm: &Timing) -> (Pressures, Flows, f64) {
     let [lv, rv, ao, sv, pa, pv] = *v;
-    let e = activation(t, tm.period, tm.ts, tm.tr);
+    let e = activation_g(t, tm.period, tm.ts, tm.tr, tm.gamma);
     let ea = atrial_activation(t, p, tm);
     let pr = Pressures {
         lv: ventricular_pressure(lv, e, p.ees_lv, p.v0_lv, p.a_lv, p.b_lv),
@@ -284,7 +311,7 @@ pub fn simulate_hemo_pr(p: &Params, n_beats: usize, pr: Option<f64>) -> Result<H
     if !(p.hr.is_finite() && p.hr > 0.0) {
         return Err(Error::InvalidInput(format!("FC {} /min", p.hr)));
     }
-    let mut tm = Timing::from_hr_coef(p.hr, p.ts_coef);
+    let mut tm = Timing::for_params(p);
     tm.pr = pr;
     let t_end = n_beats as f64 * tm.period;
     // Échantillons comme np.arange(t_end − 2T, t_end, dt) (y compris le calcul de numpy :
@@ -435,11 +462,11 @@ mod tests {
 /// Battement ventriculaire : début, durée de systole, durée de relaxation (s), amplitude.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Beat {
-    /// Début de l'activation (s).
+    /// Début mécanique (s) : pic R + [`mech_offset`].
     pub t: f64,
     /// Systole `ts_coef·√T·(RR/T)^ts_restitution` (T = période moyenne, RR = intervalle qui précède).
     pub ts: f64,
-    /// Relaxation `0,4·ts`.
+    /// Relaxation `tr_frac·ts`.
     pub tr: f64,
     /// Amplitude d'élastance active (relation force-intervalle × dyssynchronie ; 1 en régime établi).
     pub c: f64,
@@ -447,8 +474,13 @@ pub struct Beat {
 
 /// Activation d'un battement isolé, `tau` secondes après son début.
 pub fn activation_single(tau: f64, ts: f64, tr: f64) -> f64 {
+    activation_single_g(tau, ts, tr, 1.0)
+}
+
+/// Activation d'un battement isolé, montée de forme `γ` (voir [`activation_g`]).
+pub fn activation_single_g(tau: f64, ts: f64, tr: f64, gamma: f64) -> f64 {
     if (0.0..ts).contains(&tau) {
-        0.5 * (1.0 - math::cos(std::f64::consts::PI * tau / ts))
+        0.5 * (1.0 - math::cos(std::f64::consts::PI * math::pow(tau / ts, gamma)))
     } else if tau >= ts && tau < ts + tr {
         0.5 * (1.0 + math::cos(std::f64::consts::PI * (tau - ts) / tr))
     } else {
@@ -490,9 +522,9 @@ pub fn beat_schedule(
         u = u * x + rho * rel + (1.0 - rho);
         let c = rel * if vb.wide { p.ees_wide } else { 1.0 };
         beats.push(Beat {
-            t,
+            t: t + mech_offset(p, vb.wide),
             ts,
-            tr: 0.4 * ts,
+            tr: p.tr_frac * ts,
             c,
         });
         ts_prev = ts;
@@ -501,7 +533,7 @@ pub fn beat_schedule(
         .atrial
         .iter()
         .filter(|a| a.organized)
-        .map(|a| a.t)
+        .map(|a| a.t + p.emd_a)
         .collect();
     (beats, atr)
 }
@@ -515,7 +547,7 @@ fn activations_at(t: f64, beats: &[Beat], atr: &[f64], p: &Params) -> (f64, f64,
     for j in [i - 1, i] {
         if j >= 0 && (j as usize) < beats.len() {
             let b = beats[j as usize];
-            let a = activation_single(t - b.t, b.ts, b.tr);
+            let a = activation_single_g(t - b.t, b.ts, b.tr, p.act_gamma);
             e = e.max(a);
             e_act = e_act.max(b.c * a);
         }
@@ -695,7 +727,7 @@ pub fn simulate_hemo_beats(
         };
         let bt = beats.iter().find(|bt| bt.t == a).copied();
         let ts_a = bt.map_or(p.ts_coef * (b - a).sqrt(), |bt| bt.ts);
-        let tr_a = bt.map_or(0.4 * ts_a, |bt| bt.tr);
+        let tr_a = bt.map_or(p.tr_frac * ts_a, |bt| bt.tr);
         // volumes mesurés sur SA contraction : VTS = minimum, VTD = maximum avant ce minimum
         // (le remplissage de la diastole qui suit appartient au battement suivant)
         let mut vs: Vec<f64> = idx

@@ -255,6 +255,17 @@ define_params! {
     ees_wide,
     /// Coefficient de la durée de systole `ts = ts_coef·√T`.
     ts_coef,
+    /// Forme de la montée de l'activation ventriculaire `½(1 − cos(π(t/ts)^γ))` (γ = 1 :
+    /// demi-cosinus ; γ < 1 : contraction isovolumique plus brève).
+    act_gamma,
+    /// Durée de relaxation en fraction de la systole (`tr = tr_frac·ts`).
+    tr_frac,
+    /// Délai électromécanique ventriculaire : début du QRS → début de l'activation (s).
+    emd_v,
+    /// Délai électromécanique atrial : début de l'onde P → début de la contraction atriale (s).
+    emd_a,
+    /// Conduction intra-atriale : début de l'onde P → arrivée au nœud AV (s) ; AH = PR − HV − PA.
+    pa_ia,
     // --- conduction (rhythm) ---
     /// Probabilité de bloc de sortie sino-atrial (maladie du sinus).
     sa_block,
@@ -332,6 +343,6 @@ mod tests {
             assert_eq!(p.get(n), Some(v));
         }
         assert_eq!(p.get("nope"), None);
-        assert_eq!(Params::NAMES.len(), 125); // 73 + 11 décompensation + 6 oreillettes/systole + 3 force-intervalle + 22 conduction + 7 corrections du 18/11/2026 (creat_vd, urea_vd, map_arrest, av_symp, ven_cap, mr_k, mr_vref) + 3 échappements (esc_overdrive → esc_sup_gain, esc_sup_tau, esc_a_s, esc_a_v)
+        assert_eq!(Params::NAMES.len(), 130); // 73 + 11 décompensation + 6 oreillettes/systole + 3 force-intervalle + 22 conduction + 7 corrections du 18/11/2026 (creat_vd, urea_vd, map_arrest, av_symp, ven_cap, mr_k, mr_vref) + 3 échappements (esc_overdrive → esc_sup_gain, esc_sup_tau, esc_a_s, esc_a_v) + 5 chronologie (act_gamma, tr_frac, emd_v, emd_a, pa_ia)
     }
 }

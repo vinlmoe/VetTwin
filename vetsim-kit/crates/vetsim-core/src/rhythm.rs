@@ -137,8 +137,10 @@ impl ImpulseFate {
 /// conduction, sans effet sur la séquence ; non porté par la référence Python).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Impulse {
-    /// Arrivée au nœud AV (s) : activation atriale, onde f ou décharge sinusale.
+    /// Activation atriale (début de l'onde P), onde f ou décharge sinusale (s).
     pub t: f64,
+    /// Arrivée au nœud AV (s) : `t + pa_ia`.
+    pub t_avn: f64,
     /// Devenir.
     pub fate: ImpulseFate,
     /// Sortie du nœud AV vers le His (s), si l'influx a franchi le nœud.
@@ -162,7 +164,7 @@ pub struct Conduction {
 pub fn av_constants(p: &Params, v_eff: f64) -> (f64, f64) {
     let vag = 1.0 + p.av_vagal * (v_eff - 0.6);
     let kf = 1.0 + p.av_k_gain * f64::max(0.0, p.k - 5.5);
-    let ah0 = f64::max(0.0, p.pr - p.hv) * vag * kf;
+    let ah0 = f64::max(0.0, p.pr - p.hv - p.pa_ia) * vag * kf;
     let erp = p.av_erp * vag * kf;
     (ah0, erp)
 }
@@ -366,7 +368,8 @@ pub fn simulate_conduction(
         match kind {
             0 => {
                 i_s += 1;
-                let rec = t - last_his;
+                let arr = t + p.pa_ia; // arrivée au nœud AV (conduction intra-atriale)
+                let rec = arr - last_his;
                 if rec < erp || pending.is_some() {
                     let fate = if pending.is_some() {
                         ImpulseFate::Collision
@@ -377,6 +380,7 @@ pub fn simulate_conduction(
                     };
                     out.impulses.push(Impulse {
                         t,
+                        t_avn: arr,
                         fate,
                         t_his: None,
                     });
@@ -387,22 +391,24 @@ pub fn simulate_conduction(
                     continue;
                 }
                 let ah = ah0 + p.av_beta * math::exp(-(rec - erp) / p.av_tau);
-                last_his = t + ah;
+                last_his = arr + ah;
                 if rand() >= hp_p {
                     out.impulses.push(Impulse {
                         t,
+                        t_avn: arr,
                         fate: ImpulseFate::Infranodal,
-                        t_his: Some(t + ah),
+                        t_his: Some(arr + ah),
                     });
                     continue; // bloc infranodal
                 }
                 pending_idx = out.impulses.len();
                 out.impulses.push(Impulse {
                     t,
+                    t_avn: arr,
                     fate: ImpulseFate::Conducted,
-                    t_his: Some(t + ah),
+                    t_his: Some(arr + ah),
                 });
-                pending = Some((t + ah + p.hv, t, ah + p.hv));
+                pending = Some((arr + ah + p.hv, t, p.pa_ia + ah + p.hv));
             }
             2 => {
                 let (tv, ta, pr) = pending.take().expect("influx en cours");

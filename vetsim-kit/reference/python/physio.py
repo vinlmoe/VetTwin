@@ -7,9 +7,10 @@ from scipy.optimize import brentq
 
 
 # ------------------------------------------------------------------ cardio
-def _act(t, T, ts, tr):
+def _act(t, T, ts, tr, g=1.0):
+    """Activation périodique ; montée ½(1 − cos(π(t/ts)^g)) (g = act_gamma ; 1 : demi-cosinus)."""
     tc = np.mod(t, T)
-    return np.where(tc < ts, 0.5 * (1 - np.cos(np.pi * tc / ts)),
+    return np.where(tc < ts, 0.5 * (1 - np.cos(np.pi * np.power(np.clip(tc / ts, 0.0, None), g))),
                     np.where(tc < ts + tr, 0.5 * (1 + np.cos(np.pi * (tc - ts) / tr)), 0.0))
 
 
@@ -29,12 +30,23 @@ def _valve(dp, r_f, g_b, eps=0.3):
 def _atrial_act(t, T, p, pr=None):
     """Activation atriale : débute PR avant l'activation ventriculaire du même battement
     (PR de la conduction si fourni, sinon le paramètre `pr`)."""
-    return _act(t + (p['pr'] if pr is None else pr), T, p['ta_atr'], p['tra_atr'])
+    # origine des temps : début mécanique ventriculaire (emd_v − QRS/2 après le pic R) ; la
+    # contraction atriale débute emd_a après le début de l'onde P, elle-même PR avant le pic R
+    lead = (p['pr'] if pr is None else pr) + mech_offset(p, False) - p['emd_a']
+    return _act(t + lead, T, p['ta_atr'], p['tra_atr'])
+
+
+def mech_offset(p, wide):
+    """Début mécanique d'un battement ventriculaire par rapport à son pic R (s) : début du QRS
+    (R − QRS/2, QRS élargi d'un battement ventriculaire) + délai électromécanique emd_v."""
+    from signals import WIDE_QRS
+    q = p['qrs'] * (WIDE_QRS if wide else 1.0)
+    return p['emd_v'] - 0.5 * q
 
 
 def _flows(V, t, p, T, ts, tr, pr=None):
     lv, rv, ao, sv, pa, pv = V
-    e = _act(t, T, ts, tr)
+    e = _act(t, T, ts, tr, p['act_gamma'])
     ea = _atrial_act(t, T, p, pr)
     # oreillettes contractiles : élastance active proportionnelle à la pression passive
     # (pv = OG + veines pulmonaires, sv = OD + veines systémiques) ; k = 0 : oreillettes passives
@@ -72,7 +84,7 @@ def simulate_hemo(p, n_beats=11, dt=0.002, pr=None):
     indices. `pr` : délai oreillette → ventricule de la conduction (défaut : paramètre `pr`)."""
     T = 60.0 / p['hr']
     ts = p['ts_coef'] * math.sqrt(T)        # durée de systole (ts_coef calé sur B1→B2 du beagle)
-    tr = 0.4 * ts
+    tr = p['tr_frac'] * ts
     V0 = _initial_volumes(p)
 
     def rhs(t, V):
@@ -253,7 +265,7 @@ def _evaluate_once(p, n_beats=11):
         q['ees_rv'] = base['ees_rv'] * (1 + 0.4 * (s_eff - base['s0']))
         symp = max(0.1, 1.0 - base['av_symp'] * (s_eff - S_REF))   # effet dromotrope du sympathique (ERP, AH)
         q['av_erp'] = base['av_erp'] * symp
-        q['pr'] = base['hv'] + (base['pr'] - base['hv']) * symp
+        q['pr'] = base['hv'] + base['pa_ia'] + (base['pr'] - base['hv'] - base['pa_ia']) * symp   # AH seul modulé
         # foyers d'échappement : accélérés par le sympathique, le jonctionnel ralenti par le vague
         esc_s = (1.0 + base['esc_a_s'] * s_eff) / (1.0 + base['esc_a_s'] * S_REF)
         esc_v = max(0.0, 1.0 - base['esc_a_v'] * v_eff) / (1.0 - base['esc_a_v'] * V_REF)
@@ -408,9 +420,9 @@ def evaluate(p, n_beats=11):
 
 
 # ------------------------------------------------------------------ hémodynamique battement par battement
-def _act1(tau, ts, tr):
+def _act1(tau, ts, tr, g=1.0):
     """Activation d'un battement isolé, `tau` secondes après son début (même forme que _act)."""
-    return np.where((tau >= 0) & (tau < ts), 0.5 * (1 - np.cos(np.pi * tau / ts)),
+    return np.where((tau >= 0) & (tau < ts), 0.5 * (1 - np.cos(np.pi * np.power(np.clip(tau / ts, 0.0, None), g))),
                     np.where((tau >= ts) & (tau < ts + tr), 0.5 * (1 + np.cos(np.pi * (tau - ts) / tr)), 0.0))
 
 
@@ -451,9 +463,9 @@ def beat_schedule(cond, period0, p):
         rel = u * (1.0 - x)                                  # Ca²⁺ libéré (1 en régime établi)
         u = u * x + rho * rel + (1.0 - rho)
         c = rel * (p['ees_wide'] if wide[i] else 1.0)
-        beats.append((t, ts, 0.4 * ts, c))
+        beats.append((t + mech_offset(p, wide[i]), ts, p['tr_frac'] * ts, c))
         ts_prev = ts
-    atr = [t for t, organized in cond['atrial'] if organized]
+    atr = [t + p['emd_a'] for t, organized in cond['atrial'] if organized]
     return beats, atr
 
 
@@ -468,7 +480,7 @@ def _activations(t, beats, atr, p):
     for j in (i - 1, i):
         if 0 <= j < len(beats):
             t0, ts, tr, c = beats[j]
-            a = float(_act1(t - t0, ts, tr))
+            a = float(_act1(t - t0, ts, tr, p['act_gamma']))
             e = max(e, a)
             e_act = max(e_act, c * a)
     k = bisect.bisect_right(atr, t) - 1
@@ -532,7 +544,7 @@ def simulate_hemo_beats(p, cond, t_end, warm, period0, dt=0.002):
         # volumes du battement mesurés sur SA contraction (début → fin de relaxation, ou battement
         # suivant) : VTS = minimum, VTD = maximum avant ce minimum. Le remplissage de la diastole
         # qui suit appartient au battement suivant (sinon une pause gonfle le VES du battement prématuré).
-        tr_a = bt[2] if bt is not None else 0.4 * ts_a
+        tr_a = bt[2] if bt is not None else p['tr_frac'] * ts_a
         vs = V[0][m & (t < a + ts_a + tr_a)]
         if len(vs) < 3:
             vs = vl

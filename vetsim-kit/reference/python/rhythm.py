@@ -85,7 +85,7 @@ def av_constants(p, v_eff):
     AH0 est tel que, récupéré, le PR vaut `pr` au tonus vagal de référence."""
     vag = 1.0 + p['av_vagal'] * (v_eff - 0.6)
     kf = 1.0 + p['av_k_gain'] * max(0.0, p['k'] - 5.5)
-    ah0 = max(0.0, p['pr'] - p['hv']) * vag * kf
+    ah0 = max(0.0, p['pr'] - p['hv'] - p['pa_ia']) * vag * kf      # AH0 = PR − HV − PA (conduction intra-atriale)
     erp = p['av_erp'] * vag * kf
     return ah0, erp
 
@@ -177,7 +177,8 @@ def simulate_conduction(p, v_eff, sinus_period, t_end, rand, sinus_times=None):
             break
         if kind == 0:                                      # influx supraventriculaire au nœud AV
             i_s += 1
-            rec = t - last_his
+            arr = t + p['pa_ia']                           # arrivée au nœud AV (conduction intra-atriale)
+            rec = arr - last_his
             if rec < erp or pending is not None:
                 # nœud réfractaire : bloqué. Conduction cachée : un influx arrivé en réfractarité
                 # relative (seconde moitié de l'ERP) pénètre partiellement le nœud sans le traverser
@@ -186,10 +187,10 @@ def simulate_conduction(p, v_eff, sinus_period, t_end, rand, sinus_times=None):
                     last_his += p['av_conceal'] * rec
                 continue
             ah = ah0 + p['av_beta'] * math.exp(-(rec - erp) / p['av_tau'])
-            last_his = t + ah                              # récupération nodale après la traversée
+            last_his = arr + ah                            # récupération nodale après la traversée
             if rand() >= hp_p:
                 continue                                   # bloc infranodal
-            pending = (t + ah + p['hv'], t, ah + p['hv'])
+            pending = (arr + ah + p['hv'], t, p['pa_ia'] + ah + p['hv'])
         elif kind == 2:                                    # arrivée ventriculaire de l'influx conduit
             tv, ta, pr = pending
             pending = None

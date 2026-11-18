@@ -146,12 +146,15 @@ pub fn blocks_of(name: &str) -> &'static [Block] {
         "k_la" => &[PulmonaryCirculation, LeftHeart],
         "k_ra" => &[SystemicCirculation, RightHeart],
         "ta_atr" | "tra_atr" => &[PulmonaryCirculation, SystemicCirculation],
-        "ts_restitution" | "ts_coef" => &[LeftHeart, RightHeart],
+        "ts_restitution" | "ts_coef" | "act_gamma" | "tr_frac" | "emd_v" => {
+            &[LeftHeart, RightHeart]
+        }
+        "emd_a" => &[PulmonaryCirculation, SystemicCirculation],
         // relation force-intervalle et dyssynchronie : amplitude d'élastance battement par battement
         "ca_tau" | "ca_recirc" | "ees_wide" => &[LeftHeart, RightHeart],
         // conduction (rhythm) : génération et propagation de l'influx → FC, ECG, oreillettes
-        "sa_block" | "af" | "af_cycle" | "af_cv" | "hv" | "av_erp" | "av_beta" | "av_tau"
-        | "av_conceal" | "av_vagal" | "av_symp" | "hp_conduction" | "junct_rate"
+        "sa_block" | "af" | "af_cycle" | "af_cv" | "hv" | "pa_ia" | "av_erp" | "av_beta"
+        | "av_tau" | "av_conceal" | "av_vagal" | "av_symp" | "hp_conduction" | "junct_rate"
         | "vent_escape_rate" | "esc_sup_gain" | "esc_sup_tau" | "esc_a_s" | "esc_a_v"
         | "vpc_rate" => &[Autonomic, Ecg],
         "av_k_gain"

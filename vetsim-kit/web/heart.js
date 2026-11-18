@@ -96,14 +96,17 @@ export function heartTimeline(r) {
   const el = r.electrical, tracks = [], marks = [], nodal = [];
   const hv = r.intervals.hv;
   const vent = el.ventricular.map((b) => ({ ...b, w: b.qrs_off - b.qrs_on }));
+  // conduction intra-atriale : du nœud sinusal au nœud AV en `pa_ia` (au moins la durée tracée)
+  const pa = r.intervals.pa_ia || 0;
   for (const a of el.atrial) {
-    if (a.organized) tracks.push({ p: 'internodal', t0: a.on, t1: a.off }, { p: 'bachmann', t0: a.on, t1: a.off });
+    if (a.organized) tracks.push({ p: 'internodal', t0: a.on, t1: a.on + Math.max(pa, 0.01) }, { p: 'bachmann', t0: a.on, t1: a.off });
   }
   for (const im of el.impulses) {
-    if (im.t_his !== null) nodal.push({ t0: im.t, t1: im.t_his, ok: true });
-    else nodal.push({ t0: im.t, t1: im.t + (im.fate === 'concealed' ? 0.04 : 0.015), ok: false });
+    const ta = im.t_avn ?? im.t;
+    if (im.t_his !== null) nodal.push({ t0: ta, t1: im.t_his, ok: true });
+    else nodal.push({ t0: ta, t1: ta + (im.fate === 'concealed' ? 0.04 : 0.015), ok: false });
     if (im.fate === 'nodal_refractory' || im.fate === 'collision' || im.fate === 'concealed') {
-      marks.push({ at: AVN, t0: im.t, t1: im.t + 0.25, fate: im.fate });
+      marks.push({ at: AVN, t0: ta, t1: ta + 0.25, fate: im.fate });
     } else if (im.fate === 'infranodal') {
       tracks.push({ p: 'his', t0: im.t_his, t1: im.t_his + 0.4 * hv });
       marks.push({ at: HISB, t0: im.t_his, t1: im.t_his + 0.25, fate: im.fate });
@@ -365,7 +368,7 @@ export function mountHeart(v, r, H, ui) {
     if (b) e.push(a && !a.organized && b.origin === 'sinus' ? 'Conduit depuis les oreillettes fibrillantes' : ORIGIN_FR[b.origin] || b.origin);
     if (b && b.t_his === null) ecol = C.block;
     if (im && t - im.t < 0.6) {
-      e.push(`influx au nœud AV : ${FATE_FR[im.fate] || im.fate}${im.t_his !== null ? ` (AH ${ui.fmt((im.t_his - im.t) * 1000, 0)} ms)` : ''}`);
+      e.push(`influx au nœud AV : ${FATE_FR[im.fate] || im.fate}${im.t_his !== null ? ` (AH ${ui.fmt((im.t_his - (im.t_avn ?? im.t)) * 1000, 0)} ms)` : ''}`);
       if (im.fate !== 'conducted') ecol = C.block;
     }
     if (tl.saBlocked.some((x) => within(t, x, x + 0.4))) { e.push('décharge sinusale bloquée à la sortie'); ecol = C.block; }

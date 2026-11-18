@@ -68,6 +68,7 @@ def healthy_params(bw=20.0):
         ca_tau=0.2,                  # constante de transfert du Ca²⁺ du compartiment de captation vers celui de libération (s)
         ca_recirc=0.6,               # fraction du Ca²⁺ libéré recaptée par le réticulum (le reste est extrudé)
         ees_wide=0.8,                # amplitude d'élastance d'un battement à QRS large (activation hors Purkinje, dyssynchronie)
+        act_gamma=1.0, tr_frac=0.4, emd_v=0.0225, emd_a=0.0, pa_ia=0.0,   # chronologie : montée de l'activation, relaxation, délais électromécaniques, conduction intra-atriale
         ts_coef=0.325,               # durée de systole ts = ts_coef·√T : B1→B2 ≈ 244 ms à RR 0,57 s (beagles 236–251 ms, n = 14)
         # --- conduction (rhythm.py) ; placeholders D sauf mention (docs/PROVENANCE.md)
         sa_block=0.0,                # probabilité de bloc de sortie sino-atrial (maladie du sinus)
