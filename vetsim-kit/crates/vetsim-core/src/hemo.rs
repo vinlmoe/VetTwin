@@ -123,6 +123,12 @@ pub fn atrial_activation(t: f64, p: &Params, tm: &Timing) -> f64 {
     activation(t + tm.pr.unwrap_or(p.pr), tm.period, p.ta_atr, p.tra_atr)
 }
 
+/// Échelle allométrique des fuites valvulaires : les conductances `g_*` sont normalisées au
+/// chien de référence de 20 kg et suivent les débits, `(bw/20)^0,75` (comme `1/r_valve`).
+pub fn leak_scale(p: &Params) -> f64 {
+    math::pow(p.bw / 20.0, 0.75)
+}
+
 /// Pressions et débits pour les volumes `v` à l'instant `t`.
 ///
 /// Oreillettes contractiles : élastance active proportionnelle à la pression passive des
@@ -141,11 +147,12 @@ pub fn flows(v: &[f64; 6], t: f64, p: &Params, tm: &Timing) -> (Pressures, Flows
         pv: (1.0 + p.k_la * ea) * (pv - p.v0_pv) / p.c_pv,
     };
     let rf = p.r_valve;
+    let gs = leak_scale(p);
     let q = Flows {
-        mi: valve_flow(pr.pv - pr.lv, rf, p.g_mr),
-        ao: valve_flow(pr.lv - pr.ao, rf, p.g_ar),
-        tr: valve_flow(pr.sv - pr.rv, rf, p.g_tr),
-        pu: valve_flow(pr.rv - pr.pa, rf, p.g_pr),
+        mi: valve_flow(pr.pv - pr.lv, rf, p.g_mr * gs),
+        ao: valve_flow(pr.lv - pr.ao, rf, p.g_ar * gs),
+        tr: valve_flow(pr.sv - pr.rv, rf, p.g_tr * gs),
+        pu: valve_flow(pr.rv - pr.pa, rf, p.g_pr * gs),
         sys: (pr.ao - pr.sv) / p.r_sys,
         pul: (pr.pa - pr.pv) / p.r_pul,
     };
@@ -527,11 +534,12 @@ fn flows_beats(
         pv: (1.0 + p.k_la * ea) * (pv - p.v0_pv) / p.c_pv,
     };
     let rf = p.r_valve;
+    let gs = leak_scale(p);
     let q = Flows {
-        mi: valve_flow(pr.pv - pr.lv, rf, p.g_mr),
-        ao: valve_flow(pr.lv - pr.ao, rf, p.g_ar),
-        tr: valve_flow(pr.sv - pr.rv, rf, p.g_tr),
-        pu: valve_flow(pr.rv - pr.pa, rf, p.g_pr),
+        mi: valve_flow(pr.pv - pr.lv, rf, p.g_mr * gs),
+        ao: valve_flow(pr.lv - pr.ao, rf, p.g_ar * gs),
+        tr: valve_flow(pr.sv - pr.rv, rf, p.g_tr * gs),
+        pu: valve_flow(pr.rv - pr.pa, rf, p.g_pr * gs),
         sys: (pr.ao - pr.sv) / p.r_sys,
         pul: (pr.pa - pr.pv) / p.r_pul,
     };
