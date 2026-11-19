@@ -26,6 +26,7 @@ const MS_FR = [['loc', 'Perte de conscience'], ['intubation', 'Intubation'], ['v
 
 const A = {
   list: null, session: null, key: null, hist: [], snap: null, waves: null, running: false, speed: 10, timer: null, last: null,
+  mon: null, sound: false, audio: null, raf: 0, lastAlarm: 0,
   procedure: '', rec: null, lastWave: 0, err: null,
   form: { agent: null, dose: '', route: 'iv', push: 30, cri: '', vap: 'isoflurane', pct: 2, fgf: 2, rr: 10, vt: 12, block: null, territory: null, fluids: 5, bolus: 10, bleed: 5 },
 };
@@ -63,7 +64,7 @@ function start(ctl, inputs, key) {
   const opts = { seed: inputs.seed || 1 };
   if (A.procedure) opts.procedure = A.procedure;
   const r = ctl.call('message', JSON.stringify({ op: 'anesthesia_start', patient: pid, options: opts }));
-  A.session = r.session; A.key = key; A.hist = [r.snapshot]; A.snap = r.snapshot; A.rec = null; A.waves = null; A.lastWave = -1e9;
+  A.session = r.session; A.key = key; A.hist = [r.snapshot]; A.snap = r.snapshot; A.rec = null; A.waves = null; A.lastWave = -1e9; A.mon = null;
 }
 
 /** Libellé d'une action pour la barre d'état. */
@@ -103,13 +104,13 @@ function play(ctl, v) {
 function advance(ctl, wallS, v) {
   // pas de 1 s jusqu'à ×10, de 5 s au-delà : coût borné à ~12 évaluations par seconde réelle
   const sim = wallS * A.speed, dt = A.speed > 10 ? 5 : 1, n = Math.max(1, Math.round(sim / dt));
-  const wantWaves = performance.now() - A.lastWave > 3000;
+  const wantWaves = !A.mon || A.mon.pending.length === 0;
   try {
-    const r = ctl.call('message', JSON.stringify({ op: 'anesthesia_step', options: { session: A.session, dt_s: dt, n, all: true, waves_s: wantWaves ? 4 : 0, seed: 1 } }));
+    const r = ctl.call('message', JSON.stringify({ op: 'anesthesia_step', options: { session: A.session, dt_s: dt, n, all: true, waves_s: wantWaves ? 6 : 0, seed: 1 } }));
     for (const s of r.snapshots) A.hist.push(s);
     if (A.hist.length > 20000) A.hist.splice(0, A.hist.length - 20000);
     A.snap = r.snapshots[r.snapshots.length - 1];
-    if (r.ecg) { A.waves = { ecg: r.ecg, fs: r.ecg_fs, pr: r.pressures, at: performance.now() }; A.lastWave = performance.now(); }
+    if (r.ecg) { A.waves = { ecg: r.ecg, fs: r.ecg_fs, pr: r.pressures, at: performance.now() }; A.lastWave = performance.now(); feedMonitor(r); }
     if (A.snap.dead) stop();
   } catch (e) { A.err = e.message; stop(); }
   paint(v);
@@ -144,7 +145,11 @@ function layout(ctl, inputs, key) {
   ${started ? `
   <div class="anesth-status" id="an-status"></div>
   <div class="anesth-grid">
-    <div class="monitor card" id="an-monitor"></div>
+    <div class="monitor card" id="an-monitor">
+      <div class="mon-top"><div id="an-mon-head"></div><button id="an-sound" class="mon-sound">${A.sound ? '🔊 Son' : '🔇 Son coupé'}</button></div>
+      <div class="mon-waves"><canvas id="an-ecg"></canvas><canvas id="an-art"></canvas><canvas id="an-cap"></canvas></div>
+      <div class="mon-vals" id="an-mon-vals"></div>
+    </div>
     <div class="card">
       <h3>Signes cliniques</h3>
       <div id="an-signs"></div>
@@ -219,6 +224,12 @@ function wire(v, ctl, inputs, key, ctx) {
   on('an-play', () => { if (A.running) stop(); else play(ctl, v); rerender(); });
   for (const b of v.querySelectorAll('[data-speed]')) b.onclick = () => { A.speed = +b.dataset.speed; rerender(); };
   on('an-step', () => { const s0 = A.speed; A.speed = 60; advance(ctl, 1, v); A.speed = s0; rerender(); });
+  on('an-sound', () => {
+    A.sound = !A.sound;
+    if (A.sound && !A.audio) { try { A.audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { A.sound = false; } }
+    if (A.audio && A.audio.state === 'suspended') A.audio.resume();
+    const b = document.getElementById('an-sound'); if (b) b.textContent = A.sound ? '🔊 Son' : '🔇 Son coupé';
+  });
   if (!A.session || A.key !== key) return;
   const f = A.form;
   const ag = document.getElementById('an-agent');
@@ -256,15 +267,14 @@ function paint(v) {
   const s = A.snap; if (!s) return;
   const c = document.getElementById('an-clock'); if (c) c.textContent = clock(s.t_s);
   paintStatus();
-  const m = document.getElementById('an-monitor'); if (!m) return;
+  const m = document.getElementById('an-mon-vals'); if (!m) return;
   const vi = s.vitals || {};
   const gas = s.inhalants.find((i) => i.vaporizer > 0) || s.inhalants.reduce((a, b) => (b.fe > (a ? a.fe : -1) ? b : a), null);
   const big = (lab, val, unit, cls) => `<div class="mv ${cls}"><span>${lab}</span><b>${val}</b><i>${unit}</i></div>`;
+  const head = document.getElementById('an-mon-head');
+  if (head) head.innerHTML = `${s.dead ? `<div class="mon-dead">Décès : ${esc(DEATH_FR[s.dead] || s.dead)}</div>` : ''}
+    <div class="mon-alarms">${s.alarms.map((a) => `<span>${esc(ALARM_FR[a] || a)}</span>`).join('')}</div>`;
   m.innerHTML = `
-    ${s.dead ? `<div class="mon-dead">Décès : ${esc(DEATH_FR[s.dead] || s.dead)}</div>` : ''}
-    <div class="mon-alarms">${s.alarms.map((a) => `<span>${esc(ALARM_FR[a] || a)}</span>`).join('')}</div>
-    <div class="mon-waves"><canvas id="an-ecg"></canvas><canvas id="an-art"></canvas><canvas id="an-cap"></canvas></div>
-    <div class="mon-vals">
       ${big('FC', fmt(vi.hr), '/min', 'g')}
       ${big('PA', `${fmt(vi.sap)}/${fmt(vi.dap)}`, `(${fmt(vi.map)}) mmHg`, 'r')}
       ${big('SpO₂', fmt(vi.spo2), '%', 'b')}
@@ -272,8 +282,7 @@ function paint(v) {
       ${big('FR', fmt(s.rr), s.controlled ? '/min (VC)' : '/min', 'y')}
       ${big('T°', fmt(s.temp_c, 1), '°C', 'w')}
       ${gas ? big(`Fi/Fe ${esc(gas.id)}`, `${fmt(gas.fi, 1)}/${fmt(gas.fe, 1)}`, '%', 'w') : ''}
-      ${big('Δ', fmt(s.depth.delta, 2), 'éq. MAC', 'w')}
-    </div>`;
+      ${big('Δ', fmt(s.depth.delta, 2), 'éq. MAC', 'w')}`;
   const signs = document.getElementById('an-signs');
   if (signs) {
     const r = s.reflexes, d = s.depth, n = s.nociception;
@@ -302,28 +311,8 @@ function paint(v) {
       ${s.inhalants.filter((i) => i.fe > 0.001).map((i) => `<tr><td>${esc(i.id)}</td><td>Fe ${fmt(i.fe, 2)} %, cerveau ${fmt(i.brain_mac, 2)} MAC</td></tr>`).join('')}
     </tbody></table></details>`;
   }
-  drawWaves(s);
+  startMonitor();
   drawTrends();
-}
-
-function drawWaves(s) {
-  const W = A.waves;
-  const ecg = document.getElementById('an-ecg'), art = document.getElementById('an-art'), cap = document.getElementById('an-cap');
-  if (!ecg) return;
-  if (W && !s.dead) {
-    timeChart(ecg, { series: [{ y: W.ecg, dt: 1 / W.fs, color: '#35e08a' }], x0: 0, x1: W.ecg.length / W.fs, yMin: -1.5, yMax: 2.5, left: 4 });
-    if (W.pr) timeChart(art, { series: [{ y: W.pr.ao, dt: 1 / W.pr.fs, color: '#ff6b6b' }], x0: 0, x1: W.pr.ao.length / W.pr.fs, yMin: 0, yMax: 200, left: 30 });
-  } else { setup(ecg); setup(art); }
-  // capnogramme schématique : plateau à l'EtCO2, au rythme respiratoire
-  const { ctx, w, h } = setup(cap);
-  ctx.strokeStyle = '#f2d45c'; ctx.lineWidth = 1.6; ctx.beginPath();
-  const period = s.rr > 0 ? 60 / s.rr : Infinity, span = 15, Y = (p) => h - 4 - (p / 60) * (h - 8);
-  for (let i = 0; i <= w; i++) {
-    const t = (i / w) * span, ph = Number.isFinite(period) ? (t % period) / period : 0;
-    const p = !Number.isFinite(period) ? 0 : ph < 0.4 ? 0 : ph < 0.45 ? s.etco2 * (ph - 0.4) / 0.05 : ph < 0.9 ? s.etco2 * (0.92 + 0.08 * (ph - 0.45) / 0.45) : s.etco2 * (1 - (ph - 0.9) / 0.1);
-    if (i === 0) ctx.moveTo(i, Y(p)); else ctx.lineTo(i, Y(p));
-  }
-  ctx.stroke();
 }
 
 function drawTrends() {
@@ -366,4 +355,120 @@ function paintStatus() {
     <span>SpO₂ <b>${fmt(vi.spo2)}</b></span><span>EtCO₂ <b>${fmt(s.etco2)}</b></span>
     <span>plan <b>${PLANE_FR[s.depth.plane]}</b></span>${s.alarms.length ? `<span class="warn">${s.alarms.map((a) => ALARM_FR[a] || a).join(', ')}</span>` : ''}
     <span class="last">${last}</span>`;
+}
+
+// ------------------------------------------------------------------ moniteur défilant et son
+// Les tracés (ECG D II, pression artérielle) viennent du moteur par segments de quelques
+// secondes ; ils sont découpés aux ondes R puis mis bout à bout et défilent à vitesse réelle
+// (balayage de 6 s), indépendamment de l'accélération de la simulation, comme un moniteur.
+const SWEEP_S = 6, GAP_S = 0.25;
+
+function rPeaks(ecg, fs) {
+  let mx = -Infinity; for (const x of ecg) if (x > mx) mx = x;
+  const thr = 0.5 * mx, out = [], refr = Math.round(0.2 * fs);
+  for (let i = 1; i < ecg.length - 1; i++) {
+    if (ecg[i] > thr && ecg[i] >= ecg[i - 1] && ecg[i] > ecg[i + 1] && (!out.length || i - out[out.length - 1] > refr)) out.push(i);
+  }
+  return out;
+}
+
+/** Segment reçu du moteur : coupé entre la première et la dernière onde R (battements entiers). */
+function feedMonitor(r) {
+  const fs = r.ecg_fs, ecg = r.ecg;
+  const pr = r.pressures, k = pr ? Math.max(1, Math.round(fs / pr.fs)) : 1;
+  const art = ecg.map((_, i) => (pr ? pr.ao[Math.min(pr.ao.length - 1, Math.floor(i / k))] : NaN));
+  const pk = rPeaks(ecg, fs);
+  let seg;
+  if (pk.length >= 2) {
+    const a = pk[0], b = pk[pk.length - 1];
+    seg = { ecg: ecg.slice(a, b), art: art.slice(a, b), peaks: pk.slice(0, -1).map((i) => i - a) };
+  } else seg = { ecg, art, peaks: pk };
+  if (!A.mon) A.mon = { fs, ecg: [], art: [], peaks: [], base: 0, pos: 0, pending: [], last: null, t: performance.now() };
+  A.mon.pending.push(seg);
+  if (A.mon.pending.length > 2) A.mon.pending.shift();
+}
+
+function appendSeg(M) {
+  const seg = M.pending.length ? M.pending.shift() : M.last;
+  if (!seg) return false;
+  M.last = seg;
+  const off = M.base + M.ecg.length;
+  for (let i = 0; i < seg.ecg.length; i++) { M.ecg.push(seg.ecg[i]); M.art.push(seg.art[i]); }
+  for (const p of seg.peaks) M.peaks.push(off + p);
+  return seg.ecg.length > 0;
+}
+
+function startMonitor() {
+  if (A.raf) return;
+  const frame = (now) => {
+    const ecgC = document.getElementById('an-ecg');
+    if (!ecgC || !A.session) { A.raf = 0; return; }
+    A.raf = requestAnimationFrame(frame);
+    drawMonitor(now);
+  };
+  A.raf = requestAnimationFrame(frame);
+}
+
+function beep(freq, dur, type = 'sine', vol = 0.15, delay = 0) {
+  const ac = A.audio; if (!ac || !A.sound) return;
+  const t0 = ac.currentTime + delay, o = ac.createOscillator(), g = ac.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(vol, t0 + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(ac.destination); o.start(t0); o.stop(t0 + dur + 0.02);
+}
+
+function drawMonitor(now) {
+  const s = A.snap; if (!s) return;
+  const M = A.mon;
+  const ecgC = document.getElementById('an-ecg'), artC = document.getElementById('an-art'), capC = document.getElementById('an-cap');
+  const fs = M ? M.fs : 250;
+  // tête de lecture à vitesse réelle
+  let prev = 0, P = 0;
+  if (M) {
+    const dt = Math.min(0.25, (now - M.t) / 1000); M.t = now;
+    prev = M.base + M.pos; M.pos += dt * fs;
+    while (M.pos >= M.ecg.length && appendSeg(M)) { /* rallonge par battements entiers */ }
+    if (M.pos >= M.ecg.length) M.pos = M.ecg.length - 1;
+    const keep = Math.ceil(SWEEP_S * fs) + 10, drop = Math.floor(M.pos) - keep;
+    if (drop > 0) { M.ecg.splice(0, drop); M.art.splice(0, drop); M.base += drop; M.pos -= drop; M.peaks = M.peaks.filter((p) => p >= M.base); }
+    P = M.base + M.pos;
+    // bip à chaque QRS franchi par la tête de lecture ; tonalité selon la SpO2
+    if (!s.dead) for (const pk of M.peaks) if (pk > prev && pk <= P) {
+      const spo2 = s.vitals ? s.vitals.spo2 : 90;
+      beep(Math.max(250, Math.min(900, 300 + 6 * (spo2 - 60))), 0.06);
+    }
+  } else P = (now / 1000) * fs;
+  // alarmes sonores (toutes les 4 s) ; arrêt : tonalité continue répétée
+  if (A.sound && (s.alarms.length || s.dead) && now - A.lastAlarm > (s.dead ? 1000 : 4000)) {
+    A.lastAlarm = now;
+    if (s.dead) beep(960, 0.9, 'square', 0.08);
+    else [0, 0.18, 0.36].forEach((d, i) => beep(i === 1 ? 740 : 880, 0.12, 'square', 0.07, d));
+  }
+  const sweep = (c, yOf, lo, hi, color, left) => {
+    const { ctx, w, h } = setup(c);
+    const W = w - left, n = Math.floor((SWEEP_S - GAP_S) * fs), Y = (v) => 4 + (1 - (v - lo) / (hi - lo)) * (h - 8);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.font = '10px system-ui'; 
+    if (left) { ctx.fillText(String(hi), 2, 10); ctx.fillText(String(lo), 2, h - 3); }
+    ctx.strokeStyle = color; ctx.lineWidth = 1.6; ctx.beginPath();
+    let lastX = null;
+    for (let k = n; k >= 0; k--) {
+      const ia = P - k, v = yOf(ia);
+      if (!Number.isFinite(v)) { lastX = null; continue; }
+      const x = left + (((ia / fs) % SWEEP_S) / SWEEP_S) * W;
+      if (lastX === null || x < lastX) ctx.moveTo(x, Y(v)); else ctx.lineTo(x, Y(v));
+      lastX = x;
+    }
+    ctx.stroke();
+  };
+  const at = (arr, ia) => { if (!M) return NaN; const i = Math.floor(ia - M.base); return i >= 0 && i < arr.length ? arr[i] : NaN; };
+  const flat = s.dead || !M;
+  sweep(ecgC, (ia) => (flat ? 0 : at(M.ecg, ia)), -1.5, 2.5, '#35e08a', 0);
+  sweep(artC, (ia) => (s.dead ? 0 : at(M ? M.art : [], ia)), 0, 200, '#ff6b6b', 26);
+  // capnogramme : plateau à l'EtCO2, au rythme respiratoire, sur le même balayage
+  const per = s.rr > 0 ? 60 / s.rr : Infinity;
+  sweep(capC, (ia) => {
+    if (!Number.isFinite(per) || s.dead) return 0;
+    const ph = ((ia / fs) % per) / per, e = s.etco2;
+    return ph < 0.4 ? 0 : ph < 0.45 ? e * (ph - 0.4) / 0.05 : ph < 0.9 ? e * (0.92 + 0.08 * (ph - 0.45) / 0.45) : e * (1 - (ph - 0.9) / 0.1);
+  }, 0, 60, '#f2d45c', 26);
 }
