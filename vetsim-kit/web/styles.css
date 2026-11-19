@@ -165,3 +165,6 @@ table.record { font-size: 12px; } ul.log { max-height: 220px; overflow-y: auto; 
 .anesth-status .clock { font: 600 16px ui-monospace, monospace; }
 .anesth-status .warn { color: #ffb36b; }
 .anesth-status .last { flex-basis: 100%; opacity: 0.9; }
+.mon-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.mon-sound { background: transparent; color: #e8eef2; border-color: #5b6b77; }
+.mon-sound:hover { background: #1d2a31; }
