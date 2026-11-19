@@ -20,6 +20,9 @@ Prérequis : Rust avec la cible `wasm32-unknown-unknown` et `cargo install wasm-
 - `selftest.html` : recalcule dans le navigateur les cas `eval` du golden et les compare au bit près au binaire natif.
 - Générés par `build.sh`, non versionnés : `pkg/` (moteur), `modules.json`, `selftest.json`.
 
+## Publication (GitHub Pages)
+Le workflow `.github/workflows/pages.yml` publie le site à chaque fusion dans `main` : il reconstruit le moteur, lance l'autotest bit à bit dans Chrome, puis déploie. Il faut régler une fois Settings → Pages → Source sur « GitHub Actions ». Il est aussi lançable à la main (onglet Actions, « Pages », Run workflow). Adresse : https://vinlmoe.github.io/VetTwin/
+
 ## Cas partageables par l'adresse
 Les paramètres après `#` décrivent un cas, ce qui permet de distribuer un lien aux étudiants :
 `bw`, `disease`, `stage`, `tab` (`patient`, `respiration`, `model`, `auscultation`, `heart`, `treatment`), `conc=drogue:mg/L,...`, `plan=drogue:mg/kg:voie:intervalle_h:nb_prises[:début_h],...`, `days`, `t` (instant d'examen, h), `sim=1` (simulation immédiate), `window` (zoom de l'auscultation, s), `speed` (vitesse du cœur animé, ex. 0.25), `ht` (instant figé du cœur animé, s).
