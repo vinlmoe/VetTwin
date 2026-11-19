@@ -608,6 +608,10 @@ pub mod streams {
     pub const AUSCULTATION: u64 = 4;
     /// Aléa de la conduction des signaux (FA, ectopie) ; le moteur utilise SplitMix64 (rhythm.rs).
     pub const RHYTHM: u64 = 5;
+    /// Trajectoires Monte-Carlo : fluctuation naturelle, sévérité, PK/PD (variation.rs).
+    pub const VARIATION: u64 = 6;
+    /// Bruit de mesure des trajectoires Monte-Carlo.
+    pub const MEASUREMENT: u64 = 7;
 }
 
 /// Options des signaux d'un patient.

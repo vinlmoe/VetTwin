@@ -28,6 +28,7 @@ pub mod rhythm;
 pub mod rng;
 pub mod roots;
 pub mod signals;
+pub mod variation;
 
 pub use case::{apply_modifiers, evaluate_effects, Case, DrawSource, Modifier, NoNoise};
 pub use engine::{
@@ -40,6 +41,7 @@ pub use params::Params;
 pub use patient::{healthy_params, Patient};
 pub use pkpd::{apply_drug_effects, timecourse, Dose, Route, Timecourse};
 pub use rng::SimRng;
+pub use variation::{sample_trajectory, Scale, Trajectory, VariationConfig};
 
 /// Version du contrat d'API (CLI et messages JSON).
 pub const API_VERSION: &str = "1.1.0";

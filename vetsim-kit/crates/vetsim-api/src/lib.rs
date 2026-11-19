@@ -17,8 +17,8 @@ use vetsim_core::pkpd::{apply_drug_effects, emax_effect, timecourse, Dose, Route
 use vetsim_core::rng::NoiseSource;
 use vetsim_core::signals::{make_pcg, patient_signals, streams, PcgInputs, SignalOptions, PCG_FS};
 use vetsim_core::{
-    evaluate, Catalog, DiseaseModule, DrugModule, Evaluation, LoadError, Params, Patient,
-    PatientModule, SimRng,
+    evaluate, sample_trajectory, Catalog, DiseaseModule, DrugModule, Evaluation, LoadError, Params,
+    Patient, PatientModule, Scale, SimRng, VariationConfig,
 };
 
 /// Version de l'API par messages.
@@ -107,6 +107,7 @@ struct Session {
 pub struct Engine {
     catalog: Option<Catalog>,
     auscultation: Option<AuscultationConfig>,
+    variation: Option<VariationConfig>,
     patients: BTreeMap<String, Session>,
     next_id: u64,
 }
@@ -195,14 +196,27 @@ impl Engine {
                 }
             },
         };
+        // Variabilité intra-individuelle des trajectoires Monte-Carlo (optionnelle).
+        let variation = match m.get("variation") {
+            None | Some(Json::Null) => None,
+            Some(a) => match VariationConfig::from_json(&a.to_string(), "variation") {
+                Ok(c) => Some(c),
+                Err(e) => {
+                    errors.extend(load_issues("/variation", e));
+                    None
+                }
+            },
+        };
         if !errors.is_empty() {
             return Err(ApiError(errors));
         }
         self.auscultation = auscultation;
+        self.variation = variation;
         let catalog = Catalog::new(patient.expect("contrôlé"), diseases, drugs)
             .map_err(|e| ApiError::one("", e.to_string()))?;
         let counts = json!({ "diseases": catalog.diseases.len(), "drugs": catalog.drugs.len(),
-                             "auscultation": self.auscultation.is_some() });
+                             "auscultation": self.auscultation.is_some(),
+                             "variation": self.variation.is_some() });
         self.catalog = Some(catalog);
         self.patients.clear();
         Ok(json!({ "ok": true, "loaded": counts }))
@@ -629,6 +643,246 @@ impl Engine {
         })
     }
 
+    /// Trajectoires Monte-Carlo d'un même animal (`modules/variation.json`) :
+    /// `{"state_times_h": [0, 6, 12, ...], "doses": [...] (optionnel), "n": 50, "seed": 1,
+    /// "keys": ["hr", "map", "creat"], "scale": {"natural": 0, "disease": 0, "drug": 1,
+    /// "measurement": 0} (défaut : tirage unique par chien), "progression_per_day": {"ckd": 0.005}, "trajectories": 5}` →
+    /// `{"t", "summary": {clé: {"p05","p25","p50","p75","p95","mean"}}, "alive_fraction",
+    /// "severity", "trajectories": [...]}`. Les percentiles portent sur les réalisations vivantes
+    /// à l'instant considéré ; le décès est absorbant. Reproductible pour une graine donnée.
+    pub fn montecarlo(&mut self, patient_id: &str, options: &str) -> String {
+        self.respond(|e| {
+            let o = parse(options, "options")?;
+            let m = obj(&o, "")?;
+            let base_cfg = e.variation.clone().ok_or_else(|| {
+                ApiError::one("", "configuration « variation » non chargée (loadModules)")
+            })?;
+            let times: Vec<f64> = m
+                .get("state_times_h")
+                .and_then(Json::as_array)
+                .ok_or_else(|| ApiError::one("/state_times_h", "tableau d'instants (h) requis"))?
+                .iter()
+                .enumerate()
+                .map(|(i, x)| {
+                    x.as_f64()
+                        .filter(|t| *t >= 0.0 && *t <= 24.0 * 365.0)
+                        .ok_or_else(|| {
+                            ApiError::one(format!("/state_times_h/{i}"), "instant entre 0 et 1 an")
+                        })
+                })
+                .collect::<Result<_, _>>()?;
+            if times.is_empty() || times.windows(2).any(|w| w[1] <= w[0]) {
+                return Err(ApiError::one(
+                    "/state_times_h",
+                    "instants strictement croissants requis",
+                ));
+            }
+            let n = opt_u64(m, "n", 30)? as usize;
+            if !(1..=500).contains(&n) {
+                return Err(ApiError::one("/n", "entre 1 et 500 trajectoires"));
+            }
+            if n * times.len() > 20_000 {
+                return Err(ApiError::one(
+                    "/n",
+                    "au plus 20 000 évaluations (n × nombre d'instants)",
+                ));
+            }
+            let seed = opt_u64(m, "seed", 0)?;
+            let n_keep = opt_u64(m, "trajectories", 0)?.min(n as u64) as usize;
+            // Par défaut : paramètres tirés une fois par chien (patient et PK/PD), sans nouveau
+            // tirage instant par instant ; les fluctuations se demandent par `scale`.
+            let mut scale = Scale {
+                natural: 0.0,
+                disease: 0.0,
+                drug: 1.0,
+                measurement: 0.0,
+            };
+            if let Some(sv) = m.get("scale").filter(|v| !v.is_null()) {
+                let sm = obj(sv, "/scale")?;
+                for (k, slot) in [
+                    ("natural", &mut scale.natural),
+                    ("disease", &mut scale.disease),
+                    ("drug", &mut scale.drug),
+                    ("measurement", &mut scale.measurement),
+                ] {
+                    let x = opt_f64(sm, k, *slot)?;
+                    if !(0.0..=5.0).contains(&x) {
+                        return Err(ApiError::one(format!("/scale/{k}"), "facteur entre 0 et 5"));
+                    }
+                    *slot = x;
+                }
+            }
+            let mut rates = Vec::new();
+            if let Some(pv) = m.get("progression_per_day").filter(|v| !v.is_null()) {
+                for (k, v) in obj(pv, "/progression_per_day")? {
+                    let r = v.as_f64().filter(|r| r.is_finite() && r.abs() <= 1.0).ok_or_else(
+                        || {
+                            ApiError::one(
+                                format!("/progression_per_day/{k}"),
+                                "sévérité par jour entre −1 et 1",
+                            )
+                        },
+                    )?;
+                    rates.push((k.clone(), r));
+                }
+            }
+            let cfg = base_cfg.scaled(scale).with_progression(&rates);
+            let doses = if m.contains_key("doses") {
+                parse_doses(m)?
+            } else {
+                Vec::new()
+            };
+            let s = e.session(patient_id)?.clone();
+            let c = e.catalog()?;
+            let mods: Vec<&DiseaseModule> = s
+                .patient
+                .cases
+                .iter()
+                .map(|k| c.disease(&k.disease).expect("maladie du catalogue"))
+                .collect();
+            let default_keys = [
+                "hr", "map", "co", "la_mean", "ph", "pao2", "lactate", "na", "k", "glucose",
+                "creat", "urea", "hct",
+            ];
+            let keys: Vec<String> = match m.get("keys") {
+                None | Some(Json::Null) => default_keys.iter().map(|k| k.to_string()).collect(),
+                Some(Json::Array(a)) => a
+                    .iter()
+                    .enumerate()
+                    .map(|(i, k)| {
+                        k.as_str()
+                            .map(str::to_string)
+                            .ok_or_else(|| ApiError::one(format!("/keys/{i}"), "chaîne attendue"))
+                    })
+                    .collect::<Result<_, _>>()?,
+                Some(_) => return Err(ApiError::one("/keys", "tableau attendu")),
+            };
+            let nt = times.len();
+            // valeurs[clé][instant] = réalisations vivantes
+            let mut values: Vec<Vec<Vec<f64>>> = vec![vec![Vec::with_capacity(n); nt]; keys.len()];
+            let mut alive = vec![0usize; nt];
+            let mut sev_all: Vec<Vec<Vec<f64>>> = vec![vec![Vec::with_capacity(n); nt]; mods.len()];
+            let mut kept = Vec::with_capacity(n_keep);
+            let mut deaths = Vec::with_capacity(n);
+            for r in 0..n {
+                let mut rng = SimRng::for_stream(seed.wrapping_add(r as u64), streams::VARIATION);
+                let mut noise =
+                    SimRng::for_stream(seed.wrapping_add(r as u64), streams::MEASUREMENT);
+                let tr =
+                    sample_trajectory(&s.patient, &mods, &c.drugs, &doses, &times, &cfg, &mut rng)?;
+                let mut states = Vec::with_capacity(nt);
+                let mut cause: Option<Json> = None;
+                for p in &tr.params {
+                    if let Some(c) = &cause {
+                        states.push(dead_entry(c));
+                        continue;
+                    }
+                    let st = state_entry(p)?;
+                    if st["outcome"] == "dead" {
+                        cause = Some(st["cause"].clone());
+                    }
+                    states.push(st);
+                }
+                apply_marker_kinetics(&mut states, &times, &tr.start)?;
+                let mut death_t = Json::Null;
+                for (i, st) in states.iter_mut().enumerate() {
+                    if st["outcome"] == "dead" {
+                        if death_t.is_null() {
+                            death_t = json!(times[i]);
+                        }
+                        continue;
+                    }
+                    alive[i] += 1;
+                    for (ki, k) in keys.iter().enumerate() {
+                        if let Some(v) = st[k.as_str()].as_f64() {
+                            let measured = cfg.measure(k, v, &mut noise);
+                            st[k.as_str()] = Json::from(measured);
+                            values[ki][i].push(measured);
+                        }
+                    }
+                }
+                for (di, sv) in tr.severity.iter().enumerate() {
+                    for (i, x) in sv.iter().enumerate() {
+                        sev_all[di][i].push(*x);
+                    }
+                }
+                deaths.push(death_t.clone());
+                if r < n_keep {
+                    let mut series = Map::new();
+                    for k in &keys {
+                        series.insert(
+                            k.clone(),
+                            json!(states
+                                .iter()
+                                .map(|st| st[k.as_str()].as_f64())
+                                .collect::<Vec<_>>()),
+                        );
+                    }
+                    let conc: Map<String, Json> =
+                        tr.conc.iter().map(|(d, v)| (d.clone(), json!(v))).collect();
+                    let factors: Vec<Json> = tr
+                        .drug_factors
+                        .iter()
+                        .map(|(d, a, b, g)| json!({ "drug": d, "cl": a, "vc": b, "ec50": g }))
+                        .collect();
+                    kept.push(json!({ "values": series, "severity": tr.severity,
+                        "conc_mg_L": conc, "drug_factors": factors, "death_t_h": death_t,
+                        "outcome": states.iter().map(|s| s["outcome"].clone()).collect::<Vec<_>>() }));
+                }
+            }
+            let band = |v: &mut Vec<f64>| {
+                v.sort_by(|a, b| a.partial_cmp(b).expect("valeurs finies"));
+                let mean = if v.is_empty() {
+                    f64::NAN
+                } else {
+                    v.iter().sum::<f64>() / v.len() as f64
+                };
+                let q = |x| vetsim_core::variation::percentile(v, x);
+                let nan = |x: f64| if x.is_finite() { json!(x) } else { Json::Null };
+                (nan(q(0.05)), nan(q(0.25)), nan(q(0.5)), nan(q(0.75)), nan(q(0.95)), nan(mean))
+            };
+            let mut summary = Map::new();
+            for (ki, k) in keys.iter().enumerate() {
+                let mut cols: [Vec<Json>; 6] = Default::default();
+                for v in values[ki].iter_mut() {
+                    let (a, b, c2, d, e2, f) = band(v);
+                    for (col, x) in cols.iter_mut().zip([a, b, c2, d, e2, f]) {
+                        col.push(x);
+                    }
+                }
+                let [p05, p25, p50, p75, p95, mean] = cols;
+                summary.insert(k.clone(), json!({ "p05": p05, "p25": p25, "p50": p50,
+                    "p75": p75, "p95": p95, "mean": mean }));
+            }
+            let severity: Vec<Json> = s
+                .patient
+                .cases
+                .iter()
+                .zip(sev_all.iter_mut())
+                .map(|(case, per_t)| {
+                    let mut cols: [Vec<Json>; 6] = Default::default();
+                    for v in per_t.iter_mut() {
+                        let (a, b, c2, d, e2, f) = band(v);
+                        for (col, x) in cols.iter_mut().zip([a, b, c2, d, e2, f]) {
+                            col.push(x);
+                        }
+                    }
+                    let [p05, p25, p50, p75, p95, mean] = cols;
+                    json!({ "disease": case.disease, "s0": case.severity, "p05": p05, "p25": p25,
+                            "p50": p50, "p75": p75, "p95": p95, "mean": mean })
+                })
+                .collect();
+            let alive_fraction: Vec<f64> = alive.iter().map(|a| *a as f64 / n as f64).collect();
+            Ok(json!({ "ok": true, "t": times, "n": n, "seed": seed, "keys": keys,
+                "summary": summary, "alive_fraction": alive_fraction, "severity": severity,
+                "death_t_h": deaths, "trajectories": kept,
+                "scale": { "natural": scale.natural, "disease": scale.disease,
+                           "drug": scale.drug, "measurement": scale.measurement },
+                "evidence": "D",
+                "warning": "Amplitudes de variabilité intra-individuelle non calées (placeholders, preuve D). Usage pédagogique uniquement." }))
+        })
+    }
+
     /// Auscultation : `{"site": "base"|"apex", "hr": 72, "fs": 4000, "duration_s": 8, "seed": ...,
     /// "conc": {...}, "with_ecg": true, "with_pressures": true}` →
     /// `{"wav_base64", "fs", "grade", "murmur", "s3", ...}`. Avec la même graine et la même
@@ -706,6 +960,7 @@ impl Engine {
             "state" => self.state(&pid, &opts),
             "signals" => self.signals(&pid, &opts),
             "timecourse" => self.timecourse(&pid, &opts),
+            "montecarlo" => self.montecarlo(&pid, &opts),
             "add_disease" => self.add_disease(&pid, &opts),
             "new_patient" => self.new_patient(&opts),
             "list_modules" => self.list_modules(),
@@ -1146,8 +1401,72 @@ mod tests {
         .map(|d| read(&format!("drugs/{d}.json")))
         .collect();
         json!({ "patient": read("healthy_dog.json"), "diseases": ds, "drugs": dr,
-                "auscultation": read("auscultation.json") })
+                "auscultation": read("auscultation.json"), "variation": read("variation.json") })
         .to_string()
+    }
+
+    /// Monte-Carlo : un même chien MMVD C sous traitement, 20 trajectoires ; les bandes ne sont
+    /// pas dégénérées, la médiane reste proche de la courbe déterministe, et le résultat est
+    /// reproductible. Sources coupées : bande nulle, égale au déterministe.
+    #[test]
+    fn montecarlo_bands_around_the_deterministic_course() {
+        let mut e = Engine::new();
+        assert_eq!(j(&e.load_modules(&bundle()))["loaded"]["variation"], true);
+        let id = j(&e.new_patient(r#"{"variability": false}"#))["patient_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        e.add_disease(&id, r#"{"id": "mmvd", "stage": "C"}"#);
+        let doses = json!([{"t_h": 0, "drug": "furosemide", "mg_per_kg": 2.0, "route": "iv"}]);
+        let times = json!([0.0, 2.0, 6.0, 12.0, 24.0]);
+        let opts = json!({"state_times_h": times, "doses": doses, "n": 20, "seed": 3,
+                          "keys": ["hr", "map", "creat"], "trajectories": 2,
+                          "scale": {"natural": 1, "disease": 1, "drug": 1, "measurement": 1}});
+        let a = j(&e.montecarlo(&id, &opts.to_string()));
+        assert_eq!(a["ok"], true, "{a}");
+        let b = j(&e.montecarlo(&id, &opts.to_string()));
+        assert_eq!(a, b, "reproductible");
+        assert_eq!(a["trajectories"].as_array().unwrap().len(), 2);
+        let det = j(&e.timecourse(
+            &id,
+            &json!({"doses": doses, "t_end_h": 24, "t_eval_h": [0], "state_times_h": times})
+                .to_string(),
+        ));
+        for i in 0..5 {
+            let hr = &a["summary"]["hr"];
+            let (lo, med, hi) = (
+                hr["p05"][i].as_f64().unwrap(),
+                hr["p50"][i].as_f64().unwrap(),
+                hr["p95"][i].as_f64().unwrap(),
+            );
+            let d = det["states_at"][i]["hr"].as_f64().unwrap();
+            assert!(hi > lo, "bande FC dégénérée à l'instant {i}");
+            assert!(
+                (med / d - 1.0).abs() < 0.1,
+                "médiane {med} vs déterministe {d}"
+            );
+        }
+        // Défaut (tirage unique) sans médicament : aucun aléa au fil du temps, la trajectoire est
+        // celle du chien, identique d'une réalisation à l'autre.
+        let once = j(&e.montecarlo(
+            &id,
+            &json!({"state_times_h": times, "n": 3, "seed": 1, "keys": ["map"]}).to_string(),
+        ));
+        for i in 0..5 {
+            assert_eq!(
+                once["summary"]["map"]["p05"][i],
+                once["summary"]["map"]["p95"][i]
+            );
+        }
+        let off = json!({"state_times_h": times, "doses": doses, "n": 3, "seed": 3,
+            "keys": ["map"], "scale": {"natural": 0, "disease": 0, "drug": 0, "measurement": 0}});
+        let z = j(&e.montecarlo(&id, &off.to_string()));
+        for i in 0..5 {
+            let m = &z["summary"]["map"];
+            let d = det["states_at"][i]["map"].as_f64().unwrap();
+            assert_eq!(m["p05"][i], m["p95"][i]);
+            assert!((m["p50"][i].as_f64().unwrap() - d).abs() < 1e-9);
+        }
     }
 
     #[test]

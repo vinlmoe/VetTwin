@@ -37,13 +37,18 @@ pub struct Patient {
     pub params: Params,
     /// Cas de maladie, dans l'ordre d'ajout.
     pub cases: Vec<Case>,
+    /// Paramètres de l'animal avant toute maladie (sain, avec sa variabilité
+    /// interindividuelle) : base des trajectoires où la sévérité évolue (`variation`).
+    pub base: Params,
 }
 
 impl Patient {
     /// Patient sain sans variabilité interindividuelle (mode déterministe).
     pub fn healthy(module: &PatientModule, bw: f64) -> Result<Self, Error> {
+        let params = healthy_params(module, bw)?;
         Ok(Self {
-            params: healthy_params(module, bw)?,
+            base: params.clone(),
+            params,
             cases: Vec::new(),
         })
     }
@@ -61,6 +66,7 @@ impl Patient {
             *params.get_mut(name).expect("nom validé au chargement") *= draws.lognormal_mean1(*sd);
         }
         Ok(Self {
+            base: params.clone(),
             params,
             cases: Vec::new(),
         })
