@@ -25,7 +25,7 @@ const MS_FR = [['loc', 'Perte de conscience'], ['intubation', 'Intubation'], ['v
   ['swallowing', 'Retour de la déglutition'], ['extubation', 'Extubation'], ['head_lift', 'Relevé de la tête'], ['sternal', 'Décubitus sternal']];
 
 const A = {
-  list: null, session: null, key: null, hist: [], snap: null, waves: null, running: false, speed: 1, timer: null,
+  list: null, session: null, key: null, hist: [], snap: null, waves: null, running: false, speed: 10, timer: null, last: null,
   procedure: '', rec: null, lastWave: 0, err: null,
   form: { agent: null, dose: '', route: 'iv', push: 30, cri: '', vap: 'isoflurane', pct: 2, fgf: 2, rr: 10, vt: 12, block: null, territory: null, fluids: 5, bolus: 10, bleed: 5 },
 };
@@ -66,9 +66,38 @@ function start(ctl, inputs, key) {
   A.session = r.session; A.key = key; A.hist = [r.snapshot]; A.snap = r.snapshot; A.rec = null; A.waves = null; A.lastWave = -1e9;
 }
 
+/** Libellé d'une action pour la barre d'état. */
+function describe(ev) {
+  const d = {
+    bolus: () => `${ev.agent} ${String(ev.mg_per_kg).replace('.', ',')} mg/kg ${ev.route.toUpperCase()}${ev.route === 'iv' ? ` (injection ${ev.duration_s ?? 30} s)` : ''}`,
+    cri: () => (ev.mg_per_kg_h ? `perfusion de ${ev.agent} ${ev.mg_per_kg_h} mg/kg/h` : `arrêt de la perfusion de ${ev.agent}`),
+    vaporizer: () => (ev.pct ? `vaporisateur ${ev.agent} ${ev.pct} %` : `vaporisateur ${ev.agent} fermé`),
+    fresh_gas: () => `gaz frais ${ev.l_min} L/min`, intubate: () => 'intubation', extubate: () => 'extubation',
+    ventilation: () => (ev.mode === 'controlled' ? `ventilation contrôlée ${ev.rr}/min, ${ev.vt_ml_kg} mL/kg` : 'ventilation spontanée'),
+    oxygen: () => (ev.on ? 'oxygène au masque' : "arrêt de l'oxygène"), stimulus: () => 'stimulus test (30 s)',
+    procedure_step: () => 'temps opératoire', end_surgery: () => 'fin de chirurgie', local_block: () => `bloc ${ev.agent} (${ev.territory})`,
+    fluids: () => `cristalloïde ${ev.ml_kg_h} mL/kg/h`, fluid_bolus: () => `bolus de ${ev.ml_kg} mL/kg`, hemorrhage: () => `hémorragie ${ev.ml_kg} mL/kg`,
+    warming: () => (ev.on ? 'réchauffement actif' : 'arrêt du réchauffement'),
+  }[ev.type];
+  return d ? d() : ev.type;
+}
+
 function event(ctl, ev) {
   A.err = null;
-  try { ctl.call('message', JSON.stringify({ op: 'anesthesia_event', options: { session: A.session, event: ev } })); } catch (e) { A.err = e.message; }
+  try {
+    ctl.call('message', JSON.stringify({ op: 'anesthesia_event', options: { session: A.session, event: ev } }));
+    A.last = { t: A.snap ? A.snap.t_s : 0, text: describe(ev), ok: true };
+  } catch (e) {
+    A.err = e.message.replace(/^.*entrée invalide : /, '');
+    A.last = { t: A.snap ? A.snap.t_s : 0, text: `${describe(ev)} : refusé (${A.err})`, ok: false };
+  }
+}
+
+function play(ctl, v) {
+  if (A.running || !A.session || (A.snap && A.snap.dead)) return;
+  A.running = true;
+  let last = performance.now();
+  A.timer = setInterval(() => { const now = performance.now(); advance(ctl, (now - last) / 1000, v); last = now; }, 1000);
 }
 
 function advance(ctl, wallS, v) {
@@ -113,6 +142,7 @@ function layout(ctl, inputs, key) {
     ${A.err ? `<p class="warn">${esc(A.err)}</p>` : ''}
   </div>
   ${started ? `
+  <div class="anesth-status" id="an-status"></div>
   <div class="anesth-grid">
     <div class="monitor card" id="an-monitor"></div>
     <div class="card">
@@ -182,11 +212,11 @@ function wire(v, ctl, inputs, key, ctx) {
   const rerender = () => renderAnesthesia(v, ctx);
   const ev = (e) => { event(ctl, e); advance(ctl, 0.0001, v); rerender(); };
   const sel = document.getElementById('an-proc'); if (sel) sel.onchange = () => { A.procedure = sel.value; };
-  on('an-start', () => { try { start(ctl, inputs, key); A.err = null; } catch (e) { A.err = e.message; } rerender(); });
-  on('an-play', () => {
-    if (A.running) stop(); else { A.running = true; let last = performance.now(); A.timer = setInterval(() => { const now = performance.now(); advance(ctl, (now - last) / 1000, v); last = now; }, 1000); }
-    rerender();
+  on('an-start', () => {
+    try { start(ctl, inputs, key); A.err = null; A.last = { t: 0, text: 'session démarrée', ok: true }; } catch (e) { A.err = e.message; }
+    rerender(); play(ctl, v); rerender();
   });
+  on('an-play', () => { if (A.running) stop(); else play(ctl, v); rerender(); });
   for (const b of v.querySelectorAll('[data-speed]')) b.onclick = () => { A.speed = +b.dataset.speed; rerender(); };
   on('an-step', () => { const s0 = A.speed; A.speed = 60; advance(ctl, 1, v); A.speed = s0; rerender(); });
   if (!A.session || A.key !== key) return;
@@ -225,6 +255,7 @@ function wire(v, ctl, inputs, key, ctx) {
 function paint(v) {
   const s = A.snap; if (!s) return;
   const c = document.getElementById('an-clock'); if (c) c.textContent = clock(s.t_s);
+  paintStatus();
   const m = document.getElementById('an-monitor'); if (!m) return;
   const vi = s.vitals || {};
   const gas = s.inhalants.find((i) => i.vaporizer > 0) || s.inhalants.reduce((a, b) => (b.fe > (a ? a.fe : -1) ? b : a), null);
@@ -320,4 +351,19 @@ function paintRecord() {
       <div><h4>Jalons</h4><ul>${ms || '<li>—</li>'}</ul></div>
       <div><h4>Journal</h4><ul class="log">${r.log.map((x) => `<li>${clock(x.t_s)} ${esc(x.event)}</li>`).join('')}</ul></div>
     </div>`;
+}
+
+/** Barre d'état fixe : temps, lecture, constantes clés, plan, dernière action. */
+function paintStatus() {
+  const el = document.getElementById('an-status'); const s = A.snap; if (!el || !s) return;
+  const hdr = document.querySelector('header.case');
+  el.style.top = (hdr ? hdr.offsetHeight : 0) + 'px';
+  const vi = s.vitals || {};
+  const state = s.dead ? '<b class="warn">décès</b>' : A.running ? `▶ lecture ×${A.speed}` : '<b class="warn">⏸ en pause : appuyer sur Lecture</b>';
+  const last = A.last ? `<span class="${A.last.ok ? '' : 'warn'}">${clock(A.last.t)} ${esc(A.last.text)}</span>` : '';
+  el.innerHTML = `<span class="clock">${clock(s.t_s)}</span> ${state}
+    <span>FC <b>${fmt(vi.hr)}</b></span><span>PA <b>${fmt(vi.sap)}/${fmt(vi.dap)} (${fmt(vi.map)})</b></span>
+    <span>SpO₂ <b>${fmt(vi.spo2)}</b></span><span>EtCO₂ <b>${fmt(s.etco2)}</b></span>
+    <span>plan <b>${PLANE_FR[s.depth.plane]}</b></span>${s.alarms.length ? `<span class="warn">${s.alarms.map((a) => ALARM_FR[a] || a).join(', ')}</span>` : ''}
+    <span class="last">${last}</span>`;
 }

@@ -161,3 +161,7 @@ svg text { font-family: system-ui, sans-serif; }
 table.record { font-size: 12px; } ul.log { max-height: 220px; overflow-y: auto; font-size: 12px; }
 .warn { color: var(--warn); }
 @media (max-width: 900px) { .anesth-grid { grid-template-columns: 1fr; } .mon-vals { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.anesth-status { position: sticky; z-index: 4; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; padding: 8px 12px; background: #0d1418; color: #e8eef2; border-radius: 10px; font-size: 13px; }
+.anesth-status .clock { font: 600 16px ui-monospace, monospace; }
+.anesth-status .warn { color: #ffb36b; }
+.anesth-status .last { flex-basis: 100%; opacity: 0.9; }
