@@ -5,7 +5,7 @@
  ],
  "license": "CC-BY-4.0",
  "id": "opioide",
- "version": "1.1.0",
+ "version": "1.2.0",
  "name": {
   "fr": "Opioïde (générique)"
  },
@@ -65,6 +65,50 @@
       }
      ]
     }
+   },
+   {
+    "param": "t_set",
+    "op": "add",
+    "expr": {
+     "mul": [
+      -2.0,
+      "E"
+     ]
+    }
+   },
+   {
+    "param": "pupil_ew",
+    "op": "add",
+    "expr": {
+     "mul": [
+      1.0,
+      "E"
+     ]
+    }
+   },
+   {
+    "param": "gi_inhib",
+    "op": "add",
+    "expr": {
+     "mul": [
+      0.9,
+      "E"
+     ]
+    },
+    "clamp": [
+     0,
+     1
+    ]
+   },
+   {
+    "param": "sedation",
+    "op": "add",
+    "expr": {
+     "mul": [
+      0.2,
+      "E"
+     ]
+    }
    }
   ],
   "toxicity": [
@@ -103,7 +147,14 @@
   "Garofalo NA et al. 2012, Vet J 194:398 (résumé)",
   "Ingvast-Larsson C et al. 2010, Vet Anaesth Analg 37:48 (résumé)",
   "Bailey PL et al. 1987, Anesth Analg 66:542 (résumé)",
-  "Arndt JO et al. 1984, Anesthesiology 61:355 (résumé)"
+  "Arndt JO et al. 1984, Anesthesiology 61:355 (résumé)",
+  "Lucas AN et al. 2001, JAVMA, doi:10.2460/javma.2001.218.884 (résumé : hypothermie et halètement, recalage du point de consigne)",
+  "KuKanich B et al. 2024, J Vet Pharmacol Ther, doi:10.1111/jvp.13415 (résumé)",
+  "Lee HK, Wang SC 1975, J Pharmacol Exp Ther 192:415 (résumé : myosis par le noyau d'Edinger-Westphal)",
+  "Raušer P et al. 2022, Top Companion Anim Med, doi:10.1016/j.tcam.2022.100733 (résumé : méthadone 0,3 mg/kg sans changement pupillaire)",
+  "Sarna SK, Lang IM 1985, J Pharmacol Exp Ther (PMID 2993596, résumé)",
+  "Amon T et al. 2021, BMC Vet Res (PMC7814539, lu : régurgitation 4/7, sédation légère, T 38,4 → 37,1 °C)",
+  "Hofmeister EH et al. 2010, JAVMA, doi:10.2460/javma.237.10.1155 (résumé)"
  ],
- "notes": "Opioïde générique de PK méthadone (Vd ≈ 7 L/kg, CL 25 mL/min/kg ; Ingvast-Larsson 2010 : 9,2 L/kg et 27,9 mL/min/kg). PD recalée le 18/11/2026 sur le chien VIGILE : FC −32 % à effet maximal (méthadone 1 mg/kg IV : 110 → 75/min, Mills 2025, lu ; −32 à −46 %, Maiante 2009 ; perfusion à ≈ 30 ng/mL : 87 → 55–66/min, Amon 2021, lu) ; PAM conservée ou en hausse par vasoconstriction (RVS +57 à +165 %, Maiante 2009 ; PAM augmentée, Garofalo 2012 ; PAS inchangée, Amon 2021) : modèle +6 % ; débit −23 % (IC −24 à −52 %, Maiante) ; PaCO2 +2,5 à +3 mmHg en thérapeutique (hydromorphone 0,2 mg/kg SC : PaCO2 max 44,4, Wunsch 2010, lu ; méthadone 1 mg/kg : pas de changement significatif, Maiante). Plateau d'effet (Arndt 1984) : FC et ventilation saturent. Terme toxique : dépression respiratoire à très forte concentration, plateau ≈ 65 mmHg, sans apnée chez le vigile (Bailey 1987) ; l'apnée est décrite sous anesthésie halogénée (Garofalo 2012), état non modélisé. EC50 thérapeutique (0,015 mg/L) : placeholder cohérent avec l'antinociception au-dessus de 17 ng/mL (Amon 2021). Halètement non modélisé."
+ "notes": "Opioïde générique de PK méthadone (Vd ≈ 7 L/kg, CL 25 mL/min/kg ; Ingvast-Larsson 2010 : 9,2 L/kg et 27,9 mL/min/kg). PD recalée le 18/11/2026 sur le chien VIGILE : FC −32 % à effet maximal (méthadone 1 mg/kg IV : 110 → 75/min, Mills 2025, lu ; −32 à −46 %, Maiante 2009 ; perfusion à ≈ 30 ng/mL : 87 → 55–66/min, Amon 2021, lu) ; PAM conservée ou en hausse par vasoconstriction (RVS +57 à +165 %, Maiante 2009 ; PAM augmentée, Garofalo 2012 ; PAS inchangée, Amon 2021) : modèle +6 % ; débit −23 % (IC −24 à −52 %, Maiante) ; PaCO2 +2,5 à +3 mmHg en thérapeutique (hydromorphone 0,2 mg/kg SC : PaCO2 max 44,4, Wunsch 2010, lu ; méthadone 1 mg/kg : pas de changement significatif, Maiante). Plateau d'effet (Arndt 1984) : FC et ventilation saturent. Terme toxique : dépression respiratoire à très forte concentration, plateau ≈ 65 mmHg, sans apnée chez le vigile (Bailey 1987) ; l'apnée est décrite sous anesthésie halogénée (Garofalo 2012), état non modélisé. EC50 thérapeutique (0,015 mg/L) : placeholder cohérent avec l'antinociception au-dessus de 17 ng/mL (Amon 2021). Halètement non modélisé. Version 1.2.0 (19/11/2026) : périphérie. Point de consigne thermique abaissé de 2 °C × E : T 38,4 → 37,1 °C (chute max −1,9) en perfusion de méthadone 0,1 mg/kg/h (Amon 2021, lu) ; −0,7/−1,7/−2,3 °C à 0,3/0,5/1,0 mg/kg IM (cité par Amon) ; le halètement des opioïdes émerge de l'écart T − consigne (Lucas 2001). Myosis par excitation du noyau d'Edinger-Westphal (Lee & Wang 1975) : pupil_ew + E, D en amplitude (données discordantes : morphine myosis marqué, méthadone 0,3 mg/kg sans effet, Raušer 2022). Motilité : inhibition dose-dépendante du CMM, complète à 500–1000 µg/kg/h de morphine, résistante à la vagotomie (Sarna 1985) : gi_inhib 0,9 E (C) ; régurgitation 4/7 en perfusion de méthadone (Amon 2021). Sédation légère seulement chez le vigile (hydromorphone 0,1 mg/kg IM non plus sédative que le sérum, Hofmeister 2010 ; méthadone 0,5 mg/kg IV légère, KuKanich 2008) : sedation + 0,2 E. Dysphorie non modélisée : décrite chez tous les chiens à 1 mg/kg IV de méthadone (Garofalo 2012, résumé) et absente à 0,5 (KuKanich 2008), mais sans échelle ni relation concentration-score publiée chez le chien. Non modélisés : vomissements (méthadone 0/6–0/8, Monteiro 2009, Mills 2025 ; morphine 70–76 % en IM), histaminolibération de la morphine IV rapide (opioïde générique de profil méthadone), potentialisation de l'apnée sous halogéné (Garofalo 2012), effets hémodynamiques des halogénés absents du modèle."
 }

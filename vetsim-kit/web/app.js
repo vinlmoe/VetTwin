@@ -3,6 +3,7 @@
 // Usage pédagogique uniquement.
 import { Controller, planDoses } from './engine.js';
 import { COLORS, timeChart, spectrogram, computeSpectrogram, dayLabel } from './charts.js';
+import { mountHeart } from './heart.js';
 
 const $ = (sel) => document.querySelector(sel);
 const fmt = (v, d) => (v === undefined || v === null || Number.isNaN(v) ? '—' : Number(v).toFixed(d).replace('.', ','));
@@ -16,6 +17,7 @@ const S = {
   mc: { n: 1, dog: 1, individual: true, src: { natural: false, disease: false, drug: true, measurement: false }, progression: 0, running: false, progress: 0, res: null, sig: null, worker: null, error: null },
   treat: { regimens: [], days: 3, r: null, cursor: 0, shown: ['hr', 'map', 'k'], ref: null, editing: null, open: null },
   model: { selected: null },
+  heart: { r: null, t: 0, speed: 0.25, playing: true, raf: null, last: null },
 };
 
 // ------------------------------------------------------------------ données d'affichage
@@ -31,9 +33,16 @@ const GASES = [['ph', 'pH artériel', '', 3], ['pco2', 'PaCO₂', 'mmHg', 1], ['
 const CHEM = [['na', 'Na⁺', 'mmol/L', 0], ['k', 'K⁺', 'mmol/L', 1], ['cl', 'Cl⁻', 'mmol/L', 0], ['anion_gap', 'Trou anionique', 'mmol/L', 1],
   ['glucose', 'Glucose', 'mmol/L', 1], ['creat', 'Créatinine', 'µmol/L', 0], ['urea', 'Urée', 'mmol/L', 1], ['phos', 'Phosphate', 'mmol/L', 2],
   ['alb', 'Albumine', 'g/L', 1], ['hct', 'Hématocrite', '%', 0]];
+// périphérie (bloc periph) : thermorégulation, pupille, digestif et sécrétions, SNC
+const PERIPH = [['temp_c', 'Température centrale', '°C', 1], ['shiver', 'Frisson (VO₂ ajoutée)', '×', 2],
+  ['panting', 'Halètement', '×', 2], ['pupil_mm', 'Diamètre pupillaire', 'mm', 1],
+  ['plr_pct', 'Réflexe photomoteur', '%', 0], ['gi_motility', 'Motilité digestive', '%', 0, 100],
+  ['les_mmhg', 'Sphincter œsophagien', 'mmHg', 0], ['salivation', 'Salivation', '%', 0, 100],
+  ['sedation_score', 'Score de sédation', '/21', 1]];
 const INDICATORS = [...HEMO, ['sv', "Volume d'éjection", 'mL', 1], ['lv_edp', 'PTDVG', 'mmHg', 1], ['edv', 'VTDVG', 'mL', 1],
   ...GASES.slice(0, 7), ['rr', 'FR', '/min', 0], ['po2_v', 'PvO₂', 'mmHg', 0], ...CHEM, ['gfr', 'DFG', 'mL/min', 1],
-  ['do2_kg', 'DO₂', 'mL/min/kg', 1], ['er', "Extraction d'O₂", '%', 0, 100], ['s_tone', 'Tonus sympathique', '', 2], ['v_tone', 'Tonus vagal', '', 2]];
+  ['do2_kg', 'DO₂', 'mL/min/kg', 1], ['er', "Extraction d'O₂", '%', 0, 100], ['s_tone', 'Tonus sympathique', '', 2], ['v_tone', 'Tonus vagal', '', 2],
+  ...PERIPH];
 
 // ------------------------------------------------------------------ démarrage
 async function main() {
@@ -79,6 +88,8 @@ function applyHash() {
   if (q.get('t')) S.treat.cursor = +q.get('t');
   S.treat.autoSim = q.get('sim') === '1' && S.treat.regimens.length > 0;
   if (q.get('window')) S.ausc.window = +q.get('window');
+  if (q.get('speed')) S.heart.speed = +q.get('speed');
+  if (q.get('ht')) { S.heart.t = +q.get('ht'); S.heart.playing = false; }
 }
 
 function fillStages() {
@@ -105,6 +116,7 @@ function evaluate() {
     $('#error').hidden = true;
     S.res = S.ctl.evaluate(S.inputs);
     stopAusc(false); S.ausc.r = null; S.ausc.played = false; // nouvelle auscultation pour ce patient
+    S.heart.r = null;
   } catch (e) { showError(e); }
   render();
 }
@@ -138,7 +150,7 @@ function render() {
   }
   renderOutcome(S.res.st.outcome);
   const v = $('#view');
-  ({ patient: renderPatient, respiration: renderRespiration, model: renderModel, auscultation: renderAuscultation, treatment: renderTreatment })[S.tab](v);
+  ({ patient: renderPatient, respiration: renderRespiration, model: renderModel, auscultation: renderAuscultation, heart: renderHeart, treatment: renderTreatment })[S.tab](v);
 }
 
 // ------------------------------------------------------------------ Issue (décompensation, décès)
@@ -198,6 +210,7 @@ function renderPatient(v) {
   v.innerHTML = vitals(st) + card(`ECG, dérivation II (${Math.round(sg.ecg.length / sg.ecg_fs)} s, ${fmt(st.hr, 0)} /min ; échelle fixe −1,5 à +2,5 mV)`, canvas('c-ecg', 150))
     + card(`Pressions (mmHg) : aorte, VG, OG, sur le même temps que l'ECG (simulées battement par battement)`, canvas('c-pr', 170) + legend([['Aorte', COLORS.ao], ['VG', COLORS.lv], ['OG', COLORS.la]]) + `<div class="note">PCG : ${sg.pcg_features.grade ? `souffle ${sg.pcg_features.murmur}, grade ${sg.pcg_features.grade}/6` : 'pas de souffle'}</div>`)
     + `<div class="grid3">${card('Hémodynamique', valuesTable(HEMO, st))}${card('Gaz du sang', valuesTable(GASES, st))}${card('Biochimie', valuesTable(CHEM, st))}</div>`
+    + card('Périphérie (thermorégulation, pupille, digestif, SNC)', valuesTable(PERIPH, st))
     + card('Signes émergents', st.emergent_signs.length ? st.emergent_signs.map((s) => `<div class="sign">• ${esc(s.label_fr)}<div class="note">&nbsp;&nbsp;${esc(s.source)}</div></div>`).join('') : '<div class="note">Aucun signe dérivé au-delà des seuils sourcés.</div>');
   const dur = sg.ecg.length / sg.ecg_fs;
   timeChart($('#c-ecg'), { series: [{ y: sg.ecg, dt: 1 / sg.ecg_fs, color: COLORS.ecg }], x0: 0, x1: dur, paper: true, yMin: ECG_MIN, yMax: ECG_MAX });
@@ -463,6 +476,16 @@ function stopAusc(rerender = true) {
   if (A.src) { const s = A.src; A.src = null; try { s.stop(); } catch (e) { /* déjà arrêté */ } }
   A.playing = false;
   if (rerender && S.tab === 'auscultation') render();
+}
+
+// ------------------------------------------------------------------ Cœur animé
+function renderHeart(v) {
+  const H = S.heart;
+  if (isDead()) { v.innerHTML = deadView('contraction ni d\'activité électrique'); return; }
+  if (!H.r) {
+    try { H.r = S.ctl.heart(S.inputs); } catch (e) { showError(e); return; }
+  }
+  mountHeart(v, H.r, H, { card, canvas, legend, fmt, ecgMin: ECG_MIN, ecgMax: ECG_MAX });
 }
 
 // ------------------------------------------------------------------ Traitement (PK/PD)

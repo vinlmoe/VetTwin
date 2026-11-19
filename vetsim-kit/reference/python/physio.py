@@ -7,9 +7,10 @@ from scipy.optimize import brentq
 
 
 # ------------------------------------------------------------------ cardio
-def _act(t, T, ts, tr):
+def _act(t, T, ts, tr, g=1.0):
+    """Activation périodique ; montée ½(1 − cos(π(t/ts)^g)) (g = act_gamma ; 1 : demi-cosinus)."""
     tc = np.mod(t, T)
-    return np.where(tc < ts, 0.5 * (1 - np.cos(np.pi * tc / ts)),
+    return np.where(tc < ts, 0.5 * (1 - np.cos(np.pi * np.power(np.clip(tc / ts, 0.0, None), g))),
                     np.where(tc < ts + tr, 0.5 * (1 + np.cos(np.pi * (tc - ts) / tr)), 0.0))
 
 
@@ -29,12 +30,24 @@ def _valve(dp, r_f, g_b, eps=0.3):
 def _atrial_act(t, T, p, pr=None):
     """Activation atriale : débute PR avant l'activation ventriculaire du même battement
     (PR de la conduction si fourni, sinon le paramètre `pr`)."""
-    return _act(t + (p['pr'] if pr is None else pr), T, p['ta_atr'], p['tra_atr'])
+    # origine des temps : début mécanique ventriculaire (emd_v − QRS/2 après le pic R) ; la
+    # contraction atriale débute emd_a après le début de l'onde P, elle-même PR avant le pic R
+    lead = (p['pr'] if pr is None else pr) + mech_offset(p, False) - p['emd_a']
+    return _act(t + lead, T, p['ta_atr'], p['tra_atr'])
+
+
+def mech_offset(p, wide):
+    """Début mécanique d'un battement ventriculaire par rapport à son pic R (s) : début du QRS
+    tracé par l'ECG (bornes ± 2 σ, comme signals::ecg_windows du moteur) + délai électromécanique emd_v."""
+    from signals import WIDE_QRS, WIDE_R_SIGMA, Q_POS, Q_SIGMA
+    K = 2.0                                  # bornes des ondes : ± 2 écarts-types (signals::ecg_windows)
+    lead = K * WIDE_R_SIGMA * p['qrs'] * WIDE_QRS if wide else (Q_POS + K * Q_SIGMA) * p['qrs']
+    return p['emd_v'] - lead
 
 
 def _flows(V, t, p, T, ts, tr, pr=None):
     lv, rv, ao, sv, pa, pv = V
-    e = _act(t, T, ts, tr)
+    e = _act(t, T, ts, tr, p['act_gamma'])
     ea = _atrial_act(t, T, p, pr)
     # oreillettes contractiles : élastance active proportionnelle à la pression passive
     # (pv = OG + veines pulmonaires, sv = OD + veines systémiques) ; k = 0 : oreillettes passives
@@ -67,12 +80,30 @@ def _initial_volumes(p):
     return np.array([lv, rv, ao, sv, pa, pv])
 
 
+def _edp_at(t, plv, tb):
+    """PTDVG au début mécanique exact tb, interpolée entre les deux échantillons qui l'encadrent
+    (miroir de hemo::simulate_hemo_pr)."""
+    n = len(t)
+    k = min(max(int(np.searchsorted(t, tb, side='right')) - 1, 0), n - 2)
+    a, b = float(plv[k]), float(plv[k + 1])
+    return a + (b - a) * (tb - float(t[k])) / (float(t[k + 1]) - float(t[k]))
+
+
+def _edp_beat(t, plv, m, a):
+    """PTDVG au début mécanique a d'un battement (interpolation avec l'échantillon qui précède)."""
+    j = int(np.argmax(m))
+    if j > 0:
+        i = j - 1
+        return float(plv[i]) + (float(plv[j]) - float(plv[i])) * (a - float(t[i])) / (float(t[j]) - float(t[i]))
+    return float(plv[j])
+
+
 def simulate_hemo(p, n_beats=11, dt=0.002, pr=None):
     """Simule la circulation (rythme régulier) ; renvoie séries temporelles du dernier cycle et
     indices. `pr` : délai oreillette → ventricule de la conduction (défaut : paramètre `pr`)."""
     T = 60.0 / p['hr']
     ts = p['ts_coef'] * math.sqrt(T)        # durée de systole (ts_coef calé sur B1→B2 du beagle)
-    tr = 0.4 * ts
+    tr = p['tr_frac'] * ts
     V0 = _initial_volumes(p)
 
     def rhs(t, V):
@@ -109,7 +140,7 @@ def simulate_hemo(p, n_beats=11, dt=0.002, pr=None):
         reg_fraction=float(v_reg / sv_tot) if sv_tot > 0 else 0.0,
         la_mean=P['pv'][last].mean(), la_max=P['pv'][last].max(),
         pap_mean=P['pa'][last].mean(), cvp=P['sv'][last].mean(),
-        lv_edp=P['lv'][last][0], converged=abs(sv_tot - sv_prev) / max(sv_tot, 1e-6) < 0.03)
+        lv_edp=_edp_at(t, P['lv'], t_end - T), converged=abs(sv_tot - sv_prev) / max(sv_tot, 1e-6) < 0.03)
     # flux mitral : pic protodiastolique E (hors activation atriale) et pic télédiastolique A (pendant)
     ea = _atrial_act(t[last], T, p, pr)
     qf = np.maximum(qmi, 0.0)
@@ -237,11 +268,27 @@ def _hemo_with_rhythm_static(q, v_eff, n_beats):
     return simulate_hemo_beats(q, cond, RHYTHM_T_END, RHYTHM_WARM, T_s), cond
 
 
+BARO_MAX_ITER, BARO_TOL = 16, 0.01
+
+
+def baro_next(d, g, prev, lo, hi):
+    """Solveur du point fixe g(d) = d_t(d) − d = 0 sur [−1, 1] (miroir de engine::baro_next) :
+    premier pas amorti d + g/2, puis sécante ; bisection de l'encadrement [lo, hi] si elle en sort."""
+    if prev is not None and abs(g - prev[1]) > 1e-12:
+        nxt = d - g * (d - prev[0]) / (g - prev[1])
+    else:
+        nxt = d + 0.5 * g
+    if not (lo < nxt < hi):
+        nxt = 0.5 * (lo + hi)
+    return min(1.0, max(-1.0, nxt))
+
+
 def _evaluate_once(p, n_beats=11):
     """Une passe : baroréflexe, hémodynamique, aval métabolique (paramètres déjà couplés)."""
     base = dict(p)
     d = 0.0                                   # commande barorécepteur (>0 : hypotension)
-    for it in range(5):
+    lo, hi, prev = -1.0, 1.0, None
+    for it in range(BARO_MAX_ITER):
         s_tot = float(np.clip(base['s0'] + 0.8 * d, 0.0, 1.0))
         v_tot = float(np.clip(base['v0'] + base['vagal_add'] - 0.6 * d, 0.0, 1.0))
         s_eff = s_tot * (1 - base['beta_block'])          # voie chronotrope/inotrope bloquable
@@ -253,20 +300,33 @@ def _evaluate_once(p, n_beats=11):
         q['ees_rv'] = base['ees_rv'] * (1 + 0.4 * (s_eff - base['s0']))
         symp = max(0.1, 1.0 - base['av_symp'] * (s_eff - S_REF))   # effet dromotrope du sympathique (ERP, AH)
         q['av_erp'] = base['av_erp'] * symp
-        q['pr'] = base['hv'] + (base['pr'] - base['hv']) * symp
+        q['pr'] = base['hv'] + base['pa_ia'] + (base['pr'] - base['hv'] - base['pa_ia']) * symp   # AH seul modulé
+        # foyers d'échappement : accélérés par le sympathique, le jonctionnel ralenti par le vague
+        esc_s = (1.0 + base['esc_a_s'] * s_eff) / (1.0 + base['esc_a_s'] * S_REF)
+        esc_v = max(0.0, 1.0 - base['esc_a_v'] * v_eff) / (1.0 - base['esc_a_v'] * V_REF)
+        q['junct_rate'] = base['junct_rate'] * esc_s * esc_v
+        q['vent_escape_rate'] = base['vent_escape_rate'] * esc_s
         q['r_sys'] = base['r_sys'] * (1 + 0.5 * (s_tot - base['s0']))
         q['vol_shift'] = base['vol_shift'] + 0.20 * 85.0 * base['bw'] * (s_tot - base['s0'])   # recrutement du volume non contraint
         h, cond, g_eff = _hemo_with_rhythm(q, v_eff, n_beats)
         q['g_mr'], q['mr_k'] = g_eff, 0.0       # orifice retenu, réutilisé en aval (signaux, son)
         d_t = float(np.clip(base['baro_gain'] * (base['map_set'] - h['map']) / 45.0, -1, 1))
-        if abs(d_t - d) < 0.04:
+        g = d_t - d
+        d_used = d
+        if abs(g) < BARO_TOL:
             break
-        d = 0.5 * d + 0.5 * d_t
+        if g > 0:
+            lo = max(lo, d)
+        else:
+            hi = min(hi, d)
+        nxt = baro_next(d, g, prev, lo, hi)
+        prev = (d, g)
+        d = nxt
     p = q
     p['hr_sinus'] = q['hr']
     p['hr'] = h['hr_v']                       # FC rapportée : FC ventriculaire
     p['sympathetic'] = s_tot
-    auto = dict(s=s_tot, v=v_tot, s_eff=s_eff, v_eff=v_eff, d=d, map=h['map'])
+    auto = dict(s=s_tot, v=v_tot, s_eff=s_eff, v_eff=v_eff, d=d_used, map=h['map'])
     bw = p['bw']
     # --- perfusion -> DO2, lactate
     gas0 = dict(p)
@@ -341,7 +401,8 @@ def evaluate(p, n_beats=11):
     de la contractilité, acidémie -> vasoplégie (boucle). Lève NonViable si la pompe s'arrête
     (FC < hr_arrest), si la circulation s'effondre (DC < co_arrest_frac × DC de référence), si aucun
     état stationnaire n'existe (racine introuvable) ou si la spirale ne converge pas."""
-    p0 = dict(p)
+    import periph
+    p0 = periph.apply_temperature(dict(p))   # FC intrinsèque, VO2, P50 (identité à 38,6 °C)
     bw = p0['bw']
     co_ref = 3.29 * (bw / 20.0) ** 0.75
     f_vent = max(F_FLOOR, 1.0 - p0['k_weak_vent'] * max(0.0, p0['k_weak'] - p0['k']))
@@ -403,9 +464,9 @@ def evaluate(p, n_beats=11):
 
 
 # ------------------------------------------------------------------ hémodynamique battement par battement
-def _act1(tau, ts, tr):
+def _act1(tau, ts, tr, g=1.0):
     """Activation d'un battement isolé, `tau` secondes après son début (même forme que _act)."""
-    return np.where((tau >= 0) & (tau < ts), 0.5 * (1 - np.cos(np.pi * tau / ts)),
+    return np.where((tau >= 0) & (tau < ts), 0.5 * (1 - np.cos(np.pi * np.power(np.clip(tau / ts, 0.0, None), g))),
                     np.where((tau >= ts) & (tau < ts + tr), 0.5 * (1 + np.cos(np.pi * (tau - ts) / tr)), 0.0))
 
 
@@ -446,9 +507,9 @@ def beat_schedule(cond, period0, p):
         rel = u * (1.0 - x)                                  # Ca²⁺ libéré (1 en régime établi)
         u = u * x + rho * rel + (1.0 - rho)
         c = rel * (p['ees_wide'] if wide[i] else 1.0)
-        beats.append((t, ts, 0.4 * ts, c))
+        beats.append((t + mech_offset(p, wide[i]), ts, p['tr_frac'] * ts, c))
         ts_prev = ts
-    atr = [t for t, organized in cond['atrial'] if organized]
+    atr = [t + p['emd_a'] for t, organized in cond['atrial'] if organized]
     return beats, atr
 
 
@@ -463,7 +524,7 @@ def _activations(t, beats, atr, p):
     for j in (i - 1, i):
         if 0 <= j < len(beats):
             t0, ts, tr, c = beats[j]
-            a = float(_act1(t - t0, ts, tr))
+            a = float(_act1(t - t0, ts, tr, p['act_gamma']))
             e = max(e, a)
             e_act = max(e_act, c * a)
     k = bisect.bisect_right(atr, t) - 1
@@ -527,7 +588,7 @@ def simulate_hemo_beats(p, cond, t_end, warm, period0, dt=0.002):
         # volumes du battement mesurés sur SA contraction (début → fin de relaxation, ou battement
         # suivant) : VTS = minimum, VTD = maximum avant ce minimum. Le remplissage de la diastole
         # qui suit appartient au battement suivant (sinon une pause gonfle le VES du battement prématuré).
-        tr_a = bt[2] if bt is not None else 0.4 * ts_a
+        tr_a = bt[2] if bt is not None else p['tr_frac'] * ts_a
         vs = V[0][m & (t < a + ts_a + tr_a)]
         if len(vs) < 3:
             vs = vl
@@ -535,7 +596,7 @@ def simulate_hemo_beats(p, cond, t_end, warm, period0, dt=0.002):
         esv_b, edv_b = float(vs[j_es]), float(vs[:j_es + 1].max())
         per_beat.append(dict(t=a, rr=b - a, relaxed=relaxed.get(a, True), ts=ts_a, c=bt[3] if bt is not None else 1.0,
                              edv=edv_b, esv=esv_b, sv=edv_b - esv_b,
-                             sap=P['ao'][m].max(), dap=P['ao'][m].min(), lv_edp=P['lv'][m][0],
+                             sap=P['ao'][m].max(), dap=P['ao'][m].min(), lv_edp=_edp_beat(t, P['lv'], m, a),
                              v_reg=(-np.minimum(qmi, 0).sum() - np.minimum(qao, 0).sum()) * dt,
                              mitral_e=float(qf[ea[m] <= 0].max()) if np.any(ea[m] <= 0) else 0.0,
                              mitral_a=float(qf[ea[m] > 0].max()) if np.any(ea[m] > 0) else 0.0))

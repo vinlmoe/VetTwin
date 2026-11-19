@@ -134,6 +134,13 @@ fn timecourses_match_python() {
                 "t" => &tc.t,
                 "D" => &tc.d,
                 "U" => &tc.u,
+                // « médicament@e » : concentration au site d'effet (compartiment `ke0`)
+                k if k.ends_with("@e") => tc
+                    .conc_e
+                    .iter()
+                    .find(|(d, _)| d == k.trim_end_matches("@e"))
+                    .map(|(_, v)| v.as_slice())
+                    .unwrap_or_else(|| panic!("{k} absent de conc_e")),
                 drug => tc.conc_of(drug).unwrap(),
             };
             let exp = exp.as_array().unwrap();
@@ -224,4 +231,67 @@ fn pk_and_pd_errors_are_typed() {
         apply_drug_effects(&pt.params, &c.drugs, &[], 0.0, 0.0).unwrap(),
         pt.params
     );
+}
+
+/// Voie IM/SC et compartiment effet (`ke0_per_h`) : module synthétique dérivé de l'atropine.
+/// - IM : la concentration plasmatique monte (pic retardé), puis décroît ; sans `ka_im_per_h`
+///   la voie est refusée.
+/// - `ke0` : après un bolus IV, `Ce` part de 0 et rejoint `C` ; l'effet `E` suit `Ce` ; un terme
+///   `site: plasma` suit `C` immédiatement.
+#[test]
+fn intramuscular_route_and_effect_compartment() {
+    let c = catalog();
+    let pt = Patient::healthy(&c.patient, 20.0).unwrap();
+    let mut v: Json = serde_json::from_str(&read("modules/drugs/atropine.json")).unwrap();
+    v["pk"]["ka_im_per_h"] = Json::from(6.0);
+    v["pk"]["f_im"] = Json::from(0.9);
+    v["pd"]["ke0_per_h"] = Json::from(20.0);
+    v["pd"]["toxicity"] = serde_json::json!([{
+        "id": "plasma_term", "emax": 1.0, "ec50_mg_L": 0.001, "hill": 1.0, "site": "plasma",
+        "effects": [{"param": "vagal_add", "op": "add", "expr": "T"}]
+    }]);
+    let m = DrugModule::from_json(&v.to_string(), "atropine").unwrap();
+    let drugs = vec![m];
+    let dose = |route| Dose {
+        t_h: 0.0,
+        drug: "atropine".into(),
+        mg_per_kg: 0.04,
+        route,
+    };
+    let t: Vec<f64> = vec![0.0, 0.01, 0.05, 0.25, 1.0];
+    // IM : pic retardé
+    let tc = timecourse(&pt.params, &drugs, &[dose(Route::Im)], 1.0, &t).unwrap();
+    let c_im = tc.conc_of("atropine").unwrap();
+    assert_eq!(c_im[0], 0.0);
+    assert!(c_im[2] > c_im[1] && c_im[3] > c_im[2], "{c_im:?}");
+    // IV : C maximal d'emblée, Ce retardé puis rejoint C
+    let tc = timecourse(&pt.params, &drugs, &[dose(Route::Iv)], 1.0, &t).unwrap();
+    let (cp, ce) = (&tc.conc[0].1, &tc.conc_e[0].1);
+    assert!(cp[0] > 0.0 && ce[0] == 0.0, "C {cp:?} Ce {ce:?}");
+    assert!(ce[1] < 0.5 * cp[1], "équilibration non instantanée");
+    assert!(
+        (ce[4] - cp[4]).abs() < 0.1 * cp[4],
+        "équilibre à 1 h : {} / {}",
+        ce[4],
+        cp[4]
+    );
+    // E suit Ce (blocage vagal), le terme plasma suit C
+    let early = vetsim_core::apply_drug_effects_sites(
+        &pt.params,
+        &drugs,
+        &[("atropine".into(), cp[0])],
+        &[("atropine".into(), ce[0])],
+        0.0,
+        0.0,
+    )
+    .unwrap();
+    assert_eq!(early.vagal_block, pt.params.vagal_block);
+    assert!(early.vagal_add > pt.params.vagal_add + 0.9);
+    // sans voie IM décrite : refus
+    let plain = DrugModule::from_json(&read("modules/drugs/opioide.json"), "opioide").unwrap();
+    let im = Dose {
+        drug: "opioide".into(),
+        ..dose(Route::Im)
+    };
+    assert!(timecourse(&pt.params, &[plain], &[im], 1.0, &[1.0]).is_err());
 }

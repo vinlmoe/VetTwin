@@ -2,6 +2,7 @@ name: CI
 
 on:
   push:
+    branches-ignore: [gh-pages]   # branche de site statique, sans code à tester
   pull_request:
 
 defaults:

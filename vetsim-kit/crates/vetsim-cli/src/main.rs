@@ -384,6 +384,7 @@ fn run(argv: &[String]) -> Result<Json, Failure> {
             let times = a.times.clone().unwrap_or_default();
             let route = match a.route.as_deref() {
                 Some("po") => vetsim_core::Route::Po,
+                Some("im") | Some("sc") => vetsim_core::Route::Im,
                 _ => vetsim_core::Route::Iv,
             };
             let dose = vetsim_core::Dose {

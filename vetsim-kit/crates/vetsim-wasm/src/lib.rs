@@ -79,6 +79,11 @@ impl Engine {
         self.inner.pcg(patient_id, options)
     }
 
+    /// Cœur animé : volumes des cavités, ECG et événements de conduction sur une même fenêtre.
+    pub fn heart(&mut self, patient_id: &str, options: &str) -> String {
+        self.inner.heart(patient_id, options)
+    }
+
     /// Message générique `{"op", "patient", "options"}`.
     pub fn message(&mut self, json: &str) -> String {
         self.inner.message(json)

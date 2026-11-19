@@ -5,7 +5,7 @@
  ],
  "license": "CC-BY-4.0",
  "id": "pimobendan",
- "version": "1.0.0",
+ "version": "1.1.0",
  "name": {
   "fr": "Pimobendane"
  },
@@ -70,6 +70,36 @@
       }
      ]
     }
+   },
+   {
+    "param": "pr",
+    "op": "mul",
+    "expr": {
+     "add": [
+      1,
+      {
+       "mul": [
+        -0.25,
+        "E"
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "param": "av_erp",
+    "op": "mul",
+    "expr": {
+     "add": [
+      1,
+      {
+       "mul": [
+        -0.25,
+        "E"
+       ]
+      }
+     ]
+    }
    }
   ],
   "toxicity": [
@@ -101,7 +131,11 @@
   ]
  },
  "refs": [
-  "Her et al. 2020 Front Vet Sci 7:423"
+  "Her et al. 2020 Front Vet Sci 7:423",
+  "Pichayapaiboon P et al. 2021, Front Vet Sci (PMC8417876, lu : PQ 93 → −11,8 % à 60 min, 0,15 mg/kg IV)",
+  "Kitzen JM et al. 1988, J Pharmacol Exp Ther 244:929 (résumé : réfractarités nodale AV, auriculaire et ventriculaire ↓, AH et PR raccourcis)",
+  "Kuntz EA et al. 2018, J Vet Pharmacol Ther, doi:10.1111/jvp.12423 (résumé : 4× la dose 6 mois, PR et QT raccourcis)",
+  "Pet Poison Helpline, surdosage 2,6–21,3 mg/kg PO, 7 chiens : tachycardie 4/7, hypotension 2/7, tous survivants (rapport bibliographique du 19/11/2026, résumé)"
  ],
- "notes": "PK calée sur 0,5 mg/kg PO (Tmax mal reproduit; F supposée 0,5). PD placeholder. Termes toxiques (pd.toxicity) : placeholders D."
+ "notes": "PK calée sur 0,5 mg/kg PO (Tmax mal reproduit; F supposée 0,5). PD placeholder. Termes toxiques (pd.toxicity) : placeholders D. Version 1.1.0 (19/11/2026) : conduction AV. PR et période réfractaire nodale × (1 − 0,25 E) : PQ −11,8 % à 60 min de 0,15 mg/kg IV (Pichayapaiboon 2021, lu), où E ≈ 0,45 dans le modèle ; même facteur pour la période réfractaire nodale (Kitzen 1988, valeur non publiée dans le résumé : D). Surdosage : tachycardie et hypotension émergent du terme vasodilatateur et du baroréflexe ; aucune donnée de concentration après surdosage publiée."
 }

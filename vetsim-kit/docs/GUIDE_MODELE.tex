@@ -187,16 +187,21 @@ Paramètre & Expression & Unité & Source (accès) & Év.\\
 \midrule\endhead
 \multicolumn{5}{@{}l}{\emph{Cœur}}\\
 \vp{hr} & $87\,s^{-0{,}25}$ & /min & FC 87, Haskins 2005 (97 chiens vigiles ; \acc{résumé}) & A\\
-\vp{ees_lv}, \vp{ees_rv} & $4{,}543/s$ ; $1{,}6/s$ & mmHg/mL & \vp{ees_lv} calé (\cmd{fit\_hemo.py}) ; \vp{ees_rv} non documenté & C\\
+\vp{ees_lv}, \vp{ees_rv} & $4{,}4915/s$ ; $1{,}6/s$ & mmHg/mL & \vp{ees_lv} calé (\cmd{fit\_hemo.py}) ; \vp{ees_rv} non documenté & C\\
 \vp{v0_lv}, \vp{v0_rv} & $4\,s$ ; $6\,s$ & mL & non documenté & --\\
 \vp{a_lv}, \vp{a_rv} & 1,0 ; 0,4 & mmHg & non documenté & --\\
-\vp{b_lv}, \vp{b_rv} & $0{,}01548/s$ ; $0{,}05/s$ & 1/mL & \vp{b_lv} calé (\cmd{fit\_hemo.py}) & C\\
-\vp{ts_coef} & 0,325 & -- & B1$\to$B2 du beagle 236--251 ms, $n = 14$, PMC9394128 & C\\
+\vp{b_lv}, \vp{b_rv} & $0{,}028137/s$ ; $0{,}05/s$ & 1/mL & \vp{b_lv} calé (\cmd{fit\_hemo.py}) & C\\
+\vp{ts_coef}, \vp{act_gamma}, \vp{tr_frac} & 0,25 ; 0,55 ; 0,35 & -- & calés le 18/11/2026 sur les intervalles systoliques et diastoliques du chien vigile (tableau~\ref{tab:sti}) & C\\
+\vp{emd_v} & 0,022 s & s & début de Q $\to$ début de la montée de pression VG $22 \pm 4$~ms, $n = 56$ (Kettunen 1985, \acc{résumé}) ; $\approx 30$~ms (Strik 2012, \acc{lu}) & B\\
+\vp{emd_a} & 0 & s & aucune valeur chez le chien sain (PA-TDI seulement chez des cardiopathes, Neves 2018) & D\\
 \vp{ts_restitution} & 0,1 & -- & non documenté & D\\
-\vp{ca_tau}, \vp{ca_recirc}, \vp{ees_wide} & 0,2 s ; 0,6 ; 0,8 & -- & structure : Schouten 1987, Wier 1986 ; valeurs : placeholders & D\\
+\vp{ca_tau} & 0,12 s & s & restitution mécanique in situ, thorax fermé, chien vigile instrumenté : $\tau = 122 \pm 26$~ms sous stimulation ventriculaire, $64 \pm 11$~ms sous stimulation atriale, $n = 9$ (Freeman \& Colston 1990, \acc{résumé}) ; 82~ms (Prabhu 1998) & C\\
+\vp{ca_recirc} & 0,6 & -- & structure : Schouten 1987, Wier 1986 ; valeur : placeholder & D\\
+\vp{ees_wide} & 0,8 & -- & activation hors Purkinje : d$P$/d$t_\text{max}$ $-22$~\% en BBG aigu (Vernooy 2007, cité par Strik 2012, \acc{lu}) ; pic de PVG $-26 \pm 10$~\% en stimulation de paroi libre VD (Burkhoff 1986, \acc{résumé}) ; PVG télésystolique $-11$~\% en stimulation de l'apex VD (Zhou 2014, \acc{lu}) & C\\
 \multicolumn{5}{@{}l}{\emph{Vaisseaux et volémie}}\\
 \vp{c_ao}, \vp{c_sv} & $0{,}7\,s$ ; $55\,s$ & mL/mmHg & non documenté & --\\
-\vp{c_pa}, \vp{c_pv} & $1{,}5\,s$ ; $5\,s$ & mL/mmHg & non documenté & --\\
+\vp{c_pa} & $2{,}5\,s$ & mL/mmHg & PAP du chien vigile 20,0/12,8/6,4~mmHg (systolique/moyenne/diastolique, médianes, $n = 7$ ; Yuchi 2021, \acc{lu}) ; modèle 19,5/13,7/7,8 (1,5 donnait 22/13,5/5,6 et un débit pulmonaire en diastole) & C\\
+\vp{c_pv} & $5\,s$ & mL/mmHg & non documenté & --\\
 \vp{v0_ao}, \vp{v0_sv}, \vp{v0_pa}, \vp{v0_pv} & $150\,s$ ; $900\,s$ ; $60\,s$ ; $120\,s$ & mL & non documenté & --\\
 \vp{ven_cap} & 1,0 & -- & capacitance relative (1 = basale) & --\\
 \vp{r_sys}, \vp{r_pul} & $1{,}7572/s^{0{,}75}$ ; $0{,}156/s^{0{,}75}$ & mmHg·s/mL & calés (\cmd{fit\_hemo.py}) sur Haskins 2005 & A\\
@@ -204,7 +209,7 @@ Paramètre & Expression & Unité & Source (accès) & Év.\\
 \multicolumn{5}{@{}l}{\emph{Valves et oreillettes}}\\
 \vp{r_valve} & $0{,}03/s^{0{,}75}$ & mmHg·s/mL & non documenté & --\\
 \vp{g_mr}, \vp{g_ar}, \vp{g_tr}, \vp{g_pr} & 0,0005 ; 0,0002 ; 0,0002 ; 0,0002 & mL/s/mmHg & fuite résiduelle quasi nulle, non documentée & --\\
-\vp{mr_k}, \vp{mr_vref} & 2,5 ; $72\,s$ & -- ; mL & Yoran 1979 (forme) ; calé sur Suzuki 2013 (section~\ref{sec:valves}) & C\\
+\vp{mr_k}, \vp{mr_vref} & 2,5 ; $68{,}5\,s$ & -- ; mL & Yoran 1979 (forme) ; calé sur Suzuki 2013 (section~\ref{sec:valves}) & C\\
 \vp{k_la}, \vp{k_ra} & 1,45 ; 0,29 & -- & \vp{k_la} : E/A $\approx 1{,}39$, $n = 53$, 10.3390/ani15111524 ; \vp{k_ra} $= 0{,}2\,\vp{k_la}$, placeholder & C / D\\
 \vp{ta_atr}, \vp{tra_atr} & 0,09 ; 0,06 & s & non documenté & D\\
 \multicolumn{5}{@{}l}{\emph{Autonome et baroréflexe}}\\
@@ -212,7 +217,8 @@ Paramètre & Expression & Unité & Source (accès) & Év.\\
 \vp{baro_gain}, \vp{baro_sens} & 1,0 ; 1,0 & -- & non documenté & D\\
 \vp{s0}, \vp{v0} & 0,2 ; 0,6 & -- & tonus de référence ($S_\text{REF}$, $V_\text{REF}$ de \cmd{engine.rs}) & D\\
 \vp{a_s}, \vp{a_v} & 0,4 ; 0,75 & -- & non documenté & D\\
-\vp{rsa_depth}, \vp{vag_noise}, \vp{sym_noise} & 0,95 ; 0,025 ; 0,22 & -- & calage global VFC sur Bogucki 2015 (\acc{lu}) & C\\
+\vp{rsa_depth} & 0,64 & -- & ASR (pic inspiratoire $-$ creux expiratoire)/FC moyenne $= 40{,}1 \pm 4{,}5$~\%, $n = 23$ chiens vigiles (Grosso 2021, \acc{résumé}) ; modèle 40~\% (0,95 donnait 56~\%). RMSSD 165~ms, dans $259 \pm 120$ (Bogucki 2015) & C\\
+\vp{vag_noise}, \vp{sym_noise} & 0,025 ; 0,14 & -- & calage global VFC sur Bogucki 2015 (\acc{lu}) ; \vp{sym_noise} recalé de 0,22 à 0,14 le 18/11/2026 avec le solveur du baroréflexe : LF/HF de la cohorte 0,57 $\to$ 0,31 (cible $0{,}28 \pm 0{,}11$), SDNN, RMSSD et RR dans $\pm 1$~ET & C\\
 \multicolumn{5}{@{}l}{\emph{Gaz, acide-base, métabolisme}}\\
 \vp{vo2}, \vp{vco2} & $5{,}5\,s^{-0{,}25}$ ; $4{,}6\,s^{-0{,}25}$ & mL/min/kg & VO$_2$ cible 5,4 « dérivée des REE publiées » (PMC6095264, \cmd{targets.json}) ; VCO$_2$ non documentée & C\\
 \vp{va0} & 0,0748 & L/min/kg & calé (\cmd{fit\_gas.py}) & C\\
@@ -239,7 +245,7 @@ Les paramètres de conduction et de décompensation du même fichier sont donné
 
 \textbf{Valeurs de sortie du chien sain de 20~kg} (mode déterministe ; \cmd{VERIFICATION\_MALADIES\_MEDICAMENTS.tex}, 18/11/2026, avant l'orifice mitral dynamique) : FC 87,6/min ; PAM 109,4~mmHg ; DC 3,53~L/min ; POG 4,6~mmHg ; PaCO$_2$ 40,2~mmHg ; K$^+$ 4,1~mmol/L ; créatinine 75~\textmu mol/L. Avec $\vp{g_mr} = 0{,}0005$, l'orifice dynamique ne devrait pas changer ces valeurs de façon visible (non recalculé).
 
-\limite{PAM saine 109,4 contre 103 (Haskins) depuis le raccourcissement de la systole ($\vp{ts_coef}$ 0,37 $\to$ 0,325) ; la correction de fond (recaler la PAM sur source) n'est pas faite. Haskins 2005 n'a été lu qu'en résumé (moyennes sans écart-type) ; le DC cible vient de l'IC par une formule de surface corporelle. Population de référence hétérogène (races, méthodes). Calage, et non validation prospective : aucune donnée n'est tenue à part.}
+\limite{PAM saine recalée à 103 (Haskins) le 18/11/2026, avec la chronologie systolique (elle valait 109,4 depuis $\vp{ts_coef}$ 0,325). Haskins 2005 n'a été lu qu'en résumé (moyennes sans écart-type) ; le DC cible vient de l'IC par une formule de surface corporelle. Population de référence hétérogène (races, méthodes). Calage, et non validation prospective : aucune donnée n'est tenue à part.}
 
 %=====================================================================
 \section{Cœur : ventricules gauche et droit}\label{sec:coeur}
@@ -248,15 +254,34 @@ Les paramètres de conduction et de décompensation du même fichier sont donné
 \textbf{Rôle.} Pompe à élastance variable dans le temps, une pour chaque ventricule ; relation télésystolique linéaire, relation télédiastolique exponentielle.
 
 \subsection{Activation et durée de systole}
-Rythme régulier (\cmd{hemo::activation}) : période $T = 60/\text{FC}$, $t_c = t \bmod T$, systole $t_s = \vp{ts_coef}\sqrt{T}$, relaxation $t_r = 0{,}4\,t_s$,
+Rythme régulier (\cmd{hemo::activation\_g}) : période $T = 60/\text{FC}$, $t_c = t \bmod T$, systole $t_s = \vp{ts_coef}\sqrt{T}$, relaxation $t_r = \vp{tr_frac}\,t_s$,
 \begin{equation}
 e(t) = \begin{cases}
-\tfrac12\bigl(1 - \cos(\pi t_c/t_s)\bigr) & 0 \le t_c < t_s,\\
+\tfrac12\bigl(1 - \cos(\pi (t_c/t_s)^{\gamma})\bigr) & 0 \le t_c < t_s,\\
 \tfrac12\bigl(1 + \cos(\pi (t_c - t_s)/t_r)\bigr) & t_s \le t_c < t_s + t_r,\\
 0 & \text{sinon.}
 \end{cases}
 \end{equation}
-$\vp{ts_coef} = 0{,}325$ depuis le 17/11/2026 (0,37 auparavant, coefficient encore présent dans \cmd{Timing::from\_hr}).
+avec $\gamma = \vp{act_gamma}$ : $\gamma < 1$ raidit le début de la contraction. L'origine $t_c = 0$ est le \emph{début mécanique} : début du QRS tracé par l'ECG + \vp{emd_v} (\cmd{hemo::mech\_offset}) ; la contraction atriale débute \vp{emd_a} après le début de l'onde P.
+
+\textbf{Recalage de la chronologie (18/11/2026).} Le cœur animé a montré une contraction isovolumique de 90~ms, une période pré-éjectionnelle (PEP, du début du QRS à l'ouverture aortique) de 110 à 136~ms, une relaxation isovolumique (IVRT) de 88~ms et un indice de Tei de 1,0, avec un d$P$/d$t_\text{max}$ de 1\,670~mmHg/s. Avec $\vp{ts_coef} = 0{,}25$ (0,325 auparavant), $\gamma = 0{,}55$ et $\vp{tr_frac} = 0{,}35$ (0,4), puis le recalage global de \vp{r_sys}, \vp{vol_shift}, \vp{ees_lv}, \vp{r_pul} et \vp{b_lv} sur les mêmes cibles que \cmd{fit\_hemo.py} (PAM 103, IC 4,42~L/min/m$^2$, PAP 14, POG 5,5, FE 0,55), le chien sain de 20~kg à 87/min donne les valeurs du tableau~\ref{tab:sti}. PAM 103,0 (109,4 auparavant), d$P$/d$t_\text{max}$ 2\,840~mmHg/s.
+
+\begin{table}[h]\centering\small
+\caption{Intervalles du cycle cardiaque gauche et droit, chien sain : modèle et références.}\label{tab:sti}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Intervalle & Modèle & Référence (chien, accès)\\
+\midrule
+PEP aortique & 54 ms & $58{,}8 \pm 4{,}8$ (SE), $n = 12$, vigiles (Trikhun 2020, \acc{lu}) ; $33 \pm 26$, $n = 14$ (Gicana 2022, \acc{lu})\\
+Temps d'éjection VG & 178 ms & $170{,}6 \pm 18{,}4$ à 102/min (Gicana 2022) ; 173 (168--179), $n = 45$ (Baumwart 2005, \acc{résumé})\\
+IVRT & 61 ms & $61{,}4 \pm 9{,}7$, $n = 49$, vigiles (Favier 2025, \acc{lu})\\
+Contraction isovolumique & 35 ms & --\\
+Indice de Tei VG & 0,54 & $0{,}42 \pm 0{,}22$ (Gicana) ; 0,41 (Baumwart) ; $0{,}54 \pm 0{,}20$ (Guglielmini 2019, \acc{lu})\\
+Fermeture $\to$ ouverture mitrale & 273 ms & $239{,}7 \pm 34{,}2$ à 102/min (Gicana)\\
+PEP et éjection pulmonaires & 33 ; 204 ms & $52{,}8 \pm 2{,}0$ (SE) ; $147 \pm 8$ (Trikhun) ; éjection VD 187 (182--192) (Baumwart)\\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{Pression ventriculaire}
 \begin{equation}
@@ -267,7 +292,7 @@ avec $(E_{es}, V_0, a, b) = (\vp{ees_lv}, \vp{v0_lv}, \vp{a_lv}, \vp{b_lv})$ pou
 \subsection{Rythme irrégulier : battement par battement}
 Quand la conduction n'est pas sinusale 1:1 (section~\ref{sec:rythme}), chaque battement $i$ a sa systole et son amplitude (\cmd{hemo::beat\_schedule}) :
 \begin{align}
-t_{s,i} &= \vp{ts_coef}\sqrt{T_0}\,\bigl(RR_i/T_0\bigr)^{\vp{ts_restitution}}, \qquad t_{r,i} = 0{,}4\,t_{s,i},\\
+t_{s,i} &= \vp{ts_coef}\sqrt{T_0}\,\bigl(RR_i/T_0\bigr)^{\vp{ts_restitution}}, \qquad t_{r,i} = \vp{tr_frac}\,t_{s,i},\\
 x &= \exp\bigl(-\max(0, RR_i - t_{s,i-1})/\vp{ca_tau}\bigr),\quad \text{rel} = u\,(1 - x),\quad u \leftarrow u\,x + \rho\,\text{rel} + (1 - \rho),\\
 c_i &= \text{rel}\times\begin{cases}\vp{ees_wide} & \text{QRS large}\\ 1 & \text{sinon}\end{cases},\qquad u_0 = \frac{1}{1 - \exp(-(T_0 - t_{s,0})/\vp{ca_tau})},
 \end{align}
@@ -275,9 +300,17 @@ avec $\rho = \vp{ca_recirc}$ et $T_0$ la période moyenne. C'est un modèle de r
 
 \sources{Structure du modèle calcique : Schouten 1987, Biophys J, 10.1016/s0006-3495(87)83307-6 ; principe : Wier 1986, J Physiol, 10.1113/jphysiol.1986.sp016167 ; potentialisation : Cooper 1993, Circulation, 10.1161/01.cir.88.6.2962 ; dyssynchronie du QRS large : Prinzen 1999, JACC, 10.1016/s0735-1097(99)00068-6 (DOI vérifiés dans OpenAlex, accès non précisé). \vp{ts_coef} : PMC9394128 (beagle, $n = 14$). \vp{ees_lv}, \vp{b_lv} : calés globalement (\cmd{fit\_hemo.py}).}
 
-\textbf{Statut.} Valeurs de \vp{ca_tau}, \vp{ca_recirc}, \vp{ees_wide}, \vp{ts_restitution} : \evD{}. \vp{ts_coef} : \evC{}.
+\textbf{Statut.} \vp{ca_recirc}, \vp{ts_restitution}, \vp{emd_a} : \evD{}. \vp{ts_coef}, \vp{act_gamma}, \vp{tr_frac}, \vp{ca_tau}, \vp{ees_wide} : \evC{}. \vp{emd_v} : \evB{}.
 
-\limite{Le modèle à élastance ne représente ni la précharge recrutable de Frank--Starling au-delà de la relation $E_{es}$, ni la relaxation active (lusitropie) : le sympathique et le pimobendane n'agissent que sur $E_{es}$. B1$\to$B2 reste trop long dans les sons (0,26~s contre 0,18~s mesuré), ce qui pointe la durée d'éjection. Le caractère productif d'une ESV émerge du remplissage écourté et de $c_i$, sans calage sur des courbes canines de d$P$/d$t$ en fonction du couplage.}
+\textbf{Extrasystoles (vérification du 18/11/2026).} Sur 19 ESV isolées (patient à ESV, sévérité 0,8, $6 \times 30$~s) :
+\begin{itemize}
+\item \textbf{ECG.} QRS de 82~ms (bornes $\pm 2\sigma$), contre 44~ms en sinusal ; onde T discordante (environ $-0{,}5$~mV, contre $+0{,}3$).
+\item \textbf{Volume d'éjection selon le couplage.} Nul sous environ 300~ms de couplage, puis 21 à 32~\% du VES sinusal vers 380--410~ms et 45 à 70~\% de 450 à 640~ms. Le déficit de pouls est bien présent.
+\item \textbf{Potentialisation.} Le battement suivant est potentialisé : $c$ jusqu'à 1,34, VES jusqu'à $+36$~\%.
+\end{itemize}
+Repère : le VES de l'ESV est de 2,5 à 4,1~mL à 200~ms de couplage, et de 10,2 à 14,8~mL à 375~ms, pour 16,4 à 17,3~mL en stimulation régulière à 400~ms (Potfay 2015, PMC4618025, \acc{lu}). Ces chiens étaient anesthésiés, thorax ouvert : la pression aortique y est plus basse que chez le chien vigile modélisé, ce qui favorise l'éjection précoce. Le modèle reste en dessous de ces valeurs entre 300 et 380~ms.
+
+\limite{Le modèle à élastance ne représente ni la précharge recrutable de Frank--Starling au-delà de la relation $E_{es}$, ni la relaxation active (lusitropie) : le sympathique et le pimobendane n'agissent que sur $E_{es}$. La pause compensatrice après une ESV est souvent incomplète et les ESV interpolées sont fréquentes, car le nœud AV ne reste réfractaire que \vp{av_erp} (0,15~s, calé sur la FA) et la pénétration rétrograde de l'ESV dans la jonction n'est pas représentée. Aucune donnée canine chiffrée n'a été trouvée sur la fréquence des pauses complètes ; selon Shoureshi 2023 (PMC10513922, \acc{lu}), le chien ne semblerait pas conduire de façon rétrograde vers les oreillettes pendant les ESV. Le gradient VD--AP en systole atteint 8~mmHg (résistance valvulaire commune aux quatre valves).}
 
 %=====================================================================
 \section{Circulations systémique et pulmonaire, volémie}\label{sec:circ}
@@ -334,9 +367,9 @@ avec $\Delta p = P_{pv} - P_{lv}$ (mitrale), $P_{lv} - P_{ao}$ (aortique), $P_{s
 
 \subsection{Orifice mitral dynamique (18/11/2026)}
 \begin{equation}
-g_\text{eff} = \vp{g_mr}\left(\frac{\text{VTD}}{\vp{mr_vref}}\right)^{\vp{mr_k}}, \qquad \vp{mr_k} = 2{,}5,\quad \vp{mr_vref} = 72\,s~\text{mL}
+g_\text{eff} = \vp{g_mr}\left(\frac{\text{VTD}}{\vp{mr_vref}}\right)^{\vp{mr_k}}, \qquad \vp{mr_k} = 2{,}5,\quad \vp{mr_vref} = 68{,}5\,s~\text{mL}
 \end{equation}
-L'orifice est \emph{fixe pendant le battement} et suit la taille du VG d'un battement à l'autre : \cmd{engine::hemo\_with\_rhythm} simule l'hémodynamique avec un orifice statique, lit le VTD, puis itère un point fixe amorti sur $\ln g$ (relaxation $\tfrac12$, tolérance $10^{-3}$, au plus 12 simulations). Il est ignoré si $\vp{g_mr} < 0{,}05$ (chien sain). La conductance retenue est reportée dans les paramètres de l'évaluation (\vp{g_mr}, $\vp{mr_k} = 0$) pour que l'ECG et le son recalculés en aval restent cohérents. Une première version (18/11) faisait dépendre l'orifice du volume \emph{instantané} : le pic de débit régurgité en début de systole était multiplié par 4,7 (souffle de grade 6 à MMVD 0,3) ; la forme par battement le ramène à 46~mL/s (grade 3, contre 33~mL/s avant l'orifice dynamique). Une baisse de précharge (diurétique, veinodilatation) réduit l'orifice et la fraction régurgitée, ce qui permet à la POG de baisser. \vp{mr_vref} correspond au VTD du chien sain (72~mL à 20~kg).
+L'orifice est \emph{fixe pendant le battement} et suit la taille du VG d'un battement à l'autre : \cmd{engine::hemo\_with\_rhythm} simule l'hémodynamique avec un orifice statique, lit le VTD, puis itère un point fixe amorti sur $\ln g$ (relaxation $\tfrac12$, tolérance $10^{-3}$, au plus 12 simulations). Il est ignoré si $\vp{g_mr} < 0{,}05$ (chien sain). La conductance retenue est reportée dans les paramètres de l'évaluation (\vp{g_mr}, $\vp{mr_k} = 0$) pour que l'ECG et le son recalculés en aval restent cohérents. Une première version (18/11) faisait dépendre l'orifice du volume \emph{instantané} : le pic de débit régurgité en début de systole était multiplié par 4,7 (souffle de grade 6 à MMVD 0,3) ; la forme par battement le ramène à 46~mL/s (grade 3, contre 33~mL/s avant l'orifice dynamique). Une baisse de précharge (diurétique, veinodilatation) réduit l'orifice et la fraction régurgitée, ce qui permet à la POG de baisser. \vp{mr_vref} correspond au VTD du chien sain (68,5~mL à 20~kg depuis le recalage du 18/11/2026, 72 auparavant).
 
 \sources{Forme : Yoran C, Yellin EL, Becker RM et al. 1979, PMID 445720 (6 chiens à thorax ouvert, \acc{résumé} : l'expansion volémique augmente surtout l'orifice régurgitant effectif ; la noradrénaline, qui réduit le VG, le diminue). Exposant : calé sur Suzuki 2013 (IM expérimentale, furosémide 0,17~mg/kg/h pendant 6~h : POG 14,75 $\to$ 10,77~mmHg, $-27$~\% ; \acc{résumé}, J Vet Intern Med, doi:10.1111/jvim.12154 non revérifié) ; le modèle donnait 13,66 $\to$ 9,95~mmHg ($-27$~\%) ; après le recalage de la congestion, 14,92 $\to$ 11,21~mmHg ($-25$~\%) à MMVD 0,72, sévérité dont la POG de base égale celle de l'étude. Le test \cmd{furosemide\_lowers\_lap\_in\_mitral\_regurgitation} (\cmd{tests/drug\_corrections.rs}) exige une baisse d'au moins 18~\% de la POG à MMVD 0,78 avec une PAM conservée à 90~\%, et vérifie qu'avec orifice fixe et sans veinodilatation la POG baisse de moins de 10~\%.}
 
@@ -381,7 +414,7 @@ R_{sys}' &= \vp{r_sys}\,\bigl(1 + 0{,}5\,(s_\text{tot} - \vp{s0})\bigr), \qquad
 \vp{vol_shift}' = \vp{vol_shift} + 0{,}20\cdot 85\,\vp{bw}\,(s_\text{tot} - \vp{s0}),\\
 d_t &= \mathrm{clip}\bigl(\vp{baro_gain}\,(\vp{map_set} - \text{PAM})/45,\;-1, 1\bigr).
 \end{align}
-Arrêt si $|d_t - d| < 0{,}04$, sinon $d \leftarrow \tfrac12(d + d_t)$. Le bêtabloquant n'agit que sur la FC, l'inotropisme et la conduction AV ($s_\text{eff}$), pas sur la vasoconstriction ni le recrutement veineux ($s_\text{tot}$). La FC rapportée est la FC \emph{ventriculaire} ($60/T$ de l'hémodynamique), la FC sinusale reste disponible (\vp{sinus_hr}).
+\textbf{Solveur du point fixe} (18/11/2026, \cmd{engine::baro\_next}). On résout $g(d) = d_t(d) - d = 0$ sur $[-1, 1]$ : $g$ décroît avec $d$ et $g(-1) \ge 0 \ge g(1)$, la racine est unique et encadrée. Le premier pas est amorti ($d + g/2$, l'ancienne itération), puis la sécante est appliquée sur les deux derniers points, avec bisection de l'encadrement courant si elle en sort. Arrêt si $|g| < 0{,}01$ (environ 0,45~mmHg), au plus 16 évaluations. L'itération amortie précédente (arrêt à $|g| < 0{,}04$, au plus 5 passages) s'arrêtait dans certains cas sur un état non convergé et incohérent. Sous opioïde, elle donnait une PAM de 88~mmHg avec un sympathique en baisse ; le point fixe donne 102~mmHg, FC $-32$~\%, conforme à Mills 2025 et à Maiante 2009. En MMVD C, elle donnait PAM 124 et FC 114, contre 114 et 105 au point fixe. Le traitement sur 7 jours est aussi plus rapide (4,6~s contre 6,8~s en natif). Le bêtabloquant n'agit que sur la FC, l'inotropisme et la conduction AV ($s_\text{eff}$), pas sur la vasoconstriction ni le recrutement veineux ($s_\text{tot}$). La FC rapportée est la FC \emph{ventriculaire} ($60/T$ de l'hémodynamique), la FC sinusale reste disponible (\vp{sinus_hr}).
 
 \textbf{Effet dromotrope du sympathique} (18/11/2026), au même passage :
 \begin{equation}
@@ -389,6 +422,13 @@ Arrêt si $|d_t - d| < 0{,}04$, sinon $d \leftarrow \tfrac12(d + d_t)$. Le bêta
 \vp{av_erp}' = \vp{av_erp}\,\phi,\qquad \text{PR}' = \vp{hv} + (\vp{pr} - \vp{hv})\,\phi,
 \end{equation}
 avec $\vp{av_symp} = 0{,}5$ : le sympathique raccourcit la période réfractaire et le délai AH du nœud AV ; le bêtabloquant, qui réduit $s_\text{eff}$, ralentit donc la réponse ventriculaire de la FA.
+
+\textbf{Modulation autonome des foyers d'échappement} (18/11/2026), au même passage :
+\begin{equation}
+\vp{junct_rate}' = \vp{junct_rate}\,\frac{1 + \vp{esc_a_s}\,s_\text{eff}}{1 + 0{,}2\,\vp{esc_a_s}}\cdot\frac{\max(0,\,1 - \vp{esc_a_v}\,v_\text{eff})}{1 - 0{,}6\,\vp{esc_a_v}},\qquad
+\vp{vent_escape_rate}' = \vp{vent_escape_rate}\,\frac{1 + \vp{esc_a_s}\,s_\text{eff}}{1 + 0{,}2\,\vp{esc_a_s}}.
+\end{equation}
+Le foyer jonctionnel est accéléré par le sympathique et ralenti par le vague ; le foyer ventriculaire n'est sensible qu'au sympathique. Chez le chien vigile, l'atropine raccourcit la pause d'échappement jonctionnel (4,5 $\to$ 3,4~s, soit $\times 1{,}32$ sur la fréquence ; réflexes intacts, d'où un calage en boucle fermée avec le baroréflexe convergé : $\vp{esc_a_v} = 0{,}72$, qui donne $\times 1{,}32$ en bloc sino-atrial complet) et le practolol l'allonge (4,9 $\to$ 9,4~s ; Tanahashi 1979, \acc{résumé}). Cette pause mêle fréquence et suppression par entraînement : $\vp{esc_a_s} = 2$ n'en attribue qu'une partie à la fréquence ($\times 0{,}71$ sous blocage complet). Un gain plus fort (4,6, tout attribué à la fréquence) rend le point fixe du baroréflexe instable en bloc sino-atrial complet. \evC{}
 
 \textbf{Suppression de \vp{kfac}.} Le frein multiplicatif de K$^+$ sur la FC ($\max(0{,}4; 1 - 0{,}30\max(0, K - 6))$) a été supprimé le 17/11/2026 : K$^+$ agit désormais sur la conduction (section~\ref{sec:rythme}).
 
@@ -409,7 +449,7 @@ Pas $\Delta t = 1/20$~s, 20~s de mise en régime puis 120~s enregistrées (par d
 
 \sources{Calage global (non paramètre par paramètre) sur Bogucki \& Noszczyk-Nowak 2015, Pol J Vet Sci 18:307, doi:10.1515/pjvs-2015-0040 (50 chiens sains, Holter 60~min ; \acc{lu}) : RR moyen $677{,}7 \pm 126{,}9$~ms, SDNN $208{,}9 \pm 77{,}1$, RMSSD $259{,}0 \pm 120{,}2$, LF/HF $0{,}28 \pm 0{,}11$ (\cmd{calibration/targets.json}, validation statistique sur $\ge 20$ graines, tolérance $\pm 1$~ET). Sens de la relation VFC--FC : Billman 2013, Front Physiol 4:222, doi:10.3389/fphys.2013.00222 (\acc{lu}). Constantes de temps, retards, largeur de sigmoïde, gain vasomoteur 25~mmHg : non documentés (\evD{}).}
 
-\limite{Stochastique : validation statistique, pas au point. LF/HF du sain tombé à 0,162 depuis \vp{ts_coef} 0,325 (cible $0{,}28 \pm 0{,}11$) : écart déclaré, toléré à $\pm 2$~ET dans \cmd{tests/signal\_properties.rs}. Source VFC unique, à valeurs élevées et partiellement incohérente (FC de l'article 102 contre NN moyen 677~ms). En MMVD C : SDNN trop bas ($-54$~ms), LF/HF sans hausse (Bogucki 2017). RSA trop ample en tachycardie (modulation relative du tonus vagal) ; RSA nulle si la fréquence respiratoire dépasse $\approx 70$/min (échantillonnage par battements). Pas de halètement. La simulation dynamique n'agit pas en retour sur l'hémodynamique stationnaire.}
+\limite{Stochastique : validation statistique, pas au point. LF/HF de la cohorte saine 0,31 (cible $0{,}28 \pm 0{,}11$) depuis le recalage du 18/11/2026 : l'écart déclaré du 17/11 est levé, les quatre indicateurs tiennent $\pm 1$~ET dans \cmd{tests/signal\_properties.rs}. Source VFC unique, à valeurs élevées et partiellement incohérente (FC de l'article 102 contre NN moyen 677~ms). En MMVD C : SDNN trop bas ($-54$~ms), LF/HF sans hausse (Bogucki 2017). RSA trop ample en tachycardie (modulation relative du tonus vagal) ; RSA nulle si la fréquence respiratoire dépasse $\approx 70$/min (échantillonnage par battements). Pas de halètement. La simulation dynamique n'agit pas en retour sur l'hémodynamique stationnaire.}
 
 %=====================================================================
 \section{Conduction et rythme}\label{sec:rythme}
@@ -429,7 +469,8 @@ où $r = t - t_\text{His}$ est le temps de récupération depuis la dernière tr
 \begin{itemize}
 \item Conduction infranodale avec probabilité $p_{HP} = \vp{hp_conduction}\times\bigl(1$ si $K < \vp{k_hp_block}$, sinon $\max(0, 1 - \vp{hp_k_slope}(K - \vp{k_hp_block}))\bigr)$.
 \item Période réfractaire ventriculaire $= \vp{qt}$ : un influx arrivant plus tôt après la dernière activation est perdu.
-\item Échappements jonctionnel (QRS fin) et ventriculaire (QRS large) : cycle $60/(\text{taux}\cdot k_\text{esc})$, $k_\text{esc} = \max(0, 1 - \vp{esc_k_gain}\max(0, K - 5{,}5))$, compté depuis la dernière activation ventriculaire ; après un battement conduit, le premier intervalle est multiplié par \vp{esc_overdrive} (suppression par entraînement). L'échappement jonctionnel exige $p_{HP} > 0$.
+\item Échappements jonctionnel (QRS fin) et ventriculaire (QRS large) : cycle $60/(\text{taux}\cdot k_\text{esc})$, $k_\text{esc} = \max(0, 1 - \vp{esc_k_gain}\max(0, K - 5{,}5))$, compté depuis la dernière activation ventriculaire (fréquences modulées par le système autonome, section~\ref{sec:auto}). L'échappement jonctionnel exige $p_{HP} > 0$.
+\item Suppression par entraînement (overdrive suppression) : le cycle d'un foyer est multiplié par $1 + \vp{esc_sup_gain}\max(0,\ \text{cycle}\cdot\bar f - 1)$, où $\bar f$ est la fréquence ventriculaire moyennée sur \vp{esc_sup_tau} : à chaque activation (toute origine) d'intervalle $\Delta t$, $\bar f \mathrel{+}= (1 - e^{-\Delta t/\vp{esc_sup_tau}})(1/\Delta t - \bar f)$. Un patient qui conduit part de $\bar f = 1/T_\text{sinus}$ (entraîné de longue date) ; en bloc complet ou sans influx sinusal, de $\bar f = 0$. La suppression croît avec la fréquence et la durée de l'entraînement (charge de la pompe Na/K) et s'efface en quelques dizaines de battements d'échappement. Chien sain à 90/min : premier échappement jonctionnel 3,3~s après l'arrêt du sinus (2,6 cycles), puis cycles qui se raccourcissent vers 1,28~s.
 \item Foyer ectopique ventriculaire : processus de Poisson de taux $\vp{vpc_rate} + \vp{vpc_k_gain}\max(0, \vp{k_vpc} - K)$ /min (accru en hypokaliémie) ; une ESV rend le nœud AV réfractaire (conduction rétrograde).
 \end{itemize}
 
@@ -460,14 +501,17 @@ Paramètre & Valeur & Source (accès) & Év.\\
 \vp{av_beta}, \vp{av_tau}, \vp{av_vagal}, \vp{av_k_gain} & 0,1 s ; 0,15 s ; 0,5 ; 0,1 & placeholders & D\\
 \vp{af_cycle}, \vp{af_cv} & 0,12 s ; 0,3 & placeholders & D\\
 \vp{hp_k_slope} & 0,5 & placeholder & D\\
-\vp{junct_rate} & 50 /min & placeholder & D\\
-\vp{esc_k_gain}, \vp{esc_overdrive} & 0,1 ; 1,3 & placeholders & D\\
+\vp{junct_rate} & 47 /min & au tonus de repos ; borne basse : $37 \pm 9$/min sous cholinergique local (physostigmine dans l'artère du nœud AV, $n = 10$ ; Rosenshtraukh 1986, \acc{résumé}) ; borne haute : au-dessus de l'échappement ventriculaire (42/min). Valeur retenue dans cet intervalle, sans source directe au tonus de repos & D\\
+\vp{esc_sup_gain} & 1,8 & pause de 4,7 $\pm$ 1,1~s après entraînement d'un rythme jonctionnel à 2,5 fois sa fréquence, chien vigile, $n = 15$ (Tanahashi 1979, \acc{résumé}) ; pauses Holter sans échappement : 2,7~s (sains), 4,1~s (tonus vagal élevé), 6,9~s (maladie du sinus) (Flanders 2024, \acc{lu}) & C\\
+\vp{esc_sup_tau} & 60 s & suppression maximale après $\approx 3$~min d'entraînement (Krellenstein 1978, cœur isolé, \acc{résumé}) ; retour en 66--100 battements jonctionnels (Neely 1985, \acc{résumé}) & D\\
+\vp{esc_a_s}, \vp{esc_a_v} & 2,0 ; 0,72 & atropine et practolol sur la pause d'échappement (Tanahashi 1979, \acc{résumé}) ; voir section~\ref{sec:auto} & C\\
+\vp{esc_k_gain} & 0,1 & placeholder & D\\
 \vp{vpc_k_gain}, \vp{k_vpc} & 1,0 ; 3 mmol/L & placeholders & D\\
 \vp{sa_block}, \vp{af}, \vp{vpc_rate}, \vp{hp_conduction} & 0 ; 0 ; 0 ; 1 & état sain (modifiés par les maladies) & --\\
 \bottomrule
 \end{tabularx}
 
-\limite{Seuils de K$^+$ probablement trop hauts : un cas d'Addison (K 7,9 ; Pașca 2025, \acc{lu}) montre un BAV complet, et un essai de perfusion de KCl (Porter 2001, \acc{résumé}) une perte des ondes P vers 7,5 ; sources jugées insuffisantes pour recaler. Pas de bradycardie hyperkaliémique sous 8,5~mmol/L (FC de l'Addison 0,8 : 141/min). Pause compensatrice des ESV rarement complète (ERP nodal court, calé sur la FA). Depuis \vp{av_symp}, la FA non traitée accélère ($s = 0{,}8$ : 153 $\to$ 177/min). Le rythme d'échappement du BAV~3 reste insensible au bêtabloquant. Pas de mécanisme de réentrée, de tachycardie ventriculaire soutenue ni de voie accessoire.}
+\limite{Seuils de K$^+$ probablement trop hauts : un cas d'Addison (K 7,9 ; Pașca 2025, \acc{lu}) montre un BAV complet, et un essai de perfusion de KCl (Porter 2001, \acc{résumé}) une perte des ondes P vers 7,5 ; sources jugées insuffisantes pour recaler. Pas de bradycardie hyperkaliémique sous 8,5~mmol/L (FC de l'Addison 0,8 : 141/min). Pause compensatrice des ESV rarement complète (ERP nodal court, calé sur la FA). Depuis \vp{av_symp}, la FA non traitée accélère ($s = 0{,}8$ : 153 $\to$ 177/min). Les échappements suivent le tonus autonome, mais leur fréquence au repos repose sur des données expérimentales et cliniques peu nombreuses (cas isolés de Santilli 2019 : 20 à 50/min). Pas de mécanisme de réentrée, de tachycardie ventriculaire soutenue ni de voie accessoire.}
 
 %=====================================================================
 \section{Échanges gazeux et acide-base}\label{sec:gaz}
@@ -595,7 +639,7 @@ opioïde 1.1.0 & 3,0 & 4,0 & 25,0 & 30,0 & 1,0 & 0,5 & 0 / 1 & 0,015 ; 1,3 & C\\
 \bottomrule
 \end{tabularx}}
 
-\subsection{Furosémide (module 1.2.0, evidence B)}\label{sec:furo}
+\subsection{Furosémide (module 1.3.0, evidence B)}\label{sec:furo}
 \textbf{PK.} Calée sur Koh 2021 (2~mg/kg IV et comprimé, 5 beagles d'environ 11,7~kg ; \acc{lu}, PMC8420016) : CL 735,7~mL/h/kg ramenée au chien de 20~kg par $\vp{bw}^{0{,}75}$ (10,724~mL/min/kg), $V_{ss}$ 0,6675~L/kg, $C_0$ 9,65~mg/L, $t_{1/2}$ 2,07~h ; $k_a$ et $F$ sur le comprimé ($C_\text{max}$ 0,61~mg/L, $F$ 0,55). \vp{renal_exp} = 0,7 : source non documentée.
 
 \textbf{Effet piloté par l'excrétion urinaire} (\vp{drive}: \vp{urinary_excretion}). Le furosémide agit depuis la lumière tubulaire : la variable d'effet est $X = C\cdot\vp{nephron_mass}$ (proxy de l'excrétion urinaire), pour la diurèse comme pour les effets JSON. Chez le chien insuffisant rénal, la relation excrétion urinaire--effet est inchangée alors que la relation plasma--effet est déplacée (Miyazaki 1990, Nihon Juigaku Zasshi 52:265, doi:10.1292/jvms1939.52.265 ; Hirai 1992 ; \acc{résumés}).
@@ -613,8 +657,14 @@ par heure, avec $\vp{f_plasma} = 0{,}3$, $\tau_\text{refill} = 4$~h, $\tau_\text
 \textbf{Effets} (dans l'ordre du JSON) :
 \begin{gather}
 \vp{vol_shift} \mathrel{-}= D,\qquad \vp{ven_cap} \mathrel{\times}= (1 + 0{,}36\,E),\\
-\vp{k} \mathrel{\times}= e^{-0{,}00585\,U_\text{eff}},\qquad \vp{cl} \mathrel{\times}= e^{-0{,}00225\,U_\text{eff}},\qquad \vp{na} \mathrel{\times}= e^{-0{,}00032\,U_\text{eff}}.
+\vp{k} \mathrel{\times}= e^{-0{,}00585\,U_\text{eff}},\qquad \vp{cl} \mathrel{\times}= e^{-0{,}00225\,U_\text{eff}},\qquad \vp{na} \mathrel{\times}= e^{-0{,}00032\,U_\text{eff}},\\
+\vp{hb} \mathrel{\times}= \frac{V_b}{V_b - D},\qquad \vp{alb} \mathrel{\times}= \frac{V_p}{V_p - D}\qquad\text{(hémoconcentration, 19/11/2026)}.
 \end{gather}
+$V_b = 85\,\vp{bvf}\,\vp{bw}$~mL et $V_p = V_b\,(1 - \text{Ht})$ : le déficit est prélevé sur le
+plasma. Le modèle donne $+7$~\% d'albumine et $+2$~\% d'hématocrite à 2~h après 2~mg/kg IV, pour
+des protéines totales mesurées à $5{,}90 \pm 0{,}36 \to 6{,}32 \pm 0{,}29$~g/dL et un hématocrite
+inchangé (Lee 2021, BMC Vet Res, PMC8420016, \acc{lu} ; $n = 5$) ; hématocrite et solides totaux
+en hausse pendant une perfusion de 3,3~mg/kg sur 5~h (Adin 2021, PMC8163123, \acc{lu}).
 Les pertes sont proportionnelles à la concentration, donc jamais négatives (correction 1 du 18/11 : K$^+$ à 200~mg/kg passe de $-0{,}60$ à 2,09~mmol/L).
 
 \sources{
@@ -626,27 +676,72 @@ Les pertes sont proportionnelles à la concentration, donc jamais négatives (co
 \item \vp{f_plasma} et $\tau_\text{refill}$ : placeholders D.
 \end{itemize}}
 
-\limite{Diurèse orale surestimée de 26~\% (27,9 contre 22,1~mL/kg sur 8~h) ; Hill à sa borne. En MRC, diurèse effective encore $\approx +25$~\% contre le sain alors que la source décrit une baisse (correction 5 « partielle »). PAM du chien sain $-10$~\% environ à 1--2~h, alors qu'une étude ne trouve pas de baisse à 1~h après 5~mg/kg (PMC10357252, 5 chiens, \acc{résumé}). Aux faibles doses (1--2~mg/kg IV), la POG baisse plus que dans Suzuki 2011 : la veinodilatation sature dès les faibles concentrations. Ototoxicité non modélisée.}
+\limite{Diurèse orale surestimée de 26~\% (27,9 contre 22,1~mL/kg sur 8~h) ; Hill à sa borne. En MRC, diurèse effective encore $\approx +25$~\% contre le sain alors que la source décrit une baisse (correction 5 « partielle »). PAM du chien sain $-10$~\% environ à 1--2~h, alors qu'une étude ne trouve pas de baisse à 1~h après 5~mg/kg (PMC10357252, 5 chiens, \acc{résumé}). Aux faibles doses (1--2~mg/kg IV), la POG baisse plus que dans Suzuki 2011 : la veinodilatation sature dès les faibles concentrations. Ototoxicité non modélisée : la relation dose--réponse existe chez le beagle IV (baisse du potentiel d'action N1 avant le potentiel microphonique, sans lésion histologique) mais aucun seuil chiffré n'est accessible (Brown 1979--1981 et Goldman 1973 : titres seulement ; Oishi 2012, PMC3490132, \acc{lu} : effet surtout transitoire). L'alcalose métabolique hypochlorémique (HCO$_3^-$ $+6{,}6$~mEq/L en 4~j, Bosch 1977, \acc{résumé} ; Adin 2021) et les arythmies hypokaliémiques (QT allongé sous 3,3~mmol/L, Hanton 2007 ; TV et torsades sous 2~mmol/L, Weissenburger 1991, \acc{résumés}) émergent des mécanismes existants (SID de Stewart, foyers ectopiques sous \vp{k_vpc}), sans calage propre.}
 
-\subsection{Pimobendane (module 1.0.0, evidence C)}
+\subsection{Pimobendane (module 1.1.0, evidence C)}
 \begin{gather}
 \vp{ees_lv} \mathrel{\times}= (1 + 0{,}35\,E),\quad \vp{ees_rv} \mathrel{\times}= (1 + 0{,}20\,E),\quad \vp{r_sys} \mathrel{\times}= (1 - 0{,}20\,E),\\
+\vp{pr} \mathrel{\times}= (1 - 0{,}25\,E),\qquad \vp{av_erp} \mathrel{\times}= (1 - 0{,}25\,E),\\
 \text{toxique (vasodilatation, PDE3)} : \vp{r_sys} \mathrel{\times}= (1 - 0{,}8\,T),\quad \text{EC}_{50}^\text{tox} = 0{,}3~\text{mg/L},\ h_t = 3.
 \end{gather}
-\sources{PK calée sur Her 2020, Front Vet Sci 7:423, doi:10.3389/fvets.2020.00423 (\acc{lu} ; bras oral 0,5~mg/kg, $n = 7$) : $C_\text{max}$ 43,8 contre $49{,}1 \pm 28{,}7$~ng/mL, $t_{1/2}$ 1,66 contre $1{,}8 \pm 0{,}8$~h, ASC 149,3 contre $148{,}4 \pm 71{,}6$ ; $F = 0{,}5$ supposée. PD : placeholder. Terme toxique : EC$_{50}^\text{tox} = 10\times$ EC$_{50}$, Hill 3, aucune source (\evD{}).}
-\limite{$T_\text{max}$ 0,95~h contre $2{,}1 \pm 0{,}9$~h. Pas de voie IV dans le module. L'hypertension rapportée en surdosage (2 chiens sur 7, Reinker 2012, \acc{moteur}) est impossible dans le modèle. L'inotropisme réduit peu la POG en MMVD à dose unique (les études portent sur des traitements de plusieurs jours).}
+\sources{PK calée sur Her 2020, Front Vet Sci 7:423, doi:10.3389/fvets.2020.00423 (\acc{lu} ; bras oral 0,5~mg/kg, $n = 7$) : $C_\text{max}$ 43,8 contre $49{,}1 \pm 28{,}7$~ng/mL, $t_{1/2}$ 1,66 contre $1{,}8 \pm 0{,}8$~h, ASC 149,3 contre $148{,}4 \pm 71{,}6$ ; $F = 0{,}5$ supposée. PD : placeholder. Terme toxique : EC$_{50}^\text{tox} = 10\times$ EC$_{50}$, Hill 3, aucune source (\evD{}).
+Conduction AV (ajout du 19/11/2026) : PQ $93 \pm 1{,}8 \to -11{,}8$~\% à 60~min après 0,15~mg/kg IV
+(Pichayapaiboon 2021, Front Vet Sci, PMC8417876, \acc{lu} ; $n = 9$), où $E \approx 0{,}45$ dans le
+modèle ; réfractarités auriculaire, ventriculaire et nodale AV abaissées, AH et PR raccourcis
+(Kitzen 1988, J Pharmacol Exp Ther 244:929, \acc{résumé}) ; PR et QT raccourcis à 4 fois la dose
+pendant 6 mois (Kuntz 2018, \acc{résumé}). Le même facteur est appliqué à \vp{av_erp} : valeur non
+publiée dans le résumé (\evD{}).}
+\limite{$T_\text{max}$ 0,95~h contre $2{,}1 \pm 0{,}9$~h. Pas de voie IV dans le module. L'hypertension rapportée en surdosage (2 chiens sur 7, 2,6--21,3~mg/kg PO, base Pet Poison Helpline, \acc{résumé}) est impossible dans le modèle ; la tachycardie (4 sur 7) et l'hypotension (2 sur 7) émergent, elles, du terme vasodilatateur et du baroréflexe. Aucune concentration plasmatique après surdosage n'est publiée. L'inotropisme réduit peu la POG en MMVD à dose unique (les études portent sur des traitements de plusieurs jours).}
 
-\subsection{Atropine (module 1.0.0, evidence D)}
-$\vp{vagal_block} \mathrel{+}= E$, borné à $[0, 1]$. PK et PD : placeholders, aucune référence (\vp{refs} vide). Pas de terme toxique : hyperthermie, iléus et effets centraux supposent des variables absentes du moteur (correction 9 non appliquée). Comportement rapporté le 18/11 : FC 87,6 $\to$ 150 à 5~min pour 0,04~mg/kg IV, plateau à 150--152 jusqu'à $\times 100$ ; pas de bradycardie paradoxale.
+\subsection{Atropine (module 1.1.0, evidence C)}\label{sec:atropine}
+Recalée le 19/11/2026 sur la littérature canine. \textbf{PK} : $V$ 3,2~L/kg réparti en
+$\vp{vc} = 1{,}0$ et $\vp{vp} = 2{,}2$ (partage \evD{}), CL 44~mL/min/kg,
+$\vp{ka_im} = \ln 2 / 7~\text{min} = 5{,}94$/h, $\vp{f_im} = 1$ (Thiermann 1996, Arch Toxicol,
+doi:10.1007/s002040050276, \acc{résumé} : 2~mg IM par auto-injecteur, $C_\text{max}$ 33~ng/mL,
+$t_{1/2}$ d'absorption 7~min, d'élimination 52~min) ; cohérent avec Smallridge 1989
+(doi:10.1097/00003246-198912000-00003, \acc{résumé} : 0,05~mg/kg IM, pic $20{,}6 \pm 4{,}9$~ng/mL,
+$V_d$ $3{,}21 \pm 0{,}63$~L/kg). Voie orale ($\vp{ka}$, $\vp{f}$) : placeholders \evD{}.
+
+\textbf{Effet principal, au site d'effet} ($\vp{ke0} = 20$/h, $t_{1/2}$ d'équilibre $\approx 2$~min,
+\evD{}) : $\vp{vagal_block} \mathrel{+}= E$ et $\vp{pupil_block} \mathrel{+}= E$, bornés à $[0, 1]$,
+EC$_{50} = 0{,}0106$~mg/L, $h = 1{,}5$.
+
+\textbf{Termes secondaires} (tableau \vp{toxicity}, chacun avec sa source dans le module) :
+\begin{gather}
+\text{vagal paradoxal (plasma)} : \vp{vagal_add} \mathrel{+}= 0{,}2\,T,\quad \text{EC}_{50} = 0{,}004,\ h = 2,\\
+\text{antimuscarinique périphérique (site d'effet)} : \vp{musc_block} \mathrel{+}= T,\quad \text{EC}_{50} = 0{,}0015,\ h = 1{,}5,\\
+\text{tachycardie excessive (plasma)} : \vp{hr} \mathrel{\times}= (1 + 0{,}2\,T),\quad \text{EC}_{50} = 0{,}045,\ h = 3.
+\end{gather}
+Le paradoxe de la faible dose émerge de la \emph{dissociation temporelle} : le terme vagal agit au
+site plasmatique, sans délai, tandis que le blocage passe par le compartiment d'effet. Le modèle
+donne donc une bradycardie initiale puis une tachycardie, comme les cohortes.
+\sources{
+\begin{itemize}
+\item EC$_{50}$ du blocage calée pour $+50$~\% de FC à $39{,}5 \pm 6{,}2$~\textmu g/kg IV (Hendrix \& Robinson 1997, J Vet Pharmacol Ther, doi:10.1046/j.1365-2885.1997.00084.x, \acc{résumé} ; $n = 6$), en présence du terme paradoxal.
+\item Blocage complet : FC $\times 1{,}74$ dans le modèle, pour $\times 1{,}9$ mesuré après 0,06~mg/kg IV cumulés (Little 1999, Am J Physiol, doi:10.1152/ajpheart.1999.276.2.H758, \acc{résumé} ; indice vagal CIPA à $1{,}3 \pm 0{,}7$~\% de la base) ; FC intrinsèque 141--146/min (Billman 2015, PMC4451292, \acc{résumé}).
+\item Effet paradoxal : ralentissement du nœud sinusal et de la conduction AV à 6,25~\textmu g/kg IV (Kantelip 1985, Br J Anaesth, doi:10.1093/bja/57.2.214, \acc{résumé} ; $n = 12$) ; potentialisation de la bradycardie ($-16$~bpm) pendant 1,4~min en IV, 4,6 en IM, 9,1 en SC après 0,02~mg/kg, avec BAV2 chez 100~\% des chiens en IV (Rishniw 1996, Am J Vet Res 57:337, \acc{résumé} ; $n = 7$) ; FC abaissée chez 5/6 par 0,01~mg/kg IV sous oxymorphone (Copland 1992, \acc{résumé}).
+\item Tachycardie excessive : $+26 \pm 6$~bpm au-delà de la FC de vagotomie à 0,1~mg/kg IV (Rigel 1984, Am J Physiol, doi:10.1152/ajpheart.1984.246.2.H168, \acc{résumé}) ; décrite aussi aux doses intermédiaires, mécanisme ganglionnaire évoqué (Vicenzi 1995, \acc{résumé}).
+\item Antimuscarinique périphérique, plus sensible que le nœud sinusal : motilité du grêle $-93 \pm 13{,}9$~\% à 39,5~\textmu g/kg IV (Hendrix 1997) ; arrêt antral $\geq 30$~min à 0,02~mg/kg IM (Burger 2006, \acc{résumé}) ; sécrétions réduites dès 0,3--1~\textmu g/kg IV (Daly 1982, PMC2071796, \acc{résumé}) ; SOI 47,9 $\to$ 13,2~mmHg (Strombeck 1985).
+\item Mydriase : aux mêmes doses que la tachycardie (de Ponti 1993, J Pharmacol Exp Ther 264:789, \acc{résumé} ; DE$_{50}$ 87~nmol/kg) ; maximum à $30{,}0 \pm 11{,}6$~min après 0,06~mg/kg IM (Kovalcuka 2015, doi:10.1111/vop.12138, \acc{résumé}) ; 0,02~mg/kg SC sans changement significatif (Kim 2015, PMC4427750, \acc{lu}).
+\end{itemize}}
+\limite{Aucune PK IV chez le chien vigile n'a été trouvée : la PK vient d'une étude IM. L'amplitude
+de la mydriase en mm n'est publiée dans aucun résumé accessible (le test ne vérifie donc que le
+sens, le pic entre 10 et 45~min et la dépression du réflexe). Pas de donnée canine sur la
+relation dose--température : seule la perte évaporative de la glande nasale latérale est modélisée
+(hypothèse \evD{}). Délire anticholinergique non modélisé (section~\ref{sec:periph}). Non
+modélisés également : ESV et bigéminisme sous halothane (Muir 1978), aggravation de
+l'hypertension des $\alpha_2$-agonistes (Alvaides 2008 ; molécules absentes du catalogue), baisse
+du seuil de fibrillation ventriculaire (Yoon 1977), bronchodilatation.}
 
 \subsection{Bêtabloquant générique, profil aténolol (module 1.1.0, evidence D)}
 $\vp{beta_block} \mathrel{+}= E$, borné à $[0, 1]$, avec $E_\text{max} = 0{,}85$. Élimination surtout rénale (\vp{renal_exp} 0,9). Effets indirects : FC, inotropisme et conduction AV via $s_\text{eff}$ (sections~\ref{sec:auto}, \ref{sec:rythme}).
 \sources{Profil aténolol (choix du 18/11/2026) : $T_\text{max}$ 1--2~h, effet faible mais significatif sur la FC de repos (Waterman 2019, Am J Vet Res, PMID 30801219, \acc{moteur}). Terme toxique de stabilisation de membrane retiré : propriété du propranolol (Love 2000, J Toxicol Clin Toxicol 38:421, \acc{moteur}).}
 \limite{PK et PD placeholders. Surdosage devenu bénin au repos ($\times 100$ : FC $-7$~\%, PAM 103) ; aucune donnée canine chiffrée pour trancher. Hypoglycémie non modélisée.}
 
-\subsection{Opioïde générique, chien vigile (module 1.1.0, evidence C)}
+\subsection{Opioïde générique, chien vigile (module 1.2.0, evidence C)}
 \begin{gather}
 \vp{vent_drive} \mathrel{\times}= (1 - 0{,}25\,E),\qquad \vp{vagal_add} \mathrel{+}= 0{,}27\,E,\qquad \vp{r_sys} \mathrel{\times}= (1 + 0{,}36\,E),\\
+\vp{t_set} \mathrel{-}= 2{,}0\,E,\qquad \vp{pupil_ew} \mathrel{+}= E,\qquad \vp{gi_inhib} \mathrel{+}= 0{,}9\,E,\qquad \vp{sedation} \mathrel{+}= 0{,}2\,E,\\
 \text{toxique (dépression respiratoire)} : \vp{vent_drive} \mathrel{\times}= (1 - 0{,}8\,T),\quad \text{EC}_{50}^\text{tox} = 1~\text{mg/L},\ h_t = 3.
 \end{gather}
 À effet maximal : FC $-32$~\%, PAM $+6$~\%, PaCO$_2$ $+3$~mmHg ; plateau de PaCO$_2$ $\approx 65$~mmHg sans apnée à très forte concentration.
@@ -659,8 +754,143 @@ PK de type méthadone ($V_d \approx 7$~L/kg, CL 25~mL/min/kg ; Ingvast-Larsson 2
 \item Plateau d'effet : Arndt 1984 (\acc{résumé}).
 \item Terme toxique (\evD{}, borné par la littérature) : pas de hausse de PaCO$_2$ à 1~mg/kg de méthadone (Maiante 2009 ; $C \approx 0{,}33$~mg/L), ni apnée ni PaCO$_2 > 67$~mmHg avec 125 à 3000~\textmu g/kg de fentanyl IV chez le chien vigile (Bailey 1987, Anesth Analg 66:542, \acc{résumé}).
 \item EC$_{50}$ thérapeutique 0,015~mg/L : placeholder cohérent avec l'antinociception au-delà de 17~ng/mL (Amon 2021).
+\item Périphérie (ajouts du 19/11/2026). Consigne thermique abaissée de 2~\degre C à effet maximal : $T$ $38{,}4 \pm 0{,}1 \to 37{,}1 \pm 0{,}4$~\degre C (chute maximale $-1{,}9$) en perfusion de méthadone 0,1~mg/kg/h (Amon 2021, \acc{lu}) ; $-0{,}7$ / $-1{,}7$ / $-2{,}3$~\degre C à 0,3 / 0,5 / 1,0~mg/kg IM (cité par Amon) ; le halètement émerge de l'écart à la consigne, mécanisme avancé par Lucas 2001 (JAVMA, doi:10.2460/javma.2001.218.884, \acc{résumé}).
+\item Myosis : \vp{pupil_ew} $+ E$ (noyau d'Edinger-Westphal, Lee \& Wang 1975) ; amplitude \evD{}, les données étant discordantes (section~\ref{sec:pupille}).
+\item Motilité : \vp{gi_inhib} $+ 0{,}9E$, inhibition du complexe moteur migrant complète à 500--1000~\textmu g/kg/h de morphine, résistante à la vagotomie (Sarna 1985, \acc{résumé}) ; régurgitation chez 4/7 en perfusion de méthadone (Amon 2021).
+\item Sédation légère seulement chez le vigile : \vp{sedation} $+ 0{,}2E$, soit un score de 2 à 7 sur 21 (hydromorphone 0,1~mg/kg IM non plus sédative que le sérum physiologique, Hofmeister 2010, \acc{résumé} ; méthadone 0,5~mg/kg IV légère, KuKanich 2008).
 \end{itemize}}
-\limite{Pas d'état « anesthésié » : l'apnée décrite sous anesthésie halogénée (Garofalo 2012) n'est pas reproductible. Halètement non modélisé. Le point fixe de décompensation est fragile en association (maladie du sinus + opioïde massif : décès par spirale à $\times 10$ et $\times 100$, pas à $\times 30$).}
+\limite{Pas d'état « anesthésié » : l'apnée décrite sous anesthésie halogénée (Garofalo 2012) n'est pas reproductible, et \vp{anesth_mac} n'agit que sur la périphérie. Dysphorie et vomissements non modélisés (section~\ref{sec:periph} ; l'opioïde générique a un profil méthadone, dont les vomissements sont rares : 0/6 à 0/8). Histaminolibération de la morphine IV rapide (histamine 0,55 $\to$ 531~ng/mL à 2~mg/kg, Robinson 1988, \acc{résumé}) non modélisée. Le point fixe de décompensation est fragile en association (maladie du sinus + opioïde massif : décès par spirale à $\times 10$ et $\times 100$, pas à $\times 30$).}
+
+%=====================================================================
+\section{Périphérie : thermorégulation, pupille, digestif, SNC}\label{sec:periph}
+%=====================================================================
+Bloc \cmd{periph} (ajouté le 19/11/2026, utile pour l'anesthésie). Ces quatre effecteurs lisent
+les paramètres (modifiés par les médicaments et par le scénario : ambiance, anesthésie,
+éclairage) et le tonus autonome du régime permanent, puis produisent des indicateurs cliniques.
+Seule la température revient sur le reste du modèle. Entrées de scénario :
+\vp{t_amb}, \vp{warming}, \vp{anesth_mac}, \vp{light}, \vp{excitation} ; entrées pilotées par les
+médicaments : \vp{t_set}, \vp{musc_block}, \vp{pupil_block}, \vp{pupil_ew}, \vp{gi_inhib},
+\vp{sedation}.
+
+\medskip\noindent\textbf{Avertissement.} \vp{anesth_mac} n'agit que sur la périphérie : les effets
+hémodynamiques et respiratoires des halogénés ne sont pas modélisés.
+
+\subsection{Thermorégulation}\label{sec:thermo}
+Bilan thermique à deux compartiments, noyau et enveloppe ($T_c$, $T_s$ en \degre C) :
+\begin{gather}
+f_c\,c\,\frac{\dd T_c}{\dd t} = M - E - K\,(T_c - T_s),\qquad
+(1 - f_c)\,c\,\frac{\dd T_s}{\dd t} = K\,(T_c - T_s) - G\,(T_s - T_a) + W,\\
+M = M_0\,(1 - 0{,}10\,I)\,Q_{10}^{(T_c - 38{,}6)/10} + M_0\,\text{frisson},\qquad
+E = \big(0{,}20\,M_\text{basal} + M_0\,\text{halètement}\big)\,(1 - 0{,}27\,\vp{musc_block}),\\
+K = K_0\,e^{(1 - I)\,\text{clip}(3\,(T_c - \vp{t_set}),\ \ln 0{,}2,\ \ln 3)},\qquad I = \text{clip}(\vp{anesth_mac}, 0, 1),
+\end{gather}
+avec $M_0 = \vp{vo2}\cdot 20{,}1/60$~W/kg, $c = 3470$~J/kg/\degre C, $f_c = 0{,}69$. Les conductances
+$K_0$ (noyau $\to$ enveloppe, $\propto \vp{bw}^{-0{,}25}$) et $G$ (enveloppe $\to$ ambiance,
+$\propto \vp{bw}^{-1/3}$) sont fixées par l'équilibre du chien de référence en neutralité
+(38,6 et 34,6~\degre C à $T_a = 26$~\degre C). Réponses proportionnelles à l'écart à la consigne
+(Hammel 1963), supprimées par l'anesthésie ($1 - I$) :
+\begin{gather}
+\text{frisson} = (1 - I)\cdot 3\cdot\text{clip}\!\left(\frac{\vp{t_set} - T_c - 0{,}5}{1{,}5}, 0, 1\right),\qquad
+\text{halètement} = (1 - I)\cdot 4\cdot\text{clip}\!\left(\frac{T_c - \vp{t_set} - 0{,}2}{1{,}0}, 0, 1\right).
+\end{gather}
+Intégration RK4 au pas de 60~s ; l'équilibre initial est obtenu sur 72~h. \cmd{thermal\_course}
+applique à chaque pas les effets des médicaments aux concentrations de \cmd{timecourse}.
+
+\textbf{Retour sur le modèle} (\cmd{apply\_temperature}, appelé en tête de \cmd{evaluate}) :
+\begin{gather}
+\vp{hr} \mathrel{\times}= 1{,}51^{\Delta T/10},\qquad
+\vp{vo2} \mathrel{\times}= (1 - 0{,}10\,I)\,1{,}7^{\Delta T/10} + \text{frisson},\qquad
+\vp{p50} \mathrel{\times}= 10^{0{,}021\,\Delta T},
+\end{gather}
+$\Delta T = T_c - 38{,}6$ ; identité exacte à 38,6~\degre C sans anesthésie ni frisson. La CAM
+effective suit $\vp{anesth_mac}\cdot e^{-0{,}086\,\Delta T}$.
+
+\sources{
+\begin{itemize}
+\item $T_c$ de référence 38,6~\degre C, intervalle 37,7--39,5 (Dorn 2024, Animals 14:1970, doi:10.3390/ani14131970, PMC11240782, \acc{lu} ; $n = 9117$) : \evA{}.
+\item $f_c = 0{,}69$ calé sur la chute sous anesthésie : $38{,}7 \pm 0{,}6 \to 36{,}7 \pm 1{,}3$ / $36{,}1 \pm 1{,}4$ / $35{,}8 \pm 1{,}5$~\degre C à 1 / 2 / 3~h (Redondo 2012, Vet Rec 171:374, doi:10.1136/vr.100476, \acc{résumé} ; $n = 1525$) ; profil en plateau vers 75~min (Sage 2023, \acc{résumé}, $n = 1097$) : \evC{}.
+\item $Q_{10}$ de la VO$_2$ = 1,7 : 4,7 $\pm$ 0,4 $\to$ 3,2 $\pm$ 0,3~mL/kg/min de 37,7 à 30,5~\degre C (Gutierrez 1986, J Appl Physiol 60:751, \acc{résumé}) : \evC{}.
+\item Frisson $\times 4$ : VO$_2$ $+300$~\% (Auld 1980, Clin Sci 58:501, \acc{résumé}) ; $\times 4{,}5$ à $-21$~\degre C (Minaire 1982, \acc{résumé}) : \evB{}.
+\item Neutralité thermique 26--29~\degre C l'été, 22--26 l'hiver (Sugano 1981, Jpn J Physiol 31:465, \acc{résumé}) : \evC{}.
+\item Glande nasale latérale : 19--36~\% de la hausse d'évaporation respiratoire (Blatt 1972, Science 177:804, \acc{résumé}) ; sa commande cholinergique est une hypothèse (\evD{}).
+\item $Q_{10}$ de la FC = 1,51 : FC $-17$~\% de 38,5 à $\approx 34$~\degre C sous isoflurane (Yoshida 2001, Anesthesiology 94:678, \acc{résumé} ; $n = 30$), valeur dérivée : \evC{}.
+\item P50 : $\Delta\log_{10}\text{P50}/\Delta T = 0{,}022$ (Reeves 1982, \acc{résumé}) et 0,020 (Cambier 2004, \acc{résumé}) : \evB{}.
+\item CAM : 1,20 $\pm$ 0,17 contre 0,89 $\pm$ 0,18~\% à 34,5~\degre C, $-26$~\% (Wilson 2006, JAVMA 228:1042, \acc{résumé}) : \evC{}.
+\item Réchauffement actif (\vp{warming}, W/kg) : circuit chauffé et couverture à eau, 37,7 $\pm$ 0,6 contre 36,6 $\pm$ 1,0~\degre C à l'extubation (Jones 2023, JAVMA 261:1181, \acc{résumé}).
+\end{itemize}}
+\limite{Aucune valeur canine publiée n'a été trouvée pour la chaleur spécifique du corps
+(3470~J/kg/\degre C : valeur humaine, \evD{}), la conductance sèche, les seuils de
+vasoconstriction et de frisson (au repos comme sous anesthésie ; seul substitut trouvé : lapin,
+Imamura 2003) et les pertes respiratoires en W/kg. $f_c$, $T_s$ neutre (34,6), la part
+respiratoire (0,20), les gains vasomoteurs et les plages de recrutement sont donc des
+placeholders \evD{} calés sur la seule cinétique de refroidissement. Le modèle de Potter 2020
+(J Therm Biol 91:102651, payant) contient probablement ces constantes.}
+
+\subsection{Pupille}\label{sec:pupille}
+Innervation réciproque (Yoshitomi 1986, IOVS 27:83, \acc{résumé}) : dilatateur ($\alpha_1$, tonus
+sympathique total $s$) contre sphincter (muscarinique M3, commande d'Edinger-Westphal modulée par
+l'éclairement) :
+\begin{gather}
+D = D_\text{min} + (D_\text{max} - D_\text{min})\,\frac{d}{d + \sigma},\qquad
+d = d_0\,\frac{\max(s, 0)}{0{,}2},\\
+\sigma = (1 + \vp{pupil_ew})\,\big(\sigma_\text{obsc} + (1 - \sigma_\text{obsc})\,\vp{light}\big)\,(1 - \vp{pupil_block}),
+\end{gather}
+$D_\text{min} = 1{,}0$ et $D_\text{max} = 11{,}0$~mm (myosis et mydriase maximaux). Les gains $d_0$,
+$\sigma_\text{obsc}$ et celui du flash sont fixés exactement par trois diamètres mesurés :
+8,53~mm en lumière ambiante, 10,06 à l'obscurité, 6,57 au creux du réflexe photomoteur. Le modèle
+reproduit alors une amplitude de réflexe de 23~\%, pour $23{,}5 \pm 7{,}0$~\% mesurés.
+\sources{Mills 2022, Front Vet Sci, doi:10.3389/fvets.2022.1020710, PMC9643214 (\acc{lu} ; 126 yeux,
+209--236~lux : MAX $8{,}53 \pm 1{,}30$, MIN $6{,}57 \pm 1{,}41$, constriction $23{,}5 \pm 7{,}0$~\%) : \evA{}.
+Obscurité $10{,}06 \pm 0{,}54$ (Whiting 2013, cité par Mills 2022) et extrêmes pharmacologiques
+$11{,}02 \pm 0{,}83$ / $1{,}02 \pm 0{,}32$ (Weisse 1975, doi:10.1007/BF00501796, \acc{résumé} ;
+142 beagles) : \evB{}. Myosis opioïde par excitation du noyau d'Edinger-Westphal, aboli par section
+du nerf III (Lee \& Wang 1975, J Pharmacol Exp Ther 192:415, \acc{résumé}).}
+\limite{Statique : la cinétique du réflexe (latence $0{,}22 \pm 0{,}05$~s, vitesses) n'est pas
+simulée. Aucune relation diamètre--concentration d'isoflurane publiée chez le chien ; la position
+du globe et les réflexes palpébral et cornéen, qui servent en pratique à juger la profondeur
+d'anesthésie, ne sont pas modélisés. Les amplitudes de \vp{pupil_ew} et \vp{pupil_block} sont des
+\evD{} : les données opioïdes sont discordantes (morphine : myosis marqué ; méthadone 0,3~mg/kg :
+aucun changement, Raušer 2022, \acc{résumé}).}
+
+\subsection{Digestif et sécrétions}
+\begin{gather}
+\text{motilité} = (1 - \vp{musc_block})(1 - \vp{gi_inhib})\,(1 - 0{,}727\,\min(\text{CAM}_\text{eff}, 1)),\\
+\vp{les} = 47{,}9\,(1 - 0{,}724\,\vp{musc_block})~\text{mmHg},\qquad \text{salivation} = 1 - \vp{musc_block}.
+\end{gather}
+\sources{Pression du sphincter œsophagien inférieur $47{,}9 \pm 1{,}2$~mmHg, $13{,}2 \pm 2{,}0$ sous
+atropine (Strombeck 1985, PMID 4014848, \acc{résumé}) : \evB{}. Force de contraction gastrique
+11~(8--20) $\to$ 3~(1--10)~mmHg sous sévoflurane, retour en 12--15~h (Boscan 2014,
+doi:10.1111/vaa.12093, \acc{résumé} ; $n = 12$) : \evC{}. Arrêt de la motilité antrale $\geq 30$~min
+à 0,02~mg/kg d'atropine IM, $> 3$~h à 0,04 (Burger 2006, doi:10.1111/j.1439-0442.2006.00787.x,
+\acc{résumé}) ; motilité du grêle $-93 \pm 13{,}9$~\% à 39,5~\textmu g/kg IV (Hendrix 1997,
+\acc{résumé}). Inhibition opioïde du complexe moteur migrant, dose-dépendante, complète à
+500--1000~\textmu g/kg/h de morphine et résistante à la vagotomie (Sarna 1985, PMID 2993596,
+\acc{résumé}) : \evC{}.}
+\limite{Indices relatifs, sans débit salivaire absolu : aucune valeur canine en mL/min chez le
+vigile, et aucune courbe dose--réduction de la salive sous atropine ou glycopyrrolate aux doses
+cliniques n'a été trouvée. Vomissements et régurgitation non modélisés (fréquences publiées
+seulement par protocole : morphine 70--76~\%, hydromorphone 0,2~mg/kg IM 87~\%, méthadone
+0/6--0/8). Iléus postopératoire et vidange gastrique non simulés.}
+
+\subsection{Système nerveux central}
+\begin{gather}
+\text{drive} = \vp{sedation} + \left(\frac{\text{CAM}_\text{eff}}{0{,}4}\right)^{4},\qquad
+\text{score} = 1 + 20\,\frac{\text{drive}}{1 + \text{drive}}.
+\end{gather}
+Le BIS est interpolé dans la table mesurée et vaut \cmd{None} hors du domaine 0,8--2,0~CAM.
+\sources{Échelle de sédation de Grint, 7 items, 0--21 (Wagner 2017, BMC Vet Res,
+doi:10.1186/s12917-017-1027-2, PMC5395740, \acc{lu} ; $\alpha$ de Cronbach 0,89, base médiane 1,
+dexmédétomidine + hydromorphone 11~[1--18], acépromazine + hydromorphone 5~[0--15], perte du tonus
+de la mâchoire à 17--18/21) : \evB{}. BIS selon la CAM d'isoflurane : $65 \pm 8$ / $60 \pm 7$ /
+$52 \pm 3$ / $31 \pm 28$ à 0,8 / 1,0 / 1,5 / 2,0~CAM (Greene 2003, Am J Vet Res,
+doi:10.2460/ajvr.2003.64.316, \acc{résumé} ; 6 chiens curarisés) : \evC{}.}
+\limite{L'exposant 4 et la CAM de demi-effet (0,4) sont des \evD{} : aucune relation
+concentration--score publiée chez le chien. \vp{excitation} reste une entrée de scénario : le
+délire anticholinergique (un seul cas canin, Fedotova 2025, avec lidocaïne associée et des seuils
+de source secondaire contradictoires) et la dysphorie des opioïdes (présente à 1~mg/kg IV de
+méthadone, Garofalo 2012 ; absente à 0,5, KuKanich 2008, \acc{résumés}) ne sont pas modélisés,
+faute d'échelle et de relation concentration--effet. Convulsions non modélisées (la seule donnée
+canine chiffrée porte sur la lidocaïne : $20{,}8 \pm 4{,}0$~mg/kg, Feldman 1989).}
 
 %=====================================================================
 \section{Maladies}\label{sec:maladies}
@@ -677,6 +907,21 @@ Stades ACVIM : B1 $[0{,}05; 0{,}3]$, B2 $[0{,}3; 0{,}6]$, C $[0{,}6; 0{,}85]$, D
 \end{gather}
 Régurgitation croissante, dilatation du VG, rétention hydrosodée tardive, déséquilibre autonome ; le souffle, l'œdème, l'hypoxémie et la tachycardie émergent. Avec l'orifice dynamique, la conductance effective vaut $\vp{g_mr}\,(\text{VTD}/\vp{mr_vref})^{2{,}5}$ : les coefficients 0,9458 et 1,111 ont été recalés le 18/11/2026 pour conserver la fraction régurgitée et la POG de chaque stade (RF B1/B2/C/D 0,11/0,35/0,58/0,76 contre 0,04/0,36/0,64/0,75 avant ; POG 5,2/7,1/12,0/21,0 contre 4,9/7,3/13,5/20,0~mmHg).
 \sources{Calage initial (\cmd{fit\_mmvd.py}) sur des cibles de fraction de régurgitation et de POG par stade : RF 17--81~\% en IM expérimentale (Oyama 2004, J Vet Intern Med 18:667, doi:10.1111/j.1939-1676.2004.tb02604.x, \acc{résumé}) ; œdème si POG $> \approx 20$~mmHg (MSD Vet Manual) ; FC 130 et 160/min aux stades C et D : choix clinique non sourcé. Cibles de vérification du module : RF B1 $\le 20$~\% ; POG C 14--24 ; POG D 20--32 ; FC D 140--180 (« choix clinique non sourcé »). Stades : ACVIM 2019 (Keene, doi:10.1111/jvim.15488, \acc{lu}). Comparaisons (17/11) : RF B1 7,0~\% contre 13,5~\% (IQR 1,9--28,3), B2 38,3 contre 53,3 (38,7--65,8), C 63,9 contre 60,2 (Kawai 2026, \acc{lu}) ; FC et PAS en ICC conformes à Yin 2026 (\acc{lu}).}
+\textbf{Recalage 1.2.0 (19/11/2026), après le solveur du baroréflexe et le recalage de la systole.} Les coefficients du déséquilibre autonome ($\vp{s0} \mathrel{+}= 0{,}65\,\ell_\text{aut}$, $\vp{v0} \mathrel{-}= 0{,}65\,\ell_\text{aut}$ ; 0,5 auparavant) et de la rétention tardive ($0{,}37\,\ell_\text{ret}\,z_{bvf}$ ; 0,30) sont recalés. La rétention est plafonnée par l'effet du furosémide sur la POG (Suzuki 2013 : $-27$~\% ; test à $-18$~\%), qui faiblit quand la volémie augmente : à 0,38, l'effet tombe à $-17{,}8$~\%.
+\begin{itemize}
+\item \textbf{FC.} Les FC publiées sont mesurées en consultation : les témoins y sont à $115 \pm 22$/min (Baisan 2023, PMC10210847, \acc{lu}), alors que le modèle représente le repos (87/min, Haskins 2005). La comparaison porte donc sur l'élévation \emph{relative}. Repères (\acc{lu}) :
+  \begin{itemize}
+  \item B1 120 (104--132) et B2 128 (117--140), $n = 908$ et 337 (Wilshaw 2021, PMC7995403) ;
+  \item B2 $142 \pm 25$ et œdème aigu $160 \pm 21$ (Baisan 2023) ;
+  \item apparition de l'ICC 150 (140--162), soit $+20$~\% en dix mois (Boswood 2018, PMC5787203 ; Boswood 2020) ;
+  \item récidive d'ICC, C avancé ou D : $165 \pm 31$ (Park 2026, PMC13015027) ;
+  \item aucune FC publiée au stade D dans les sources lues.
+  \end{itemize}
+  Modèle, en rapport à la FC du chien sain : B1 $\times 0{,}99$, B2 $\times 1{,}05$ (cible 1,11--1,23 : trop bas, le déséquilibre ne démarre qu'à $s = 0{,}4$), C $\times 1{,}28$ (cible 1,30--1,39), D $\times 1{,}62$ (cible $1{,}43 \pm 0{,}27$).
+\item \textbf{Cible de FC du stade D.} L'ancienne cible absolue 140--180 (« choix clinique non sourcé ») est remplacée par 100--150/min au repos, soit $87 \times (1{,}43 \pm 0{,}27)$ ; le modèle donne 141.
+\item \textbf{Récapitulatif par stade} ($s$ = 0,175/0,45/0,725/0,925) : RF 0,10/0,30/0,56/0,74 ; POG 6,0/7,3/13,9/26,1~mmHg (cibles de plausibilité C : 14--24, D : 20--32 ; le milieu du stade C est à 0,1 sous la borne, au niveau de la médiane d'Allen 2021 en ICC, 14) ; FC 86/91/112/141 ; PAM 103/105/117/120.
+\end{itemize}
+
 \textbf{Congestion par stade (18/11/2026).} La rétention hydrosodée (coefficient de $\ell_\text{ret}$) est portée de 0,149 à 0,30 pour que le stade C soit congestif : POG 9,8 à 22,8~mmHg sur le stade C (15,2 au milieu, contre 12,1 avant), jusqu'à 37~mmHg au stade D ; stades B inchangés (POG 7,1 à $s = 0{,}45$). Repères : POG invasive chez des chiens MMVD en ICC (stades C/D) : médiane 14~mmHg (8--32), Allen 2021, JAVMA 258:638, doi:10.2460/javma.258.6.638 (\acc{résumé}) ; IM expérimentale de stade B2 : 14,6~$\pm$~3,8~mmHg (Suzuki 2012, PMC3489586, \acc{lu}) ; œdème expérimental aigu au-delà de 20--25~mmHg (Nakata 1986 ; Magno \& Szidon 1976 ; \acc{résumé}). Aucune série invasive par stade ACVIM n'a été trouvée chez le chien MMVD spontané. La fuite mitrale est normalisée au chien de 20~kg (section~\ref{sec:valves}) : au milieu du stade C, la POG ne dépend plus guère du poids (10 à 60~kg).
 \limite{Indices échographiques (LA:Ao, LVIDDN) et NT-proBNP non calculés. Pas de tachypnée en ICC. VFC du stade C : voir section~\ref{sec:auto}. Les comparaisons de RF par stade (Kawai 2026) précèdent les recalages du 18/11. Au stade D, hypoxémie marquée (PaO$_2$ 54~mmHg au milieu du stade, 29 à $s = 1$).}
 
@@ -770,7 +1015,7 @@ Paramètre & Valeur & Source & Év.\\
 \bottomrule
 \end{tabularx}
 
-\limite{Seuils et pentes inactifs dans la plage du golden et de la calibration, donc non contraints par les données du sain. Le critère de PAM est instantané alors que la source décrit une irréversibilité après 1 à 3~h. Le point fixe peut échouer près des frontières (cas « vicious\_circle » dépendant de la dose, section~\ref{sec:pk}). Discontinuité connue du critère d'arrêt du baroréflexe ($|d_t - d| < 0{,}04$) : un cas proche du seuil peut faire un passage de plus ou de moins.}
+\limite{Seuils et pentes inactifs dans la plage du golden et de la calibration, donc non contraints par les données du sain. Le critère de PAM est instantané alors que la source décrit une irréversibilité après 1 à 3~h. Le point fixe peut échouer près des frontières (cas « vicious\_circle » dépendant de la dose, section~\ref{sec:pk}). Le critère d'arrêt du baroréflexe ($|d_t - d| < 0{,}01$) laisse un écart résiduel de l'ordre de 0,5~mmHg entre deux calculs équivalents.}
 
 %=====================================================================
 \section{Signaux : ECG, VFC, auscultation}\label{sec:signaux}
@@ -782,7 +1027,7 @@ Somme de gaussiennes construite depuis la conduction (\cmd{signals::make\_ecg\_c
 Q : -0{,}12\,R_\text{amp}\ \text{en}\ t - 0{,}34\,q,\ \sigma = q/14;\qquad R : R_\text{amp},\ \sigma = q/10;\qquad S : -0{,}20\,R_\text{amp}\ \text{en}\ t + 0{,}34\,q,\ \sigma = q/13,\\
 T : T_\text{amp}\ \text{en}\ t - 0{,}5\,q + \text{QT}_c - 2{,}2\,t_w,\ \sigma = t_w,\qquad \text{QT}_c = \text{QT}\,(95/\max(60/RR, 30))^{1/3}\ \text{(Fridericia, RR précédent)}.
 \end{gather}
-P : $\sigma = \vp{P_SIGMA} = 10{,}5$~ms ; $t_w = \vp{T_W0} = 25$~ms. Battement ventriculaire : QRS $2{,}2\,q$ (\vp{WIDE_QRS}), R $\times 1{,}2$ ($\sigma = 2{,}2q/8$), S $-0{,}35\,R_\text{amp}$ en $+0{,}40$, T discordante $-1{,}5\,T_\text{amp}$ de largeur $1{,}5\,t_w$. Onde f : amplitude $0{,}3\,\vp{p_amp}\cdot\min(2, \Delta t_a/\vp{af_cycle})$, $\sigma = 12$~ms. Bruit blanc 0,01~mV et dérive de ligne de base 0,02~mV à 0,25~Hz.
+P : $\sigma = \vp{P_SIGMA} = 10{,}5$~ms ; $t_w = \vp{T_W0} = 25$~ms. Onde Ta (repolarisation atriale, 18/11/2026) après chaque P organisée : amplitude $-0{,}35\,\vp{p_amp}$, $\sigma_{Ta} = 2{,}3\,\sigma_P$, centrée $2\sigma_P + \sigma_{Ta}$ après le centre de P (début à la fin de P, pic dans le segment PR) ; Perego 2014 (BAV~3, $n = 36$, \acc{résumé} : Ta/P $-0{,}35$ en amplitude, 2,3 en durée, $-0{,}09$~mV en D2) et Mirvis 1986 (pic dans le segment PR) ; masquée par le QRS en rythme sinusal (Romito 2022, \acc{lu}). Conduction intra-atriale \vp{pa_ia} = 41~ms (PA $41 \pm 1$~ms, AH $66 \pm 2$, HV $37 \pm 1$, $n = 97$ chiens anesthésiés ; Traunecker 1988, \acc{résumé}) : l'influx atteint le nœud AV $\vp{pa_ia}$ après le début de P et $\text{AH} = \text{PR} - \vp{hv} - \vp{pa_ia}$ (seul AH est modulé par le tonus autonome). Battement ventriculaire : QRS $2{,}2\,q$ (\vp{WIDE_QRS}), R $\times 1{,}2$ ($\sigma = 2{,}2q/8$), S $-0{,}35\,R_\text{amp}$ en $+0{,}40$, T discordante $-1{,}5\,T_\text{amp}$ de largeur $1{,}5\,t_w$. Onde f : amplitude $0{,}3\,\vp{p_amp}\cdot\min(2, \Delta t_a/\vp{af_cycle})$, $\sigma = 12$~ms. Bruit blanc 0,01~mV et dérive de ligne de base 0,02~mV à 0,25~Hz.
 
 \textbf{Effets de K$^+$} (\cmd{ecg\_features}) : si $K > 5{,}5$ ($\delta = K - 5{,}5$) : $T_\text{amp} \times (1 + 0{,}45\delta)$ ; $t_w = \vp{T_W0}\max(0{,}025, 0{,}045 - 0{,}006\delta)/0{,}045$ ; P élargie $\times (1 + 0{,}25\max(0, K - 6))$ et aplatie $\times\max(0, 1 - 0{,}25\max(0, K - 6))$ ; QT $\times \max(0{,}8, 1 - 0{,}04\delta)$ ; PR $\times (1 + 0{,}07\max(0, K - 6))$ ; QRS $\times (1 + 0{,}12\max(0, K - 6{,}5))$. Si $K < 3{,}2$ : T $\times \max(0{,}2, 1 - 0{,}3(3{,}2 - K))$, QT $\times (1 + 0{,}08(3{,}2 - K))$. La disparition de P à 8,5~mmol/L vient de la conduction.
 
@@ -803,7 +1048,7 @@ Voir la section~\ref{sec:auto} : les instants R viennent de la simulation autono
 \item Variabilité lognormale ($\sigma$ 0,18) de B1 et B2, modulation respiratoire $1 + 0{,}15\sin$ ; bruit de fond 40--155~Hz (ordre 4, amplitude 0,014) modulé par la respiration. Sites : base (gains B1 0,7 ; B2 3,1) et apex (1,5 ; 3,1), souffle 0,7.
 \end{itemize}
 \sources{Heartsound Library de la TiHo Hannover (Vörös, Ehlers, Kleinsorgen, Nolte ; CC BY-NC-ND 4.0, aucun enregistrement embarqué) : 3 enregistrements sans souffle et 5 de régurgitation mitrale, un chien par grade. Calés (\evC{}) : durée de B1 (45 contre 43~ms), bruit de fond par bande, niveau du souffle par grade (écart quadratique moyen 3,4~dB sur 10 valeurs), rapport B2/B1 à l'apex (médiane 0,82). Systole : B1$\to$B2 du beagle (PMC9394128).}
-\limite{B1$\to$B2 trop long (0,26 contre 0,18~s), cause hémodynamique. Attribution du site « base » à revoir (l'enregistrement de calage est décrit comme pris à l'apex). Pas de souffle à la base ni de souffle diastolique enregistrés ; B3 non calé ; correspondance grade--débit non calibrée ; mp3 avec pertes.}
+\limite{B1$\to$B2 : 0,15~s depuis le recalage de la systole du 18/11/2026 (0,26~s avant), contre 0,18~s enregistré. B1 est placé au croisement P$_\text{VG}$/P$_\text{OG}$, que la systole atriale encore active au début de la contraction retarde (environ 60~ms après le début mécanique). Attribution du site « base » à revoir (l'enregistrement de calage est décrit comme pris à l'apex). Pas de souffle à la base ni de souffle diastolique enregistrés ; B3 non calé ; correspondance grade--débit non calibrée ; mp3 avec pertes.}
 
 %=====================================================================
 \section{Synthèse des sources et des placeholders}\label{sec:synthese}

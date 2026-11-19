@@ -71,6 +71,15 @@
     },
     "hep_exp": {
      "type": "number"
+    },
+    "ka_im_per_h": {
+     "type": "number",
+     "exclusiveMinimum": 0
+    },
+    "f_im": {
+     "type": "number",
+     "minimum": 0,
+     "maximum": 1
     }
    }
   },
@@ -203,6 +212,12 @@
           }
          }
         }
+       },
+       "site": {
+        "enum": [
+         "plasma",
+         "effect"
+        ]
        }
       }
      }
@@ -224,6 +239,10 @@
      "minimum": 0,
      "maximum": 1,
      "description": "Diurétique : fraction φ de la diurèse effective compensée à l'équilibre ; les effets reçoivent U − φ·W."
+    },
+    "ke0_per_h": {
+     "type": "number",
+     "exclusiveMinimum": 0
     }
    }
   },

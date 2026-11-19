@@ -13,6 +13,7 @@ from scipy.signal import butter, sosfilt
 # calées pour que les durées VISIBLES (seuil 0,02 mV) soient celles des intervalles publiés :
 # P 45 ms (40–50 ms, Lerdweeraphon 2020 ; 44 ms, Bispo 2025), QRS visible = paramètre `qrs`
 # (Q et S compris), segment ST isoélectrique avant T (Romito 2022 le mesure chez 180 chiens sains).
+TA_AMP, TA_WIDTH = -0.35, 2.3   # onde Ta : amplitude (× P, négative) et largeur (× P) ; Perego 2014, Mirvis 1986
 P_SIGMA = 0.0105        # largeur de P (s) : 45 ms visibles à 0,2 mV
 P_WIDEN_K = 0.25        # élargissement relatif de P par mmol/L de K au-delà de 6 (placeholder D)
 R_SIGMA = 1.0 / 10      # largeur de R (fraction de `qrs`)
@@ -21,6 +22,12 @@ S_POS, S_SIGMA = 0.34, 1.0 / 13   # centre (après R) et largeur de S
 T_W0 = 0.025            # largeur de T (s) au repos : ST de 47 ms à 88/min (placeholder D, aucune durée de T lue)
 WIDE_R_SIGMA = 1.0 / 8  # battement ventriculaire : largeur de R, centre et largeur de S
 WIDE_S_POS, WIDE_S_SIGMA = 0.40, 1.0 / 11   # (QRS visible = WIDE_QRS · `qrs`)
+
+
+def ta_wave(p_c, p_w):
+    """Centre et largeur de l'onde Ta : débute à la fin de P (± 2 σ), culmine dans le segment PR."""
+    w = TA_WIDTH * p_w
+    return p_c + 2.0 * p_w + w, w
 
 
 def ecg_features(p):
@@ -65,6 +72,8 @@ def make_ecg(p, hr, rr_resp, dur=8.0, fs=500, seed=0, r_times=None):
     for tr_ in tR:
         q = f['qrs']
         sig += g(tr_ - f['pr'] + 0.5 * 0.03, f['p_amp'], f['p_w'])                  # P
+        tc, tw = ta_wave(tr_ - f['pr'] + 0.5 * 0.03, f['p_w'])
+        sig += g(tc, TA_AMP * f['p_amp'], tw)                                       # Ta
         sig += g(tr_ - Q_POS * q, -0.12 * f['r_amp'], Q_SIGMA * q)                  # Q
         sig += g(tr_, f['r_amp'], R_SIGMA * q)                                      # R
         sig += g(tr_ + S_POS * q, -0.20 * f['r_amp'], S_SIGMA * q)                  # S
@@ -102,6 +111,8 @@ def make_ecg_conducted(p, cond, hr, dur=8.0, fs=500, seed=0):
             break
         if organized:
             sig += g(ta + 0.5 * 0.03, f['p_amp'], f['p_w'])                         # P
+            tc, tw = ta_wave(ta + 0.5 * 0.03, f['p_w'])
+            sig += g(tc, TA_AMP * f['p_amp'], tw)                                  # Ta
         else:
             rec = 1.0 if prev_a is None else min(F_WAVE_MAX, (ta - prev_a) / p['af_cycle'])
             sig += g(ta, F_WAVE * p['p_amp'] * rec, 0.012)                         # onde f

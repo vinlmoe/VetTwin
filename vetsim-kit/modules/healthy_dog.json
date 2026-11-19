@@ -25,7 +25,7 @@
   },
   "ees_lv": {
    "div": [
-    4.543,
+    4.4915,
     "s"
    ]
   },
@@ -38,7 +38,7 @@
   "a_lv": 1.0,
   "b_lv": {
    "div": [
-    0.01548,
+    0.028137,
     "s"
    ]
   },
@@ -76,7 +76,7 @@
   "ven_cap": 1.0,
   "c_pa": {
    "mul": [
-    1.5,
+    2.5,
     "s"
    ]
   },
@@ -112,7 +112,7 @@
   },
   "r_sys": {
    "div": [
-    1.7571999999999999,
+    1.7925,
     {
      "pow": [
       "s",
@@ -123,7 +123,7 @@
   },
   "r_pul": {
    "div": [
-    0.156,
+    0.15626,
     {
      "pow": [
       "s",
@@ -150,14 +150,14 @@
   "mr_k": 2.5,
   "mr_vref": {
    "mul": [
-    72.0,
+    68.5,
     "s"
    ]
   },
   "bvf": 1.0,
   "vol_shift": {
    "mul": [
-    -21.0,
+    -22.43,
     "s"
    ]
   },
@@ -225,9 +225,9 @@
   "vagal_add": 0.0,
   "vagal_block": 0.0,
   "beta_block": 0.0,
-  "rsa_depth": 0.95,
+  "rsa_depth": 0.64,
   "vag_noise": 0.025,
-  "sym_noise": 0.22,
+  "sym_noise": 0.14,
   "baro_sens": 1.0,
   "acid_ph0": 7.2,
   "acid_ees": 1.5,
@@ -246,10 +246,15 @@
   "ta_atr": 0.09,
   "tra_atr": 0.06,
   "ts_restitution": 0.1,
-  "ca_tau": 0.2,
+  "ca_tau": 0.12,
   "ca_recirc": 0.6,
   "ees_wide": 0.8,
-  "ts_coef": 0.325,
+  "ts_coef": 0.25,
+  "act_gamma": 0.55,
+  "tr_frac": 0.35,
+  "emd_v": 0.022,
+  "emd_a": 0.0,
+  "pa_ia": 0.041,
   "sa_block": 0.0,
   "af": 0.0,
   "af_cycle": 0.12,
@@ -265,14 +270,29 @@
   "hp_conduction": 1.0,
   "k_hp_block": 10.0,
   "hp_k_slope": 0.5,
-  "junct_rate": 50.0,
+  "junct_rate": 47.0,
   "vent_escape_rate": 42.0,
   "esc_k_gain": 0.1,
-  "esc_overdrive": 1.3,
+  "esc_sup_gain": 1.8,
+  "esc_sup_tau": 60.0,
+  "esc_a_s": 2.0,
+  "esc_a_v": 0.72,
   "vpc_rate": 0.0,
   "vpc_k_gain": 1.0,
   "k_vpc": 3.0,
-  "k_atrial_standstill": 8.5
+  "k_atrial_standstill": 8.5,
+  "temp_c": 38.6,
+  "t_set": 38.6,
+  "t_amb": 26.0,
+  "warming": 0.0,
+  "anesth_mac": 0.0,
+  "musc_block": 0.0,
+  "pupil_block": 0.0,
+  "pupil_ew": 0.0,
+  "light": 1.0,
+  "gi_inhib": 0.0,
+  "sedation": 0.0,
+  "excitation": 0.0
  },
  "interindividual_variability": {
   "ees_lv": {
