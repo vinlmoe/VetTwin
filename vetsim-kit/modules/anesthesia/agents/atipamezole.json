@@ -1,0 +1,54 @@
+{
+ "schema_version": "1.0.0",
+ "species": [
+  "dog"
+ ],
+ "license": "CC-BY-4.0",
+ "id": "atipamezole",
+ "version": "1.0.0",
+ "name": {
+  "fr": "Atipamézole"
+ },
+ "evidence": "C",
+ "pk": {
+  "vc_L_kg": 0.5,
+  "vp_L_kg": 1.0,
+  "cl_mL_min_kg": 9.23,
+  "q_mL_min_kg": 20.0,
+  "ka_per_h": 1.0,
+  "f": 0.0,
+  "renal_exp": 0.0,
+  "hep_exp": 1.0
+ },
+ "pd": {
+  "type": "emax",
+  "emax": 1.0,
+  "ec50_mg_L": 1.0,
+  "hill": 1.0,
+  "effects": []
+ },
+ "anesthesia": {
+  "classes": [
+   "antagonist"
+  ],
+  "ke0_per_min": 0.5,
+  "im": {
+   "f": 1.0,
+   "ka_per_h": 9.56
+  },
+  "antagonist": {
+   "targets": [
+    "dexmedetomidine"
+   ],
+   "ki_mg_L": 0.005
+  },
+  "evidence": "C",
+  "source": "PK IM : Cl/F 554 mL/h/kg (9,23 mL/min/kg en supposant F = 1, D), Vz/F 1,49 L/kg (partage Vc/Vp D), ka 9,56 h⁻¹ calculé sur le Tmax de 0,35 h et la t½ de 1,8 h (Cowan 2026, lu). Ki et ke0 placeholders D (éveil en 3 à 7 min après atipamézole IM, Vainio & Vähä-Vahe 1990, résumé)."
+ },
+ "refs": [
+  "Cowan R et al. 2026, J Vet Pharmacol Ther (PMC13159760, lu)",
+  "Vainio O, Vähä-Vahe T 1990, J Vet Pharmacol Ther, doi:10.1111/j.1365-2885.1990.tb00742.x (résumé)",
+  "Turunen H et al. 2019, Am J Vet Res, doi:10.2460/ajvr.80.10.912 (résumé)"
+ ],
+ "notes": "Antagonisme compétitif de la dexmédétomidine (EC50 de toutes ses courbes multipliées par 1 + C/Ki). Rechute de sédation possible quand l'atipamézole s'élimine avant l'agoniste (Turunen 2019)."
+}

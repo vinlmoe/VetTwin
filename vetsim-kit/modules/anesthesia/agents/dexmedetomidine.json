@@ -1,0 +1,109 @@
+{
+ "schema_version": "1.0.0",
+ "species": [
+  "dog"
+ ],
+ "license": "CC-BY-4.0",
+ "id": "dexmedetomidine",
+ "version": "1.0.0",
+ "name": {
+  "fr": "Dexmédétomidine"
+ },
+ "evidence": "C",
+ "pk": {
+  "vc_L_kg": 0.12,
+  "vp_L_kg": 0.25,
+  "cl_mL_min_kg": 8.0,
+  "q_mL_min_kg": 30.0,
+  "ka_per_h": 1.0,
+  "f": 0.0,
+  "renal_exp": 0.0,
+  "hep_exp": 1.0
+ },
+ "pd": {
+  "type": "emax",
+  "emax": 1.0,
+  "ec50_mg_L": 0.002,
+  "hill": 1.0,
+  "effects": [
+   {
+    "param": "r_sys",
+    "op": "mul",
+    "expr": {
+     "add": [
+      1,
+      {
+       "mul": [
+        2.5,
+        "EP"
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "param": "s0",
+    "op": "add",
+    "expr": {
+     "mul": [
+      -0.15,
+      "E"
+     ]
+    },
+    "clamp": [
+     0,
+     1
+    ]
+   },
+   {
+    "param": "vagal_add",
+    "op": "add",
+    "expr": {
+     "mul": [
+      0.3,
+      "E"
+     ]
+    }
+   }
+  ]
+ },
+ "anesthesia": {
+  "classes": [
+   "alpha2_agonist"
+  ],
+  "ke0_per_min": 0.2,
+  "im": {
+   "f": 1.0,
+   "ka_per_h": 5.96
+  },
+  "sedation": {
+   "max": 0.5,
+   "ec50_mg_L": 0.002,
+   "hill": 1.5
+  },
+  "mac_reduction": {
+   "max": 0.8,
+   "ec50_mg_L": 0.00069,
+   "hill": 1.0
+  },
+  "antinociception": {
+   "max": 0.4,
+   "ec50_mg_L": 0.002,
+   "hill": 1.0
+  },
+  "evidence": "C",
+  "source": "Clairance et Vss : Dent 2019 (résumé). Vc/Vp : partage placeholder D (Vc + Vp = Vss). IM : ka 5,96 h⁻¹ calculé sur le Tmax de 20,5 min (Aarnes 2023, résumé) avec t½ 36 min ; F = 1 placeholder D. ke0 placeholder D (pic de sédation 12 min après IV, Alves 2024). Épargne de MAC : Emax ajusté (max 0,8 imposé, D) sur Pascoe 2015 (−18 % et −58 %) en supposant les concentrations de Pascoe 2006 (0,198 et 1,903 ng/mL) aux mêmes débits : hypothèse à vérifier sur le texte intégral. Sédation : EC50 de l'ordre des concentrations au pic de sédation (Kuusela 2000 : 5,5 ng/mL à 10 µg/kg) ; plafond 0,5 placeholder D (dose de propofol 5,2 → 2,9 mg/kg après 5 µg/kg IM, Canfrán 2016). Antinociception : placeholder D."
+ },
+ "refs": [
+  "Dent BT et al. 2019, Am J Vet Res, doi:10.2460/ajvr.80.10.969 (résumé)",
+  "Aarnes TK et al. 2023, Am J Vet Res, doi:10.2460/ajvr.22.10.0184 (résumé)",
+  "Congdon JM et al. 2011, JAVMA, doi:10.2460/javma.239.1.81 (résumé)",
+  "Pypendop BH, Verstegen JP 1998, Vet Surg (résumé)",
+  "Pascoe PJ et al. 2006, Vet Anaesth Analg 33:97, doi:10.1111/j.1467-2995.2005.00236.x (résumé)",
+  "Pascoe PJ 2015, Vet Anaesth Analg, doi:10.1111/vaa.12220 (résumé)",
+  "Kuusela E et al. 2000, J Vet Pharmacol Ther, doi:10.1046/j.1365-2885.2000.00245.x (résumé)",
+  "De Sant'Ana Alves R et al. 2024, Res Vet Sci, doi:10.1016/j.rvsc.2024.105229 (résumé)",
+  "Canfrán S et al. 2016, Vet J, doi:10.1016/j.tvjl.2016.01.015 (résumé)"
+ ],
+ "notes": "Effet biphasique : vasoconstriction périphérique (α2B) portée par la concentration PLASMATIQUE (EP), sympatholyse centrale et tonus vagal par le site effet (E). Coefficients calés par petite grille (examples/anesthesia_timing.rs) sur 10 µg/kg IM à 15 min : modèle FC −58 %, DC −57 %, PAM +32 % pour des cibles FC −55 % et DC −59 % (Congdon 2011) et PAM +36 % (Alves 2024, 2 µg/kg IV). Un bloc AV du 2e degré peut émerger du tonus vagal (av_vagal du moteur) à plus forte dose, sans terme ad hoc ; il n'apparaît pas dans ce scénario de calage, alors que Karna 2022 le décrit chez tous les chiens (avec morphine)."
+}

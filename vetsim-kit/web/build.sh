@@ -16,6 +16,12 @@ bundle = {
     'variation': m('modules/variation.json'),
     'diseases': [m(p) for p in sorted(glob.glob('modules/diseases/*.json'))],
     'drugs': [m(p) for p in sorted(glob.glob('modules/drugs/*.json'))],
+    'anesthesia': {
+        'model': m('modules/anesthesia/anesthesia_model.json'),
+        'agents': [m(p) for p in sorted(glob.glob('modules/anesthesia/agents/*.json'))],
+        'inhalants': [m(p) for p in sorted(glob.glob('modules/anesthesia/inhalants/*.json'))],
+        'procedures': [m(p) for p in sorted(glob.glob('modules/anesthesia/procedures/*.json'))],
+    },
 }
 json.dump(bundle, open('web/modules.json', 'w', encoding='utf-8'), ensure_ascii=False)
 print('web/modules.json :', os.path.getsize('web/modules.json'), 'octets')

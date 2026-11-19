@@ -1,0 +1,100 @@
+{
+ "schema_version": "1.0.0",
+ "species": [
+  "dog"
+ ],
+ "license": "CC-BY-4.0",
+ "id": "fentanyl",
+ "version": "1.0.0",
+ "name": {
+  "fr": "Fentanyl"
+ },
+ "evidence": "C",
+ "pk": {
+  "vc_L_kg": 4.05,
+  "vp_L_kg": 0.95,
+  "cl_mL_min_kg": 77.9,
+  "q_mL_min_kg": 116.0,
+  "ka_per_h": 1.0,
+  "f": 0.0,
+  "renal_exp": 0.0,
+  "hep_exp": 1.0
+ },
+ "pd": {
+  "type": "emax",
+  "emax": 1.0,
+  "ec50_mg_L": 0.00365,
+  "hill": 1.3,
+  "effects": [
+   {
+    "param": "vent_drive",
+    "op": "mul",
+    "expr": {
+     "add": [
+      1,
+      {
+       "mul": [
+        -0.25,
+        "E"
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "param": "vagal_add",
+    "op": "add",
+    "expr": {
+     "mul": [
+      0.27,
+      "E"
+     ]
+    }
+   },
+   {
+    "param": "r_sys",
+    "op": "mul",
+    "expr": {
+     "add": [
+      1,
+      {
+       "mul": [
+        0.36,
+        "E"
+       ]
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "anesthesia": {
+  "classes": [
+   "opioid"
+  ],
+  "ke0_per_min": 0.15,
+  "sedation": {
+   "max": 0.4,
+   "ec50_mg_L": 0.00264,
+   "hill": 1.3
+  },
+  "mac_reduction": {
+   "max": 0.84,
+   "ec50_mg_L": 0.00264,
+   "hill": 1.0
+  },
+  "antinociception": {
+   "max": 0.9,
+   "ec50_mg_L": 0.00264,
+   "hill": 1.3
+  },
+  "evidence": "C",
+  "source": "PK : Sano 2006 (résumé) : Cl 77,9 mL/min/kg, Vd 5 L/kg, t½α 4,5 min, t½β 45,7 min ; Vc 4,05, Vp 0,95 L/kg et Q 116 mL/min/kg calculés (seule solution bicompartimentale compatible avec ces quatre valeurs). Épargne de MAC : plafond 84 % et EC50 2,64 ng/mL (Machado 2022, résumé) ; pente 1 placeholder D. EC50 hémodynamique 3,65 ng/mL (FC, Machado 2022). Antinociception et sédation : EC50 reprises de la MAC, plafonds D ; ke0 D."
+ },
+ "refs": [
+  "Sano T et al. 2006, Vet Anaesth Analg, doi:10.1111/j.1467-2995.2005.00266.x (résumé)",
+  "Machado ML et al. 2022, Vet Anaesth Analg, doi:10.1016/j.vaa.2021.09.001 (résumé)",
+  "Ueyama Y et al. 2009, Am J Vet Res 70:1459, doi:10.2460/ajvr.70.12.1459 (résumé)"
+ ],
+ "notes": "Effets hémodynamiques et ventilatoires : forme et amplitudes du module opioide (classe, D pour le fentanyl), EC50 propre."
+}

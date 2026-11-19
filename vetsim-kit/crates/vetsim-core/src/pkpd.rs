@@ -179,6 +179,10 @@ pub fn apply_drug_effects_sites(
             .or(c);
         let ce_e = if m.pd.ke0_per_h.is_some() { ce } else { c };
         env.set_num("E", ce_e.map_or(0.0, |c| emax_effect(m, x(c))));
+        // agents d'anesthésie : hors session, `EP` sur la concentration plasmatique
+        if m.anesthesia.is_some() {
+            env.set_num("EP", c.map_or(0.0, |c| emax_effect(m, x(c))));
+        }
         if diuretic {
             env.set_num("D", d);
             env.set_num("U", u);

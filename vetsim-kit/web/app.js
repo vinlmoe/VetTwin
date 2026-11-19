@@ -4,6 +4,7 @@
 import { Controller, planDoses } from './engine.js';
 import { COLORS, timeChart, spectrogram, computeSpectrogram, dayLabel } from './charts.js';
 import { mountHeart } from './heart.js';
+import { renderAnesthesia } from './anesthesia.js';
 
 const $ = (sel) => document.querySelector(sel);
 const fmt = (v, d) => (v === undefined || v === null || Number.isNaN(v) ? '—' : Number(v).toFixed(d).replace('.', ','));
@@ -150,7 +151,8 @@ function render() {
   }
   renderOutcome(S.res.st.outcome);
   const v = $('#view');
-  ({ patient: renderPatient, respiration: renderRespiration, model: renderModel, auscultation: renderAuscultation, heart: renderHeart, treatment: renderTreatment })[S.tab](v);
+  ({ patient: renderPatient, respiration: renderRespiration, model: renderModel, auscultation: renderAuscultation, heart: renderHeart, treatment: renderTreatment,
+    anesthesia: (el) => renderAnesthesia(el, { ctl: S.ctl, inputs: S.inputs }) })[S.tab](v);
 }
 
 // ------------------------------------------------------------------ Issue (décompensation, décès)

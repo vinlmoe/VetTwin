@@ -6,6 +6,7 @@
 //!
 //! Usage pédagogique uniquement ; aucun résultat ne sert à décider d'un traitement réel.
 
+pub mod anesthesia;
 pub mod autonomic;
 pub mod blocks;
 pub mod calibrate;

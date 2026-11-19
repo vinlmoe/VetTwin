@@ -1,0 +1,64 @@
+{
+ "schema_version": "1.0.0",
+ "species": [
+  "dog"
+ ],
+ "license": "CC-BY-4.0",
+ "id": "lidocaine",
+ "version": "1.0.0",
+ "name": {
+  "fr": "Lidocaïne"
+ },
+ "evidence": "C",
+ "pk": {
+  "vc_L_kg": 0.4,
+  "vp_L_kg": 0.98,
+  "cl_mL_min_kg": 27.5,
+  "q_mL_min_kg": 40.0,
+  "ka_per_h": 1.0,
+  "f": 0.0,
+  "renal_exp": 0.0,
+  "hep_exp": 1.0
+ },
+ "pd": {
+  "type": "emax",
+  "emax": 1.0,
+  "ec50_mg_L": 3.0,
+  "hill": 1.0,
+  "effects": []
+ },
+ "anesthesia": {
+  "classes": [
+   "local_anesthetic"
+  ],
+  "ke0_per_min": 0.5,
+  "im": {
+   "f": 0.919,
+   "ka_per_h": 7.74
+  },
+  "mac_reduction": {
+   "max": 0.7,
+   "ec50_mg_L": 3.15,
+   "hill": 1.36
+  },
+  "antinociception": {
+   "max": 0.3,
+   "ec50_mg_L": 3.0,
+   "hill": 1.0
+  },
+  "local": {
+   "onset_min": 5.0,
+   "duration_min": 60.0,
+   "efficacy": 0.9
+  },
+  "evidence": "C",
+  "source": "PK : Cl 27,5 mL/min/kg, Vss 1,38 L/kg (Ngo 1997, résumé) ; partage Vc/Vp et Q placeholders D. IM : ka 7,74 h⁻¹, fraction absorbée 91,9 % (Wilcke 1983, résumé). Épargne de MAC : Emax ajusté sur Valverde 2004 (1,5 µg/mL −18,7 % ; 4,5 µg/mL −43,3 %, résumé) avec plafond 0,7 imposé (D) : EC50 3,15 mg/L, pente 1,36. Bloc locorégional (délai, durée, efficacité) et antinociception systémique : placeholders D."
+ },
+ "refs": [
+  "Ngo LY et al. 1997, J Pharm Sci, doi:10.1021/js960399i (résumé)",
+  "Wilcke JR et al. 1983, J Vet Pharmacol Ther, doi:10.1111/j.1365-2885.1983.tb00454.x (résumé)",
+  "Valverde A et al. 2004, Vet Anaesth Analg 31:264, doi:10.1111/j.1467-2995.2004.00165.x (résumé)",
+  "Wilcke JR et al. 1983, J Vet Pharmacol Ther, doi:10.1111/j.1365-2885.1983.tb00386.x (résumé)"
+ ],
+ "notes": "Toxicité non modélisée (le moteur n'a pas d'état convulsif) : extension tonique à 8,21 µg/mL chez le chien (Wilcke 1983) ; ne pas dépasser cette concentration dans les scénarios."
+}

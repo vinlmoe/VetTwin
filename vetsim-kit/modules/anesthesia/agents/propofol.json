@@ -1,0 +1,95 @@
+{
+ "schema_version": "1.0.0",
+ "species": [
+  "dog"
+ ],
+ "license": "CC-BY-4.0",
+ "id": "propofol",
+ "version": "1.0.0",
+ "name": {
+  "fr": "Propofol"
+ },
+ "evidence": "C",
+ "pk": {
+  "vc_L_kg": 0.8,
+  "vp_L_kg": 4.1,
+  "cl_mL_min_kg": 58.6,
+  "q_mL_min_kg": 60.0,
+  "ka_per_h": 1.0,
+  "f": 0.0,
+  "renal_exp": 0.0,
+  "hep_exp": 1.0
+ },
+ "pd": {
+  "type": "emax",
+  "emax": 1.0,
+  "ec50_mg_L": 3.0,
+  "hill": 2.0,
+  "effects": [
+   {
+    "param": "r_sys",
+    "op": "mul",
+    "expr": {
+     "add": [
+      1,
+      {
+       "mul": [
+        -0.8,
+        "EP"
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "param": "vent_drive",
+    "op": "mul",
+    "expr": {
+     "add": [
+      1,
+      {
+       "mul": [
+        -0.9,
+        "E"
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "param": "baro_gain",
+    "op": "mul",
+    "expr": {
+     "add": [
+      1,
+      {
+       "mul": [
+        -0.5,
+        "EP"
+       ]
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "anesthesia": {
+  "classes": [
+   "hypnotic"
+  ],
+  "ke0_per_min": 0.696,
+  "c_imm_mg_L": 6.2,
+  "evidence": "C",
+  "source": "Cl 58,6 mL/kg/min et Vss 4,9 L/kg (Nolan 1993, résumé) ; partage Vc 0,8 / Vp 4,1 L/kg et Q placeholders D (Vc non publié). ke0 0,696 min⁻¹ (Lee 2009, résumé). c_imm 6,2 mg/L : ajusté sur la réduction de MAC du sévoflurane (1,3 / 2,5 / 4,4 µg/mL → −20,5 / −43 / −68 %, Singsank-Coats 2015, résumé ; contribution Ce/c_imm ≈ 0,16 MAC par µg/mL) ; il place la perte de conscience (indice 0,4) vers 2,5 µg/mL, cohérent avec Musk 2005 (65 % d'inductions à 2,5 µg/mL, 100 % à 3,5) et la cible de 3 µg/mL de Beths 2001."
+ },
+ "refs": [
+  "Nolan AM et al. 1993, J Vet Pharmacol Ther, doi:10.1111/j.1365-2885.1993.tb00180.x (résumé)",
+  "Lee SH et al. 2009, Br J Pharmacol (PMC2807660, résumé)",
+  "Singsank-Coats J et al. 2015, Can J Vet Res (PMC4365712, résumé)",
+  "Musk GC et al. 2005, Vet Rec, doi:10.1136/vr.157.24.766 (résumé)",
+  "Cattai A et al. 2018, BMC Vet Res (PMC6134702, lu)",
+  "Bigby SE et al. 2017, Vet Anaesth Analg (résumé)",
+  "Maney JK et al. 2013, Vet Anaesth Analg, doi:10.1111/vaa.12006 (résumé)"
+ ],
+ "notes": "Vasodilatation (r_sys) et émoussement du baroréflexe (baro_gain, mécanisme retenu, forme D) calés ensemble pour PAM −31 % au nadir et FC +62 % (88 → 61 mmHg, 65 → 105/min, Cattai 2018, lu, après acépromazine + méthadone) ; la tachycardie vient du baroréflexe du moteur. Effets hémodynamiques portés par la concentration PLASMATIQUE (EP) : nadir de PAM à 55 s, avant l'équilibre du site effet (intubation à 140 s, Cattai 2018). Apnée d'induction : vent_drive −90 % à effet maximal (placeholder D ; apnée chez 59 à 100 % des chiens selon la vitesse d'injection, Murison 2001, Bigby 2017). La vitesse d'injection se règle par la durée du bolus (30 s par défaut, iv_push_s du modèle)."
+}

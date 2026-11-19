@@ -10,7 +10,8 @@ python3 -m http.server -d web 8000       # puis http://localhost:8000
 Prérequis : Rust avec la cible `wasm32-unknown-unknown` et `cargo install wasm-bindgen-cli --version 0.2.100`. Le dossier `web/` construit est statique : il peut être déposé tel quel sur n'importe quel hébergement de fichiers (GitHub Pages, serveur de l'école, ressource Moodle « dossier »).
 
 ## Contenu
-- `index.html`, `styles.css`, `app.js` : interface (onglets Patient, Respiration, Schéma du modèle, Auscultation, Cœur animé, Traitement PK/PD), en JavaScript sans dépendance ni outil de construction.
+- `index.html`, `styles.css`, `app.js` : interface (onglets Patient, Respiration, Schéma du modèle, Auscultation, Cœur animé, Traitement PK/PD, Anesthésie), en JavaScript sans dépendance ni outil de construction.
+- `anesthesia.js` : onglet Anesthésie (session en temps réel : moniteur, actions, signes cliniques, feuille d'anesthésie ; `docs/ANESTHESIE.tex`).
 - `engine.js` : pilote du moteur, équivalent du contrôleur Kotlin de `kmp-demo`.
 - `heart.js` : cœur animé, entièrement piloté par le moteur (API `heart`).
   - Mécanique : contraction des quatre cavités (volumes) et parois épaissies selon l'activation mécanique ; les valves s'ouvrent ou fuient selon les débits du modèle.

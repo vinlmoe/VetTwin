@@ -1,0 +1,44 @@
+{
+ "schema_version": "1.0.0",
+ "species": [
+  "dog"
+ ],
+ "license": "CC-BY-4.0",
+ "id": "bupivacaine",
+ "version": "1.0.0",
+ "name": {
+  "fr": "Bupivacaïne (bloc locorégional)"
+ },
+ "evidence": "D",
+ "pk": {
+  "vc_L_kg": 1.0,
+  "vp_L_kg": 2.0,
+  "cl_mL_min_kg": 10.0,
+  "q_mL_min_kg": 20.0,
+  "ka_per_h": 1.0,
+  "f": 0.0,
+  "renal_exp": 0.0,
+  "hep_exp": 1.0
+ },
+ "pd": {
+  "type": "emax",
+  "emax": 1.0,
+  "ec50_mg_L": 1.0,
+  "hill": 1.0,
+  "effects": []
+ },
+ "anesthesia": {
+  "classes": [
+   "local_anesthetic"
+  ],
+  "local": {
+   "onset_min": 15.0,
+   "duration_min": 240.0,
+   "efficacy": 0.95
+  },
+  "evidence": "D",
+  "source": "Module de bloc uniquement : délai, durée et efficacité placeholders D. PK systémique placeholder sans effet."
+ },
+ "refs": [],
+ "notes": "À n'utiliser qu'en bloc locorégional (événement local_block)."
+}

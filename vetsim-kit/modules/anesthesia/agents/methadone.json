@@ -1,0 +1,109 @@
+{
+ "schema_version": "1.0.0",
+ "species": [
+  "dog"
+ ],
+ "license": "CC-BY-4.0",
+ "id": "methadone",
+ "version": "1.0.0",
+ "name": {
+  "fr": "Méthadone"
+ },
+ "evidence": "C",
+ "pk": {
+  "vc_L_kg": 3.0,
+  "vp_L_kg": 4.0,
+  "cl_mL_min_kg": 25.0,
+  "q_mL_min_kg": 30.0,
+  "ka_per_h": 1.0,
+  "f": 0.0,
+  "renal_exp": 0.0,
+  "hep_exp": 1.0
+ },
+ "pd": {
+  "type": "emax",
+  "emax": 1.0,
+  "ec50_mg_L": 0.015,
+  "hill": 1.3,
+  "effects": [
+   {
+    "param": "vent_drive",
+    "op": "mul",
+    "expr": {
+     "add": [
+      1,
+      {
+       "mul": [
+        -0.25,
+        "E"
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "param": "vagal_add",
+    "op": "add",
+    "expr": {
+     "mul": [
+      0.27,
+      "E"
+     ]
+    }
+   },
+   {
+    "param": "r_sys",
+    "op": "mul",
+    "expr": {
+     "add": [
+      1,
+      {
+       "mul": [
+        0.36,
+        "E"
+       ]
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "anesthesia": {
+  "classes": [
+   "opioid"
+  ],
+  "ke0_per_min": 0.1,
+  "im": {
+   "f": 0.79,
+   "ka_per_h": 2.16
+  },
+  "sc": {
+   "f": 0.79,
+   "ka_per_h": 2.16
+  },
+  "sedation": {
+   "max": 0.4,
+   "ec50_mg_L": 0.015,
+   "hill": 1.3
+  },
+  "mac_reduction": {
+   "max": 0.83,
+   "ec50_mg_L": 0.05015191127700884,
+   "hill": 1.3
+  },
+  "antinociception": {
+   "max": 0.8,
+   "ec50_mg_L": 0.017,
+   "hill": 1.3
+  },
+  "evidence": "C",
+  "source": "SC : F 79 % et ka 2,16 h⁻¹ calculé sur le Tmax de 1,26 h (Ingvast-Larsson 2010, résumé) ; IM non publiée : valeurs SC reprises (D). Épargne de MAC calée sur Credie 2010 (1 mg/kg : −48 % à 2,5 h et −30 % à 5 h ; 0,5 mg/kg : −35 % et −15 %, résumé, voie supposée IV). Antinociception : EC50 17 ng/mL (antinociception au-delà de 17 ng/mL, Amon 2021) ; plafond D. Sédation et ke0 : placeholders D."
+ },
+ "refs": [
+  "Ingvast-Larsson C et al. 2010, Vet Anaesth Analg, doi:10.1111/j.1467-2995.2009.00476.x (résumé)",
+  "Credie RG et al. 2010, Vet Anaesth Analg 37:240 (résumé)",
+  "Amon T et al. 2021, BMC Vet Res (PMC7814539, lu)",
+  "Mills T et al. 2025, J Vet Pharmacol Ther (PMC12415812, lu)"
+ ],
+ "notes": "PK et PD hémodynamique reprises du module opioide 1.1.0 (méthadone, chien vigile). Sous halogéné, la dépression ventilatoire s'additionne à celle de l'agent inhalé (pas de terme de synergie)."
+}

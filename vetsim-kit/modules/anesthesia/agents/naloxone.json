@@ -1,0 +1,54 @@
+{
+ "schema_version": "1.0.0",
+ "species": [
+  "dog"
+ ],
+ "license": "CC-BY-4.0",
+ "id": "naloxone",
+ "version": "1.0.0",
+ "name": {
+  "fr": "Naloxone"
+ },
+ "evidence": "C",
+ "pk": {
+  "vc_L_kg": 2.1,
+  "vp_L_kg": 1.0,
+  "cl_mL_min_kg": 58.0,
+  "q_mL_min_kg": 30.0,
+  "ka_per_h": 1.0,
+  "f": 0.0,
+  "renal_exp": 0.0,
+  "hep_exp": 1.0
+ },
+ "pd": {
+  "type": "emax",
+  "emax": 1.0,
+  "ec50_mg_L": 1.0,
+  "hill": 1.0,
+  "effects": []
+ },
+ "anesthesia": {
+  "classes": [
+   "antagonist"
+  ],
+  "ke0_per_min": 0.5,
+  "im": {
+   "f": 1.0,
+   "ka_per_h": 6.0
+  },
+  "antagonist": {
+   "targets": [
+    "methadone",
+    "fentanyl"
+   ],
+   "ki_mg_L": 0.002
+  },
+  "evidence": "C",
+  "source": "t½ IV 37 min et Cmax 18,8 ng/mL après 0,04 mg/kg (Wahler 2019, résumé) : Vc ≈ 2,1 L/kg et Cl ≈ 58 mL/min/kg calculés (approximation, C/D) ; Vp, IM, Ki et ke0 placeholders D (antagonisation de la méthadone en < 5 min après 0,1 mg/kg IM, Mills 2025, lu)."
+ },
+ "refs": [
+  "Wahler BM et al. 2019, Am J Vet Res, doi:10.2460/ajvr.80.7.696 (résumé)",
+  "Mills T et al. 2025, J Vet Pharmacol Ther (PMC12415812, lu)"
+ ],
+ "notes": "Renarcotisation possible si la naloxone s'élimine avant l'opioïde (t½ 37 min contre 3,9 h pour la méthadone)."
+}

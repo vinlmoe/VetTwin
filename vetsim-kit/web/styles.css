@@ -136,3 +136,28 @@ svg text { font-family: system-ui, sans-serif; }
   .hv-bar { position: static; }
   .vital .v { font-size: 19px; }
 }
+
+/* onglet Anesthésie */
+.anesth-head .row { align-items: flex-end; flex-wrap: wrap; }
+.anesth-head .seg button { border-radius: 0; margin-left: -1px; }
+.anesth-head .clock { font: 600 20px ui-monospace, monospace; margin-left: auto; }
+.anesth-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 12px; }
+.anesth-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+.anesth-actions .row, .card .row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; margin: 6px 0; }
+.anesth-actions input { width: 90px; }
+.monitor { background: #0d1418; color: #e8eef2; }
+.mon-waves canvas { width: 100%; height: 70px; display: block; margin-bottom: 4px; }
+.mon-vals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.mv { display: flex; flex-direction: column; padding: 4px 6px; border: 1px solid #23313a; border-radius: 6px; }
+.mv span { font-size: 11px; opacity: 0.8; } .mv b { font: 600 24px ui-monospace, monospace; } .mv i { font-size: 11px; font-style: normal; opacity: 0.7; }
+.mv.g b { color: #35e08a; } .mv.r b { color: #ff6b6b; } .mv.b b { color: #5ab0ff; } .mv.y b { color: #f2d45c; } .mv.w b { color: #e8eef2; }
+.mon-alarms { min-height: 22px; display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+.mon-alarms span { background: var(--red); color: white; border-radius: 4px; padding: 1px 6px; font-size: 12px; animation: blink 1s steps(2) infinite; }
+.mon-dead { background: var(--red); color: white; padding: 6px; border-radius: 6px; font-weight: 600; margin-bottom: 6px; }
+@keyframes blink { 50% { opacity: 0.55; } }
+.trend span { font-size: 12px; color: var(--muted); } .trend canvas { width: 100%; height: 120px; display: block; }
+.steps { display: flex; flex-wrap: wrap; gap: 6px; }
+.steps button { white-space: normal; text-align: left; border-radius: 10px; }
+table.record { font-size: 12px; } ul.log { max-height: 220px; overflow-y: auto; font-size: 12px; }
+.warn { color: var(--warn); }
+@media (max-width: 900px) { .anesth-grid { grid-template-columns: 1fr; } .mon-vals { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

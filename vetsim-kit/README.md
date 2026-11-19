@@ -5,7 +5,7 @@ Contenu
 - `CLAUDE.md` : règles de projet lues automatiquement par Claude Code.
 - `docs/` : architecture, spécification du modèle, DSL, contrat du CLI, API KMP, feuille de route, provenance des données.
 - `schema/` : JSON Schema (expressions, maladies, médicaments, patient).
-- `modules/` : patient sain, 4 maladies (MMVD, MRC, Addison, pneumonie), 5 médicaments.
+- `modules/` : patient sain, 4 maladies (MMVD, MRC, Addison, pneumonie), 5 médicaments ; `modules/anesthesia/` : module d'anesthésie en temps réel (12 agents, 2 halogénés, constantes, 2 scénarios chirurgicaux ; `docs/ANESTHESIE.tex`).
 - `crates/` : moteur Rust (`vetsim-core`, référence normative), CLI, API, FFI, wasm.
 - `reference/python/` : implémentation secondaire (contre-vérification indépendante) et scripts de calage.
 - `tests/` : validation des schémas, équivalence JSON ↔ Python, tests golden et runner de conformité.

@@ -52,6 +52,7 @@ Un écran : choix du poids, d'une maladie et d'un stade; boutons « évaluer » 
 
   Renvoie une erreur pour un patient décédé.
 - `message(json)` : `{"op": "pcg"|"heart"|"state"|"signals"|"timecourse"|"add_disease"|"new_patient"|"list_modules"|"api_version", "patient": id, "options": {...}}`. Même réponse que la méthode correspondante. `hr` (FC imposée) est accepté aussi par `state` et `signals`.
+- Anesthésie en temps réel (`docs/ANESTHESIE.tex`) : `anesthesia_list`, `anesthesia_start` (`patient`, `options.seed`, `options.procedure`), `anesthesia_event` (`options.session`, `options.event` : `{type: bolus|cri|vaporizer|fresh_gas|circuit|intubate|extubate|ventilation|oxygen|stimulus|procedure_step|end_surgery|local_block|fluids|fluid_bolus|hemorrhage|warming, ...}`), `anesthesia_step` (`dt_s` ≤ 60, `n`, `all`, `waves_s` : ECG et pression artérielle de l'état final), `anesthesia_record` (feuille d'anesthésie, journal, jalons). `loadModules` accepte un bloc optionnel `anesthesia` : `{model, agents, inhalants, procedures}`.
 
 ### Diurétique : définition de `D` et `U`
 - Débit urinaire induit : `u(t) = urine_max · E(C(t))` (mL/kg/min, `urine_max` = 0,25). C'est le supplément dû au médicament ; la diurèse de base n'est pas modélisée.

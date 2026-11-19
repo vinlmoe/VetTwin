@@ -1,0 +1,75 @@
+{
+ "schema_version": "1.0.0",
+ "species": [
+  "dog"
+ ],
+ "license": "CC-BY-4.0",
+ "id": "midazolam",
+ "version": "1.0.0",
+ "name": {
+  "fr": "Midazolam"
+ },
+ "evidence": "C",
+ "pk": {
+  "vc_L_kg": 1.0,
+  "vp_L_kg": 2.0,
+  "cl_mL_min_kg": 27.0,
+  "q_mL_min_kg": 30.0,
+  "ka_per_h": 1.0,
+  "f": 0.0,
+  "renal_exp": 0.0,
+  "hep_exp": 1.0
+ },
+ "pd": {
+  "type": "emax",
+  "emax": 1.0,
+  "ec50_mg_L": 0.5,
+  "hill": 1.0,
+  "effects": [
+   {
+    "param": "vent_drive",
+    "op": "mul",
+    "expr": {
+     "add": [
+      1,
+      {
+       "mul": [
+        -0.15,
+        "E"
+       ]
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "anesthesia": {
+  "classes": [
+   "benzodiazepine"
+  ],
+  "ke0_per_min": 0.3,
+  "im": {
+   "f": 0.9,
+   "ka_per_h": 4.0
+  },
+  "sedation": {
+   "max": 0.5,
+   "ec50_mg_L": 0.3,
+   "hill": 1.0
+  },
+  "mac_reduction": {
+   "max": 0.6,
+   "ec50_mg_L": 0.4,
+   "hill": 1.0
+  },
+  "evidence": "C",
+  "source": "PK : Vd 3,0 L/kg, Cl 27 mL/kg/min (Court & Greenblatt 1992, résumé) ; partage Vc/Vp, Q, IM et ke0 placeholders D. Sédation plafonnée à 0,5 : la cible de propofol à l'intubation passe de 3,0 à 1,5 µg/mL avec 0,2 mg/kg (Minghella 2016, résumé). Épargne de MAC : enflurane −55 % à 949 ng/mL (Hall 1988, résumé) ; plafond 0,6 et EC50 D."
+ },
+ "refs": [
+  "Court MH, Greenblatt DJ 1992, J Vet Pharmacol Ther, doi:10.1111/j.1365-2885.1992.tb01026.x (résumé)",
+  "Hall RI et al. 1988, J Pharmacokinet Biopharm, doi:10.1007/bf01062136 (résumé)",
+  "Minghella E et al. 2016, Vet Anaesth Analg, doi:10.1111/vaa.12336 (résumé)",
+  "Aguilera R et al. 2020, Vet Anaesth Analg (résumé)"
+ ],
+ "notes": "Peu d'effets hémodynamiques ; légère dépression ventilatoire placeholder D. L'excitation paradoxale du chien vigile n'est pas modélisée."
+}

@@ -7,6 +7,9 @@
 //!
 //! Usage pédagogique uniquement : aucun résultat ne sert à décider d'un traitement réel.
 
+mod anesthesia;
+pub use anesthesia::{parse_event, snapshot_json};
+
 use serde_json::{json, Map, Value as Json};
 use std::collections::BTreeMap;
 use vetsim_core::blocks::{blocks_of, Block};
@@ -110,6 +113,8 @@ pub struct Engine {
     variation: Option<VariationConfig>,
     patients: BTreeMap<String, Session>,
     next_id: u64,
+    anesthesia: Option<anesthesia::AnesthesiaCatalog>,
+    anesthesia_sessions: BTreeMap<String, vetsim_core::anesthesia::Session>,
 }
 
 fn load_issues(prefix: &str, e: LoadError) -> Vec<(String, String)> {
@@ -207,16 +212,24 @@ impl Engine {
                 }
             },
         };
+        // Modules de l'anesthésie (optionnels).
+        let anesthesia = match m.get("anesthesia") {
+            None | Some(Json::Null) => None,
+            Some(a) => anesthesia::load(a, &mut errors),
+        };
         if !errors.is_empty() {
             return Err(ApiError(errors));
         }
         self.auscultation = auscultation;
         self.variation = variation;
+        self.anesthesia = anesthesia;
+        self.anesthesia_sessions.clear();
         let catalog = Catalog::new(patient.expect("contrôlé"), diseases, drugs)
             .map_err(|e| ApiError::one("", e.to_string()))?;
         let counts = json!({ "diseases": catalog.diseases.len(), "drugs": catalog.drugs.len(),
                              "auscultation": self.auscultation.is_some(),
-                             "variation": self.variation.is_some() });
+                             "variation": self.variation.is_some(),
+                             "anesthesia": self.anesthesia.is_some() });
         self.catalog = Some(catalog);
         self.patients.clear();
         Ok(json!({ "ok": true, "loaded": counts }))
@@ -1088,6 +1101,19 @@ impl Engine {
             "add_disease" => self.add_disease(&pid, &opts),
             "new_patient" => self.new_patient(&opts),
             "list_modules" => self.list_modules(),
+            "anesthesia_list" => self.respond(|e| e.anesthesia_list()),
+            "anesthesia_start" => {
+                let o = msg.get("options").cloned().unwrap_or_else(|| json!({}));
+                self.respond(|e| e.anesthesia_start(&pid, &o))
+            }
+            "anesthesia_event" | "anesthesia_step" | "anesthesia_record" => {
+                let o = msg.get("options").cloned().unwrap_or_else(|| json!({}));
+                self.respond(|e| match op {
+                    "anesthesia_event" => e.anesthesia_event(&o),
+                    "anesthesia_step" => e.anesthesia_step(&o),
+                    _ => e.anesthesia_record(&o),
+                })
+            }
             "api_version" => json!({ "ok": true, "api_version": API_VERSION }).to_string(),
             other => ApiError::one("/op", format!("opération inconnue « {other} »")).to_json(),
         }
