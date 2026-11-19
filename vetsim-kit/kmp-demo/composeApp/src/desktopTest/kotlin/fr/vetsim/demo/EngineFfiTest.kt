@@ -21,7 +21,9 @@ class EngineFfiTest {
         val r = c.evaluate(DemoInputs(diseaseId = "mmvd", stage = "C"))
         assertEquals(4000, r.ecg.size)
         assertTrue(r.ao.isNotEmpty() && r.lv.size == r.ao.size)
-        assertTrue(r.values.getValue("la_mean") > 14.0, "POG ${r.values["la_mean"]}")
+        // stade C congestif : POG nettement au-dessus du stade B (7 mmHg) ; milieu du stade C
+        // 13,9 mmHg depuis MMVD 1.2.0 (médiane d'Allen 2021 en ICC : 14, 8–32)
+        assertTrue(r.values.getValue("la_mean") > 12.0, "POG ${r.values["la_mean"]}")
         assertTrue(r.signs.any { it.label.startsWith("souffle") }, "${r.signs}")
     }
 

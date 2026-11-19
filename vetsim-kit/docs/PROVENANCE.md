@@ -116,3 +116,12 @@ Accès : « lu » = texte intégral, « résumé » = résumé seul. Detail : `d
 - Recalages qui en découlent :
   - `sym_noise` 0,22 → 0,14 : LF/HF de la cohorte de 0,57 à 0,31 (Bogucki 2015) ;
   - `esc_a_v` 0,4 → 0,72.
+
+## MMVD 1.2.0 (19/11/2026) : FC par stade, congestion
+- Les FC publiées sont mesurées en consultation (témoins 115 ± 22, Baisan 2023, PMC10210847, lu) ; le modèle représente le repos (87). La comparaison porte donc sur l'élévation relative.
+  - Repères : B1 120, B2 128 (Wilshaw 2021, PMC7995403, lu) ; apparition de l'ICC 150 (Boswood 2018, PMC5787203, lu) ; récidive d'ICC 165 ± 31 (Park 2026, PMC13015027, lu).
+  - Aucune FC publiée au stade D dans les sources lues.
+- Déséquilibre autonome 0,5 → 0,65, rétention tardive 0,30 → 0,37. Modèle : FC ×1,05/×1,28/×1,62 en B2/C/D ; POG 7,3/13,9/26,1.
+- La rétention est plafonnée par l'effet du furosémide (Suzuki 2013) : à 0,38, la baisse de POG passe sous le seuil de 18 %.
+- La cible de FC du stade D, 140–180 (non sourcée), est remplacée par 100–150 au repos.
+- Limite : B2 reste sous l'élévation publiée (×1,05 contre ×1,11–1,23).
