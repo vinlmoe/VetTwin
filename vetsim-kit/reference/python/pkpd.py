@@ -60,35 +60,42 @@ def tox_effect(t, conc):
     return t['emax'] * c / (t['ec50'] ** t['hill'] + c)
 
 
+S = 5   # états par médicament : dépôt digestif, central, périphérique, dépôt IM, Ce (site d'effet)
+
+
 def timecourse(p, doses, t_end_h, t_eval_h):
-    """doses : liste de (t_h, drug, mg_per_kg, route 'iv'|'po').
-    Renvoie dict de séries : conc[drug], effets, D (déficit de volume, mL), U (diurèse cumulée mL/kg)."""
+    """doses : liste de (t_h, drug, mg_per_kg, route 'iv'|'po'|'im').
+    Renvoie dict de séries : conc[drug], conc au site d'effet [drug + '@e'], D (déficit de volume,
+    mL), U (diurèse cumulée mL/kg)."""
     bw = p['bw']
     drugs = sorted({d[1] for d in doses})
     idx = {d: i for i, d in enumerate(drugs)}
-    n = 3 * len(drugs) + 3           # (gut, central, periph) x drugs + D + U + W (adaptation)
+    n = S * len(drugs) + 3           # (gut, central, periph, im, Ce) x drugs + D + U + W (adaptation)
     state = np.zeros(n)
     events = sorted(doses)
     times = sorted({0.0, t_end_h, *[e[0] for e in events], *t_eval_h})
     ev_i = 0
-    out = {k: [] for k in ['t', 'D', 'U'] + drugs}
+    out = {k: [] for k in ['t', 'D', 'U'] + drugs + [d + '@e' for d in drugs]}
     eff = {d: [] for d in drugs}
     pars = {d: _k(DRUGS[d], p) for d in drugs}
 
     def rhs(t, y):
         dy = np.zeros(n)
         for d in drugs:
-            i = 3 * idx[d]
+            i = S * idx[d]
             cl, vc, vp, q = pars[d]
             ka = DRUGS[d]['ka']
-            gut, ac, ap = y[i], y[i + 1], y[i + 2]
+            ka_im = DRUGS[d].get('ka_im', 0.0)
+            gut, ac, ap, im, ce = y[i], y[i + 1], y[i + 2], y[i + 3], y[i + 4]
             dy[i] = -ka * gut
-            dy[i + 1] = ka * gut - (cl / vc) * ac - (q / vc) * ac + (q / vp) * ap
+            dy[i + 1] = ka * gut + ka_im * im - (cl / vc) * ac - (q / vc) * ac + (q / vp) * ap
             dy[i + 2] = (q / vc) * ac - (q / vp) * ap
+            dy[i + 3] = -ka_im * im
+            dy[i + 4] = DRUGS[d]['ke0'] * (ac / vc - ce) if 'ke0' in DRUGS[d] else 0.0
         D, U, W = y[-3], y[-2], y[-1]
         u = 0.0
         if 'furosemide' in idx:
-            i = 3 * idx['furosemide']
+            i = S * idx['furosemide']
             # site d'action luminal : effet piloté par l'excrétion urinaire (C × masse néphronique)
             u = URINE_MAX * effect('furosemide', y[i + 1] / pars['furosemide'][1] * p['nephron_mass'])   # mL/kg/min
         dy[-3] = F_PLASMA * u * bw * 60.0 - D / TAU_REFILL        # mL/h
@@ -102,15 +109,21 @@ def timecourse(p, doses, t_end_h, t_eval_h):
         out['D'].append(state[-3])
         out['U'].append(state[-2] - (PHI_ADAPT * state[-1] if 'furosemide' in idx else 0.0))
         for d in drugs:
-            out[d].append(state[3 * idx[d] + 1] / pars[d][1])
+            c = state[S * idx[d] + 1] / pars[d][1]
+            out[d].append(c)
+            out[d + '@e'].append(state[S * idx[d] + 4] if 'ke0' in DRUGS[d] else c)
 
     for j, a in enumerate(times):
         while ev_i < len(events) and abs(events[ev_i][0] - a) < 1e-9:
             _, drug, dose, route = events[ev_i]
-            i = 3 * idx[drug]
+            i = S * idx[drug]
             mg = dose * bw
             if route == 'iv':
                 state[i + 1] += mg
+            elif route in ('im', 'sc'):
+                if 'ka_im' not in DRUGS[drug]:
+                    raise ValueError(f'voie IM non décrite pour {drug}')
+                state[i + 3] += mg * DRUGS[drug].get('f_im', 1.0)
             else:
                 state[i] += mg * DRUGS[drug]['f']
             ev_i += 1
@@ -123,9 +136,11 @@ def timecourse(p, doses, t_end_h, t_eval_h):
     return {k: np.array(v) for k, v in out.items()}
 
 
-def apply_drug_effects(p, conc, D, U):
-    """Retourne une copie des paramètres modifiés par les concentrations et l'état de volume/diurèse."""
+def apply_drug_effects(p, conc, D, U, conc_e=None):
+    """Retourne une copie des paramètres modifiés par les concentrations et l'état de volume/diurèse.
+    `conc_e` : concentrations au site d'effet (médicaments à `ke0`) ; à défaut Ce = C."""
     q = copy_params(p)
+    ce = lambda d: (conc_e or {}).get(d, conc.get(d, 0.0))   # noqa: E731
     if 'pimobendan' in conc:
         e = effect('pimobendan', conc['pimobendan'])
         q['ees_lv'] *= 1 + 0.35 * e

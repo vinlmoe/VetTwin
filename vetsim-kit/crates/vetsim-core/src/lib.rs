@@ -38,7 +38,7 @@ pub use error::{Error, EvalError, Issue, LoadError};
 pub use modules::{Catalog, DiseaseModule, DrugModule, PatientModule};
 pub use params::Params;
 pub use patient::{healthy_params, Patient};
-pub use pkpd::{apply_drug_effects, timecourse, Dose, Route, Timecourse};
+pub use pkpd::{apply_drug_effects, apply_drug_effects_sites, timecourse, Dose, Route, Timecourse};
 pub use rng::SimRng;
 
 /// Version du contrat d'API (CLI et messages JSON).

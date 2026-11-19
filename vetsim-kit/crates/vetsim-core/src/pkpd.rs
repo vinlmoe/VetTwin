@@ -13,7 +13,7 @@ use crate::case::{apply_modifiers, evaluate_effects};
 use crate::dsl::Env;
 use crate::error::Error;
 use crate::math;
-use crate::modules::{DrugModule, PdKind};
+use crate::modules::{ConcSite, DrugModule, PdKind};
 use crate::ode::{solve, Options};
 use crate::params::Params;
 
@@ -24,14 +24,17 @@ pub enum Route {
     Iv,
     /// Voie orale (dépôt, biodisponibilité `f`, absorption `ka`).
     Po,
+    /// Voie intramusculaire ou sous-cutanée (dépôt propre, `f_im`, `ka_im_per_h`).
+    Im,
 }
 
 impl Route {
-    /// Nom (`iv`, `po`).
+    /// Nom (`iv`, `po`, `im`).
     pub fn as_str(self) -> &'static str {
         match self {
             Route::Iv => "iv",
             Route::Po => "po",
+            Route::Im => "im",
         }
     }
 }
@@ -107,7 +110,21 @@ pub fn apply_drug_effects(
     d: f64,
     u: f64,
 ) -> Result<Params, Error> {
-    for (id, c) in conc {
+    apply_drug_effects_sites(p, drugs, conc, &[], d, u)
+}
+
+/// Comme [`apply_drug_effects`], avec les concentrations au site d'effet `conc_e` (sorties de
+/// [`timecourse`]) : `E` d'un médicament à compartiment effet (`ke0_per_h`) et les termes
+/// toxiques `site: effect` utilisent `Ce` ; sans valeur dans `conc_e`, `Ce = C` (état d'équilibre).
+pub fn apply_drug_effects_sites(
+    p: &Params,
+    drugs: &[DrugModule],
+    conc: &[(String, f64)],
+    conc_e: &[(String, f64)],
+    d: f64,
+    u: f64,
+) -> Result<Params, Error> {
+    for (id, c) in conc.iter().chain(conc_e) {
         if !drugs.iter().any(|m| &m.id == id) {
             return Err(Error::UnknownDrug(id.clone()));
         }
@@ -153,7 +170,15 @@ pub fn apply_drug_effects(
             }
         );
         let x = |c: f64| if urinary { c * p.nephron_mass } else { c };
-        env.set_num("E", c.map_or(0.0, |c| emax_effect(m, x(c))));
+        // concentration au site d'effet (dernière valeur citée), à défaut la plasmatique
+        let ce = conc_e
+            .iter()
+            .rev()
+            .find(|(id, _)| id == &m.id)
+            .map(|(_, c)| *c)
+            .or(c);
+        let ce_e = if m.pd.ke0_per_h.is_some() { ce } else { c };
+        env.set_num("E", ce_e.map_or(0.0, |c| emax_effect(m, x(c))));
         if diuretic {
             env.set_num("D", d);
             env.set_num("U", u);
@@ -173,7 +198,11 @@ pub fn apply_drug_effects(
         if let Some(c) = c {
             for t in &m.pd.toxicity {
                 let mut env = Env::new();
-                env.set_num("T", toxic_effect(t, c));
+                let ct = match t.site {
+                    ConcSite::Plasma => c,
+                    ConcSite::Effect => ce.unwrap_or(c),
+                };
+                env.set_num("T", toxic_effect(t, ct));
                 let mods = evaluate_effects(&t.effects, &env, &m.id)?;
                 apply_modifiers(&mut q, &mods).map_err(relabel)?;
             }
@@ -189,6 +218,8 @@ pub struct Timecourse {
     pub t: Vec<f64>,
     /// Concentration plasmatique centrale (mg/L) par médicament (ordre alphabétique).
     pub conc: Vec<(String, Vec<f64>)>,
+    /// Concentration au site d'effet (mg/L), même ordre ; égale à `conc` sans `ke0`.
+    pub conc_e: Vec<(String, Vec<f64>)>,
     /// Déficit de volume (mL).
     pub d: Vec<f64>,
     /// Diurèse effective (mL/kg).
@@ -212,7 +243,8 @@ pub const PK_ATOL: f64 = 1e-10;
 
 /// Simule les doses `doses` jusqu'à `t_end_h` et enregistre l'état aux instants `t_eval_h`.
 ///
-/// États par médicament : dépôt digestif, central, périphérique (mg) ; puis `D` et `U`.
+/// États par médicament : dépôt digestif, central, périphérique, dépôt IM (mg) et concentration
+/// au site d'effet (mg/L) ; puis `D`, `U` et `W`.
 /// L'intégration est relancée à chaque instant remarquable (doses, enregistrements),
 /// comme la référence. Diurétique : `u = urine_max·E(X)` (mL/kg/min), `X = C` ou, avec
 /// `drive: urinary_excretion`, `X = C·masse néphronique`,
@@ -255,8 +287,9 @@ pub fn timecourse(
         })
         .collect::<Result<_, _>>()?;
     let pars: Vec<PkConstants> = mods.iter().map(|m| pk_constants(m, p)).collect();
-    // états : (dépôt, central, périphérique) × médicaments, puis D, U et W (adaptation)
-    let n = 3 * mods.len() + 3;
+    // états : (dépôt, central, périphérique, dépôt IM, Ce) × médicaments, puis D, U et W
+    const S: usize = 5;
+    let n = S * mods.len() + 3;
     let mut state = vec![0.0; n];
     let mut events: Vec<&Dose> = doses.iter().collect();
     events.sort_by(|a, b| {
@@ -274,12 +307,16 @@ pub fn timecourse(
         let mut dy = vec![0.0; n];
         let mut urine = 0.0; // mL/kg/min
         for (j, (m, k)) in mods.iter().zip(&pars).enumerate() {
-            let i = 3 * j;
-            let (gut, ac, ap) = (y[i], y[i + 1], y[i + 2]);
+            let i = S * j;
+            let (gut, ac, ap, im, ce) = (y[i], y[i + 1], y[i + 2], y[i + 3], y[i + 4]);
             let ka = m.pk.ka_per_h;
+            let ka_im = m.pk.ka_im_per_h.unwrap_or(0.0);
             dy[i] = -ka * gut;
-            dy[i + 1] = ka * gut - (k.cl / k.vc) * ac - (k.q / k.vc) * ac + (k.q / k.vp) * ap;
+            dy[i + 1] = ka * gut + ka_im * im - (k.cl / k.vc) * ac - (k.q / k.vc) * ac
+                + (k.q / k.vp) * ap;
             dy[i + 2] = (k.q / k.vc) * ac - (k.q / k.vp) * ap;
+            dy[i + 3] = -ka_im * im;
+            dy[i + 4] = m.pd.ke0_per_h.map_or(0.0, |ke0| ke0 * (ac / k.vc - ce));
             if let PdKind::Diuretic {
                 urine_max_ml_kg_min,
                 urinary_drive,
@@ -336,6 +373,7 @@ pub fn timecourse(
     let mut out = Timecourse {
         t: Vec::new(),
         conc: ids.iter().map(|id| (id.to_string(), Vec::new())).collect(),
+        conc_e: ids.iter().map(|id| (id.to_string(), Vec::new())).collect(),
         d: Vec::new(),
         u: Vec::new(),
     };
@@ -346,8 +384,17 @@ pub fn timecourse(
             let k = ids.iter().position(|id| *id == e.drug).expect("indexé");
             let mg = e.mg_per_kg * bw;
             match e.route {
-                Route::Iv => state[3 * k + 1] += mg,
-                Route::Po => state[3 * k] += mg * mods[k].pk.f,
+                Route::Iv => state[S * k + 1] += mg,
+                Route::Po => state[S * k] += mg * mods[k].pk.f,
+                Route::Im => {
+                    if mods[k].pk.ka_im_per_h.is_none() {
+                        return Err(Error::InvalidInput(format!(
+                            "voie IM non décrite pour {} (ka_im_per_h absent)",
+                            e.drug
+                        )));
+                    }
+                    state[S * k + 3] += mg * mods[k].pk.f_im
+                }
             }
             ev_i += 1;
         }
@@ -357,7 +404,15 @@ pub fn timecourse(
             // U des effets : diurèse effective moins la part compensée par l'adaptation
             out.u.push(state[n - 2] - adapt_frac * state[n - 1]);
             for (k, (_, series)) in out.conc.iter_mut().enumerate() {
-                series.push(state[3 * k + 1] / pars[k].vc);
+                series.push(state[S * k + 1] / pars[k].vc);
+            }
+            for (k, (_, series)) in out.conc_e.iter_mut().enumerate() {
+                let c = state[S * k + 1] / pars[k].vc;
+                series.push(if mods[k].pd.ke0_per_h.is_some() {
+                    state[S * k + 4]
+                } else {
+                    c
+                });
             }
         }
         if let Some(&b) = times.get(j + 1) {

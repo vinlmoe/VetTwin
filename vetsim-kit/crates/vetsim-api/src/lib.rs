@@ -13,7 +13,7 @@ use vetsim_core::blocks::{blocks_of, Block};
 use vetsim_core::case::{Case, DrawSource, NoNoise};
 use vetsim_core::dsp::{base64, wav_pcm16};
 use vetsim_core::pcg::{patient_pcg, AuscultationConfig, PcgOptions};
-use vetsim_core::pkpd::{apply_drug_effects, emax_effect, timecourse, Dose, Route};
+use vetsim_core::pkpd::{apply_drug_effects_sites, emax_effect, timecourse, Dose, Route};
 use vetsim_core::rng::NoiseSource;
 use vetsim_core::signals::{make_pcg, patient_signals, streams, PcgInputs, SignalOptions, PCG_FS};
 use vetsim_core::{
@@ -366,6 +366,7 @@ impl Engine {
         let mut d = opt_f64(m, "D", 0.0)?;
         let mut u = opt_f64(m, "U", 0.0)?;
         let mut conc = conc;
+        let mut conc_e: Vec<(String, f64)> = Vec::new();
         // Examen à l'instant `at_h` d'un schéma d'administration : concentrations, D et U
         // simulés (PK du patient, donc avec sa fonction rénale et hépatique).
         if m.contains_key("doses") {
@@ -385,6 +386,7 @@ impl Engine {
             let ds = parse_doses(m)?;
             let tc = timecourse(&s.patient.params, &self.catalog()?.drugs, &ds, at, &[at])?;
             conc = tc.conc.iter().map(|(k, v)| (k.clone(), v[0])).collect();
+            conc_e = tc.conc_e.iter().map(|(k, v)| (k.clone(), v[0])).collect();
             d = tc.d[0];
             u = tc.u[0];
         }
@@ -400,10 +402,11 @@ impl Engine {
         if conc.is_empty() && d == 0.0 && u == 0.0 {
             return Ok(base);
         }
-        Ok(apply_drug_effects(
+        Ok(apply_drug_effects_sites(
             &base,
             &self.catalog()?.drugs,
             &conc,
+            &conc_e,
             d,
             u,
         )?)
@@ -447,9 +450,7 @@ impl Engine {
                     let tcs = timecourse(&base, &c.drugs, &ds, at, &grid)?;
                     let mut states = Vec::with_capacity(tcs.t.len());
                     for i in 0..tcs.t.len() {
-                        let conc_i: Vec<(String, f64)> =
-                            tcs.conc.iter().map(|(d, v)| (d.clone(), v[i])).collect();
-                        let pi = apply_drug_effects(&base, &c.drugs, &conc_i, tcs.d[i], tcs.u[i])?;
+                        let pi = effects_at(&base, &c.drugs, &tcs, i)?;
                         states.push(state_entry(&pi)?);
                     }
                     apply_marker_kinetics(&mut states, &tcs.t, &base)?;
@@ -583,15 +584,7 @@ impl Engine {
                         states.push(dead_entry(&cause));
                         continue;
                     }
-                    let conc_i: Vec<(String, f64)> =
-                        tcs.conc.iter().map(|(d, v)| (d.clone(), v[i])).collect();
-                    let p = apply_drug_effects(
-                        &s.patient.params,
-                        &c.drugs,
-                        &conc_i,
-                        tcs.d[i],
-                        tcs.u[i],
-                    )?;
+                    let p = effects_at(&s.patient.params, &c.drugs, &tcs, i)?;
                     let st = state_entry(&p)?;
                     if st["outcome"] == "dead" {
                         death = Some(tcs.t[i]);
@@ -612,10 +605,7 @@ impl Engine {
                         states.push(dead_entry(c));
                         continue;
                     }
-                    let conc_i: Vec<(String, f64)> =
-                        tc.conc.iter().map(|(d, v)| (d.clone(), v[i])).collect();
-                    let p =
-                        apply_drug_effects(&s.patient.params, &c.drugs, &conc_i, tc.d[i], tc.u[i])?;
+                    let p = effects_at(&s.patient.params, &c.drugs, &tc, i)?;
                     let st = state_entry(&p)?;
                     if st["outcome"] == "dead" {
                         cause = Some(st["cause"].clone());
@@ -893,6 +883,20 @@ fn beat_pressures(
 }
 
 /// Schéma d'administration : `"doses": [{"t_h", "drug", "mg_per_kg", "route": "iv"|"po"}]`.
+/// Paramètres sous traitement à l'instant `i` d'une évolution temporelle (concentrations
+/// plasmatiques et au site d'effet, état de volume).
+fn effects_at(
+    base: &Params,
+    drugs: &[vetsim_core::DrugModule],
+    tc: &vetsim_core::Timecourse,
+    i: usize,
+) -> Result<Params, vetsim_core::Error> {
+    let at = |v: &[(String, Vec<f64>)]| -> Vec<(String, f64)> {
+        v.iter().map(|(d, x)| (d.clone(), x[i])).collect()
+    };
+    apply_drug_effects_sites(base, drugs, &at(&tc.conc), &at(&tc.conc_e), tc.d[i], tc.u[i])
+}
+
 fn parse_doses(m: &Map<String, Json>) -> Result<Vec<Dose>, ApiError> {
     let list = m
         .get("doses")
@@ -908,7 +912,8 @@ fn parse_doses(m: &Map<String, Json>) -> Result<Vec<Dose>, ApiError> {
         let route = match dm.get("route").and_then(Json::as_str) {
             Some("iv") => Route::Iv,
             Some("po") => Route::Po,
-            _ => return Err(ApiError::one(path("route"), "« iv » ou « po » attendu")),
+            Some("im") | Some("sc") => Route::Im,
+            _ => return Err(ApiError::one(path("route"), "« iv », « po » ou « im » (« sc ») attendu")),
         };
         ds.push(Dose {
             t_h: opt_f64(dm, "t_h", 0.0)

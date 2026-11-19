@@ -923,6 +923,11 @@ pub struct Pk {
     pub ka_per_h: f64,
     /// Biodisponibilité orale.
     pub f: f64,
+    /// Constante d'absorption intramusculaire ou sous-cutanée (1/h) ; `None` : voie IM non
+    /// décrite pour ce médicament.
+    pub ka_im_per_h: Option<f64>,
+    /// Biodisponibilité IM/SC (1 par défaut).
+    pub f_im: f64,
     /// Exposant de la masse néphronique sur la clairance.
     pub renal_exp: f64,
     /// Exposant de la fonction hépatique sur la clairance.
@@ -969,6 +974,18 @@ pub struct Pd {
     pub effects: Vec<Effect>,
     /// Termes toxiques : mécanismes distincts, à concentrations plus hautes (variable `T`).
     pub toxicity: Vec<Toxicity>,
+    /// Constante d'équilibration du compartiment effet (1/h) : `dCe/dt = ke0·(C − Ce)`, l'effet
+    /// `E` suit `Ce`. `None` : effet instantané (`Ce = C`).
+    pub ke0_per_h: Option<f64>,
+}
+
+/// Concentration qui pilote un terme : plasmatique ou au site d'effet (compartiment `ke0`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConcSite {
+    /// Concentration plasmatique centrale.
+    Plasma,
+    /// Concentration au site d'effet du médicament.
+    Effect,
 }
 
 /// Terme toxique d'un médicament : `T = emax·C^h/(EC50^h + C^h)`, appliqué après l'effet
@@ -990,6 +1007,8 @@ pub struct Toxicity {
     pub source: Option<String>,
     /// Effets sur les paramètres (variable `T`).
     pub effects: Vec<Effect>,
+    /// Concentration qui pilote le terme (plasmatique par défaut).
+    pub site: ConcSite,
 }
 
 /// Module médicament.
@@ -1072,6 +1091,18 @@ impl DrugModule {
         let f = c.req_num_in(m, p, "f", |x| (0.0..=1.0).contains(&x), "0 ≤ f ≤ 1");
         let renal = c.opt_num(m, p, "renal_exp");
         let hep = c.opt_num(m, p, "hep_exp");
+        let ka_im = c.opt_num(m, p, "ka_im_per_h");
+        let f_im = c.opt_num(m, p, "f_im");
+        if let Some(Some(x)) = ka_im {
+            if x <= 0.0 {
+                c.err("/pk/ka_im_per_h", "> 0 attendu");
+            }
+        }
+        if let Some(Some(x)) = f_im {
+            if !(0.0..=1.0).contains(&x) {
+                c.err("/pk/f_im", "0 ≤ f_im ≤ 1 attendu");
+            }
+        }
         Some(Pk {
             vc_l_kg: vc?,
             vp_l_kg: vp?,
@@ -1079,6 +1110,8 @@ impl DrugModule {
             q_ml_min_kg: q?,
             ka_per_h: ka?,
             f: f?,
+            ka_im_per_h: ka_im?,
+            f_im: f_im?.unwrap_or(1.0),
             renal_exp: renal?.unwrap_or(0.0),
             hep_exp: hep?.unwrap_or(0.0),
         })
@@ -1148,6 +1181,12 @@ impl DrugModule {
         let effects = c.req(m, p, "effects");
         let effects = c.effects(effects, "/pd/effects", scope, false);
         let toxicity = Self::toxicity(c, m);
+        let ke0 = c.opt_num(m, p, "ke0_per_h");
+        if let Some(Some(x)) = ke0 {
+            if x <= 0.0 {
+                c.err("/pd/ke0_per_h", "> 0 attendu");
+            }
+        }
         Some(Pd {
             kind: kind?,
             emax: emax?,
@@ -1155,6 +1194,7 @@ impl DrugModule {
             hill: hill?,
             effects,
             toxicity,
+            ke0_per_h: ke0?,
         })
     }
 
@@ -1178,7 +1218,13 @@ impl DrugModule {
             for k in t.keys() {
                 if !matches!(
                     k.as_str(),
-                    "id" | "emax" | "ec50_mg_L" | "hill" | "evidence" | "source" | "effects"
+                    "id" | "emax"
+                        | "ec50_mg_L"
+                        | "hill"
+                        | "evidence"
+                        | "source"
+                        | "effects"
+                        | "site"
                 ) {
                     c.err(
                         child(&p, k),
@@ -1207,6 +1253,14 @@ impl DrugModule {
                 }
             };
             let source = t.get("source").and_then(Json::as_str).map(str::to_string);
+            let site = match t.get("site").map(Json::as_str) {
+                None | Some(Some("plasma")) => ConcSite::Plasma,
+                Some(Some("effect")) => ConcSite::Effect,
+                Some(_) => {
+                    c.err(child(&p, "site"), "« plasma » ou « effect » attendu");
+                    ConcSite::Plasma
+                }
+            };
             let eff = c.req(t, &p, "effects");
             let effects = c.effects(eff, &child(&p, "effects"), &["T"], true);
             if let (Some(id), Some(emax), Some(ec50), Some(hill)) = (id, emax, ec50, hill) {
@@ -1218,6 +1272,7 @@ impl DrugModule {
                     evidence,
                     source,
                     effects,
+                    site,
                 });
             }
         }
