@@ -27,6 +27,9 @@ const MS_FR = [['loc', 'Perte de conscience'], ['intubation', 'Intubation'], ['v
 const A = {
   list: null, session: null, key: null, hist: [], snap: null, waves: null, running: false, speed: 10, timer: null, last: null,
   mon: null, sound: false, audio: null, raf: 0, lastAlarm: 0,
+  syr: [], pumps: [], nextId: 1,
+  machine: { o2: 2, circuit: 'circle', vap: null, pct: 0, vent: false, rr: 10, vt: 12 },
+  prep: { agent: null, conc: '', vol: 10, pAgent: null, pConc: '', pVol: 50, pRate: 5 },
   procedure: '', rec: null, lastWave: 0, err: null,
   form: { agent: null, dose: '', route: 'iv', push: 30, cri: '', vap: 'isoflurane', pct: 2, fgf: 2, rr: 10, vt: 12, block: null, territory: null, fluids: 5, bolus: 10, bleed: 5 },
 };
@@ -43,6 +46,7 @@ export function renderAnesthesia(v, ctx) {
     A.form.block = (A.list.agents.find((a) => a.routes.local) || {}).id || null;
   }
   const key = JSON.stringify([inputs.bw, inputs.disease, inputs.stage]);
+  A.bw = inputs.bw;
   if (A.key !== key) stop();
   v.innerHTML = layout(ctl, inputs, key);
   wire(v, ctl, inputs, key, ctx);
@@ -65,6 +69,13 @@ function start(ctl, inputs, key) {
   if (A.procedure) opts.procedure = A.procedure;
   const r = ctl.call('message', JSON.stringify({ op: 'anesthesia_start', patient: pid, options: opts }));
   A.session = r.session; A.key = key; A.hist = [r.snapshot]; A.snap = r.snapshot; A.rec = null; A.waves = null; A.lastWave = -1e9; A.mon = null;
+  // nouvelle session : seringues et pousse-seringues préparés conservés (pleins, à l'arrêt)
+  for (const x of A.syr) x.left = x.vol;
+  for (const x of A.pumps) { x.left = x.vol; x.on = false; }
+  A.machine.vent = false;
+  event(ctl, { type: 'fresh_gas', l_min: A.machine.o2 });
+  event(ctl, { type: 'circuit', kind: A.machine.circuit });
+  if (A.machine.vap && A.machine.pct > 0) event(ctl, { type: 'vaporizer', agent: A.machine.vap, pct: A.machine.pct });
 }
 
 /** Libellé d'une action pour la barre d'état. */
@@ -107,10 +118,12 @@ function advance(ctl, wallS, v) {
   const wantWaves = !A.mon || A.mon.pending.length === 0;
   try {
     const r = ctl.call('message', JSON.stringify({ op: 'anesthesia_step', options: { session: A.session, dt_s: dt, n, all: true, waves_s: wantWaves ? 6 : 0, seed: 1 } }));
+    const t0 = A.snap ? A.snap.t_s : 0;
     for (const s of r.snapshots) A.hist.push(s);
     if (A.hist.length > 20000) A.hist.splice(0, A.hist.length - 20000);
     A.snap = r.snapshots[r.snapshots.length - 1];
     if (r.ecg) { A.waves = { ecg: r.ecg, fs: r.ecg_fs, pr: r.pressures, at: performance.now() }; A.lastWave = performance.now(); feedMonitor(r); }
+    pumpTick(ctl, A.snap.t_s - t0);
     if (A.snap.dead) stop();
   } catch (e) { A.err = e.message; stop(); }
   paint(v);
@@ -142,8 +155,8 @@ function layout(ctl, inputs, key) {
     <p class="sub">Patient de la barre latérale (poids, maladie). Toutes les valeurs du modèle sont pédagogiques ; beaucoup sont des placeholders (niveau D). Ne jamais utiliser pour une anesthésie réelle.</p>
     ${A.err ? `<p class="warn">${esc(A.err)}</p>` : ''}
   </div>
+  ${started ? `<div class="anesth-status" id="an-status"></div>` : ''}
   ${started ? `
-  <div class="anesth-status" id="an-status"></div>
   <div class="anesth-grid">
     <div class="monitor card" id="an-monitor">
       <div class="mon-top"><div id="an-mon-head"></div><button id="an-sound" class="mon-sound">${A.sound ? '🔊 Son' : '🔇 Son coupé'}</button></div>
@@ -155,6 +168,7 @@ function layout(ctl, inputs, key) {
       <div id="an-signs"></div>
     </div>
   </div>
+  ${stations(true)}
   <div class="card">
     <h3>Tendances</h3>
     <div class="trend"><span>FC (vert), PAM (rouge)</span><canvas id="an-t1"></canvas></div>
@@ -162,30 +176,6 @@ function layout(ctl, inputs, key) {
     <div class="trend"><span>Profondeur Δ en équivalents MAC (bleu), nociception nette ×2 (rouge), stimulus ×2 (orange)</span><canvas id="an-t3"></canvas></div>
   </div>
   <div class="anesth-actions">
-    <div class="card">
-      <h3>Médicaments</h3>
-      <label>Agent <select id="an-agent">${opt(L.agents, f.agent, agentLabel)}</select></label>
-      <div class="row"><label>Dose (mg/kg) <input id="an-dose" type="number" step="any" min="0" value="${f.dose}"></label>
-        <label>Voie <select id="an-route">${routes.map((r) => `<option ${r === f.route ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
-        <label title="durée de l'injection IV">Injection (s) <input id="an-push" type="number" min="0" value="${f.push}"></label>
-        <button id="an-bolus">Injecter</button></div>
-      <div class="row"><label>Perfusion (mg/kg/h) <input id="an-cri" type="number" step="any" min="0" value="${f.cri}"></label>
-        <button id="an-cri-go">Régler</button></div>
-      <p class="sub" id="an-agent-note">${esc(ag.notes || '')}</p>
-    </div>
-    <div class="card">
-      <h3>Voies aériennes, halogéné</h3>
-      <div class="row">
-        <button id="an-intub">${A.snap.intubated ? 'Extuber' : 'Intuber'}</button>
-        <button id="an-o2" ${A.snap.intubated ? 'disabled' : ''}>O₂ au masque</button>
-      </div>
-      ${L.inhalants.length ? `<div class="row"><label>Agent <select id="an-vap">${opt(L.inhalants, f.vap, (i) => `${i.name} (MAC ${fmt(i.mac_pct, 2)} %) [${i.evidence}]`)}</select></label>
-        <label>Vaporisateur (%) <input id="an-pct" type="number" step="0.1" min="0" value="${f.pct}"></label>
-        <button id="an-vap-go">Régler</button><button id="an-vap-off">Fermer</button></div>
-      <div class="row"><label>Gaz frais (L/min) <input id="an-fgf" type="number" step="0.1" min="0" value="${f.fgf}"></label><button id="an-fgf-go">Régler</button></div>` : ''}
-      <div class="row"><label>FR <input id="an-rr" type="number" min="0" value="${f.rr}"></label><label>VT (mL/kg) <input id="an-vt" type="number" min="0" value="${f.vt}"></label>
-        <button id="an-ippv" ${A.snap.intubated ? '' : 'disabled'}>Ventilation contrôlée</button><button id="an-spont">Spontanée</button></div>
-    </div>
     <div class="card">
       <h3>Chirurgie et douleur</h3>
       ${proc ? `<div class="steps">${proc.steps.map((s, i) => `<button data-step="${i}" title="intensité ${fmt(s.intensity, 1)}, ${fmt(s.duration_s / 60, 0)} min">${esc(s.label)}</button>`).join('')}
@@ -207,7 +197,7 @@ function layout(ctl, inputs, key) {
     <h3>Feuille d'anesthésie</h3>
     <div class="row"><button id="an-rec">Actualiser</button></div>
     <div id="an-record"></div>
-  </div>` : ''}`;
+  </div>` : `<p class="sub prep-hint">Préparez seringues, pousse-seringues et machine, puis démarrez la session.</p>${stations(false)}`}`;
 }
 
 function num(id) { const x = parseFloat(document.getElementById(id).value); return Number.isFinite(x) ? x : null; }
@@ -230,6 +220,7 @@ function wire(v, ctl, inputs, key, ctx) {
     if (A.audio && A.audio.state === 'suspended') A.audio.resume();
     const b = document.getElementById('an-sound'); if (b) b.textContent = A.sound ? '🔊 Son' : '🔇 Son coupé';
   });
+  wireStations(v, ctl, ev, rerender);
   if (!A.session || A.key !== key) return;
   const f = A.form;
   const ag = document.getElementById('an-agent');
@@ -237,18 +228,6 @@ function wire(v, ctl, inputs, key, ctx) {
   const keep = (id, k) => { const el = document.getElementById(id); if (el) el.onchange = () => { f[k] = el.value; }; };
   keep('an-dose', 'dose'); keep('an-push', 'push'); keep('an-route', 'route'); keep('an-cri', 'cri'); keep('an-vap', 'vap'); keep('an-pct', 'pct'); keep('an-fgf', 'fgf');
   keep('an-rr', 'rr'); keep('an-vt', 'vt'); keep('an-block', 'block'); keep('an-terr', 'territory'); keep('an-fl', 'fluids'); keep('an-bo', 'bolus'); keep('an-bl', 'bleed');
-  on('an-bolus', () => { const d = num('an-dose'); if (d !== null) { const p = num('an-push'); ev({ type: 'bolus', agent: ag.value, mg_per_kg: d, route: document.getElementById('an-route').value, ...(p !== null ? { duration_s: p } : {}) }); } });
-  on('an-cri-go', () => { const d = num('an-cri'); ev({ type: 'cri', agent: ag.value, mg_per_kg_h: d || 0 }); });
-  on('an-intub', () => {
-    if (!A.snap.intubated) { event(ctl, { type: 'intubate' }); if (!A.err) event(ctl, { type: 'fresh_gas', l_min: num('an-fgf') || 0 }); advance(ctl, 0.0001, v); rerender(); }
-    else ev({ type: 'extubate' });
-  });
-  on('an-o2', () => ev({ type: 'oxygen', on: A.snap.fio2 < 0.3 }));
-  on('an-vap-go', () => { event(ctl, { type: 'fresh_gas', l_min: num('an-fgf') || 0 }); ev({ type: 'vaporizer', agent: document.getElementById('an-vap').value, pct: num('an-pct') || 0 }); });
-  on('an-vap-off', () => ev({ type: 'vaporizer', agent: document.getElementById('an-vap').value, pct: 0 }));
-  on('an-fgf-go', () => ev({ type: 'fresh_gas', l_min: num('an-fgf') || 0 }));
-  on('an-ippv', () => ev({ type: 'ventilation', mode: 'controlled', rr: num('an-rr') || 0, vt_ml_kg: num('an-vt') || 0 }));
-  on('an-spont', () => ev({ type: 'ventilation', mode: 'spontaneous' }));
   for (const b of v.querySelectorAll('[data-step]')) b.onclick = () => ev({ type: 'procedure_step', index: +b.dataset.step });
   on('an-end', () => ev({ type: 'end_surgery' }));
   on('an-pinch', () => ev({ type: 'stimulus', intensity: 1.0, duration_s: 30, territory: f.territory || 'skin' }));
@@ -267,6 +246,7 @@ function paint(v) {
   const s = A.snap; if (!s) return;
   const c = document.getElementById('an-clock'); if (c) c.textContent = clock(s.t_s);
   paintStatus();
+  paintStations();
   const m = document.getElementById('an-mon-vals'); if (!m) return;
   const vi = s.vitals || {};
   const gas = s.inhalants.find((i) => i.vaporizer > 0) || s.inhalants.reduce((a, b) => (b.fe > (a ? a.fe : -1) ? b : a), null);
@@ -471,4 +451,222 @@ function drawMonitor(now) {
     const ph = ((ia / fs) % per) / per, e = s.etco2;
     return ph < 0.4 ? 0 : ph < 0.45 ? e * (ph - 0.4) / 0.05 : ph < 0.9 ? e * (0.92 + 0.08 * (ph - 0.45) / 0.45) : e * (1 - (ph - 0.9) / 0.1);
   }, 0, 60, '#f2d45c', 26);
+}
+
+// ------------------------------------------------------------------ postes : pharmacie, pousse-seringues, machine
+// Concentrations des présentations courantes (valeurs par défaut de l'interface, modifiables) :
+// ce ne sont pas des paramètres du modèle, seulement une aide à la préparation.
+const CONC = { propofol: 10, alfaxalone: 10, ketamine: 100, dexmedetomidine: 0.5, methadone: 10, fentanyl: 0.05,
+  midazolam: 5, lidocaine: 20, bupivacaine: 5, atipamezole: 5, naloxone: 0.4, acepromazine: 2 };
+const n2 = (x, d = 2) => fmt(x, Math.abs(x) >= 10 ? 1 : d);
+const agentName = (id) => { const a = A.list.agents.find((x) => x.id === id); return a ? a.name : id; };
+const routesOf = (id) => { const a = A.list.agents.find((x) => x.id === id); return a ? ['iv', ...(a.routes.im ? ['im'] : []), ...(a.routes.sc ? ['sc'] : [])] : ['iv']; };
+
+/** Débit perfusé par agent (mg/kg/h), somme des pousse-seringues en marche. */
+function criOf(agent) {
+  return A.pumps.filter((p) => p.on && p.agent === agent && p.left > 0).reduce((s, p) => s + (p.rate * p.conc) / A.bw, 0);
+}
+function syncCri(ctl, agent) {
+  if (A.session) event(ctl, { type: 'cri', agent, mg_per_kg_h: criOf(agent) });
+}
+/** Volumes perfusés pendant `dt` s simulées ; arrêt automatique d'une seringue vide. */
+function pumpTick(ctl, dt) {
+  if (!(dt > 0)) return;
+  for (const p of A.pumps) {
+    if (!p.on) continue;
+    p.left = Math.max(0, p.left - (p.rate * dt) / 3600);
+    if (p.left <= 0) {
+      p.on = false; syncCri(ctl, p.agent);
+      A.last = { t: A.snap.t_s, text: `pousse-seringue ${agentName(p.agent)} vide : perfusion arrêtée`, ok: false };
+    }
+  }
+}
+
+function stations(started) {
+  const L = A.list, P = A.prep, M = A.machine;
+  if (!P.agent) P.agent = 'propofol'; if (!P.pAgent) P.pAgent = 'fentanyl';
+  if (!M.vap && L.inhalants.length) M.vap = L.inhalants[0].id;
+  const c0 = P.conc === '' ? CONC[P.agent] ?? 1 : +P.conc, pc0 = P.pConc === '' ? CONC[P.pAgent] ?? 1 : +P.pConc;
+  const dis = started ? '' : 'disabled';
+  const syr = A.syr.map((x) => {
+    const r = routesOf(x.agent), frac = x.vol ? x.left / x.vol : 0;
+    return `<div class="syr ${x.left <= 0 ? 'empty' : ''}">
+      <div class="syr-head"><b>${esc(agentName(x.agent))}</b> ${n2(x.conc)} mg/mL<button class="mini" data-syr-del="${x.id}" title="jeter">✕</button></div>
+      <div class="bar"><i style="width:${(100 * frac).toFixed(0)}%"></i></div>
+      <div class="sub">reste ${n2(x.left, 1)} / ${n2(x.vol, 1)} mL (${n2(x.left * x.conc)} mg)</div>
+      <div class="row">
+        <label>Volume (mL) <input data-syr-vol="${x.id}" type="number" step="0.1" min="0" value="${x.inj ?? ''}"></label>
+        <label>Voie <select data-syr-route="${x.id}">${r.map((v) => `<option ${v === (x.route || 'iv') ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+        <label>Durée (s) <input data-syr-dur="${x.id}" type="number" min="0" value="${x.dur ?? 30}"></label>
+        <button data-syr-go="${x.id}" ${dis || (x.left <= 0 ? 'disabled' : '')}>Injecter</button>
+      </div>
+      <div class="sub dose" data-syr-dose="${x.id}">${x.inj ? `= ${n2((x.inj * x.conc) / A.bw, 3)} mg/kg` : ''}</div>
+    </div>`;
+  }).join('') || '<p class="sub">Aucune seringue préparée.</p>';
+  const pumps = A.pumps.map((x) => `<div class="pump ${x.on ? 'on' : ''}">
+      <div class="syr-head"><b>${esc(agentName(x.agent))}</b> ${n2(x.conc, 3)} mg/mL<button class="mini" data-pump-del="${x.id}" title="retirer">✕</button></div>
+      <div class="pump-lcd"><span data-pump-rate="${x.id}">${n2(x.rate, 1)} mL/h</span><span>${n2((x.rate * x.conc) / A.bw, 3)} mg/kg/h · ${n2((1000 * x.rate * x.conc) / A.bw / 60, 2)} µg/kg/min</span></div>
+      <div class="bar"><i id="pump-bar-${x.id}" style="width:${(100 * x.left / x.vol).toFixed(0)}%"></i></div>
+      <div class="sub" id="pump-left-${x.id}">reste ${n2(x.left, 1)} / ${n2(x.vol, 1)} mL</div>
+      <div class="row"><label>Débit (mL/h) <input data-pump-newrate="${x.id}" type="number" step="0.1" min="0" value="${x.rate}"></label>
+        <button data-pump-set="${x.id}">Régler</button>
+        <button data-pump-toggle="${x.id}" class="${x.on ? 'on' : ''}" ${dis || (x.left <= 0 ? 'disabled' : '')}>${x.on ? '⏸ Pause' : '▶ Démarrer'}</button></div>
+    </div>`).join('') || '<p class="sub">Aucun pousse-seringue préparé.</p>';
+  const inh = L.inhalants.find((i) => i.id === M.vap);
+  const intub = A.snap && started ? A.snap.intubated : false;
+  return `<div class="anesth-stations">
+    <div class="card station">
+      <h3>💉 Pharmacie : seringues</h3>
+      <div class="prep">
+        <label>Agent <select id="pr-agent">${opt(L.agents, P.agent, (a) => a.name)}</select></label>
+        <label>mg/mL <input id="pr-conc" type="number" step="any" min="0" value="${c0}"></label>
+        <label>Volume (mL) <input id="pr-vol" type="number" step="0.1" min="0" value="${P.vol}"></label>
+        <button id="pr-go" class="primary">Préparer</button>
+      </div>
+      <p class="sub">${n2(c0 * P.vol)} mg, soit ${n2((c0 * P.vol) / A.bw, 3)} mg/kg pour ${fmt(A.bw, 1)} kg.</p>
+      <div class="syr-list">${syr}</div>
+    </div>
+    <div class="card station">
+      <h3>⏱ Pousse-seringues (CRI)</h3>
+      <div class="prep">
+        <label>Agent <select id="pp-agent">${opt(L.agents, P.pAgent, (a) => a.name)}</select></label>
+        <label>mg/mL <input id="pp-conc" type="number" step="any" min="0" value="${pc0}"></label>
+        <label>Volume (mL) <input id="pp-vol" type="number" step="1" min="0" value="${P.pVol}"></label>
+        <label>Débit (mL/h) <input id="pp-rate" type="number" step="0.1" min="0" value="${P.pRate}"></label>
+        <button id="pp-go" class="primary">Préparer</button>
+      </div>
+      <p class="sub">${n2((P.pRate * pc0) / A.bw, 3)} mg/kg/h, soit ${n2((1000 * P.pRate * pc0) / A.bw / 60, 2)} µg/kg/min. Diluer : baisser la concentration.</p>
+      <div class="syr-list">${pumps}</div>
+    </div>
+    <div class="card station machine">
+      <h3>🫁 Machine d'anesthésie</h3>
+      <div class="mach-row"><span>O₂ (gaz frais)</span><button class="mini" data-m="o2:-0.5">−</button><b>${fmt(M.o2, 1)} L/min</b><button class="mini" data-m="o2:0.5">+</button></div>
+      <div class="mach-row"><span>Circuit</span><select id="m-circuit"><option value="circle" ${M.circuit === 'circle' ? 'selected' : ''}>filtre (réinhalation)</option><option value="non_rebreathing" ${M.circuit === 'non_rebreathing' ? 'selected' : ''}>sans réinhalation</option></select></div>
+      ${inh ? `<div class="mach-row"><span>Vaporisateur</span><select id="m-vap">${opt(L.inhalants, M.vap, (i) => `${i.name} (MAC ${fmt(i.mac_pct, 1)} %)`)}</select></div>
+      <div class="mach-row vap"><span></span><button class="mini" data-m="pct:-0.25">−</button><b class="dial">${fmt(M.pct, 2)} %</b><button class="mini" data-m="pct:0.25">+</button><button class="mini" data-m="pct:off">fermer</button><span class="sub">max ${fmt(inh.vaporizer_max_pct, 0)} %</span></div>` : ''}
+      <div class="mach-row"><span>Ventilateur</span><label>FR <input id="m-rr" type="number" min="0" value="${M.rr}"></label><label>VT mL/kg <input id="m-vt" type="number" min="0" value="${M.vt}"></label>
+        <button id="m-vent" class="${M.vent ? 'on' : ''}" ${started && intub ? '' : 'disabled'}>${M.vent ? 'VC en marche' : 'VC arrêtée'}</button></div>
+      <div class="mach-live" id="an-m-live"></div>
+      <h3>Patient</h3>
+      <div class="row"><button id="m-intub" ${dis}>${intub ? 'Extuber' : 'Intuber et brancher'}</button>
+        <button id="m-mask" ${started && !intub ? '' : 'disabled'}>O₂ au masque</button></div>
+      <div class="mach-live" id="an-m-extub"></div>
+    </div>
+  </div>`;
+}
+
+function wireStations(v, ctl, ev, rerender) {
+  const g = (id) => document.getElementById(id), P = A.prep, M = A.machine;
+  const val = (id) => { const x = parseFloat(g(id).value); return Number.isFinite(x) ? x : null; };
+  const bind = (id, f, evName = 'onchange') => { const el = g(id); if (el) el[evName] = f; };
+  bind('pr-agent', () => { P.agent = g('pr-agent').value; P.conc = ''; rerender(); });
+  bind('pr-conc', () => { P.conc = g('pr-conc').value; rerender(); });
+  bind('pr-vol', () => { P.vol = val('pr-vol') ?? P.vol; rerender(); });
+  bind('pr-go', () => {
+    const conc = val('pr-conc'), vol = val('pr-vol');
+    if (!(conc > 0 && vol > 0)) return;
+    A.syr.push({ id: A.nextId++, agent: P.agent, conc, vol, left: vol, route: routesOf(P.agent).includes('im') && P.agent === 'dexmedetomidine' ? 'im' : 'iv', dur: 30 });
+    A.last = { t: A.snap ? A.snap.t_s : 0, text: `seringue préparée : ${agentName(P.agent)} ${n2(conc)} mg/mL, ${n2(vol, 1)} mL`, ok: true };
+    rerender();
+  }, 'onclick');
+  bind('pp-agent', () => { P.pAgent = g('pp-agent').value; P.pConc = ''; rerender(); });
+  bind('pp-conc', () => { P.pConc = g('pp-conc').value; rerender(); });
+  bind('pp-vol', () => { P.pVol = val('pp-vol') ?? P.pVol; rerender(); });
+  bind('pp-rate', () => { P.pRate = val('pp-rate') ?? P.pRate; rerender(); });
+  bind('pp-go', () => {
+    const conc = val('pp-conc'), vol = val('pp-vol'), rate = val('pp-rate');
+    if (!(conc > 0 && vol > 0 && rate >= 0)) return;
+    A.pumps.push({ id: A.nextId++, agent: P.pAgent, conc, vol, left: vol, rate, on: false });
+    A.last = { t: A.snap ? A.snap.t_s : 0, text: `pousse-seringue préparé : ${agentName(P.pAgent)} ${n2(conc, 3)} mg/mL, ${n2(rate, 1)} mL/h`, ok: true };
+    rerender();
+  }, 'onclick');
+  const find = (arr, id) => arr.find((x) => x.id === +id);
+  for (const el of v.querySelectorAll('[data-syr-vol]')) el.oninput = () => {
+    const x = find(A.syr, el.dataset.syrVol); x.inj = parseFloat(el.value) || null;
+    const d = v.querySelector(`[data-syr-dose="${x.id}"]`); if (d) d.textContent = x.inj ? `= ${n2((x.inj * x.conc) / A.bw, 3)} mg/kg` : '';
+  };
+  for (const el of v.querySelectorAll('[data-syr-route]')) el.onchange = () => { find(A.syr, el.dataset.syrRoute).route = el.value; };
+  for (const el of v.querySelectorAll('[data-syr-dur]')) el.onchange = () => { find(A.syr, el.dataset.syrDur).dur = parseFloat(el.value); };
+  for (const el of v.querySelectorAll('[data-syr-go]')) el.onclick = () => {
+    const x = find(A.syr, el.dataset.syrGo), ml = Math.min(x.inj || 0, x.left);
+    if (!(ml > 0)) { A.last = { t: A.snap.t_s, text: 'indiquer le volume à injecter (mL)', ok: false }; paintStatus(); return; }
+    const route = x.route || 'iv', e = { type: 'bolus', agent: x.agent, mg_per_kg: (ml * x.conc) / A.bw, route };
+    if (route === 'iv' && Number.isFinite(x.dur)) e.duration_s = x.dur;
+    event(ctl, e);
+    if (A.last && A.last.ok) { x.left -= ml; A.last.text += ` (${n2(ml, 2)} mL de la seringue)`; }
+    advance(ctl, 0.0001, v); rerender();
+  };
+  for (const el of v.querySelectorAll('[data-syr-del]')) el.onclick = () => { A.syr = A.syr.filter((x) => x.id !== +el.dataset.syrDel); rerender(); };
+  for (const el of v.querySelectorAll('[data-pump-set]')) el.onclick = () => {
+    const x = find(A.pumps, el.dataset.pumpSet), r = parseFloat(v.querySelector(`[data-pump-newrate="${x.id}"]`).value);
+    if (!(r >= 0)) return; x.rate = r;
+    if (x.on) syncCri(ctl, x.agent);
+    A.last = { t: A.snap ? A.snap.t_s : 0, text: `${agentName(x.agent)} : débit ${n2(r, 1)} mL/h`, ok: true }; rerender();
+  };
+  for (const el of v.querySelectorAll('[data-pump-toggle]')) el.onclick = () => {
+    const x = find(A.pumps, el.dataset.pumpToggle); x.on = !x.on; syncCri(ctl, x.agent);
+    if (A.last && A.last.ok) A.last.text = `pousse-seringue ${agentName(x.agent)} ${x.on ? `démarré (${n2(x.rate, 1)} mL/h)` : 'en pause'}`;
+    advance(ctl, 0.0001, v); rerender();
+  };
+  for (const el of v.querySelectorAll('[data-pump-del]')) el.onclick = () => {
+    const x = find(A.pumps, el.dataset.pumpDel); A.pumps = A.pumps.filter((y) => y !== x); if (x.on) syncCri(ctl, x.agent); rerender();
+  };
+  const live = (e) => { if (A.session) ev(e); else rerender(); };
+  for (const el of v.querySelectorAll('[data-m]')) el.onclick = () => {
+    const [k, d] = el.dataset.m.split(':');
+    if (k === 'o2') { M.o2 = Math.max(0, Math.round((M.o2 + +d) * 10) / 10); live({ type: 'fresh_gas', l_min: M.o2 }); }
+    if (k === 'pct') {
+      const inh = A.list.inhalants.find((i) => i.id === M.vap);
+      M.pct = d === 'off' ? 0 : Math.min(inh ? inh.vaporizer_max_pct : 8, Math.max(0, M.pct + +d));
+      live({ type: 'vaporizer', agent: M.vap, pct: M.pct });
+    }
+  };
+  bind('m-circuit', () => { M.circuit = g('m-circuit').value; live({ type: 'circuit', kind: M.circuit }); });
+  bind('m-vap', () => {
+    const old = M.vap; M.vap = g('m-vap').value;
+    if (A.session && M.pct > 0) event(ctl, { type: 'vaporizer', agent: old, pct: 0 });
+    M.pct = 0; rerender();
+  });
+  bind('m-rr', () => { M.rr = val('m-rr') ?? M.rr; if (M.vent) live({ type: 'ventilation', mode: 'controlled', rr: M.rr, vt_ml_kg: M.vt }); });
+  bind('m-vt', () => { M.vt = val('m-vt') ?? M.vt; if (M.vent) live({ type: 'ventilation', mode: 'controlled', rr: M.rr, vt_ml_kg: M.vt }); });
+  bind('m-vent', () => {
+    M.vent = !M.vent;
+    live(M.vent ? { type: 'ventilation', mode: 'controlled', rr: M.rr, vt_ml_kg: M.vt } : { type: 'ventilation', mode: 'spontaneous' });
+    if (A.last && !A.last.ok) M.vent = false;
+  }, 'onclick');
+  bind('m-intub', () => {
+    if (!A.session) return;
+    if (A.snap.intubated) {
+      event(ctl, { type: 'extubate' }); M.vent = false;
+      if (M.pct > 0 && A.last) A.last.text += ' (vaporisateur encore ouvert : sans effet sur le patient extubé)';
+    } else event(ctl, { type: 'intubate' });
+    advance(ctl, 0.0001, v); rerender();
+  }, 'onclick');
+  bind('m-mask', () => ev({ type: 'oxygen', on: A.snap.fio2 < 0.3 }), 'onclick');
+}
+
+/** Mise à jour à chaque pas : volumes des pompes, lecture de la machine, critères d'extubation. */
+function paintStations() {
+  const s = A.snap; if (!s) return;
+  for (const x of A.pumps) {
+    const b = document.getElementById(`pump-bar-${x.id}`), l = document.getElementById(`pump-left-${x.id}`);
+    if (b) b.style.width = `${(100 * x.left / x.vol).toFixed(0)}%`;
+    if (l) l.textContent = `reste ${n2(x.left, 1)} / ${n2(x.vol, 1)} mL (perfusé ${n2(x.vol - x.left, 1)} mL)`;
+  }
+  const g = s.inhalants.find((i) => i.id === A.machine.vap);
+  const live = document.getElementById('an-m-live');
+  if (live) live.innerHTML = `FiO₂ ${fmt(100 * s.fio2)} % · ${g ? `Fi/Fe ${esc(g.id)} ${fmt(g.fi, 2)}/${fmt(g.fe, 2)} % (${fmt(g.brain_mac, 2)} MAC cérébrale)` : ''}
+    · ${s.controlled ? `ventilation contrôlée ${fmt(s.rr)}/min` : `spontanée ${fmt(s.rr)}/min`}${s.apnea ? ' · <b class="warn">apnée</b>' : ''}`;
+  const ex = document.getElementById('an-m-extub');
+  if (ex) {
+    const r = s.reflexes, d = s.depth, vapOpen = A.machine.pct > 0;
+    const ok = (b) => (b ? '✓' : '✗');
+    if (s.intubated) {
+      const ready = r.swallowing && !s.controlled && !s.apnea;
+      ex.innerHTML = `<b>Intubé, branché au circuit.</b> Critères d'extubation : ${ok(r.swallowing)} déglutition · ${ok(!s.controlled)} ventilation spontanée · ${ok(!s.apnea)} pas d'apnée · ${ok(!vapOpen)} vaporisateur fermé
+        <br>${ready ? '<b class="ok">Extubation possible.</b>' : 'Extubation prématurée : risque d’hypoxémie et d’obstruction (non modélisée).'} Conscience ${fmt(100 * d.awareness)} %.`;
+    } else {
+      ex.innerHTML = `<b>Non intubé</b> (${s.fio2 > 0.3 ? 'O₂ au masque' : 'air ambiant'}). Intubation possible : ${ok(!r.swallowing)} déglutition abolie · tonus de la mâchoire ${['absent', 'diminué', 'présent'][r.jaw_tone]}.`;
+    }
+  }
 }
