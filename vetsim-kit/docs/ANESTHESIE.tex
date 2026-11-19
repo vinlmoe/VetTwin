@@ -115,9 +115,15 @@ où $\chi$ est la stimulation chimique de \vp{gas_exchange} et $f_K$ la faibless
 Le propofol et l'alfaxalone abolissent la commande ventilatoire au pic plasmatique ($\max(0,\,1 - a\,EP)$) : une injection rapide
 provoque une apnée que le CO$_2$ ne lève qu'une fois la concentration redescendue, une injection lente la conserve (Bigby 2017, Murison 2001).
 Après une hyperventilation contrôlée, la reprise spontanée attend que la PaCO$_2$ franchisse le seuil apnéique (stimulation chimique).
-Le moteur stationnaire conclut au décès dès que VO$_2$ dépasse DO$_2$ ; la session tolère une dette d'O$_2$ cumulée
-(\vp{o2_debt_tol_ml_kg}, remboursée avec \vp{o2_debt_tau_min}, placeholders \evD) avant de déclarer le décès, et affiche l'alarme
-« hypoxie tissulaire ».
+Dette d'O$_2$ : elle s'accroît quand l'apport passe sous l'apport critique (\vp{do2_crit_ml_kg_min}, consommation dépendante de
+l'apport) ou sous la consommation, $\dot D = \max(VO_2 - DO_2,\ VO_2(1 - DO_2/DO_{2,crit}))^+$, et se rembourse sinon
+(\vp{o2_debt_tau_min}). Sa fraction de la dette tolérée (\vp{o2_debt_tol_ml_kg}) déprime la contractilité et la FC
+(effets JSON \vp{hypoxia_effects}) ; au-delà, arrêt hypoxique. Alarme « hypoxie tissulaire ». Placeholders \evD.
+La réserve d'O$_2$ comprend la CRF et une fraction du sang (\vp{blood_o2_store_frac}) dont le contenu suit l'alvéole :
+$(V_{CRF} + 0{,}863\,f_b\,V_S\,\mathrm{d}C_aO_2/\mathrm{d}P)\,\dot P_AO_2 = \dot V_A(P_IO_2 - P_AO_2) - 0{,}863\,\dot V_{CO_2}/QR$,
+sans effet à l'équilibre. Apnée totale sous O$_2$ pur : SpO$_2$ < 90\,\% à 5,8 min, arrêt hypoxique à 11,6 min, PaCO$_2$ 96 mmHg
+(DeBehnke 1995 : 11,4 ± 2,4 min, PaCO$_2$ 93) ; préoxygénation au masque publiée : 187 à 298 s selon la PaO$_2$ de départ
+(Ambros 2018, McNally 2009). Flow-by : 105 s (FiO$_2$ 0,40 du modèle ; 66 s à FiO$_2$ 0,30 chez Ambros). À l'air en apnée stricte : environ 25 s.
 La ventilation réelle vaut $\vp{va0}\cdot bw\cdot\vp{vent_drive}\cdot f_K\cdot\chi$ en ventilation spontanée
 et $\mathrm{FR}\,(V_T - V_D)$ en ventilation contrôlée. Apnée signalée si $\dot V_A < 10\,\%$ du repos.
 
@@ -194,7 +200,7 @@ Les modules médicaments ordinaires (atropine, par exemple) peuvent aussi être 
 \input{anesthesie_calibration.tex}
 
 \section{Validation}
-Tests \vp{crates/vetsim-core/tests/anesthesia.rs} (20) et \vp{crates/vetsim-api/tests/anesthesia.rs} (1). Chaque test compare un
+Tests \vp{crates/vetsim-core/tests/anesthesia.rs} (21) et \vp{crates/vetsim-api/tests/anesthesia.rs} (1). Chaque test compare un
 scénario à un témoin sans le facteur étudié, pour pouvoir échouer pour la raison qu'il vérifie.
 \begin{tabularx}{\linewidth}{P{6.2cm}L}
 \toprule
@@ -210,6 +216,7 @@ Test & Propriété \\
 \vp{light_plane_moves_under_supramaximal_stimulus} & mouvement sous 1 MAC, pas en plan profond. \\
 \vp{fast_propofol_injection_causes_apnea_slow_does_not} & apnée en injection rapide, pas ou moins en injection lente. \\
 \vp{breathing_resumes_when_co2_rises_after_hyperventilation} & apnée au sevrage d'une hyperventilation, reprise quand la PaCO$_2$ remonte. \\
+\vp{untreated_apnea_desaturates_then_causes_hypoxic_arrest} & apnée totale : désaturation puis arrêt hypoxique. \\
 \vp{sevoflurane_recovers_faster_than_isoflurane} & retour de la déglutition plus précoce (ordre de Lopez 2009). \\
 \vp{atipamezole_reverses_dexmedetomidine} & sédation levée, FC remontée. \\
 \vp{premedication_reduces_propofol_requirement} & 2,6 mg/kg de propofol : inconscience seulement après prémédication. \\

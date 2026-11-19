@@ -65,7 +65,9 @@
     "crystalloid_tau_min",
     "iv_push_s",
     "o2_debt_tol_ml_kg",
-    "o2_debt_tau_min"
+    "o2_debt_tau_min",
+    "do2_crit_ml_kg_min",
+    "blood_o2_store_frac"
    ],
    "additionalProperties": false,
    "properties": {
@@ -1028,6 +1030,66 @@
        }
       }
      ]
+    },
+    "do2_crit_ml_kg_min": {
+     "oneOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "object",
+       "required": [
+        "value",
+        "evidence"
+       ],
+       "properties": {
+        "value": {
+         "type": "number"
+        },
+        "evidence": {
+         "enum": [
+          "A",
+          "B",
+          "C",
+          "D"
+         ]
+        },
+        "source": {
+         "type": "string"
+        }
+       }
+      }
+     ]
+    },
+    "blood_o2_store_frac": {
+     "oneOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "object",
+       "required": [
+        "value",
+        "evidence"
+       ],
+       "properties": {
+        "value": {
+         "type": "number"
+        },
+        "evidence": {
+         "enum": [
+          "A",
+          "B",
+          "C",
+          "D"
+         ]
+        },
+        "source": {
+         "type": "string"
+        }
+       }
+      }
+     ]
     }
    }
   },
@@ -1108,6 +1170,10 @@
   },
   "notes": {
    "type": "string"
+  },
+  "hypoxia_effects": {
+   "type": "array",
+   "description": "Variable DEBT (fraction 0–1 de la dette d'O2 tolérée)."
   }
  }
 }

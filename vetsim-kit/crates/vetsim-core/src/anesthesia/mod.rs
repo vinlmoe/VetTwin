@@ -997,7 +997,38 @@ impl Session {
             &env,
             "anesthesia_model",
         )?;
+        // dette d'O2 : dépression myocardique et bradycardie hypoxiques (variable DEBT 0–1)
+        let mut env = Env::new();
+        env.set_num("DEBT", self.debt_frac());
+        apply(
+            &mut q,
+            &self.model.hypoxia_effects,
+            &env,
+            "anesthesia_model",
+        )?;
         Ok(q)
+    }
+
+    /// Fraction de la dette d'O2 tolérée (0–1).
+    fn debt_frac(&self) -> f64 {
+        (self.o2_debt_ml / (self.model.o2_debt_tol_ml_kg * self.base.bw)).clamp(0.0, 1.0)
+    }
+
+    /// Dette d'O2 : elle s'accroît quand l'apport passe sous l'apport critique (consommation
+    /// dépendante de l'apport) ou sous la consommation, et se rembourse sinon. Vrai si la dette
+    /// tolérée est dépassée (décès).
+    fn account_o2(&mut self, e: &Evaluation, dt_s: f64) -> bool {
+        let bw = self.base.bw;
+        let vo2 = e.params.vo2 * bw;
+        let do2 = e.metabolic.do2;
+        let crit = self.model.do2_crit_ml_kg_min * bw;
+        let deficit = f64::max(vo2 - do2, vo2 * (1.0 - do2 / crit)).max(0.0);
+        if deficit > 0.0 {
+            self.o2_debt_ml += deficit * dt_s / 60.0;
+        } else {
+            self.o2_debt_ml *= math::exp(-dt_s / 60.0 / self.model.o2_debt_tau_min);
+        }
+        self.o2_debt_ml > self.model.o2_debt_tol_ml_kg * bw
     }
 
     fn fio2_true(&self) -> f64 {
@@ -1068,11 +1099,14 @@ impl Session {
             q.fio2 = (pao2_alv + paco2 / q.rq) / (q.pb - 47.0);
             match evaluate(&q) {
                 Ok(e) => {
-                    // remboursement de la dette d'O2 quand l'apport redevient suffisant
-                    self.o2_debt_ml *= math::exp(-dt_s / 60.0 / self.model.o2_debt_tau_min);
-                    snap_eval = Some(e.clone());
-                    self.last = Some(e);
-                    q_used = Some(q);
+                    if self.account_o2(&e, dt_s) {
+                        self.dead = Some("hypoxic_arrest");
+                        self.log.push((self.t_s, "décès : arrêt hypoxique".into()));
+                    } else {
+                        snap_eval = Some(e.clone());
+                        self.last = Some(e);
+                        q_used = Some(q);
+                    }
                 }
                 // Hypoxie transitoire (VO2 > DO2) : le moteur stationnaire conclut au décès, mais
                 // l'organisme tolère une dette d'O2 limitée (réserves, anaérobiose) ; le décès
@@ -1081,11 +1115,9 @@ impl Session {
                     cause: "oxygen_debt",
                     last: Some(e),
                 }) => {
-                    let vo2 = e.params.vo2 * e.params.bw;
-                    self.o2_debt_ml += (vo2 - e.metabolic.do2).max(0.0) * dt_s / 60.0;
-                    if self.o2_debt_ml > self.model.o2_debt_tol_ml_kg * self.base.bw {
-                        self.dead = Some("oxygen_debt");
-                        self.log.push((self.t_s, "décès : oxygen_debt".into()));
+                    if self.account_o2(&e, dt_s) {
+                        self.dead = Some("hypoxic_arrest");
+                        self.log.push((self.t_s, "décès : arrêt hypoxique".into()));
                     } else {
                         snap_eval = Some((*e).clone());
                         self.last = Some(*e);
@@ -1142,6 +1174,9 @@ impl Session {
                 anesth: (depth.loc_index / self.model.loc_mac).clamp(0.0, 1.0),
                 vo2_ratio: q.vo2 / self.base.vo2,
                 pvap: self.vaporizer,
+                hb: q.hb,
+                p50: q.p50,
+                hill_n: q.hill_n,
             };
             self.integrate(dt_s, &inputs);
         }
@@ -1428,7 +1463,11 @@ impl Session {
         let o = y.len() - 7;
         let (paco2, pao2) = (y[o], y[o + 1]);
         dy[o] = (u.vco2 - u.va * paco2 / 0.863) / (m.co2_store_ml_mmhg_kg * bw);
-        dy[o + 1] = (u.va * (u.pio2 - pao2) - 0.863 * u.vco2 / u.rq) / vfrc;
+        // réserve d'O2 : alvéoles + fraction du sang en équilibre avec l'alvéole ; la pente de la
+        // courbe de dissociation ralentit la chute de PAO2 dans sa partie raide
+        let blood_dl = self.model.blood_o2_store_frac * m.blood_volume_ml_kg * bw / 100.0;
+        let cap = vfrc + 0.863 * blood_dl * u.dca_dp(pao2.max(0.0));
+        dy[o + 1] = (u.va * (u.pio2 - pao2) - 0.863 * u.vco2 / u.rq) / cap;
         dy[o + 2] = (u.nu_target - y[o + 2]) / (m.tau_nu_s / 60.0);
         dy[o + 3] = (y[o + 2] - y[o + 3]) / m.tau_stress_min;
         dy[o + 4] = m.sens_rate_per_min * y[o + 2] * (1.0 - y[o + 4]) * (1.0 - u.nmda)
@@ -1459,6 +1498,18 @@ struct Inputs {
     anesth: f64,
     vo2_ratio: f64,
     pvap: Option<(usize, f64)>,
+    hb: f64,
+    p50: f64,
+    hill_n: f64,
+}
+
+impl Inputs {
+    /// Pente du contenu artériel en O2 (mL/dL par mmHg) : Hill + O2 dissous.
+    fn dca_dp(&self, p: f64) -> f64 {
+        let (n, k) = (self.hill_n, math::pow(self.p50, self.hill_n));
+        let pn = math::pow(p.max(1e-6), n);
+        1.34 * self.hb * n * math::pow(p.max(1e-6), n - 1.0) * k / ((pn + k) * (pn + k)) + 0.003
+    }
 }
 
 fn apply(q: &mut Params, effects: &[Effect], env: &Env, module: &str) -> Result<(), Error> {
