@@ -3,7 +3,7 @@
 Sorties : out/calibration.json et tableau imprimé.  Les cibles et leurs sources sont dans TARGETS.
 Convention : 'tol' = demi-largeur d'acceptation (1 ET publié quand il est disponible, sinon tolérance choisie ici, marquée *).
 """
-import json, sys, numpy as np
+import json, os, sys, numpy as np
 from multiprocessing import Pool
 from patient import Patient
 from autonomic import simulate_autonomic
@@ -121,6 +121,7 @@ def disease_checks(n=24):
 
 
 if __name__ == '__main__':
+    os.makedirs('out', exist_ok=True)
     rows = healthy_cohort(50)
     pk = pk_checks()
     dis, deaths = disease_checks(24)
