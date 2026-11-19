@@ -1,7 +1,7 @@
 {
  "schema_version": "1.0.0",
  "id": "anesthesia_model",
- "version": "1.3.0",
+ "version": "1.4.0",
  "name": {
   "fr": "Constantes du modèle d'anesthésie"
  },
@@ -156,6 +156,16 @@
    "value": 30.0,
    "evidence": "C",
    "source": "Durée d'injection par défaut d'un bolus IV : 30 s, comme l'induction au propofol de Cattai 2018 (PMC6134702, lu). La vitesse d'injection change l'incidence de l'apnée (Murison 2001, Bigby 2017) et l'hypotension : l'utilisateur peut la choisir."
+  },
+  "o2_debt_tol_ml_kg": {
+   "value": 20.0,
+   "evidence": "D",
+   "source": "Placeholder : dette d'O2 tolérée (réserves sanguines et tissulaires, anaérobiose) avant l'arrêt, de l'ordre de 4 min de VO2 totale (5,5 mL/kg/min) ; le moteur stationnaire, lui, conclut au décès dès que VO2 dépasse DO2."
+  },
+  "o2_debt_tau_min": {
+   "value": 10.0,
+   "evidence": "D",
+   "source": "Placeholder : constante de remboursement de la dette d'O2 une fois l'apport rétabli."
   }
  },
  "tissues": {

@@ -45,12 +45,17 @@
     "param": "vent_drive",
     "op": "mul",
     "expr": {
-     "add": [
-      1,
+     "max": [
+      0,
       {
-       "mul": [
-        -0.85,
-        "E"
+       "sub": [
+        1,
+        {
+         "mul": [
+          0.92,
+          "EP"
+         ]
+        }
        ]
       }
      ]
@@ -73,5 +78,5 @@
   "Hampton CE et al. 2019, Am J Vet Res, doi:10.2460/ajvr.80.1.33 (résumé)",
   "Sarotti D et al. 2024, Front Vet Sci (PMC11422344, lu)"
  ],
- "notes": "Hémodynamique : PAM peu modifiée (Sarotti 2024, lu ; hypotension 1/14), FC +54 % (Hampton 2019) : vasodilatation modérée placeholder D. Apnée : vent_drive −85 % placeholder D (11/16 chiens, Bigby 2017)."
+ "notes": "Hémodynamique : PAM peu modifiée (Sarotti 2024, lu ; hypotension 1/14), FC +54 % (Hampton 2019) : vasodilatation modérée placeholder D. Apnée : commande ventilatoire max(0, 1 − 0,92·EP) portée par le pic plasmatique, calée sur la dépendance à la vitesse d'injection (100 % à 2 mg/kg/min contre 25 % à 0,5 mg/kg/min, Bigby 2017) : hypopnée profonde en injection rapide après prémédication, ventilation conservée en injection lente."
 }

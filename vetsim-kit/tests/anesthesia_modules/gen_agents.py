@@ -10,6 +10,9 @@ def lin(param, op, c, var="E", clamp=None):
     e = {"param": param, "op": op, "expr": ({"add": [1, {"mul": [c, var]}]} if op == "mul" else {"mul": [c, var]})}
     if clamp: e["clamp"] = clamp
     return e
+def apnea(a):
+    """Commande ventilatoire abolissable par le pic plasmatique : max(0, 1 − a·EP)."""
+    return {"param": "vent_drive", "op": "mul", "expr": {"max": [0, {"sub": [1, {"mul": [a, "EP"]}]}]}}
 def mod(id, name, ev, pk, pd, an, refs, notes):
     return {"schema_version": "1.0.0", "species": ["dog"], "license": "CC-BY-4.0", "id": id, "version": "1.0.0",
             "name": {"fr": name}, "evidence": ev, "pk": pk, "pd": pd, "anesthesia": an, "refs": refs, "notes": notes}
@@ -64,22 +67,22 @@ M.append(mod("fentanyl", "Fentanyl", "C",
 M.append(mod("propofol", "Propofol", "C",
   pk(0.8, 4.1, 58.6, 60.0),
   {"type": "emax", "emax": 1.0, "ec50_mg_L": 3.0, "hill": 2.0, "effects": [
-     lin("r_sys", "mul", -k("prop_rsys", 0.4), "EP"), lin("vent_drive", "mul", -0.9), lin("baro_gain", "mul", -k("prop_baro", 0.0), "EP")]},
+     lin("r_sys", "mul", -k("prop_rsys", 0.4), "EP"), apnea(k("prop_apnea", 1.0)), lin("baro_gain", "mul", -k("prop_baro", 0.0), "EP")]},
   {"classes": ["hypnotic"], "ke0_per_min": 0.696, "c_imm_mg_L": 6.2,
    "evidence": "C", "source": "Cl 58,6 mL/kg/min et Vss 4,9 L/kg (Nolan 1993, résumé) ; partage Vc 0,8 / Vp 4,1 L/kg et Q placeholders D (Vc non publié). ke0 0,696 min⁻¹ (Lee 2009, résumé). c_imm 6,2 mg/L : ajusté sur la réduction de MAC du sévoflurane (1,3 / 2,5 / 4,4 µg/mL → −20,5 / −43 / −68 %, Singsank-Coats 2015, résumé ; contribution Ce/c_imm ≈ 0,16 MAC par µg/mL) ; il place la perte de conscience (indice 0,4) vers 2,5 µg/mL, cohérent avec Musk 2005 (65 % d'inductions à 2,5 µg/mL, 100 % à 3,5) et la cible de 3 µg/mL de Beths 2001."},
   ["Nolan AM et al. 1993, J Vet Pharmacol Ther, doi:10.1111/j.1365-2885.1993.tb00180.x (résumé)", "Lee SH et al. 2009, Br J Pharmacol (PMC2807660, résumé)",
    "Singsank-Coats J et al. 2015, Can J Vet Res (PMC4365712, résumé)", "Musk GC et al. 2005, Vet Rec, doi:10.1136/vr.157.24.766 (résumé)",
    "Cattai A et al. 2018, BMC Vet Res (PMC6134702, lu)", "Bigby SE et al. 2017, Vet Anaesth Analg (résumé)", "Maney JK et al. 2013, Vet Anaesth Analg, doi:10.1111/vaa.12006 (résumé)"],
-  "Vasodilatation (r_sys) et émoussement du baroréflexe (baro_gain, mécanisme retenu, forme D) calés ensemble pour PAM −31 % au nadir et FC +62 % (88 → 61 mmHg, 65 → 105/min, Cattai 2018, lu, après acépromazine + méthadone) ; la tachycardie vient du baroréflexe du moteur. Effets hémodynamiques portés par la concentration PLASMATIQUE (EP) : nadir de PAM à 55 s, avant l'équilibre du site effet (intubation à 140 s, Cattai 2018). Apnée d'induction : vent_drive −90 % à effet maximal (placeholder D ; apnée chez 59 à 100 % des chiens selon la vitesse d'injection, Murison 2001, Bigby 2017). La vitesse d'injection se règle par la durée du bolus (30 s par défaut, iv_push_s du modèle)."))
+  "Vasodilatation (r_sys) et émoussement du baroréflexe (baro_gain, mécanisme retenu, forme D) calés ensemble pour PAM −31 % au nadir et FC +62 % (88 → 61 mmHg, 65 → 105/min, Cattai 2018, lu, après acépromazine + méthadone) ; la tachycardie vient du baroréflexe du moteur. Effets hémodynamiques portés par la concentration PLASMATIQUE (EP) : nadir de PAM à 55 s, avant l'équilibre du site effet (intubation à 140 s, Cattai 2018). Apnée d'induction : commande ventilatoire max(0, 1 − 1,23·EP), portée par le pic PLASMATIQUE : une injection rapide l'abolit, et le CO2 ne la relance qu'une fois la concentration redescendue. Calée sur la dépendance à la vitesse (apnée chez 100 % des chiens à 4 mg/kg/min contre 25 % à 1 mg/kg/min, Bigby 2017 ; 59 à 64 % à 4 mg/kg, Murison 2001) : 5,2 mg/kg en 30 s sans prémédication donnent 56 s d'apnée, 1,8 mg/kg à 1 mg/kg/min après prémédication aucune. La vitesse d'injection se règle par la durée du bolus (30 s par défaut, iv_push_s du modèle)."))
 M.append(mod("alfaxalone", "Alfaxalone", "C",
   pk(0.4, 0.54, 26.0, 8.5),
   {"type": "emax", "emax": 1.0, "ec50_mg_L": 1.0, "hill": 2.0, "effects": [
-     lin("r_sys", "mul", -k("alf_rsys", 0.15), "EP"), lin("vent_drive", "mul", -0.85)]},
+     lin("r_sys", "mul", -k("alf_rsys", 0.15), "EP"), apnea(k("alf_apnea", 1.0))]},
   {"classes": ["hypnotic"], "ke0_per_min": 0.7, "c_imm_mg_L": k("alf_cimm", 2.0),
    "evidence": "C", "source": "PK : Vss 0,94 L/kg, Cl 26 mL/kg/min, Q 8,5 mL/kg/min (Dehuisser 2019, résumé) ; partage Vc/Vp placeholder D. ke0 placeholder D (classe). c_imm calé pour que la dose d'induction publiée sans prémédication (2,6–2,8 mg/kg, Maney 2013, Hampton 2019) atteigne la perte de conscience avec la même marge que le propofol à 5,2 mg/kg (calage par session)."},
   ["Dehuisser V et al. 2019, Vet Anaesth Analg, doi:10.1016/j.vaa.2019.04.014 (résumé)", "Ferré PJ et al. 2006, Vet Anaesth Analg, doi:10.1111/j.1467-2995.2005.00264.x (résumé)",
    "Hampton CE et al. 2019, Am J Vet Res, doi:10.2460/ajvr.80.1.33 (résumé)", "Sarotti D et al. 2024, Front Vet Sci (PMC11422344, lu)"],
-  "Hémodynamique : PAM peu modifiée (Sarotti 2024, lu ; hypotension 1/14), FC +54 % (Hampton 2019) : vasodilatation modérée placeholder D. Apnée : vent_drive −85 % placeholder D (11/16 chiens, Bigby 2017)."))
+  "Hémodynamique : PAM peu modifiée (Sarotti 2024, lu ; hypotension 1/14), FC +54 % (Hampton 2019) : vasodilatation modérée placeholder D. Apnée : commande ventilatoire max(0, 1 − 0,92·EP) portée par le pic plasmatique, calée sur la dépendance à la vitesse d'injection (100 % à 2 mg/kg/min contre 25 % à 0,5 mg/kg/min, Bigby 2017) : hypopnée profonde en injection rapide après prémédication, ventilation conservée en injection lente."))
 M.append(mod("ketamine", "Kétamine", "C",
   pk(0.371, 3.69, 58.2, 60.0),
   {"type": "emax", "emax": 1.0, "ec50_mg_L": 2.0, "hill": 1.5, "effects": [

@@ -521,3 +521,49 @@ fn modules_load() {
         .replace("\"co_frac\": 0.75", "\"co_frac\": 0.5");
     assert!(AnesthesiaModel::from_json(&bad, "bad").is_err());
 }
+
+#[test]
+fn fast_propofol_injection_causes_apnea_slow_does_not() {
+    // même dose, vitesse d'injection différente (Murison 2001, Bigby 2017)
+    let apnea_s = |dur: f64| {
+        let mut s = session();
+        s.apply(Event::Oxygen(true)).unwrap();
+        s.apply(Event::Bolus {
+            agent: "propofol".into(),
+            mg_per_kg: 5.2,
+            route: AdminRoute::Iv,
+            duration_s: Some(dur),
+        })
+        .unwrap();
+        (0..90).filter(|_| s.step(2.0).unwrap().apnea).count() as f64 * 2.0
+    };
+    let fast = apnea_s(10.0);
+    let slow = apnea_s(150.0);
+    assert!(fast >= 30.0, "apnée {fast} s en injection rapide");
+    assert!(slow < 0.5 * fast, "apnée {slow} s en injection lente");
+}
+
+#[test]
+fn breathing_resumes_when_co2_rises_after_hyperventilation() {
+    // seuil apnéique : apnée après hyperventilation, reprise quand la PaCO2 remonte
+    let mut s = session();
+    anesthetized(&mut s, "isoflurane", 2.0);
+    s.apply(Event::SetVentilation(Ventilation::Controlled {
+        rr: 20.0,
+        vt_ml_kg: 15.0,
+    }))
+    .unwrap();
+    let low = run(&mut s, 1200.0, 30.0);
+    assert!(low.paco2 < 25.0, "PaCO2 {} en hyperventilation", low.paco2);
+    s.apply(Event::SetVentilation(Ventilation::Spontaneous))
+        .unwrap();
+    let first = s.step(5.0).unwrap();
+    assert!(first.apnea, "apnée attendue au sevrage, VA {}", first.va);
+    let later = run(&mut s, 600.0, 15.0);
+    assert!(
+        !later.apnea && later.paco2 > first.paco2 + 10.0,
+        "reprise : PaCO2 {} VA {}",
+        later.paco2,
+        later.va
+    );
+}

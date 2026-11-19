@@ -11,7 +11,7 @@ const PLANE_FR = { awake: 'vigile', sedated: 'sédation', light: 'plan léger', 
 const ALARM_FR = {
   hypotension: 'Hypotension (PAM < 60)', hypertension: 'Hypertension', bradycardia: 'Bradycardie', tachycardia: 'Tachycardie',
   desaturation: 'Désaturation (SpO₂ < 90 %)', apnea: 'Apnée', hypercapnia: 'Hypercapnie (PaCO₂ > 60)', hypothermia: 'Hypothermie (< 36 °C)',
-  movement: 'Mouvement', cardiac_arrest: 'Arrêt cardiorespiratoire',
+  movement: 'Mouvement', cardiac_arrest: 'Arrêt cardiorespiratoire', tissue_hypoxia: 'Hypoxie tissulaire (dette d\u2019O₂)',
 };
 const DEATH_FR = {
   cardiac_arrest: 'arrêt cardiaque', circulatory_collapse: 'effondrement circulatoire', irreversible_shock: 'choc irréversible',

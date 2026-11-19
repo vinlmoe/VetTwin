@@ -412,6 +412,8 @@ pub struct Session {
     blocks: Vec<ActiveBlock>,
     postop_from_s: Option<f64>,
     fluids_ml_kg_h: f64,
+    /// Dette d'O2 cumulée (mL).
+    o2_debt_ml: f64,
     /// Injections IV en cours : (agent, débit mg/min, fin s).
     pushes: Vec<(usize, f64, f64)>,
     /// Débit d'injection IV par agent pendant le sous-pas courant (mg/min).
@@ -478,6 +480,7 @@ impl Session {
             postop_from_s: None,
             fluids_ml_kg_h: 0.0,
             pushes: Vec::new(),
+            o2_debt_ml: 0.0,
             push_now: vec![0.0; n_agents],
             blood_lost_ml: 0.0,
             warming: false,
@@ -1065,9 +1068,29 @@ impl Session {
             q.fio2 = (pao2_alv + paco2 / q.rq) / (q.pb - 47.0);
             match evaluate(&q) {
                 Ok(e) => {
+                    // remboursement de la dette d'O2 quand l'apport redevient suffisant
+                    self.o2_debt_ml *= math::exp(-dt_s / 60.0 / self.model.o2_debt_tau_min);
                     snap_eval = Some(e.clone());
                     self.last = Some(e);
                     q_used = Some(q);
+                }
+                // Hypoxie transitoire (VO2 > DO2) : le moteur stationnaire conclut au décès, mais
+                // l'organisme tolère une dette d'O2 limitée (réserves, anaérobiose) ; le décès
+                // n'est retenu qu'au-delà de `o2_debt_tol_ml_kg`.
+                Err(Error::NonViable {
+                    cause: "oxygen_debt",
+                    last: Some(e),
+                }) => {
+                    let vo2 = e.params.vo2 * e.params.bw;
+                    self.o2_debt_ml += (vo2 - e.metabolic.do2).max(0.0) * dt_s / 60.0;
+                    if self.o2_debt_ml > self.model.o2_debt_tol_ml_kg * self.base.bw {
+                        self.dead = Some("oxygen_debt");
+                        self.log.push((self.t_s, "décès : oxygen_debt".into()));
+                    } else {
+                        snap_eval = Some((*e).clone());
+                        self.last = Some(*e);
+                        q_used = Some(q);
+                    }
                 }
                 Err(Error::NonViable { cause, .. }) => {
                     self.dead = Some(cause);
@@ -1256,6 +1279,9 @@ impl Session {
         }
         if temp_c < 36.0 {
             alarms.push("hypothermia");
+        }
+        if self.o2_debt_ml > 0.05 * self.model.o2_debt_tol_ml_kg * self.base.bw {
+            alarms.push("tissue_hypoxia");
         }
         if reflexes.movement {
             alarms.push("movement");
