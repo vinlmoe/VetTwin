@@ -88,6 +88,8 @@ pub enum Event {
         mg_per_kg: f64,
         /// Voie.
         route: AdminRoute,
+        /// Durée d'injection IV (s) ; `None` : `iv_push_s` du modèle. Ignorée en IM/SC.
+        duration_s: Option<f64>,
     },
     /// Perfusion continue (mg/kg/h ; 0 l'arrête).
     Cri {
@@ -410,6 +412,10 @@ pub struct Session {
     blocks: Vec<ActiveBlock>,
     postop_from_s: Option<f64>,
     fluids_ml_kg_h: f64,
+    /// Injections IV en cours : (agent, débit mg/min, fin s).
+    pushes: Vec<(usize, f64, f64)>,
+    /// Débit d'injection IV par agent pendant le sous-pas courant (mg/min).
+    push_now: Vec<f64>,
     blood_lost_ml: f64,
     warming: bool,
     va_rest: f64,
@@ -446,6 +452,7 @@ impl Session {
         y[o + 1] = base.fio2 * (base.pb - 47.0) - paco2 / base.rq;
         y[o + 5] = model.t0_c;
         let cri = vec![0.0; agents.len()];
+        let n_agents = agents.len();
         let va_rest = e0.metabolic.art.va;
         Ok(Self {
             base,
@@ -470,6 +477,8 @@ impl Session {
             blocks: Vec::new(),
             postop_from_s: None,
             fluids_ml_kg_h: 0.0,
+            pushes: Vec::new(),
+            push_now: vec![0.0; n_agents],
             blood_lost_ml: 0.0,
             warming: false,
             va_rest,
@@ -539,6 +548,7 @@ impl Session {
                 agent,
                 mg_per_kg,
                 route,
+                duration_s,
             } => {
                 pos(*mg_per_kg, "dose")?;
                 let j = self.agent_index(agent)?;
@@ -546,7 +556,18 @@ impl Session {
                 let i = idx_agent(j);
                 let mg = mg_per_kg * bw;
                 match route {
-                    AdminRoute::Iv => self.y[i + 2] += mg,
+                    AdminRoute::Iv => {
+                        let d = duration_s.unwrap_or(self.model.iv_push_s);
+                        if !(d.is_finite() && d >= 0.0) {
+                            return Err(Error::InvalidInput(format!("durée d'injection {d} s")));
+                        }
+                        if d == 0.0 {
+                            self.y[i + 2] += mg;
+                        } else {
+                            // injection à débit constant (mg/min) jusqu'à t + d
+                            self.pushes.push((j, mg / (d / 60.0), self.t_s + d));
+                        }
+                    }
                     AdminRoute::Im => {
                         let f = a.and_then(|a| a.im).ok_or_else(|| {
                             Error::InvalidInput(format!("voie IM non décrite pour {agent}"))
@@ -958,6 +979,7 @@ impl Session {
         env.set_num("NU", self.y[o + 2]);
         env.set_num("STRESS", self.y[o + 3]);
         env.set_num("S", self.y[o + 4]);
+        env.set_num("BW", b.bw);
         apply(
             &mut q,
             &self.model.nociception_effects,
@@ -1102,6 +1124,7 @@ impl Session {
         }
         self.t_s += dt_s;
         self.stimuli.retain(|s| s.until_s > self.t_s + 1e-9);
+        self.pushes.retain(|p| p.2 > self.t_s + 1e-9);
         Ok(snap)
     }
 
@@ -1292,7 +1315,15 @@ impl Session {
     fn integrate(&mut self, dt_s: f64, u: &Inputs) {
         let n_sub = (dt_s / 0.5).ceil().max(1.0) as usize;
         let h = dt_s / 60.0 / n_sub as f64; // min
-        for _ in 0..n_sub {
+        for k in 0..n_sub {
+            // injections IV : débit au milieu du sous-pas (constant pendant le sous-pas)
+            let t_mid = self.t_s + (k as f64 + 0.5) * h * 60.0;
+            self.push_now.iter_mut().for_each(|x| *x = 0.0);
+            for &(j, rate, end) in &self.pushes {
+                if t_mid < end {
+                    self.push_now[j] += rate;
+                }
+            }
             let y = &self.y;
             let k1 = self.rhs(y, u);
             let y2: Vec<f64> = y.iter().zip(&k1).map(|(a, b)| a + 0.5 * h * b).collect();
@@ -1327,7 +1358,7 @@ impl Session {
             let ka_im = an.and_then(|x| x.im).map_or(0.0, |r| r.ka_per_h / 60.0);
             let ka_sc = an.and_then(|x| x.sc).map_or(0.0, |r| r.ka_per_h / 60.0);
             let (cl, q) = (k.cl / 60.0, k.q / 60.0); // L/min
-            let input = self.cri[j] * bw / 60.0; // mg/min
+            let input = self.cri[j] * bw / 60.0 + self.push_now[j]; // mg/min
             dy[i] = -ka_im * y[i];
             dy[i + 1] = -ka_sc * y[i + 1];
             dy[i + 2] = ka_im * y[i] + ka_sc * y[i + 1] + input - (cl + q) / k.vc * y[i + 2]

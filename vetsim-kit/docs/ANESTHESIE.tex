@@ -9,11 +9,18 @@
 \keepXColumns
 \usepackage{xcolor}
 \usepackage{fancyvrb}
+\usepackage{fvextra}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning}
 \usepackage[hidelinks]{hyperref}
 \usepackage{textcomp}
 \usepackage{siunitx}
+\usepackage{newunicodechar}
+\newunicodechar{−}{-}
+\newunicodechar{µ}{\textmu}
+\newunicodechar{₂}{\textsubscript{2}}
+\newunicodechar{→}{->}
+\newunicodechar{≈}{~}
 \sisetup{locale=FR,detect-all}
 
 \setlength{\parskip}{0.4em}
@@ -85,7 +92,11 @@ fonctions rénale et hépatique du patient), site effet :
 \dot A_p = \tfrac{Q}{V_c}A_c - \tfrac{Q}{V_p}A_p,\\
 \dot C_e &= k_{e0}\,(A_c/V_c - C_e).
 \end{align*}
+Un bolus IV est injecté à débit constant pendant sa durée (\SI{30}{s} par défaut, \vp{iv_push_s}, réglable par bolus) :
+une injection rapide crée un pic plasmatique plus haut, donc plus d'apnée et d'hypotension (Murison 2001, Bigby 2017).
 Les effets JSON du médicament reçoivent $E$ (Emax au site effet) et $EP$ (Emax plasmatique) ; les termes toxiques reçoivent $T$ (plasma).
+Les effets hémodynamiques du propofol et de l'alfaxalone sont plasmatiques ($EP$) : le nadir de PAM survient à 55 s, avant l'équilibre du site effet
+(intubation à 140 s, Cattai 2018).
 Un antagoniste multiplie toutes les EC50 de ses cibles par $1 + \sum C_{e,ant}/K_i$ (antagonisme compétitif).
 
 \subsection{Stocks de CO$_2$ et d'O$_2$}
@@ -113,7 +124,8 @@ V_{CRF}\,\dot P_A &= \dot V_A(P_I - P_A) - \lambda_{s/g}\,\mathrm{DC}\,(P_A - P_
 \dot P_i &= \frac{f_i\,\mathrm{DC}}{V_i\,\lambda_{t/s,i}}\,(P_A - P_i).
 \end{align*}
 En circuit sans réinhalation, $P_I$ suit $P_{vap}$ (constante \SI{0,1}{min}). Non intubé, $P_I = 0$ (élimination à l'air).
-Les effets de l'agent sont des effets JSON des variables $M = P_A/\mathrm{MAC}$ et $MB = P_{cerveau}/\mathrm{MAC}$ ; le couplage avec
+Les effets de l'agent sont des effets JSON des variables $M = P_A/\mathrm{MAC}$ et $MB = P_{cerveau}/\mathrm{MAC}$ (contractilité, vasodilatation,
+émoussement du baroréflexe, commande ventilatoire) ; le couplage avec
 DC et $\dot V_A$ fait émerger la spirale du surdosage, le réveil retardé par l'hypoventilation et l'approfondissement lent en bas débit.
 
 \subsection{Profondeur et conscience}
@@ -124,7 +136,7 @@ L = \frac{H}{(1 - S_d)\,f_T},
 \]
 $R = 1 - \prod(1 - R_j)$ l'épargne de MAC combinée, $S_d = 1 - \prod(1 - S_j)$ la sédation combinée,
 $f_T = \max(0{,}3;\ 1 - \vp{mac_per_c}\,(T_0 - T))$. Conscience perdue si $L \ge \vp{loc_mac}$ ; niveau de conscience
-$(1 - S_d)\,\mathrm{clip}(1 - L/\vp{loc_mac}, 0, 1)$. Plans et réflexes par seuils de $\Delta$ (palpébral, mâchoire, globe, mydriase)
+$(1 - S_d)\,\mathrm{clip}(1 - L/\vp{loc_mac}, 0, 1)$. L'intubation est refusée tant que la déglutition est présente ($L < \vp{swallow_mac}$). Plans et réflexes par seuils de $\Delta$ (palpébral, mâchoire, globe, mydriase)
 et de $L$ (déglutition) ; un agent dissociatif majoritaire conserve le réflexe palpébral et le globe central.
 
 \subsection{Nociception, douleur et conséquences}
@@ -137,9 +149,12 @@ N_{eff} &= \max_k\ N_k\,(1 - b_{terr(k)})\,(1 + \vp{sens_gain}\,S), \qquad
 $N_k$ : stimuli actifs (temps opératoires du scénario, stimulus test, douleur postopératoire décroissante) ;
 $b$ : fraction bloquée par les blocs locorégionaux du territoire ; $A_{méd}$ : antinociception combinée.
 Mouvement si $u_k < 1/(1 + (\Delta/N_{eff})^\gamma)$, $u_k$ tiré à chaque stimulus (graine explicite), patient inconscient.
-Les conséquences passent par les effets JSON de \vp{anesthesia_model.json} : $\nu$ relève le tonus sympathique de base \vp{s0}
-(d'où FC, inotropisme, RVS et recrutement veineux par le baroréflexe existant) et la commande ventilatoire ; l'état de stress $\sigma$
-augmente VO$_2$, VCO$_2$ et la glycémie. La sensibilisation $S$ amplifie les stimuli ultérieurs et la douleur postopératoire.
+Les conséquences passent par les effets JSON de \vp{anesthesia_model.json}. Une activation sympathique $\Delta s = 0{,}4\,\nu$ relève
+le tonus de base \vp{s0} (FC) et, avec les coefficients mêmes du baroréflexe du moteur ($ees \times (1 + 0{,}4\,\Delta s)$,
+$r_{sys}\times(1 + 0{,}5\,\Delta s)$, \vp{vol_shift} $+\ 0{,}2\cdot 85\cdot bw\cdot\Delta s$), l'inotropisme, les RVS et le recrutement veineux,
+que le baroréflexe calcule relativement à \vp{s0}. $\nu$ retire du tonus vagal et réinitialise le baroréflexe vers le haut
+(\vp{map_set} $+\ 20\,\nu$ mmHg, réaction de défense) ; sans cette réinitialisation, le baroréflexe opposerait une bradycardie à l'hypertension
+de la stimulation. $\nu$ relève aussi la commande ventilatoire ; l'état de stress $\sigma$ augmente VO$_2$, VCO$_2$ et la glycémie. La sensibilisation $S$ amplifie les stimuli ultérieurs et la douleur postopératoire.
 Indice de douleur du modèle $10\,\nu$ (échelle 0--10 non validée) quand le patient est conscient ; agitation au réveil si la
 conscience est partielle et $\nu > 0{,}4$.
 
@@ -193,7 +208,7 @@ Test & Propriété \\
 \vp{uncontrolled_nociception_sensitizes_and_ketamine_limits_it} & sensibilisation, freinée par la kétamine. \\
 \vp{anesthesia_cools_and_warming_limits_it} & hypothermie peropératoire, limitée par le réchauffement. \\
 \vp{hemorrhage_lowers_pressure_and_hematocrit_dilutes_with_fluids} & hémorragie, remplissage, hémodilution. \\
-\vp{deterministic_for_a_seed}, \vp{record_and_milestones}, \vp{invalid_actions_are_rejected}, \vp{modules_load} & déterminisme, feuille et jalons, erreurs, validation. \\
+\vp{deterministic_for_a_seed}, \vp{record_and_milestones}, \vp{invalid_actions_are_rejected}, \vp{modules_load} & déterminisme, feuille et jalons, erreurs (dont l'intubation d'un chien vigile), validation. \\
 \bottomrule
 \end{tabularx}
 
@@ -207,7 +222,7 @@ Messages JSON (\vp{vetsim-api}, donc UniFFI et WebAssembly) :
 {"op": "anesthesia_step",   "options": {"session": "a2", "dt_s": 5, "n": 12, "all": true, "waves_s": 4}}
 {"op": "anesthesia_record", "options": {"session": "a2"}}
 \end{Verbatim}
-Événements : \vp{bolus}, \vp{cri}, \vp{vaporizer}, \vp{fresh_gas}, \vp{circuit}, \vp{intubate}, \vp{extubate}, \vp{ventilation},
+Événements : \vp{bolus} (\vp{duration_s} optionnelle), \vp{cri}, \vp{vaporizer}, \vp{fresh_gas}, \vp{circuit}, \vp{intubate}, \vp{extubate}, \vp{ventilation},
 \vp{oxygen}, \vp{stimulus}, \vp{procedure_step}, \vp{end_surgery}, \vp{local_block}, \vp{fluids}, \vp{fluid_bolus}, \vp{hemorrhage}, \vp{warming}.
 \vp{loadModules} accepte un bloc \vp{anesthesia} (\vp{model}, \vp{agents}, \vp{inhalants}, \vp{procedures}).
 
@@ -218,6 +233,11 @@ vitesse ×1, ×10 ou ×60.
 \section{Limites connues}
 \begin{itemize}
 \item Baroréflexe en régime permanent à chaque pas (pas de retard propre) : acceptable pour des pas de quelques secondes.
+\item Le couplage d'ischémie coronaire du moteur peut basculer en « spirale de décompensation » (décès \vp{vicious_circle}) quand une
+vasodilatation forte et un baroréflexe émoussé se cumulent (surdosage de propofol injecté très vite, par exemple) ; comportement du moteur,
+non modifié ici, à garder en tête en enseignement.
+\item Émoussement du baroréflexe par les halogénés et le propofol : mécanisme retenu pour reproduire les cibles publiées, sans valeur canine
+mesurée de la sensibilité baroréflexe (forme \evD).
 \item Aucune synergie spécifique opioïde--halogéné sur la ventilation (effets multiplicatifs simples) ; la PaCO$_2$ de 55 mmHg
 après morphine sous isoflurane (Steffey 1993) n'est pas une cible du modèle.
 \item Contribution hypnotique et épargne de MAC de la kétamine cumulées dans $\Delta$.

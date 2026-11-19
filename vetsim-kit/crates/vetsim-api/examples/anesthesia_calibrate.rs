@@ -1,10 +1,10 @@
 //! Banc de calibration du module d'anesthésie (docs/ANESTHESIE.tex, § Calibration).
 //!
-//! `cargo run --release -p vetsim-api --example anesthesia_calibrate [-- --fit]`
+//! `cargo run --release -p vetsim-api --example anesthesia_calibrate [-- --fit [--inhalants | --agents] [--dex]]`
 //!
 //! Sans `--fit` : affiche, pour les modules actuels, chaque cible publiée et la valeur du modèle.
 //! Avec `--fit` : cherche les coefficients (balayage déterministe) et les écrit en JSON sur la
-//! sortie standard, à reporter dans les modules (générateur hors dépôt). Aucune valeur n'est
+//! sortie standard, à reporter dans `tests/anesthesia_modules/coefficients.json` (générateurs du même dossier). Aucune valeur n'est
 //! modifiée automatiquement dans `modules/`.
 
 use std::fs;
@@ -103,13 +103,8 @@ fn at_mac(w: &World, id: &str, m: f64) -> (f64, f64, f64, f64) {
     }
 }
 
-/// Coefficient numérique `c` d'un effet `{param, mul, max[lo, 1 − c·M…]}` ou `1 + c·E`.
-fn set_coef(e: &mut vetsim_core::modules::Effect, c: f64) {
-    // Les effets sont reconstruits par le générateur ; ici on remplace l'expression entière.
-    let j = match e.param {
-        "vent_drive" => unreachable!(),
-        _ => serde_json::json!({"max": [0.1, {"sub": [1, {"mul": [c, "M"]}]}]}),
-    };
+fn set_pow(e: &mut vetsim_core::modules::Effect, c: f64, p: f64, lo: f64) {
+    let j = serde_json::json!({"max": [lo, {"sub": [1, {"mul": [c, {"pow": ["M", p]}]}]}]});
     let mut issues = Vec::new();
     e.expr = vetsim_core::dsl::Expr::parse(&j, "", &["M", "MB"], &mut issues).unwrap();
 }
@@ -133,7 +128,7 @@ fn set_lin(e: &mut vetsim_core::modules::Effect, c: f64, var: &str, add: bool) {
 /// Bissection monotone : `f(x) − target` change de signe sur [lo, hi].
 fn bisect(mut lo: f64, mut hi: f64, target: f64, f: impl Fn(f64) -> f64) -> f64 {
     let flo = f(lo) - target;
-    for _ in 0..40 {
+    for _ in 0..22 {
         let mid = 0.5 * (lo + hi);
         let fm = f(mid) - target;
         if (fm > 0.0) == (flo > 0.0) {
@@ -203,6 +198,7 @@ fn bolus(agent: &str, mg: f64, route: AdminRoute) -> Event {
         agent: agent.into(),
         mg_per_kg: mg,
         route,
+        duration_s: None,
     }
 }
 
@@ -221,6 +217,7 @@ fn min(v: &[f64]) -> f64 {
 
 fn main() {
     let fit = std::env::args().any(|a| a == "--fit");
+    let only_inhalants = std::env::args().any(|a| a == "--inhalants");
     let mut w = world();
     let e0 = evaluate(&w.base).unwrap();
     let (map0, hr0, co0) = (e0.hemo.summary.map, e0.params.hr, e0.hemo.summary.co);
@@ -231,19 +228,43 @@ fn main() {
     let mut k = serde_json::Map::new();
 
     // ---------------- halogénés : PAM −22 % à 1,2 MAC ; PaCO2 46,2 à 1 MAC ; apnée à l'indice
+    let skip_inh = std::env::args().any(|a| a == "--agents");
     for (id, ai) in [("isoflurane", 2.61_f64), ("sevoflurane", 3.45)] {
-        if fit {
-            let c = bisect(0.0, 0.6, 0.78, |c| {
+        if fit && !skip_inh {
+            // effets [ees_lv, ees_rv, r_sys, vent_drive, baro_gain] : r_sys = 1 − c·M^p,
+            // baro_gain = 1 − b·M ; cibles PAM −22 % (1,2 MAC), −38 % (2 MAC), DC −17 % (2 MAC)
+            let mk = |c: f64, p: f64, b: f64| {
                 let mut w2 = World {
                     base: w.base.clone(),
                     model: w.model.clone(),
                     agents: vec![],
                     inhalants: w.inhalants.clone(),
                 };
-                set_coef(&mut w2.inhalant_mut(id).effects[2], c);
-                at_mac(&w2, id, 1.2).0 / map0
-            });
-            set_coef(&mut w.inhalant_mut(id).effects[2], c);
+                set_pow(&mut w2.inhalant_mut(id).effects[2], c, p, 0.1);
+                set_pow(&mut w2.inhalant_mut(id).effects[4], b, 1.0, 0.0);
+                w2
+            };
+            let mut best = (f64::MAX, 0.0, 0.0, 0.0);
+            for bi in 0..=25 {
+                let b = 0.02 * bi as f64;
+                for pi in 0..=20 {
+                    let p = 0.5 + 0.1 * pi as f64;
+                    let c = bisect(0.0, 0.8, 0.78, |c| at_mac(&mk(c, p, b), id, 1.2).0 / map0);
+                    let (m2, _, co2, _) = at_mac(&mk(c, p, b), id, 2.0);
+                    let err = (m2 / map0 - 0.62) * (m2 / map0 - 0.62)
+                        + (co2 / co0 - 0.83) * (co2 / co0 - 0.83);
+                    if err < best.0 {
+                        best = (err, c, p, b);
+                    }
+                }
+            }
+            let (_, c, p, b) = best;
+            set_pow(&mut w.inhalant_mut(id).effects[2], c, p, 0.1);
+            set_pow(&mut w.inhalant_mut(id).effects[4], b, 1.0, 0.0);
+            let pre = if id == "isoflurane" { "iso" } else { "sevo" };
+            k.insert(format!("{pre}_rsys"), c.into());
+            k.insert(format!("{pre}_rsys_p"), p.into());
+            k.insert(format!("{pre}_baro"), b.into());
             let n = bisect(0.3, 6.0, 46.2, |n| {
                 let mut w2 = World {
                     base: w.base.clone(),
@@ -264,7 +285,6 @@ fn main() {
                 n,
             );
             let p = if id == "isoflurane" { "iso" } else { "sevo" };
-            k.insert(format!("{p}_rsys"), c.into());
             k.insert(format!("{p}_va"), vetsim_core::math::pow(ai, -n).into());
             k.insert(format!("{p}_vn"), n.into());
         }
@@ -279,6 +299,12 @@ fn main() {
         }
     }
     println!("  cibles sévoflurane (Bernard 1990) : 1,2 MAC PAM −22 %, FC +60 %, DC 0 ; 2 MAC PAM −38 %, FC +54 %, DC −17 % ; PaCO2 iso 1 MAC 46,2 (Steffey 1993)");
+    if only_inhalants {
+        if fit {
+            println!("{}", serde_json::Value::Object(k));
+        }
+        return;
+    }
 
     // ---------------- dexmédétomidine 10 µg/kg IM : FC −55 %, DC −59 %, PAM en hausse
     let dex = |w: &World| {
@@ -296,11 +322,13 @@ fn main() {
             max(&r.map) / map0 - 1.0,
         )
     };
-    if fit {
+    // Dexmédétomidine : la bissection explore des résistances extrêmes très coûteuses ;
+    // calage par petite grille bornée (examples/anesthesia_timing.rs), `--dex` pour la relancer.
+    if fit && std::env::args().any(|a| a == "--dex") {
         // vagal → FC ; s0 → DC ; r_sys (EP) → PAM : balayage coordonné
         let (mut v, mut s0, mut rs) = (0.3, 0.15, 1.0);
-        for _ in 0..4 {
-            v = bisect(0.0, 1.0, -0.55, |x| {
+        for _ in 0..2 {
+            v = bisect(0.0, 0.6, -0.55, |x| {
                 let mut w2 = World {
                     base: w.base.clone(),
                     model: w.model.clone(),
@@ -313,7 +341,7 @@ fn main() {
                 set_lin(&mut a.pd.effects[2], x, "E", true);
                 dex(&w2).0
             });
-            rs = bisect(0.0, 4.0, 0.20, |x| {
+            rs = bisect(0.0, 3.0, 0.20, |x| {
                 let mut w2 = World {
                     base: w.base.clone(),
                     model: w.model.clone(),
@@ -399,6 +427,7 @@ fn main() {
         ];
         let r = run(w, &ev, 1800.0 + 300.0, 5.0);
         let i0 = (1795.0 / 5.0) as usize;
+        // (pas de 5 s : nadir de PAM à 55 s chez Cattai 2018)
         (
             min(&r.map[i0 + 1..]) / r.map[i0] - 1.0,
             max(&r.hr[i0 + 1..]) / r.hr[i0] - 1.0,
@@ -499,32 +528,44 @@ fn main() {
     };
     let target = [(1.0, 0.48, 0.30), (0.5, 0.35, 0.15)];
     if fit {
+        // l'épargne ne dépend que de Ce : on relève Ce une fois par dose, puis ajustement direct
+        let ce_at = |dose: f64| {
+            let r = run(
+                &w,
+                &[(0.0, bolus("methadone", dose, AdminRoute::Iv))],
+                5.0 * 3600.0,
+                60.0,
+            );
+            let c = &r.ce.iter().find(|(id, _)| id == "methadone").unwrap().1;
+            (c[150], c[300])
+        };
+        let ce: Vec<(f64, f64)> = target.iter().map(|(d, _, _)| ce_at(*d)).collect();
+        let h = w
+            .agents
+            .iter()
+            .find(|a| a.id == "methadone")
+            .unwrap()
+            .anesthesia
+            .as_ref()
+            .unwrap()
+            .mac_reduction
+            .unwrap()
+            .hill;
+        let sat = |mx: f64, ec: f64, c: f64| {
+            mx * vetsim_core::math::pow(c, h)
+                / (vetsim_core::math::pow(ec, h) + vetsim_core::math::pow(c, h))
+        };
         let mut best = (f64::MAX, 0.0, 0.0);
-        for mi in 0..=8 {
-            let mx = 0.5 + 0.05 * mi as f64;
-            for ei in 0..=24 {
-                let ec = 0.005 * vetsim_core::math::pow(1.2, ei as f64);
-                let mut w2 = World {
-                    base: w.base.clone(),
-                    model: w.model.clone(),
-                    agents: w.agents.clone(),
-                    inhalants: vec![],
-                };
-                let s = w2
-                    .agent_mut("methadone")
-                    .anesthesia
-                    .as_mut()
-                    .unwrap()
-                    .mac_reduction
-                    .as_mut()
-                    .unwrap();
-                s.max = mx;
-                s.ec50_mg_l = ec;
+        for mi in 0..=50 {
+            let mx = 0.4 + 0.01 * mi as f64;
+            for ei in 0..=200 {
+                let ec = 0.002 * vetsim_core::math::pow(1.03, ei as f64);
                 let err: f64 = target
                     .iter()
-                    .map(|(d, a, b)| {
-                        let (x, y) = meth(&w2, *d);
-                        (x - a) * (x - a) + (y - b) * (y - b)
+                    .zip(&ce)
+                    .map(|((_, a, b), (c1, c2))| {
+                        let (x, y) = (sat(mx, ec, *c1) - a, sat(mx, ec, *c2) - b);
+                        x * x + y * y
                     })
                     .sum();
                 if err < best.0 {

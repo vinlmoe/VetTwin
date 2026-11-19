@@ -5,7 +5,7 @@ import json, glob
 def tex(s):
     for a, b in [('\\', '\\textbackslash{}'), ('&', '\\&'), ('%', '\\%'), ('_', '\\_'), ('#', '\\#'), ('$', '\\$'), ('~', '\\textasciitilde{}'), ('^', '\\textasciicircum{}')]:
         s = s.replace(a, b)
-    return s.replace('µ', '\\textmu{}').replace('⁻¹', '$^{-1}$').replace('≈', '$\\approx$').replace('→', '$\\to$').replace('≥', '$\\ge$').replace('≤', '$\\le$').replace('α', '$\\alpha$').replace('γ', '$\\gamma$').replace('×', '$\\times$').replace('−', '$-$').replace('Δ', '$\\Delta$').replace('ν', '$\\nu$').replace('₂', '$_2$')
+    return s.replace('µ', '\\textmu{}').replace('⁻¹', '$^{-1}$').replace('≈', '$\\approx$').replace('→', '$\\to$').replace('≥', '$\\ge$').replace('≤', '$\\le$').replace('α', '$\\alpha$').replace('γ', '$\\gamma$').replace('×', '$\\times$').replace('−', '$-$').replace('Δ', '$\\Delta$').replace('β', '$\\beta$').replace('½', '$\\frac12$').replace('±', '$\\pm$').replace('·', '$\\cdot$').replace('¹', '$^1$').replace('§', '\\S{}').replace('–', '--').replace('ν', '$\\nu$').replace('₂', '$_2$')
 
 ev = lambda e: {'C': '\\evC', 'D': '\\evD'}.get(e, e)
 out = ['% Généré par tests/make_anesthesia_doc.py — ne pas éditer à la main.',

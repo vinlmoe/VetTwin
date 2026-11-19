@@ -53,8 +53,22 @@ fn anesthesia_messages_round_trip() {
     assert_eq!(st["ok"], true, "{st}");
     let sid = st["session"].as_str().unwrap().to_string();
     assert_eq!(st["snapshot"]["depth"]["plane"], "awake");
+    // intubation refusée chez le chien vigile (déglutition présente)
+    let r = msg(
+        &mut e,
+        json!({"op": "anesthesia_event", "options": {"session": sid, "event": {"type": "intubate"}}}),
+    );
+    assert_eq!(r["ok"], false);
+    let r = msg(
+        &mut e,
+        json!({"op": "anesthesia_event", "options": {"session": sid, "event": {"type": "bolus", "agent": "propofol", "mg_per_kg": 5.2, "route": "iv"}}}),
+    );
+    assert_eq!(r["ok"], true, "{r}");
+    msg(
+        &mut e,
+        json!({"op": "anesthesia_step", "options": {"session": sid, "dt_s": 5, "n": 18}}),
+    );
     for ev in [
-        json!({"type": "bolus", "agent": "propofol", "mg_per_kg": 5.2, "route": "iv"}),
         json!({"type": "intubate"}),
         json!({"type": "fresh_gas", "l_min": 2}),
         json!({"type": "vaporizer", "agent": "sevoflurane", "pct": 3}),

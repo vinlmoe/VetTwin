@@ -34,8 +34,8 @@
       1,
       {
        "mul": [
-        -0.4,
-        "E"
+        -0.8,
+        "EP"
        ]
       }
      ]
@@ -51,6 +51,21 @@
        "mul": [
         -0.9,
         "E"
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "param": "baro_gain",
+    "op": "mul",
+    "expr": {
+     "add": [
+      1,
+      {
+       "mul": [
+        -0.8,
+        "EP"
        ]
       }
      ]
@@ -76,5 +91,5 @@
   "Bigby SE et al. 2017, Vet Anaesth Analg (résumé)",
   "Maney JK et al. 2013, Vet Anaesth Analg, doi:10.1111/vaa.12006 (résumé)"
  ],
- "notes": "Vasodilatation (r_sys) calée pour une PAM −31 % au nadir (88 → 61 mmHg, Cattai 2018, lu, après acépromazine + méthadone) ; la tachycardie réflexe vient du baroréflexe du moteur. Apnée d'induction : vent_drive −90 % à effet maximal (placeholder D ; apnée chez 59 à 100 % des chiens selon la vitesse d'injection, Murison 2001, Bigby 2017). La vitesse d'injection se joue par bolus fractionnés."
+ "notes": "Vasodilatation (r_sys) et émoussement du baroréflexe (baro_gain, mécanisme retenu, forme D) calés ensemble pour PAM −31 % au nadir et FC +62 % (88 → 61 mmHg, 65 → 105/min, Cattai 2018, lu, après acépromazine + méthadone) ; la tachycardie vient du baroréflexe du moteur. Effets hémodynamiques portés par la concentration PLASMATIQUE (EP) : nadir de PAM à 55 s, avant l'équilibre du site effet (intubation à 140 s, Cattai 2018). Apnée d'induction : vent_drive −90 % à effet maximal (placeholder D ; apnée chez 59 à 100 % des chiens selon la vitesse d'injection, Murison 2001, Bigby 2017). La vitesse d'injection se règle par la durée du bolus (30 s par défaut, iv_push_s du modèle)."
 }

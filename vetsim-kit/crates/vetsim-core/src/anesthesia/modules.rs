@@ -160,7 +160,7 @@ pub struct AnesthesiaModel {
     pub sens_tau_h: f64,
     /// Amplification de la nociception par la sensibilisation (`1 + κ·S`).
     pub sens_gain: f64,
-    /// Effets de la nociception (variables `NU`, `STRESS`, `S`).
+    /// Effets de la nociception (variables `NU`, `STRESS`, `S`, `BW` : poids en kg).
     pub nociception_effects: Vec<Effect>,
     /// Température de référence (°C).
     pub t0_c: f64,
@@ -180,6 +180,8 @@ pub struct AnesthesiaModel {
     pub blood_volume_ml_kg: f64,
     /// Constante de sortie vasculaire des cristalloïdes (min).
     pub crystalloid_tau_min: f64,
+    /// Durée par défaut d'une injection IV (s).
+    pub iv_push_s: f64,
     /// Niveau de preuve global du module.
     pub evidence: Evidence,
     /// Références.
@@ -231,6 +233,7 @@ impl AnesthesiaModel {
         let mpc = num(&mut c, "mac_per_c");
         let bv = num(&mut c, "blood_volume_ml_kg");
         let ctau = num(&mut c, "crystalloid_tau_min");
+        let push = num(&mut c, "iv_push_s");
         let mut tissues = [Tissue {
             vol_l_kg: 0.0,
             co_frac: 0.0,
@@ -269,7 +272,7 @@ impl AnesthesiaModel {
         let ne = c.effects(
             m.get("nociception_effects"),
             "/nociception_effects",
-            &["NU", "STRESS", "S"],
+            &["NU", "STRESS", "S", "BW"],
             false,
         );
         let te = c.effects(
@@ -280,7 +283,7 @@ impl AnesthesiaModel {
         );
         let all = [
             co2, frc, vd, circ, gap, flowby, loc, swallow, palp, jaw, surg, deep, exc, bar, barh,
-            mh, tnu, tst, sr, st, sg, t0, tamb, tcool, lga, warm, mpc, bv, ctau,
+            mh, tnu, tst, sr, st, sg, t0, tamb, tcool, lga, warm, mpc, bv, ctau, push,
         ];
         if all.iter().any(Option::is_none) || !t_ok {
             return Err(c.fail(origin));
@@ -320,6 +323,7 @@ impl AnesthesiaModel {
             temperature_effects: te,
             blood_volume_ml_kg: g(bv),
             crystalloid_tau_min: g(ctau),
+            iv_push_s: g(push),
             evidence,
             refs,
         };

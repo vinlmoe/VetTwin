@@ -1,0 +1,28 @@
+Le banc \vp{crates/vetsim-api/examples/anesthesia_calibrate.rs} rejoue chaque cible publiée dans le modèle complet
+(session, baroréflexe et décompensation compris). Avec \vp{--fit}, il cherche les coefficients par balayage déterministe et
+les imprime en JSON ; ils sont reportés à la main dans le fichier de coefficients ci-dessous, jamais modifiés automatiquement dans \vp{modules/}.
+Coefficients calés (\vp{tests/anesthesia_modules/coefficients.json}, générateurs \vp{gen_agents.py} et \vp{gen_inhalants.py}) :
+\begin{itemize}
+\item halogénés : vasodilatation $\max(0{,}1;\,1 - c\,M^p)$ et émoussement du baroréflexe $1 - b\,M$ sur trois cibles de Bernard (1990) ;
+commande ventilatoire $\max(0;\,1 - a\,M^n)$ sur la PaCO$_2$ de 46,2 mmHg à 1 MAC (Steffey 1993) et l'apnée à l'indice publié (Galloway 2004) ;
+\item dexmédétomidine : petite grille bornée (\vp{examples/anesthesia_timing.rs}) sur vasoconstriction plasmatique, sympatholyse et tonus vagal ;
+la bissection automatique (\vp{--dex}) explore des résistances extrêmes très coûteuses ;
+\item acépromazine : veinodilatation ; propofol : vasodilatation et émoussement du baroréflexe portés par la concentration plasmatique
+(grille, la relation n'est pas monotone) ;
+\item $c_{imm}$ de l'alfaxalone et de la kétamine (même marge d'induction que le propofol à 5,2 mg/kg), stimulation sympathique de la kétamine,
+épargne de MAC de la méthadone (ajustement direct sur $C_e$, qui ne dépend que de la PK).
+\end{itemize}
+Tous les bolus IV de la calibration sont injectés en \SI{30}{s} (\vp{iv_push_s}).
+
+Sortie du banc sur les modules livrés (chien sain de \SI{20}{kg}) :
+\VerbatimInput[fontsize=\scriptsize,breaklines=true,breakanywhere=true]{anesthesie_calibration.txt}
+
+\paragraph{Écarts résiduels.}
+\begin{itemize}
+\item Halogénés à 2 MAC : PAM $-48$\,\% contre $-38$\,\% et pas de tachycardie (+1\,\% contre +54\,\%) ; le moteur ne peut pas associer,
+avec un baroréflexe émoussé, une FC élevée et un débit en baisse ; le compromis retenu privilégie la PAM à 1,2 MAC et le débit à 2 MAC.
+\item Dexmédétomidine : FC $-37$\,\% contre $-55$\,\% ; le bloc AV du 2\textsuperscript{e} degré, qui émerge du tonus vagal comme chez Karna (2022),
+plafonne la fréquence ventriculaire du moteur.
+\item Kétamine-midazolam : FC +23\,\% contre +75\,\% ; le baroréflexe compense la stimulation sympathique (plafond du balayage).
+\item Méthadone 0,5 mg/kg : épargne de 30\,\% à 2,5 h contre 35\,\%.
+\end{itemize}

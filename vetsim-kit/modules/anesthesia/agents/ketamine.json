@@ -31,7 +31,7 @@
     "op": "add",
     "expr": {
      "mul": [
-      0.3,
+      0.8,
       "E"
      ]
     },
@@ -62,7 +62,7 @@
    "dissociative"
   ],
   "ke0_per_min": 0.5,
-  "c_imm_mg_L": 20.0,
+  "c_imm_mg_L": 12.724501473280942,
   "mac_reduction": {
    "max": 0.922,
    "ec50_mg_L": 2.945,
@@ -88,5 +88,5 @@
   "Hampton CE et al. 2019, Am J Vet Res (résumé)",
   "Muir WW et al. 2003, Am J Vet Res 64:1155 (résumé)"
  ],
- "notes": "Anesthésie dissociative : réflexe palpébral conservé, globe central. Stimulation sympathique (s0) calée pour FC +75 % après induction (Hampton 2019, kétamine-diazépam). Remarque : la contribution hypnotique (c_imm) et l'épargne de MAC se cumulent dans la profondeur Δ : simplification signalée."
+ "notes": "Anesthésie dissociative : réflexe palpébral conservé, globe central. Stimulation sympathique (s0 + 0,8·E, plafond du balayage) : FC +23 % après 6,1 mg/kg + midazolam pour une cible de +75 % (Hampton 2019, kétamine-diazépam) ; le baroréflexe du moteur compense : écart signalé. Remarque : la contribution hypnotique (c_imm) et l'épargne de MAC se cumulent dans la profondeur Δ : simplification signalée."
 }

@@ -62,7 +62,8 @@
     "warming_c_per_h",
     "mac_per_c",
     "blood_volume_ml_kg",
-    "crystalloid_tau_min"
+    "crystalloid_tau_min",
+    "iv_push_s"
    ],
    "additionalProperties": false,
    "properties": {
@@ -935,6 +936,36 @@
        }
       }
      ]
+    },
+    "iv_push_s": {
+     "oneOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "object",
+       "required": [
+        "value",
+        "evidence"
+       ],
+       "properties": {
+        "value": {
+         "type": "number"
+        },
+        "evidence": {
+         "enum": [
+          "A",
+          "B",
+          "C",
+          "D"
+         ]
+        },
+        "source": {
+         "type": "string"
+        }
+       }
+      }
+     ]
     }
    }
   },
@@ -1004,7 +1035,7 @@
   },
   "nociception_effects": {
    "type": "array",
-   "description": "Variables NU, STRESS, S."
+   "description": "Variables NU, STRESS, S, BW (poids, kg)."
   },
   "temperature_effects": {
    "type": "array",

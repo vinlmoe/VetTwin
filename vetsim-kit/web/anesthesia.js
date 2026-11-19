@@ -27,7 +27,7 @@ const MS_FR = [['loc', 'Perte de conscience'], ['intubation', 'Intubation'], ['v
 const A = {
   list: null, session: null, key: null, hist: [], snap: null, waves: null, running: false, speed: 1, timer: null,
   procedure: '', rec: null, lastWave: 0, err: null,
-  form: { agent: null, dose: '', route: 'iv', cri: '', vap: 'isoflurane', pct: 2, fgf: 2, rr: 10, vt: 12, block: null, territory: null, fluids: 5, bolus: 10, bleed: 5 },
+  form: { agent: null, dose: '', route: 'iv', push: 30, cri: '', vap: 'isoflurane', pct: 2, fgf: 2, rr: 10, vt: 12, block: null, territory: null, fluids: 5, bolus: 10, bleed: 5 },
 };
 
 /** Point d'entrée : `ctx = {ctl, inputs, rerender}`. */
@@ -132,6 +132,7 @@ function layout(ctl, inputs, key) {
       <label>Agent <select id="an-agent">${opt(L.agents, f.agent, agentLabel)}</select></label>
       <div class="row"><label>Dose (mg/kg) <input id="an-dose" type="number" step="any" min="0" value="${f.dose}"></label>
         <label>Voie <select id="an-route">${routes.map((r) => `<option ${r === f.route ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
+        <label title="durée de l'injection IV">Injection (s) <input id="an-push" type="number" min="0" value="${f.push}"></label>
         <button id="an-bolus">Injecter</button></div>
       <div class="row"><label>Perfusion (mg/kg/h) <input id="an-cri" type="number" step="any" min="0" value="${f.cri}"></label>
         <button id="an-cri-go">Régler</button></div>
@@ -193,9 +194,9 @@ function wire(v, ctl, inputs, key, ctx) {
   const ag = document.getElementById('an-agent');
   if (ag) ag.onchange = () => { f.agent = ag.value; rerender(); };
   const keep = (id, k) => { const el = document.getElementById(id); if (el) el.onchange = () => { f[k] = el.value; }; };
-  keep('an-dose', 'dose'); keep('an-route', 'route'); keep('an-cri', 'cri'); keep('an-vap', 'vap'); keep('an-pct', 'pct'); keep('an-fgf', 'fgf');
+  keep('an-dose', 'dose'); keep('an-push', 'push'); keep('an-route', 'route'); keep('an-cri', 'cri'); keep('an-vap', 'vap'); keep('an-pct', 'pct'); keep('an-fgf', 'fgf');
   keep('an-rr', 'rr'); keep('an-vt', 'vt'); keep('an-block', 'block'); keep('an-terr', 'territory'); keep('an-fl', 'fluids'); keep('an-bo', 'bolus'); keep('an-bl', 'bleed');
-  on('an-bolus', () => { const d = num('an-dose'); if (d !== null) ev({ type: 'bolus', agent: ag.value, mg_per_kg: d, route: document.getElementById('an-route').value }); });
+  on('an-bolus', () => { const d = num('an-dose'); if (d !== null) { const p = num('an-push'); ev({ type: 'bolus', agent: ag.value, mg_per_kg: d, route: document.getElementById('an-route').value, ...(p !== null ? { duration_s: p } : {}) }); } });
   on('an-cri-go', () => { const d = num('an-cri'); ev({ type: 'cri', agent: ag.value, mg_per_kg_h: d || 0 }); });
   on('an-intub', () => {
     if (!A.snap.intubated) { event(ctl, { type: 'intubate' }); if (!A.err) event(ctl, { type: 'fresh_gas', l_min: num('an-fgf') || 0 }); advance(ctl, 0.0001, v); rerender(); }

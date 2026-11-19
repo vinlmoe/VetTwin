@@ -116,6 +116,7 @@ pub fn parse_event(v: &Json) -> Result<Event, ApiError> {
                     ))
                 }
             },
+            duration_s: m.get("duration_s").and_then(Json::as_f64),
         },
         "cri" => Event::Cri {
             agent: req_str(m, "agent")?.into(),
