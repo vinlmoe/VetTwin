@@ -44,7 +44,8 @@ jobs:
       - name: Site statique
         run: |
           mkdir -p ../site/pkg
-          cp web/index.html web/styles.css web/app.js web/engine.js web/charts.js web/heart.js \
+          # tous les modules JavaScript de l'interface (app.js les importe : un oubli casse le site)
+          cp web/index.html web/styles.css web/*.js \
              web/selftest.html web/selftest.json web/modules.json ../site/
           cp web/pkg/vetsim_wasm.js web/pkg/vetsim_wasm_bg.wasm ../site/pkg/
           touch ../site/.nojekyll
