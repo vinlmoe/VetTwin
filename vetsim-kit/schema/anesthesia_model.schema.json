@@ -63,7 +63,9 @@
     "mac_per_c",
     "blood_volume_ml_kg",
     "crystalloid_tau_min",
-    "iv_push_s"
+    "iv_push_s",
+    "o2_debt_tol_ml_kg",
+    "o2_debt_tau_min"
    ],
    "additionalProperties": false,
    "properties": {
@@ -938,6 +940,66 @@
      ]
     },
     "iv_push_s": {
+     "oneOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "object",
+       "required": [
+        "value",
+        "evidence"
+       ],
+       "properties": {
+        "value": {
+         "type": "number"
+        },
+        "evidence": {
+         "enum": [
+          "A",
+          "B",
+          "C",
+          "D"
+         ]
+        },
+        "source": {
+         "type": "string"
+        }
+       }
+      }
+     ]
+    },
+    "o2_debt_tol_ml_kg": {
+     "oneOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "object",
+       "required": [
+        "value",
+        "evidence"
+       ],
+       "properties": {
+        "value": {
+         "type": "number"
+        },
+        "evidence": {
+         "enum": [
+          "A",
+          "B",
+          "C",
+          "D"
+         ]
+        },
+        "source": {
+         "type": "string"
+        }
+       }
+      }
+     ]
+    },
+    "o2_debt_tau_min": {
      "oneOf": [
       {
        "type": "number"

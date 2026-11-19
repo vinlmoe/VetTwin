@@ -45,12 +45,17 @@
     "param": "vent_drive",
     "op": "mul",
     "expr": {
-     "add": [
-      1,
+     "max": [
+      0,
       {
-       "mul": [
-        -0.9,
-        "E"
+       "sub": [
+        1,
+        {
+         "mul": [
+          1.23,
+          "EP"
+         ]
+        }
        ]
       }
      ]
@@ -91,5 +96,5 @@
   "Bigby SE et al. 2017, Vet Anaesth Analg (résumé)",
   "Maney JK et al. 2013, Vet Anaesth Analg, doi:10.1111/vaa.12006 (résumé)"
  ],
- "notes": "Vasodilatation (r_sys) et émoussement du baroréflexe (baro_gain, mécanisme retenu, forme D) calés ensemble pour PAM −31 % au nadir et FC +62 % (88 → 61 mmHg, 65 → 105/min, Cattai 2018, lu, après acépromazine + méthadone) ; la tachycardie vient du baroréflexe du moteur. Effets hémodynamiques portés par la concentration PLASMATIQUE (EP) : nadir de PAM à 55 s, avant l'équilibre du site effet (intubation à 140 s, Cattai 2018). Apnée d'induction : vent_drive −90 % à effet maximal (placeholder D ; apnée chez 59 à 100 % des chiens selon la vitesse d'injection, Murison 2001, Bigby 2017). La vitesse d'injection se règle par la durée du bolus (30 s par défaut, iv_push_s du modèle)."
+ "notes": "Vasodilatation (r_sys) et émoussement du baroréflexe (baro_gain, mécanisme retenu, forme D) calés ensemble pour PAM −31 % au nadir et FC +62 % (88 → 61 mmHg, 65 → 105/min, Cattai 2018, lu, après acépromazine + méthadone) ; la tachycardie vient du baroréflexe du moteur. Effets hémodynamiques portés par la concentration PLASMATIQUE (EP) : nadir de PAM à 55 s, avant l'équilibre du site effet (intubation à 140 s, Cattai 2018). Apnée d'induction : commande ventilatoire max(0, 1 − 1,23·EP), portée par le pic PLASMATIQUE : une injection rapide l'abolit, et le CO2 ne la relance qu'une fois la concentration redescendue. Calée sur la dépendance à la vitesse (apnée chez 100 % des chiens à 4 mg/kg/min contre 25 % à 1 mg/kg/min, Bigby 2017 ; 59 à 64 % à 4 mg/kg, Murison 2001) : 5,2 mg/kg en 30 s sans prémédication donnent 56 s d'apnée, 1,8 mg/kg à 1 mg/kg/min après prémédication aucune. La vitesse d'injection se règle par la durée du bolus (30 s par défaut, iv_push_s du modèle)."
 }

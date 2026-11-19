@@ -182,6 +182,10 @@ pub struct AnesthesiaModel {
     pub crystalloid_tau_min: f64,
     /// Durée par défaut d'une injection IV (s).
     pub iv_push_s: f64,
+    /// Dette d'O2 tolérée avant le décès (mL/kg).
+    pub o2_debt_tol_ml_kg: f64,
+    /// Constante de remboursement de la dette d'O2 (min).
+    pub o2_debt_tau_min: f64,
     /// Niveau de preuve global du module.
     pub evidence: Evidence,
     /// Références.
@@ -234,6 +238,8 @@ impl AnesthesiaModel {
         let bv = num(&mut c, "blood_volume_ml_kg");
         let ctau = num(&mut c, "crystalloid_tau_min");
         let push = num(&mut c, "iv_push_s");
+        let debt = num(&mut c, "o2_debt_tol_ml_kg");
+        let dtau = num(&mut c, "o2_debt_tau_min");
         let mut tissues = [Tissue {
             vol_l_kg: 0.0,
             co_frac: 0.0,
@@ -283,7 +289,7 @@ impl AnesthesiaModel {
         );
         let all = [
             co2, frc, vd, circ, gap, flowby, loc, swallow, palp, jaw, surg, deep, exc, bar, barh,
-            mh, tnu, tst, sr, st, sg, t0, tamb, tcool, lga, warm, mpc, bv, ctau, push,
+            mh, tnu, tst, sr, st, sg, t0, tamb, tcool, lga, warm, mpc, bv, ctau, push, debt, dtau,
         ];
         if all.iter().any(Option::is_none) || !t_ok {
             return Err(c.fail(origin));
@@ -324,6 +330,8 @@ impl AnesthesiaModel {
             blood_volume_ml_kg: g(bv),
             crystalloid_tau_min: g(ctau),
             iv_push_s: g(push),
+            o2_debt_tol_ml_kg: g(debt),
+            o2_debt_tau_min: g(dtau),
             evidence,
             refs,
         };
