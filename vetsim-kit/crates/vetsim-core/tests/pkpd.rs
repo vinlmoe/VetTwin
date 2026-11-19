@@ -134,6 +134,13 @@ fn timecourses_match_python() {
                 "t" => &tc.t,
                 "D" => &tc.d,
                 "U" => &tc.u,
+                // « médicament@e » : concentration au site d'effet (compartiment `ke0`)
+                k if k.ends_with("@e") => tc
+                    .conc_e
+                    .iter()
+                    .find(|(d, _)| d == k.trim_end_matches("@e"))
+                    .map(|(_, v)| v.as_slice())
+                    .unwrap_or_else(|| panic!("{k} absent de conc_e")),
                 drug => tc.conc_of(drug).unwrap(),
             };
             let exp = exp.as_array().unwrap();
