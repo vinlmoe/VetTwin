@@ -63,7 +63,7 @@
    "hypnotic"
   ],
   "ke0_per_min": 0.7,
-  "c_imm_mg_L": 7.291672371595175,
+  "c_imm_mg_L": 7.28933635572549,
   "evidence": "C",
   "source": "PK : Vss 0,94 L/kg, Cl 26 mL/kg/min, Q 8,5 mL/kg/min (Dehuisser 2019, résumé) ; partage Vc/Vp placeholder D. ke0 placeholder D (classe). c_imm calé pour que la dose d'induction publiée sans prémédication (2,6–2,8 mg/kg, Maney 2013, Hampton 2019) atteigne la perte de conscience avec la même marge que le propofol à 5,2 mg/kg (calage par session)."
  },

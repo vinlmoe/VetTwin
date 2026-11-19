@@ -66,6 +66,7 @@ fn case_inputs(pm: &PatientModule, case: &Json) -> (Params, Conduction) {
                 wide: b[4].as_bool().unwrap(),
             })
             .collect(),
+        ..Default::default()
     };
     (p, cond)
 }

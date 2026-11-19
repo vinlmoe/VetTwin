@@ -39,11 +39,19 @@ pub enum Block {
     Liver,
     /// ECG (intervalles, amplitudes).
     Ecg,
+    /// Thermorégulation (bilan thermique noyau/enveloppe, frisson, halètement).
+    Thermoregulation,
+    /// Pupille (sphincter parasympathique, dilatateur sympathique, réflexe photomoteur).
+    Pupil,
+    /// Tube digestif et sécrétions (motilité, sphincter œsophagien, salive).
+    Digestive,
+    /// Système nerveux central (sédation, excitation, profondeur d'anesthésie).
+    Neuro,
 }
 
 impl Block {
     /// Tous les blocs, dans l'ordre d'affichage.
-    pub const ALL: [Block; 15] = [
+    pub const ALL: [Block; 19] = [
         Block::Patient,
         Block::Autonomic,
         Block::LeftHeart,
@@ -59,6 +67,10 @@ impl Block {
         Block::Kidney,
         Block::Liver,
         Block::Ecg,
+        Block::Thermoregulation,
+        Block::Pupil,
+        Block::Digestive,
+        Block::Neuro,
     ];
 
     /// Identifiant stable (API JSON).
@@ -79,6 +91,10 @@ impl Block {
             Block::Kidney => "kidney",
             Block::Liver => "liver",
             Block::Ecg => "ecg",
+            Block::Thermoregulation => "thermoregulation",
+            Block::Pupil => "pupil",
+            Block::Digestive => "digestive",
+            Block::Neuro => "neuro",
         }
     }
 
@@ -100,6 +116,10 @@ impl Block {
             Block::Kidney => "Rein (DFG, clairance)",
             Block::Liver => "Foie (clairance)",
             Block::Ecg => "ECG",
+            Block::Thermoregulation => "Thermorégulation",
+            Block::Pupil => "Pupille",
+            Block::Digestive => "Digestif et sécrétions",
+            Block::Neuro => "Système nerveux central",
         }
     }
 }
@@ -146,13 +166,17 @@ pub fn blocks_of(name: &str) -> &'static [Block] {
         "k_la" => &[PulmonaryCirculation, LeftHeart],
         "k_ra" => &[SystemicCirculation, RightHeart],
         "ta_atr" | "tra_atr" => &[PulmonaryCirculation, SystemicCirculation],
-        "ts_restitution" | "ts_coef" => &[LeftHeart, RightHeart],
+        "ts_restitution" | "ts_coef" | "act_gamma" | "tr_frac" | "emd_v" => {
+            &[LeftHeart, RightHeart]
+        }
+        "emd_a" => &[PulmonaryCirculation, SystemicCirculation],
         // relation force-intervalle et dyssynchronie : amplitude d'élastance battement par battement
         "ca_tau" | "ca_recirc" | "ees_wide" => &[LeftHeart, RightHeart],
         // conduction (rhythm) : génération et propagation de l'influx → FC, ECG, oreillettes
-        "sa_block" | "af" | "af_cycle" | "af_cv" | "hv" | "av_erp" | "av_beta" | "av_tau"
-        | "av_conceal" | "av_vagal" | "av_symp" | "hp_conduction" | "junct_rate"
-        | "vent_escape_rate" | "esc_overdrive" | "vpc_rate" => &[Autonomic, Ecg],
+        "sa_block" | "af" | "af_cycle" | "af_cv" | "hv" | "pa_ia" | "av_erp" | "av_beta"
+        | "av_tau" | "av_conceal" | "av_vagal" | "av_symp" | "hp_conduction" | "junct_rate"
+        | "vent_escape_rate" | "esc_sup_gain" | "esc_sup_tau" | "esc_a_s" | "esc_a_v"
+        | "vpc_rate" => &[Autonomic, Ecg],
         "av_k_gain"
         | "k_hp_block"
         | "hp_k_slope"
@@ -160,6 +184,21 @@ pub fn blocks_of(name: &str) -> &'static [Block] {
         | "vpc_k_gain"
         | "k_vpc"
         | "k_atrial_standstill" => &[AcidBase, Autonomic, Ecg],
+        // température : FC intrinsèque, VO2 (Q10, frisson), P50, CAM
+        "temp_c" => &[
+            Thermoregulation,
+            Autonomic,
+            Metabolism,
+            OxygenTransport,
+            Neuro,
+        ],
+        "t_set" | "t_amb" | "warming" => &[Thermoregulation],
+        "anesth_mac" => &[Thermoregulation, Digestive, Neuro],
+        // muscarinique périphérique : glandes, motilité, glande nasale latérale (halètement)
+        "musc_block" => &[Digestive, Thermoregulation],
+        "pupil_block" | "pupil_ew" | "light" => &[Pupil],
+        "gi_inhib" => &[Digestive],
+        "sedation" | "excitation" => &[Neuro],
         _ => &[],
     }
 }

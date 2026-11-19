@@ -255,6 +255,17 @@ define_params! {
     ees_wide,
     /// Coefficient de la durée de systole `ts = ts_coef·√T`.
     ts_coef,
+    /// Forme de la montée de l'activation ventriculaire `½(1 − cos(π(t/ts)^γ))` (γ = 1 :
+    /// demi-cosinus ; γ < 1 : contraction isovolumique plus brève).
+    act_gamma,
+    /// Durée de relaxation en fraction de la systole (`tr = tr_frac·ts`).
+    tr_frac,
+    /// Délai électromécanique ventriculaire : début du QRS → début de l'activation (s).
+    emd_v,
+    /// Délai électromécanique atrial : début de l'onde P → début de la contraction atriale (s).
+    emd_a,
+    /// Conduction intra-atriale : début de l'onde P → arrivée au nœud AV (s) ; AH = PR − HV − PA.
+    pa_ia,
     // --- conduction (rhythm) ---
     /// Probabilité de bloc de sortie sino-atrial (maladie du sinus).
     sa_block,
@@ -293,8 +304,18 @@ define_params! {
     vent_escape_rate,
     /// Dépression de l'automatisme d'échappement par mmol/L de K au-delà de 5,5.
     esc_k_gain,
-    /// Allongement du premier intervalle d'échappement après un battement conduit.
-    esc_overdrive,
+    /// Suppression des foyers d'échappement par entraînement : allongement du premier
+    /// intervalle d'échappement = 1 + esc_sup_gain·max(0, cycle_échappement/RR_entraîné − 1)·
+    /// (1 − exp(−durée d'entraînement/esc_sup_tau)).
+    esc_sup_gain,
+    /// Constante de temps d'installation de la suppression par entraînement (s).
+    esc_sup_tau,
+    /// Accélération des foyers d'échappement (jonctionnel et ventriculaire) par le tonus
+    /// sympathique effectif : × (1 + esc_a_s·s_eff)/(1 + esc_a_s·0,2).
+    esc_a_s,
+    /// Ralentissement du foyer jonctionnel par le tonus vagal effectif :
+    /// × (1 − esc_a_v·v_eff)/(1 − esc_a_v·0,6) ; sans effet sur le foyer ventriculaire.
+    esc_a_v,
     /// Décharges ectopiques ventriculaires (/min).
     vpc_rate,
     /// Décharges ectopiques supplémentaires par mmol/L de K sous `k_vpc` (/min).
@@ -303,6 +324,35 @@ define_params! {
     k_vpc,
     /// K (mmol/L) d'arrêt atrial.
     k_atrial_standstill,
+    // --- périphérie : thermorégulation, pupille, digestif, SNC (`periph.rs`) ---
+    /// Température centrale courante (°C) : entrée de l'évaluation (FC, VO2, P50, CAM) ;
+    /// intégrée dans le temps par `periph::thermal_course`.
+    temp_c,
+    /// Point de consigne thermique hypothalamique (°C).
+    t_set,
+    /// Température ambiante (°C).
+    t_amb,
+    /// Réchauffement actif (W/kg, couverture, air pulsé).
+    warming,
+    /// Anesthésique halogéné en multiples de CAM (n'agit que sur la périphérie : les effets
+    /// hémodynamiques et respiratoires des halogénés ne sont pas modélisés).
+    anesth_mac,
+    /// Blocage muscarinique périphérique (glandes, muscle lisse digestif), 0–1.
+    musc_block,
+    /// Blocage muscarinique du sphincter de l'iris, 0–1.
+    pupil_block,
+    /// Commande constrictrice ajoutée du noyau d'Edinger-Westphal (opioïdes).
+    pupil_ew,
+    /// Éclairement (1 : lumière ambiante ≈ 220 lux ; 0 : obscurité).
+    light,
+    /// Inhibition non cholinergique de la motilité digestive (µ-opioïdes), 0–1.
+    gi_inhib,
+    /// Commande sédative (sans dimension ; 0 : vigile).
+    sedation,
+    /// Commande d'excitation centrale (entrée de scénario ; aucun médicament du catalogue ne
+    /// l'actionne : délire anticholinergique et dysphorie non modélisés, faute de données
+    /// canines chiffrées, voir `modules/drugs/*.json`).
+    excitation,
 }
 
 #[cfg(test)]
@@ -322,6 +372,6 @@ mod tests {
             assert_eq!(p.get(n), Some(v));
         }
         assert_eq!(p.get("nope"), None);
-        assert_eq!(Params::NAMES.len(), 122); // 73 + 11 décompensation + 6 oreillettes/systole + 3 force-intervalle + 22 conduction + 7 corrections du 18/11/2026 (creat_vd, urea_vd, map_arrest, av_symp, ven_cap, mr_k, mr_vref)
+        assert_eq!(Params::NAMES.len(), 142); // 73 + 11 décompensation + 6 oreillettes/systole + 3 force-intervalle + 22 conduction + 7 corrections du 18/11/2026 (creat_vd, urea_vd, map_arrest, av_symp, ven_cap, mr_k, mr_vref) + 3 échappements (esc_overdrive → esc_sup_gain, esc_sup_tau, esc_a_s, esc_a_v) + 5 chronologie (act_gamma, tr_frac, emd_v, emd_a, pa_ia) + 12 périphérie (temp_c … excitation)
     }
 }

@@ -69,9 +69,19 @@ impl Engine {
         self.inner.timecourse(patient_id, doses)
     }
 
+    /// Trajectoires Monte-Carlo d'un même animal (variabilité intra-individuelle).
+    pub fn montecarlo(&mut self, patient_id: &str, options: &str) -> String {
+        self.inner.montecarlo(patient_id, options)
+    }
+
     /// Auscultation (WAV en base64, ECG et pressions alignés en option).
     pub fn pcg(&mut self, patient_id: &str, options: &str) -> String {
         self.inner.pcg(patient_id, options)
+    }
+
+    /// Cœur animé : volumes des cavités, ECG et événements de conduction sur une même fenêtre.
+    pub fn heart(&mut self, patient_id: &str, options: &str) -> String {
+        self.inner.heart(patient_id, options)
     }
 
     /// Message générique `{"op", "patient", "options"}`.

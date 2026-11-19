@@ -44,6 +44,19 @@ pub struct EcgFeatures {
 // les durées visibles (seuil 0,02 mV) soient celles des intervalles publiés.
 /// Largeur de P (s) : 45 ms visibles à 0,2 mV.
 pub const P_SIGMA: f64 = 0.0105;
+/// Onde Ta (repolarisation atriale) : amplitude en fraction de celle de P (négative) et largeur en
+/// multiple de celle de P. Perego 2014 (BAV 3, n = 36, résumé) : Ta/P −0,35 en amplitude, 2,3 en
+/// durée ; pic pendant le segment PR (Mirvis 1986). Evidence C.
+pub const TA_AMP: f64 = -0.35;
+/// Largeur de Ta (multiple de la largeur de P).
+pub const TA_WIDTH: f64 = 2.3;
+
+/// Centre et largeur de l'onde Ta d'une onde P de centre `p_c` et de largeur `p_w` : Ta débute à
+/// la fin de P (± 2 σ) et culmine dans le segment PR.
+pub fn ta_wave(p_c: f64, p_w: f64) -> (f64, f64) {
+    let w = TA_WIDTH * p_w;
+    (p_c + 2.0 * p_w + w, w)
+}
 /// Élargissement relatif de P par mmol/L de K au-delà de 6 (placeholder D).
 pub const P_WIDEN_K: f64 = 0.25;
 /// Largeur de R (fraction de `qrs`).
@@ -152,6 +165,8 @@ pub fn make_ecg(
     for &tr in &t_r {
         let q = f.qrs;
         add(tr - f.pr + 0.5 * 0.03, f.p_amp, f.p_w); // P
+        let (tc, tw) = ta_wave(tr - f.pr + 0.5 * 0.03, f.p_w);
+        add(tc, TA_AMP * f.p_amp, tw); // Ta
         add(tr - Q_POS * q, -0.12 * f.r_amp, Q_SIGMA * q); // Q
         add(tr, f.r_amp, R_SIGMA * q); // R
         add(tr + S_POS * q, -0.20 * f.r_amp, S_SIGMA * q); // S
@@ -210,6 +225,8 @@ pub fn make_ecg_conducted(
         }
         if a.organized {
             add(a.t + 0.5 * 0.03, f.p_amp, f.p_w); // P
+            let (tc, tw) = ta_wave(a.t + 0.5 * 0.03, f.p_w);
+            add(tc, TA_AMP * f.p_amp, tw); // Ta
         } else {
             let rec = prev_a.map_or(1.0, |q| f64::min(F_WAVE_MAX, (a.t - q) / p.af_cycle));
             add(a.t, F_WAVE * p.p_amp * rec, 0.012); // onde f
@@ -257,6 +274,108 @@ pub fn make_ecg_conducted(
     }
 }
 
+/// Demi-largeur (en écarts-types) retenue pour les bornes d'une onde gaussienne de l'ECG.
+pub const WAVE_HALF_SIGMAS: f64 = 2.0;
+
+/// Fenêtre électrique d'une activation atriale dans l'ECG (s).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AtrialWindow {
+    /// Activation (début de l'onde P ou instant de l'onde f).
+    pub t: f64,
+    /// Début de la dépolarisation tracée.
+    pub on: f64,
+    /// Fin de la dépolarisation tracée.
+    pub off: f64,
+    /// Fin de la repolarisation tracée (onde Ta ; fin de l'onde f en fibrillation).
+    pub ta_end: f64,
+}
+
+/// Fenêtre électrique d'une activation ventriculaire dans l'ECG (s).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct VentricularWindow {
+    /// Pic R.
+    pub t: f64,
+    /// Début du QRS.
+    pub qrs_on: f64,
+    /// Fin du QRS.
+    pub qrs_off: f64,
+    /// Sommet de l'onde T.
+    pub t_peak: f64,
+    /// Fin de l'onde T (fin de la repolarisation tracée).
+    pub t_end: f64,
+    /// QT de ce battement (corrigé par le RR précédent).
+    pub qt: f64,
+}
+
+/// Bornes des ondes de [`make_ecg_conducted`] pour la même séquence : mêmes centres et largeurs
+/// (P, ondes f, Q-R-S, T), bornées à ± [`WAVE_HALF_SIGMAS`] écarts-types. Sert à synchroniser
+/// une animation sur l'ECG sans dupliquer ses constantes.
+pub fn ecg_windows(
+    p: &Params,
+    cond: &crate::rhythm::Conduction,
+    hr: f64,
+) -> (Vec<AtrialWindow>, Vec<VentricularWindow>) {
+    let f = ecg_features(p);
+    let k = WAVE_HALF_SIGMAS;
+    let atrial = cond
+        .atrial
+        .iter()
+        .map(|a| {
+            let (c, w) = if a.organized {
+                (a.t + 0.5 * 0.03, f.p_w)
+            } else {
+                (a.t, 0.012)
+            };
+            let ta_end = if a.organized {
+                let (tc, tw) = ta_wave(c, w);
+                tc + k * tw
+            } else {
+                c + k * w
+            };
+            AtrialWindow {
+                t: a.t,
+                on: f64::max(a.t, c - k * w),
+                off: c + k * w,
+                ta_end,
+            }
+        })
+        .collect();
+    let mut prev: Option<f64> = None;
+    let mut vent = Vec::with_capacity(cond.ventricular.len());
+    for b in &cond.ventricular {
+        let tv = b.t;
+        let rr = prev.map_or(60.0 / hr, |q| tv - q);
+        prev = Some(tv);
+        let qt = f.qt * math::pow(95.0 / f64::max(60.0 / rr, 30.0), 1.0 / 3.0);
+        let (on, off, tc, tw) = if b.wide {
+            let q = f.qrs * WIDE_QRS;
+            (
+                tv - k * WIDE_R_SIGMA * q,
+                tv + WIDE_S_POS * q + k * WIDE_S_SIGMA * q,
+                tv - 0.5 * q + qt - 2.2 * f.t_w,
+                1.5 * f.t_w,
+            )
+        } else {
+            let q = f.qrs;
+            (
+                tv - Q_POS * q - k * Q_SIGMA * q,
+                tv + S_POS * q + k * S_SIGMA * q,
+                tv - 0.5 * q + qt - 2.2 * f.t_w,
+                f.t_w,
+            )
+        };
+        vent.push(VentricularWindow {
+            t: tv,
+            qrs_on: on,
+            qrs_off: off,
+            t_peak: tc,
+            t_end: tc + k * tw,
+            qt,
+        });
+    }
+    (atrial, vent)
+}
+
 /// Chauffe (s) avant la fenêtre des signaux : l'hémodynamique battement par battement du son
 /// atteint son régime ; ECG et son partagent la même fenêtre décalée.
 pub const SIGNAL_WARM_S: f64 = 5.0;
@@ -279,6 +398,23 @@ pub fn shift_conduction(cond: &crate::rhythm::Conduction, w: f64) -> crate::rhyt
                 t_a: b.t_a.map(|x| x - w),
                 ..*b
             })
+            .collect(),
+        impulses: cond
+            .impulses
+            .iter()
+            .filter(|i| i.t >= w)
+            .map(|i| crate::rhythm::Impulse {
+                t: i.t - w,
+                t_avn: i.t_avn - w,
+                t_his: i.t_his.map(|x| x - w),
+                ..*i
+            })
+            .collect(),
+        sa_exit_blocked: cond
+            .sa_exit_blocked
+            .iter()
+            .filter(|&&t| t >= w)
+            .map(|t| t - w)
             .collect(),
     }
 }
@@ -608,6 +744,10 @@ pub mod streams {
     pub const AUSCULTATION: u64 = 4;
     /// Aléa de la conduction des signaux (FA, ectopie) ; le moteur utilise SplitMix64 (rhythm.rs).
     pub const RHYTHM: u64 = 5;
+    /// Trajectoires Monte-Carlo : fluctuation naturelle, sévérité, PK/PD (variation.rs).
+    pub const VARIATION: u64 = 6;
+    /// Bruit de mesure des trajectoires Monte-Carlo.
+    pub const MEASUREMENT: u64 = 7;
 }
 
 /// Options des signaux d'un patient.

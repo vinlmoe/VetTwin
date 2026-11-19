@@ -32,7 +32,9 @@ export function dayLabel(h) {
  * Courbes sur un axe de temps.
  * opts : series [{y: Float32Array|number[], color, t?: number[] (sinon dt/t0), dt, t0}],
  *        x0, x1 (fenêtre), yMin, yMax, cursor, marks [{t, color}], refLines [y], paper (ECG),
- *        ticks ('s' | 'treatment'), points (bool), left (marge)
+ *        ticks ('s' | 'treatment'), points (bool), left (marge),
+ *        fills [{t, lo, hi, color}] (bandes d'incertitude sous les courbes) ;
+ *        série : dash ([motif]) pour un tracé pointillé
  */
 export function timeChart(canvas, opts) {
   const { ctx, w, h } = setup(canvas);
@@ -52,6 +54,11 @@ export function timeChart(canvas, opts) {
     let a = Infinity, b = -Infinity;
     for (const s of opts.series) forVisible(s, x0, x1, (t, v) => { if (v < a) a = v; if (v > b) b = v; });
     for (const r of opts.refLines || []) { a = Math.min(a, r); b = Math.max(b, r); }
+    for (const f of opts.fills || []) for (let i = 0; i < f.t.length; i++) {
+      if (f.t[i] < x0 || f.t[i] > x1) continue;
+      if (isFinite(f.lo[i])) a = Math.min(a, f.lo[i]);
+      if (isFinite(f.hi[i])) b = Math.max(b, f.hi[i]);
+    }
     if (lo === undefined) lo = a; if (hi === undefined) hi = b;
   }
   if (!isFinite(lo) || !isFinite(hi)) return;
@@ -87,9 +94,26 @@ export function timeChart(canvas, opts) {
     ctx.strokeStyle = m.color + '66'; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.moveTo(X(m.t), H - 10); ctx.lineTo(X(m.t), H); ctx.stroke();
   }
+  // bandes d'incertitude (Monte-Carlo) : polygone lo → hi, segments interrompus par les trous
+  for (const f of opts.fills || []) {
+    ctx.fillStyle = f.color;
+    let seg = [];
+    const flush = () => {
+      if (seg.length > 1) {
+        ctx.beginPath();
+        seg.forEach((i, k) => (k ? ctx.lineTo(X(f.t[i]), Y(f.hi[i])) : ctx.moveTo(X(f.t[i]), Y(f.hi[i]))));
+        for (let k = seg.length - 1; k >= 0; k--) ctx.lineTo(X(f.t[seg[k]]), Y(f.lo[seg[k]]));
+        ctx.closePath(); ctx.fill();
+      }
+      seg = [];
+    };
+    for (let i = 0; i < f.t.length; i++) { if (isFinite(f.lo[i]) && isFinite(f.hi[i])) seg.push(i); else flush(); }
+    flush();
+  }
   // séries : min/max par colonne si la série est dense
   for (const s of opts.series) {
     ctx.strokeStyle = s.color; ctx.fillStyle = s.color; ctx.lineWidth = s.width ?? 1.6;
+    ctx.setLineDash(s.dash || []);
     const n = countVisible(s, x0, x1);
     if (n > 4 * W && !s.t) {
       const cols = Math.max(1, Math.floor(W));
@@ -108,6 +132,7 @@ export function timeChart(canvas, opts) {
       if (opts.points) forVisible(s, x0, x1, (t, v) => { ctx.beginPath(); ctx.arc(X(t), Y(v), 2, 0, 2 * Math.PI); ctx.fill(); });
     }
   }
+  ctx.setLineDash([]);
   if (opts.cursor !== undefined && opts.cursor !== null && opts.cursor >= x0 && opts.cursor <= x1) {
     ctx.strokeStyle = COLORS.cursor; ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.moveTo(X(opts.cursor), 0); ctx.lineTo(X(opts.cursor), H); ctx.stroke();

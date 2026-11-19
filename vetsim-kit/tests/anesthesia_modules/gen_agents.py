@@ -31,7 +31,7 @@ M.append(mod("dexmedetomidine", "Dexmédétomidine", "C",
    "Pascoe PJ et al. 2006, Vet Anaesth Analg 33:97, doi:10.1111/j.1467-2995.2005.00236.x (résumé)", "Pascoe PJ 2015, Vet Anaesth Analg, doi:10.1111/vaa.12220 (résumé)",
    "Kuusela E et al. 2000, J Vet Pharmacol Ther, doi:10.1046/j.1365-2885.2000.00245.x (résumé)", "De Sant'Ana Alves R et al. 2024, Res Vet Sci, doi:10.1016/j.rvsc.2024.105229 (résumé)",
    "Canfrán S et al. 2016, Vet J, doi:10.1016/j.tvjl.2016.01.015 (résumé)"],
-  "Effet biphasique : vasoconstriction périphérique (α2B) portée par la concentration PLASMATIQUE (EP), sympatholyse centrale et tonus vagal par le site effet (E). Coefficients calés par petite grille (examples/anesthesia_timing.rs) sur 10 µg/kg IM à 15 min : modèle FC −37 %, DC −50 %, PAM +31 % pour des cibles FC −55 % et DC −59 % (Congdon 2011) et PAM +36 % (Alves 2024, 2 µg/kg IV). Le bloc AV du 2e degré émerge du tonus vagal (av_vagal du moteur), sans terme ad hoc, comme chez Karna 2022 (tous les chiens) ; il plafonne la fréquence ventriculaire, d'où l'écart sur la FC."))
+  "Effet biphasique : vasoconstriction périphérique (α2B) portée par la concentration PLASMATIQUE (EP), sympatholyse centrale et tonus vagal par le site effet (E). Coefficients calés par petite grille (examples/anesthesia_timing.rs) sur 10 µg/kg IM à 15 min : modèle FC −58 %, DC −57 %, PAM +32 % pour des cibles FC −55 % et DC −59 % (Congdon 2011) et PAM +36 % (Alves 2024, 2 µg/kg IV). Un bloc AV du 2e degré peut émerger du tonus vagal (av_vagal du moteur) à plus forte dose, sans terme ad hoc ; il n'apparaît pas dans ce scénario de calage, alors que Karna 2022 le décrit chez tous les chiens (avec morphine)."))
 M.append(mod("acepromazine", "Acépromazine", "D",
   pk(1.0, 5.0, 10.0, 20.0),
   {"type": "emax", "emax": 1.0, "ec50_mg_L": 0.01, "hill": 1.0, "effects": [
@@ -41,7 +41,7 @@ M.append(mod("acepromazine", "Acépromazine", "D",
    "evidence": "D", "source": "PK entièrement placeholder D (seule la t½ IV de 7,1 h est publiée, Hashem 1992). Épargne de MAC plafonnée à 40 % (halothane, Heard 1986, résumé : maximum dès 0,04 mg/kg) ; EC50 placeholder. Sédation placeholder."},
   ["Hashem A et al. 1992, Dtsch Tierarztl Wochenschr, PMID 1425314 (résumé)", "Rangel JPP et al. 2020, Vet Anaesth Analg, doi:10.1016/j.vaa.2020.02.007 (résumé)",
    "Sutil DV et al. 2017, Vet Anaesth Analg, doi:10.1016/j.vaa.2016.11.012 (résumé)", "Heard DJ et al. 1986, Am J Vet Res, doi:10.2460/ajvr.1986.47.10.2113 (résumé)"],
-  "Blocage α1 : veinodilatation (ven_cap) calée pour PAM −17 % chez le vigile sans changement de RVS (Rangel 2020) ; hémoglobine −21 % à effet maximal (CaO2 −21 %, Rangel 2020 ; séquestration splénique, Sutil 2017). Pas d'analgésie."))
+  "Blocage α1 : veinodilatation (ven_cap × (1 + 2·E), borne du balayage) pour une PAM −12 % chez le vigile (cible −17 % sans changement de RVS, Rangel 2020 : écart signalé) ; hémoglobine −21 % à effet maximal (CaO2 −21 %, Rangel 2020 ; séquestration splénique, Sutil 2017). Pas d'analgésie."))
 M.append(mod("methadone", "Méthadone", "C",
   pk(3.0, 4.0, 25.0, 30.0),
   {"type": "emax", "emax": 1.0, "ec50_mg_L": 0.015, "hill": 1.3, "effects": OPIOID_EFFECTS},

@@ -34,7 +34,7 @@
       1,
       {
        "mul": [
-        1.5649254322052002,
+        2.0,
         "E"
        ]
       }
@@ -86,5 +86,5 @@
   "Sutil DV et al. 2017, Vet Anaesth Analg, doi:10.1016/j.vaa.2016.11.012 (résumé)",
   "Heard DJ et al. 1986, Am J Vet Res, doi:10.2460/ajvr.1986.47.10.2113 (résumé)"
  ],
- "notes": "Blocage α1 : veinodilatation (ven_cap) calée pour PAM −17 % chez le vigile sans changement de RVS (Rangel 2020) ; hémoglobine −21 % à effet maximal (CaO2 −21 %, Rangel 2020 ; séquestration splénique, Sutil 2017). Pas d'analgésie."
+ "notes": "Blocage α1 : veinodilatation (ven_cap × (1 + 2·E), borne du balayage) pour une PAM −12 % chez le vigile (cible −17 % sans changement de RVS, Rangel 2020 : écart signalé) ; hémoglobine −21 % à effet maximal (CaO2 −21 %, Rangel 2020 ; séquestration splénique, Sutil 2017). Pas d'analgésie."
 }

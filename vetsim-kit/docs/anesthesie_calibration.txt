@@ -1,19 +1,19 @@
-# chien sain 20 kg : PAM 109.6, FC 87.8, DC 3.53, PaCO2 40.2
-isoflurane 1 MAC : PAM -17 %, FC +18 %, DC +11 %, PaCO2 46.2
-isoflurane 1.2 MAC : PAM -22 %, FC +16 %, DC +9 %, PaCO2 47.9
-isoflurane 1.5 MAC : PAM -29 %, FC +16 %, DC +5 %, PaCO2 51.1
-isoflurane 2 MAC : PAM -48 %, FC +1 %, DC -14 %, PaCO2 60.2
-sevoflurane 1 MAC : PAM -17 %, FC +16 %, DC +12 %, PaCO2 46.2
-sevoflurane 1.2 MAC : PAM -22 %, FC +15 %, DC +9 %, PaCO2 47.4
-sevoflurane 1.5 MAC : PAM -29 %, FC +13 %, DC +6 %, PaCO2 49.5
-sevoflurane 2 MAC : PAM -47 %, FC -1 %, DC -12 %, PaCO2 54.1
+# chien sain 20 kg : PAM 103.0, FC 87.0, DC 3.29, PaCO2 40.2
+isoflurane 1 MAC : PAM -18 %, FC +26 %, DC +23 %, PaCO2 46.2
+isoflurane 1.2 MAC : PAM -22 %, FC +28 %, DC +23 %, PaCO2 47.9
+isoflurane 1.5 MAC : PAM -30 %, FC +28 %, DC +20 %, PaCO2 51.1
+isoflurane 2 MAC : PAM -54 %, FC +17 %, DC -9 %, PaCO2 60.2
+sevoflurane 1 MAC : PAM -18 %, FC +25 %, DC +24 %, PaCO2 46.2
+sevoflurane 1.2 MAC : PAM -22 %, FC +26 %, DC +24 %, PaCO2 47.4
+sevoflurane 1.5 MAC : PAM -30 %, FC +25 %, DC +21 %, PaCO2 49.5
+sevoflurane 2 MAC : PAM -55 %, FC +12 %, DC -9 %, PaCO2 54.1
   cibles sévoflurane (Bernard 1990) : 1,2 MAC PAM −22 %, FC +60 %, DC 0 ; 2 MAC PAM −38 %, FC +54 %, DC −17 % ; PaCO2 iso 1 MAC 46,2 (Steffey 1993)
-dexmédétomidine 10 µg/kg IM à 15 min : FC -37 % (cible −55), DC -50 % (−59), PAM +31 % (hausse ; +36 % à 18 min après 2 µg/kg IV), PAM max +31 %
-acépromazine 0,1 mg/kg IV, nadir : PAM -17 % (cible −17 %, Rangel 2020)
-propofol 5 mg/kg (acépromazine + méthadone) : PAM -32 % (cible −31 %), FC +61 % (+62 % chez Cattai 2018)
+dexmédétomidine 10 µg/kg IM à 15 min : FC -58 % (cible −55), DC -57 % (−59), PAM +32 % (hausse ; +36 % à 18 min après 2 µg/kg IV), PAM max +32 %
+acépromazine 0,1 mg/kg IV, nadir : PAM -12 % (cible −17 %, Rangel 2020)
+propofol 5 mg/kg (acépromazine + méthadone) : PAM -33 % (cible −31 %), FC +54 % (+62 % chez Cattai 2018)
 propofol 5,2 mg/kg IV seul : pic d'indice de conscience 0.69 (perte de conscience à 0.65)
 alfaxalone 2.7 mg/kg IV : pic 0.69 (même marge que le propofol visée)
 ketamine 6.1 mg/kg IV : pic 0.69 (même marge que le propofol visée)
-kétamine 6,1 + midazolam 0,26 mg/kg IV : FC +23 % (cible +75 %, Hampton 2019)
+kétamine 6,1 + midazolam 0,26 mg/kg IV : FC +18 % (cible +75 %, Hampton 2019)
 méthadone 1 mg/kg IV : épargne 48 % à 2,5 h (cible 48), 33 % à 5 h (cible 30)
 méthadone 0.5 mg/kg IV : épargne 30 % à 2,5 h (cible 35), 17 % à 5 h (cible 15)

@@ -34,7 +34,7 @@
       1,
       {
        "mul": [
-        2.0,
+        2.5,
         "EP"
        ]
       }
@@ -105,5 +105,5 @@
   "De Sant'Ana Alves R et al. 2024, Res Vet Sci, doi:10.1016/j.rvsc.2024.105229 (résumé)",
   "Canfrán S et al. 2016, Vet J, doi:10.1016/j.tvjl.2016.01.015 (résumé)"
  ],
- "notes": "Effet biphasique : vasoconstriction périphérique (α2B) portée par la concentration PLASMATIQUE (EP), sympatholyse centrale et tonus vagal par le site effet (E). Coefficients calés par petite grille (examples/anesthesia_timing.rs) sur 10 µg/kg IM à 15 min : modèle FC −37 %, DC −50 %, PAM +31 % pour des cibles FC −55 % et DC −59 % (Congdon 2011) et PAM +36 % (Alves 2024, 2 µg/kg IV). Le bloc AV du 2e degré émerge du tonus vagal (av_vagal du moteur), sans terme ad hoc, comme chez Karna 2022 (tous les chiens) ; il plafonne la fréquence ventriculaire, d'où l'écart sur la FC."
+ "notes": "Effet biphasique : vasoconstriction périphérique (α2B) portée par la concentration PLASMATIQUE (EP), sympatholyse centrale et tonus vagal par le site effet (E). Coefficients calés par petite grille (examples/anesthesia_timing.rs) sur 10 µg/kg IM à 15 min : modèle FC −58 %, DC −57 %, PAM +32 % pour des cibles FC −55 % et DC −59 % (Congdon 2011) et PAM +36 % (Alves 2024, 2 µg/kg IV). Un bloc AV du 2e degré peut émerger du tonus vagal (av_vagal du moteur) à plus forte dose, sans terme ad hoc ; il n'apparaît pas dans ce scénario de calage, alors que Karna 2022 le décrit chez tous les chiens (avec morphine)."
 }

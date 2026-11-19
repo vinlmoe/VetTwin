@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "variation.schema.json",
+  "title": "Variabilité intra-individuelle au cours du temps (Monte-Carlo)",
+  "type": "object",
+  "required": ["schema_version", "id", "version", "natural", "disease", "drug", "measurement"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "id": { "const": "variation" },
+    "version": { "type": "string" },
+    "description": { "type": "string" },
+    "natural": {
+      "type": "object",
+      "required": ["source", "evidence", "params"],
+      "properties": {
+        "source": { "type": "string" },
+        "evidence": { "enum": ["A", "B", "C", "D"] },
+        "model": { "type": "string" },
+        "params": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["cv", "tau_h"],
+            "properties": {
+              "cv": { "type": "number", "minimum": 0, "maximum": 1 },
+              "tau_h": { "type": "number", "exclusiveMinimum": 0 }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "disease": {
+      "type": "object",
+      "required": ["source", "evidence", "severity_sd", "tau_h", "progression_per_day"],
+      "properties": {
+        "source": { "type": "string" },
+        "evidence": { "enum": ["A", "B", "C", "D"] },
+        "model": { "type": "string" },
+        "severity_sd": { "type": "number", "minimum": 0, "maximum": 1 },
+        "tau_h": { "type": "number", "exclusiveMinimum": 0 },
+        "progression_per_day": { "type": "object", "additionalProperties": { "type": "number" } }
+      },
+      "additionalProperties": false
+    },
+    "drug": {
+      "type": "object",
+      "required": ["source", "evidence", "cl_cv", "vc_cv", "ec50_cv"],
+      "properties": {
+        "source": { "type": "string" },
+        "evidence": { "enum": ["A", "B", "C", "D"] },
+        "cl_cv": { "type": "number", "minimum": 0, "maximum": 2 },
+        "vc_cv": { "type": "number", "minimum": 0, "maximum": 2 },
+        "ec50_cv": { "type": "number", "minimum": 0, "maximum": 2 }
+      },
+      "additionalProperties": false
+    },
+    "measurement": {
+      "type": "object",
+      "required": ["source", "evidence", "outputs"],
+      "properties": {
+        "source": { "type": "string" },
+        "evidence": { "enum": ["A", "B", "C", "D"] },
+        "outputs": { "type": "object", "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 } }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

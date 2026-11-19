@@ -441,10 +441,10 @@ fn main() {
                 agents: w.agents.clone(),
                 inhalants: vec![],
             };
-            set_lin(&mut w2.agent_mut("propofol").pd.effects[0], -x, "E", false);
+            set_lin(&mut w2.agent_mut("propofol").pd.effects[0], -x, "EP", false);
             prop(&w2).0
         });
-        set_lin(&mut w.agent_mut("propofol").pd.effects[0], -c, "E", false);
+        set_lin(&mut w.agent_mut("propofol").pd.effects[0], -c, "EP", false);
         k.insert("prop_rsys".into(), c.into());
     }
     let (m, h) = prop(&w);

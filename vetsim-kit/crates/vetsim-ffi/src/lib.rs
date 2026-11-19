@@ -93,9 +93,19 @@ impl Engine {
         self.with(|e| e.timecourse(&patient_id, &doses_json))
     }
 
+    /// Trajectoires Monte-Carlo d'un même animal (variabilité intra-individuelle).
+    pub fn montecarlo(&self, patient_id: String, options_json: String) -> String {
+        self.with(|e| e.montecarlo(&patient_id, &options_json))
+    }
+
     /// Auscultation (WAV en base64, grade, souffle, B3 ; ECG et pressions alignés en option).
     pub fn pcg(&self, patient_id: String, options_json: String) -> String {
         self.with(|e| e.pcg(&patient_id, &options_json))
+    }
+
+    /// Cœur animé : volumes des cavités, ECG et événements de conduction sur une même fenêtre.
+    pub fn heart(&self, patient_id: String, options_json: String) -> String {
+        self.with(|e| e.heart(&patient_id, &options_json))
     }
 
     /// Message JSON générique `{"op": "pcg", "patient": ..., "options": ...}`.

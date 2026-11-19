@@ -87,8 +87,8 @@
    "hill": 1.3
   },
   "mac_reduction": {
-   "max": 0.85,
-   "ec50_mg_L": 0.0516564686153191,
+   "max": 0.83,
+   "ec50_mg_L": 0.05015191127700884,
    "hill": 1.3
   },
   "antinociception": {

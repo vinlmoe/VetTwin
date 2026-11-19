@@ -273,3 +273,43 @@ fn chronic_furosemide_kalemia_matches_cardiac_cohorts() {
     let k2 = k_mean(&no_adapt);
     assert!(k2 < 3.0, "sans adaptation : K⁺ {k2}");
 }
+
+/// Solveur du baroréflexe : l'état rendu est un vrai point fixe (`|d_t(d) − d| < BARO_TOL`), y
+/// compris dans les cas où l'ancienne itération amortie (5 passages) s'arrêtait sur un état
+/// intermédiaire incohérent (opioïde : PAM 88 mmHg avec un sympathique en baisse).
+#[test]
+fn baroreflex_state_is_a_converged_fixed_point() {
+    use vetsim_core::engine::BARO_TOL;
+    let c = catalog();
+    let cases: Vec<(&str, Params)> = vec![
+        ("sain", patient(&c, None)),
+        ("opioïde", drugged(&c, &patient(&c, None), "opioide", 0.1)),
+        (
+            "atropine",
+            drugged(&c, &patient(&c, None), "atropine", 0.02),
+        ),
+        (
+            "bêtabloquant",
+            drugged(&c, &patient(&c, None), "betabloquant", 0.5),
+        ),
+        ("MMVD C", patient(&c, Some(("mmvd", 0.725)))),
+        ("MMVD D", patient(&c, Some(("mmvd", 0.925)))),
+        ("Addison", patient(&c, Some(("addison", 0.85)))),
+        ("FA", patient(&c, Some(("atrial_fibrillation", 0.8)))),
+    ];
+    for (name, p) in cases {
+        let e = evaluate(&p).unwrap();
+        let q = &e.params;
+        let s = q.sympathetic;
+        if s <= 0.0 || s >= 1.0 {
+            continue; // commande saturée : tonus écrêté
+        }
+        let d = (s - q.s0) / 0.8;
+        let d_t = (q.baro_gain * (q.map_set - e.hemo.summary.map) / 45.0).clamp(-1.0, 1.0);
+        assert!(
+            (d_t - d).abs() < BARO_TOL + 1e-9,
+            "{name} : d {d}, d_t {d_t} (PAM {})",
+            e.hemo.summary.map
+        );
+    }
+}

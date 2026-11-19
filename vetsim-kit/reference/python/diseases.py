@@ -54,7 +54,7 @@ class Disease:
 
 # coefficients du module MMVD (calés par fit_mmvd.py sur : fraction de régurgitation par stade, POG, PAM ; voir rapport)
 KM = dict(g=0.9458, gexp=1.111,   # g, gexp recalés le 18/11/2026 avec l orifice dynamique (mr_k = 2,5)
-           cpv=0.116, v0=1.115, b=0.2, ret=0.30, ret0=0.05, aut=0.50, zsd=0.25)
+           cpv=0.116, v0=1.115, b=0.2, ret=0.37, ret0=0.05, aut=0.65, zsd=0.25)
 
 
 class MMVD(Disease):
