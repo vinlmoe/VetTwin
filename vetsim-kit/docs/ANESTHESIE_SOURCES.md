@@ -84,3 +84,24 @@ Sites bloqués en plus : avmajournals.avma.org, doi.org. « lu (PMC) » : extrac
 - MAC-awake : isoflurane 1,0 ± 0,1 %, sévoflurane 1,3 ± 0,3 % (Hofmeister 2008) : rapports 0,77 et 0,62. MAC-extubation du sévoflurane 1,13 %, rapport 0,51 (Murahata 2018, lu). MAC-BAR du sévoflurane 3,33 % pour une MAC de 2,10 (rapport 1,59, Yamashita 2012) ; rapport 2,05 (Murahata 2018).
 - Réveil après 120 min (isoflurane 2,0 %, sévoflurane 3,2 % télé-expiratoires, induction au propofol ; Lopez 2009, Am J Vet Res, résumé) : relevé à 26,3 ± 7,2 min (isoflurane) et 18,6 ± 7,5 min (sévoflurane). Lozano 2009 (résumé) : extubation 8 contre 7 min, décubitus sternal 11 contre 9,5 min.
 - Hypothermie et MAC chez le chien : non trouvé (Eger 1965 et Regan & Eger 1967 inaccessibles) : placeholder D.
+
+## Présentations commerciales (aide à la préparation des seringues dans l'interface)
+
+Recherche du 19/11/2026. Les bases de RCP (ircp.anmv.anses.fr, med-vet.fr, medicines.health.europa.eu) étaient bloquées par le réseau de la session : concentrations relevées dans les extraits de résultats de recherche de la base UE des médicaments vétérinaires et de la base publique des médicaments (BDPM), **RCP non ouverts**. Concentrations telles qu'étiquetées.
+
+| Agent | Présentations | mg/mL | Remarque |
+|---|---|---|---|
+| Propofol | Vetofol (Norbrook), PropoVet Multidose | 10 | chien, chat, IV |
+| Alfaxalone | Alfaxan Multidose (Zoetis) | 10 | |
+| Kétamine | Imalgène 1000, Kétamine 1000 (Virbac), Ketamidor | 100 (base) | Clorketam : 115,4 mg/mL de chlorhydrate ≈ 100 de base |
+| Dexmédétomidine | Dexdomitor 0,5 et 0,1 mg/mL (Orion) | 0,5 ; 0,1 | exprimées en chlorhydrate (0,1 de sel = 0,08 de base) |
+| Médétomidine | Domitor (Orion) | 1 | non incluse dans le modèle |
+| Méthadone | Comfortan, Insistor | 10 (chlorhydrate) | 8,9 mg/mL de base |
+| Fentanyl | Fentadon (Eurovet) | 0,05 | 50 µg/mL de base |
+| Midazolam | spécialités humaines | 5 ; 1 | pas d'AMM chien trouvée (usage hors AMM) |
+| Lidocaïne | Lurocaïne, Lidor | 20 | |
+| Bupivacaïne | spécialités humaines | 5 ; 2,5 | pas d'AMM vétérinaire trouvée |
+| Atipamézole | Antisedan (Orion), Atipazole | 5 | même volume que Dexdomitor 0,5 mg/mL chez le chien |
+| Naloxone | spécialités humaines | 0,4 | pas d'AMM vétérinaire trouvée |
+| Acépromazine | Calmivet | 5 | en rupture selon l'ANSES (communication du 23/06/2026) |
+| Isoflurane, sévoflurane | Isoflurane-Vet, Isoflurin… ; SevoFlo (Zoetis), Sevohale | 1000 mg/g | liquides à inhaler |

@@ -454,10 +454,27 @@ function drawMonitor(now) {
 }
 
 // ------------------------------------------------------------------ postes : pharmacie, pousse-seringues, machine
-// Concentrations des présentations courantes (valeurs par défaut de l'interface, modifiables) :
-// ce ne sont pas des paramètres du modèle, seulement une aide à la préparation.
-const CONC = { propofol: 10, alfaxalone: 10, ketamine: 100, dexmedetomidine: 0.5, methadone: 10, fentanyl: 0.05,
-  midazolam: 5, lidocaine: 20, bupivacaine: 5, atipamezole: 5, naloxone: 0.4, acepromazine: 2 };
+// Présentations commerciales (docs/ANESTHESIE_SOURCES.md, § Présentations) : aide à la
+// préparation des seringues, pas des paramètres du modèle. Concentrations telles qu'étiquetées
+// (sel pour la dexmédétomidine, la méthadone, l'atipamézole) ; la dose du modèle est celle de
+// l'étiquette. Relevées dans les résumés de la base UE et de la BDPM (RCP non ouverts).
+const PRES = {
+  propofol: [['Vetofol, PropoVet', 10]],
+  alfaxalone: [['Alfaxan Multidose', 10]],
+  ketamine: [['Imalgène 1000, Kétamine 1000', 100]],
+  dexmedetomidine: [['Dexdomitor 0,5 mg/mL', 0.5], ['Dexdomitor 0,1 mg/mL', 0.1]],
+  methadone: [['Comfortan, Insistor', 10]],
+  fentanyl: [['Fentadon', 0.05]],
+  midazolam: [['midazolam 5 mg/mL (humain)', 5], ['midazolam 1 mg/mL (humain)', 1]],
+  lidocaine: [['Lurocaïne, Lidor', 20]],
+  bupivacaine: [['bupivacaïne 0,5 % (humain)', 5], ['bupivacaïne 0,25 % (humain)', 2.5]],
+  atipamezole: [['Antisedan, Atipazole', 5]],
+  naloxone: [['naloxone 0,4 mg/mL (humain)', 0.4]],
+  acepromazine: [['Calmivet', 5]],
+};
+const presOf = (id) => PRES[id] || [['concentration libre', 1]];
+const CONC = Object.fromEntries(Object.entries(PRES).map(([k, v]) => [k, v[0][1]]));
+const productOf = (id, c) => { const m = presOf(id).find(([, x]) => x === c); return m ? m[0] : 'concentration libre'; };
 const n2 = (x, d = 2) => fmt(x, Math.abs(x) >= 10 ? 1 : d);
 const agentName = (id) => { const a = A.list.agents.find((x) => x.id === id); return a ? a.name : id; };
 const routesOf = (id) => { const a = A.list.agents.find((x) => x.id === id); return a ? ['iv', ...(a.routes.im ? ['im'] : []), ...(a.routes.sc ? ['sc'] : [])] : ['iv']; };
@@ -491,7 +508,7 @@ function stations(started) {
   const syr = A.syr.map((x) => {
     const r = routesOf(x.agent), frac = x.vol ? x.left / x.vol : 0;
     return `<div class="syr ${x.left <= 0 ? 'empty' : ''}">
-      <div class="syr-head"><b>${esc(agentName(x.agent))}</b> ${n2(x.conc)} mg/mL<button class="mini" data-syr-del="${x.id}" title="jeter">✕</button></div>
+      <div class="syr-head"><b>${esc(agentName(x.agent))}</b> ${n2(x.conc, 3)} mg/mL <span class="sub">${esc(productOf(x.agent, x.conc))}</span><button class="mini" data-syr-del="${x.id}" title="jeter">✕</button></div>
       <div class="bar"><i style="width:${(100 * frac).toFixed(0)}%"></i></div>
       <div class="sub">reste ${n2(x.left, 1)} / ${n2(x.vol, 1)} mL (${n2(x.left * x.conc)} mg)</div>
       <div class="row">
@@ -519,6 +536,7 @@ function stations(started) {
       <h3>💉 Pharmacie : seringues</h3>
       <div class="prep">
         <label>Agent <select id="pr-agent">${opt(L.agents, P.agent, (a) => a.name)}</select></label>
+        <label>Présentation <select id="pr-pres">${presOf(P.agent).map(([n, c]) => `<option value="${c}" ${c === c0 ? 'selected' : ''}>${esc(n)} : ${n2(c, 3)} mg/mL</option>`).join('')}${presOf(P.agent).some(([, c]) => c === c0) ? '' : `<option selected>autre</option>`}</select></label>
         <label>mg/mL <input id="pr-conc" type="number" step="any" min="0" value="${c0}"></label>
         <label>Volume (mL) <input id="pr-vol" type="number" step="0.1" min="0" value="${P.vol}"></label>
         <button id="pr-go" class="primary">Préparer</button>
@@ -530,7 +548,7 @@ function stations(started) {
       <h3>⏱ Pousse-seringues (CRI)</h3>
       <div class="prep">
         <label>Agent <select id="pp-agent">${opt(L.agents, P.pAgent, (a) => a.name)}</select></label>
-        <label>mg/mL <input id="pp-conc" type="number" step="any" min="0" value="${pc0}"></label>
+        <label>mg/mL (dilution) <input id="pp-conc" type="number" step="any" min="0" value="${pc0}"></label>
         <label>Volume (mL) <input id="pp-vol" type="number" step="1" min="0" value="${P.pVol}"></label>
         <label>Débit (mL/h) <input id="pp-rate" type="number" step="0.1" min="0" value="${P.pRate}"></label>
         <button id="pp-go" class="primary">Préparer</button>
@@ -561,6 +579,7 @@ function wireStations(v, ctl, ev, rerender) {
   const bind = (id, f, evName = 'onchange') => { const el = g(id); if (el) el[evName] = f; };
   bind('pr-agent', () => { P.agent = g('pr-agent').value; P.conc = ''; rerender(); });
   bind('pr-conc', () => { P.conc = g('pr-conc').value; rerender(); });
+  bind('pr-pres', () => { const c = parseFloat(g('pr-pres').value); if (Number.isFinite(c)) { P.conc = String(c); rerender(); } });
   bind('pr-vol', () => { P.vol = val('pr-vol') ?? P.vol; rerender(); });
   bind('pr-go', () => {
     const conc = val('pr-conc'), vol = val('pr-vol');
