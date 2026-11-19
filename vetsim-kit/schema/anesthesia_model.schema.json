@@ -66,7 +66,8 @@
     "iv_push_s",
     "o2_debt_tol_ml_kg",
     "o2_debt_tau_min",
-    "do2_crit_ml_kg_min"
+    "do2_crit_ml_kg_min",
+    "blood_o2_store_frac"
    ],
    "additionalProperties": false,
    "properties": {
@@ -1031,6 +1032,36 @@
      ]
     },
     "do2_crit_ml_kg_min": {
+     "oneOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "object",
+       "required": [
+        "value",
+        "evidence"
+       ],
+       "properties": {
+        "value": {
+         "type": "number"
+        },
+        "evidence": {
+         "enum": [
+          "A",
+          "B",
+          "C",
+          "D"
+         ]
+        },
+        "source": {
+         "type": "string"
+        }
+       }
+      }
+     ]
+    },
+    "blood_o2_store_frac": {
      "oneOf": [
       {
        "type": "number"

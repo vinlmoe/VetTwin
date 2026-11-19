@@ -10,7 +10,7 @@ sevoflurane 2 MAC : PAM -55 %, FC +12 %, DC -9 %, PaCO2 54.1
   cibles sévoflurane (Bernard 1990) : 1,2 MAC PAM −22 %, FC +60 %, DC 0 ; 2 MAC PAM −38 %, FC +54 %, DC −17 % ; PaCO2 iso 1 MAC 46,2 (Steffey 1993)
 dexmédétomidine 10 µg/kg IM à 15 min : FC -58 % (cible −55), DC -57 % (−59), PAM +32 % (hausse ; +36 % à 18 min après 2 µg/kg IV), PAM max +32 %
 acépromazine 0,1 mg/kg IV, nadir : PAM -12 % (cible −17 %, Rangel 2020)
-propofol 5 mg/kg (acépromazine + méthadone) : PAM -33 % (cible −31 %), FC +55 % (+62 % chez Cattai 2018)
+propofol 5 mg/kg (acépromazine + méthadone) : PAM -33 % (cible −31 %), FC +54 % (+62 % chez Cattai 2018)
 propofol 5,2 mg/kg IV seul : pic d'indice de conscience 0.69 (perte de conscience à 0.65)
 alfaxalone 2.7 mg/kg IV : pic 0.69 (même marge que le propofol visée)
 ketamine 6.1 mg/kg IV : pic 0.69 (même marge que le propofol visée)

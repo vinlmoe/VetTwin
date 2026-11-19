@@ -1174,6 +1174,9 @@ impl Session {
                 anesth: (depth.loc_index / self.model.loc_mac).clamp(0.0, 1.0),
                 vo2_ratio: q.vo2 / self.base.vo2,
                 pvap: self.vaporizer,
+                hb: q.hb,
+                p50: q.p50,
+                hill_n: q.hill_n,
             };
             self.integrate(dt_s, &inputs);
         }
@@ -1460,7 +1463,11 @@ impl Session {
         let o = y.len() - 7;
         let (paco2, pao2) = (y[o], y[o + 1]);
         dy[o] = (u.vco2 - u.va * paco2 / 0.863) / (m.co2_store_ml_mmhg_kg * bw);
-        dy[o + 1] = (u.va * (u.pio2 - pao2) - 0.863 * u.vco2 / u.rq) / vfrc;
+        // réserve d'O2 : alvéoles + fraction du sang en équilibre avec l'alvéole ; la pente de la
+        // courbe de dissociation ralentit la chute de PAO2 dans sa partie raide
+        let blood_dl = self.model.blood_o2_store_frac * m.blood_volume_ml_kg * bw / 100.0;
+        let cap = vfrc + 0.863 * blood_dl * u.dca_dp(pao2.max(0.0));
+        dy[o + 1] = (u.va * (u.pio2 - pao2) - 0.863 * u.vco2 / u.rq) / cap;
         dy[o + 2] = (u.nu_target - y[o + 2]) / (m.tau_nu_s / 60.0);
         dy[o + 3] = (y[o + 2] - y[o + 3]) / m.tau_stress_min;
         dy[o + 4] = m.sens_rate_per_min * y[o + 2] * (1.0 - y[o + 4]) * (1.0 - u.nmda)
@@ -1491,6 +1498,18 @@ struct Inputs {
     anesth: f64,
     vo2_ratio: f64,
     pvap: Option<(usize, f64)>,
+    hb: f64,
+    p50: f64,
+    hill_n: f64,
+}
+
+impl Inputs {
+    /// Pente du contenu artériel en O2 (mL/dL par mmHg) : Hill + O2 dissous.
+    fn dca_dp(&self, p: f64) -> f64 {
+        let (n, k) = (self.hill_n, math::pow(self.p50, self.hill_n));
+        let pn = math::pow(p.max(1e-6), n);
+        1.34 * self.hb * n * math::pow(p.max(1e-6), n - 1.0) * k / ((pn + k) * (pn + k)) + 0.003
+    }
 }
 
 fn apply(q: &mut Params, effects: &[Effect], env: &Env, module: &str) -> Result<(), Error> {

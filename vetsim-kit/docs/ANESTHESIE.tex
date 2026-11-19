@@ -119,8 +119,11 @@ Dette d'O$_2$ : elle s'accroît quand l'apport passe sous l'apport critique (\vp
 l'apport) ou sous la consommation, $\dot D = \max(VO_2 - DO_2,\ VO_2(1 - DO_2/DO_{2,crit}))^+$, et se rembourse sinon
 (\vp{o2_debt_tau_min}). Sa fraction de la dette tolérée (\vp{o2_debt_tol_ml_kg}) déprime la contractilité et la FC
 (effets JSON \vp{hypoxia_effects}) ; au-delà, arrêt hypoxique. Alarme « hypoxie tissulaire ». Placeholders \evD.
-Exemple : apnée totale d'un chien intubé sous O$_2$ : SpO$_2$ 100\,\% pendant environ 6 min (réserve pulmonaire), désaturation,
-puis arrêt vers 12 min. À l'air ambiant, la désaturation est trop rapide (moins d'une minute) : le stock d'O$_2$ sanguin n'est pas modélisé.
+La réserve d'O$_2$ comprend la CRF et une fraction du sang (\vp{blood_o2_store_frac}) dont le contenu suit l'alvéole :
+$(V_{CRF} + 0{,}863\,f_b\,V_S\,\mathrm{d}C_aO_2/\mathrm{d}P)\,\dot P_AO_2 = \dot V_A(P_IO_2 - P_AO_2) - 0{,}863\,\dot V_{CO_2}/QR$,
+sans effet à l'équilibre. Apnée totale sous O$_2$ pur : SpO$_2$ < 90\,\% à 5,8 min, arrêt hypoxique à 11,6 min, PaCO$_2$ 96 mmHg
+(DeBehnke 1995 : 11,4 ± 2,4 min, PaCO$_2$ 93) ; préoxygénation au masque publiée : 187 à 298 s selon la PaO$_2$ de départ
+(Ambros 2018, McNally 2009). Flow-by : 105 s (FiO$_2$ 0,40 du modèle ; 66 s à FiO$_2$ 0,30 chez Ambros). À l'air en apnée stricte : environ 25 s.
 La ventilation réelle vaut $\vp{va0}\cdot bw\cdot\vp{vent_drive}\cdot f_K\cdot\chi$ en ventilation spontanée
 et $\mathrm{FR}\,(V_T - V_D)$ en ventilation contrôlée. Apnée signalée si $\dot V_A < 10\,\%$ du repos.
 

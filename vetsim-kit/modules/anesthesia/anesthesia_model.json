@@ -1,7 +1,7 @@
 {
  "schema_version": "1.0.0",
  "id": "anesthesia_model",
- "version": "1.5.0",
+ "version": "1.6.0",
  "name": {
   "fr": "Constantes du modèle d'anesthésie"
  },
@@ -10,12 +10,12 @@
   "co2_store_ml_mmhg_kg": {
    "value": 1.0,
    "evidence": "D",
-   "source": "Placeholder : capacité de stockage du CO2 choisie pour une montée de PaCO2 de l'ordre de 4 à 5 mmHg/min en apnée (VCO2 4,6 mL/kg/min du patient). À sourcer sur une étude d'apnée chez le chien."
+   "source": "Placeholder : capacité de stockage du CO2 choisie pour une montée de PaCO2 de l'ordre de 4 à 5 mmHg/min en apnée (VCO2 4,6 mL/kg/min du patient). À sourcer sur une étude d'apnée chez le chien. Cohérence vérifiée : en apnée totale sous O2, PaCO2 de 96 mmHg à l'arrêt (DeBehnke 1995 : 93 ± 19 mmHg à 11,4 min, résumé)."
   },
   "frc_ml_kg": {
    "value": 45.0,
-   "evidence": "D",
-   "source": "Placeholder : CRF de l'ordre de 45 mL/kg, non sourcée ; fixe le délai de désaturation en apnée."
+   "evidence": "C",
+   "source": "CRF 45 ± 8 mL/kg chez le chien sous halothane, curarisé, ventilé (Larsson 1992, Acta Anaesthesiol Scand 36:146, résumé) ; 30 à 75 mL/kg selon la posture et la sédation chez le chien vigile (Rozanski 2010, PMC2801309, lu)."
   },
   "vd_ml_kg": {
    "value": 3.0,
@@ -160,7 +160,7 @@
   "o2_debt_tol_ml_kg": {
    "value": 20.0,
    "evidence": "D",
-   "source": "Placeholder : dette d'O2 tolérée avant l'arrêt hypoxique (réserves, anaérobiose), environ 4 min de VO2 totale (5,5 mL/kg/min) : l'arrêt survient alors quelques minutes après le début d'une apnée à l'air ambiant. Le moteur stationnaire, lui, conclut au décès dès que VO2 dépasse DO2."
+   "source": "Placeholder : dette d'O2 tolérée avant l'arrêt hypoxique (réserves, anaérobiose), environ 4 min de VO2 totale (5,5 mL/kg/min) : l'arrêt survient alors quelques minutes après le début d'une apnée à l'air ambiant. Le moteur stationnaire, lui, conclut au décès dès que VO2 dépasse DO2. Délai d'arrêt du modèle en apnée totale sous O2 : 11,6 min (DeBehnke 1995 : 11,4 ± 2,4 min, chiens anesthésiés, sonde clampée)."
   },
   "o2_debt_tau_min": {
    "value": 10.0,
@@ -169,8 +169,13 @@
   },
   "do2_crit_ml_kg_min": {
    "value": 9.8,
+   "evidence": "C",
+   "source": "Apport d'O2 critique 9,8 mL/kg/min chez le chien anesthésié, hypoxie hypoxique et anémique (Cain 1977, J Appl Physiol 42:228, résumé) ; 7,7 mL/kg/min en hémorragie (Schertel 1994, résumé)."
+  },
+  "blood_o2_store_frac": {
+   "value": 0.5,
    "evidence": "D",
-   "source": "Apport d'O2 critique du chien de l'ordre de 10 mL/kg/min (valeur classique attribuée à Cain 1977, J Appl Physiol, hypoxie hypoxique ; NON LUE, à vérifier) : en dessous, la consommation devient dépendante de l'apport et la dette d'O2 s'accumule."
+   "source": "Fraction du sang dont le contenu en O2 suit l'alvéole pendant l'apnée (réserve sanguine, pente de la courbe de dissociation) : placeholder calé sur le délai d'arrêt par asphyxie (modèle 11,6 min sous O2, DeBehnke 1995 : 11,4 ± 2,4 min, résumé) ; sans effet à l'équilibre."
   }
  },
  "tissues": {
@@ -377,7 +382,13 @@
  "refs": [
   "Hofmeister EH et al. 2008, Am J Vet Res 69:451, doi:10.2460/ajvr.69.4.451 (résumé)",
   "Murahata Y et al. 2018, J Vet Med Sci (PMC6068302, lu)",
-  "Yamashita K et al. 2012, J Vet Med Sci, doi:10.1292/jvms.11-0274 (résumé)"
+  "Yamashita K et al. 2012, J Vet Med Sci, doi:10.1292/jvms.11-0274 (résumé)",
+  "Larsson A et al. 1992, Acta Anaesthesiol Scand 36:146, doi:10.1111/j.1399-6576.1992.tb03419.x (résumé)",
+  "Rozanski EA et al. 2010, Can J Vet Res 74:34 (PMC2801309, lu)",
+  "Cain SM 1977, J Appl Physiol 42:228, doi:10.1152/jappl.1977.42.2.228 (résumé)",
+  "DeBehnke DJ et al. 1995, Resuscitation 30:169, doi:10.1016/0300-9572(95)00873-r (résumé)",
+  "McNally EM et al. 2009, Am J Vet Res 70:1333, doi:10.2460/ajvr.70.11.1333 (résumé)",
+  "Ambros B et al. 2018, Vet Anaesth Analg 45:452, doi:10.1016/j.vaa.2018.03.004 (résumé)"
  ],
  "notes": "Tous placeholders D : mécanismes posés, valeurs à sourcer. Tissus : répartition classique des modèles physiologiques d'absorption (groupe richement vascularisé 9 % du poids et 75 % du débit ; muscle 50 % / 19 % ; graisse 20 % / 6 %), d'origine humaine, non lue. Nociception : une activation sympathique Δs = 0,4·NU (gain placeholder D) relève le tonus de base s0 et retire du tonus vagal (vagal_add − 0,3·NU, placeholder D) : FC et, avec les coefficients mêmes du baroréflexe du moteur (MODEL_SPEC §3 : ees × (1 + 0,4·Δs), r_sys × (1 + 0,5·Δs), vol_shift + 0,2·85·bw·Δs), l'inotropisme, les RVS et le recrutement veineux, que le baroréflexe calcule par rapport à s0 ; elle réinitialise le baroréflexe vers le haut (map_set + 20·NU mmHg, réaction de défense : amplitude placeholder D), sans quoi le baroréflexe opposerait une bradycardie à l'hypertension de la stimulation ; elle relève aussi la commande ventilatoire, et, par l'état de stress lent, VO2, VCO2 et la glycémie. Température : Q10 = 2 sur VO2 et VCO2 (exp(ln2/10·ΔT)). Les ESV de stress (vpc_rate) ne sont pas branchées : elles basculeraient l'évaluation sur la conduction battement par battement. Dette d'O2 : la fraction DEBT de la dette tolérée déprime la contractilité (ees × (1 − 0,7·DEBT)) et la FC (hr × (1 − 0,6·DEBT), bradycardie hypoxique) : placeholders D ; l'arrêt survient quand la dette tolérée est atteinte.",
  "hypoxia_effects": [

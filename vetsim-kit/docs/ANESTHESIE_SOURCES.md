@@ -105,3 +105,14 @@ Recherche du 19/11/2026. Les bases de RCP (ircp.anmv.anses.fr, med-vet.fr, medic
 | Naloxone | spécialités humaines | 0,4 | pas d'AMM vétérinaire trouvée |
 | Acépromazine | Calmivet | 5 | en rupture selon l'ANSES (communication du 23/06/2026) |
 | Isoflurane, sévoflurane | Isoflurane-Vet, Isoflurin… ; SevoFlo (Zoetis), Sevohale | 1000 mg/g | liquides à inhaler |
+
+## Apnée, désaturation et asphyxie (recherche du 19/11/2026)
+
+- Délai jusqu'à SpO2 < 90 % après induction au propofol (acépromazine + morphine) : 297,8 ± 42,0 s après préoxygénation au masque (100 mL/kg/min, 3 min), 69,6 ± 10,6 s sans (moyenne ± SEM) ; chiens pas forcément en apnée complète (McNally 2009, Am J Vet Res 70:1333, résumé).
+- Masque (FiO2 89,7 %, PaO2 394 mmHg) : 187 ± 67 s ; flow-by (FiO2 30 %) : 66 ± 17 s (Ambros 2018, Vet Anaesth Analg 45:452, résumé).
+- Asphyxie (sonde clampée, 169 chiens anesthésiés) : arrêt (perte des fluctuations de pression aortique) à 11,4 ± 2,4 min ; pH 7,03, PaCO2 93 ± 19, PaO2 12 ± 7 mmHg ; pic de FC à 2–3 min, de PAS à 7 min (DeBehnke 1995, Resuscitation 30:169, résumé).
+- CRF : 45 ± 8 mL/kg sous halothane, ventilé (Larsson 1992, résumé) ; 30 à 75 mL/kg selon posture et sédation chez le vigile (Rozanski 2010, PMC2801309, lu).
+- Apport d'O2 critique : 9,8 mL/kg/min (Cain 1977, résumé) ; 7,7 en hémorragie (Schertel 1994, résumé).
+- Oxygénation apnéique par cathéter : PaCO2 +1,3 à +2,0 mmHg/min (Yokota 2019, Eur J Cardiothorac Surg, résumé).
+
+Comparaison du modèle : apnée totale sous O2 pur (PAO2 660) : SpO2 < 90 % à 5,8 min, arrêt à 11,6 min, PaCO2 96 ; flow-by (FiO2 0,40 du modèle) : 105 s ; air ambiant en apnée stricte : environ 25 s (réserve de la CRF ≈ 1 min de VO2 ; pas de mesure publiée d'apnée stricte à l'air trouvée).
