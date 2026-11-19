@@ -13,6 +13,7 @@ const S = {
   inputs: { bw: 20, disease: null, stage: null, seed: 1, plan: null, atH: null },
   res: null,
   ausc: { hr: null, site: 'base', r: null, spec: null, window: 8, start: 0, cursor: null, playing: false, audio: null, src: null, loop: false, zoomOnly: false, played: false, gain: 1, gainNode: null },
+  mc: { n: 1, dog: 1, individual: true, src: { natural: false, disease: false, drug: true, measurement: false }, progression: 0, running: false, progress: 0, res: null, sig: null, worker: null, error: null },
   treat: { regimens: [], days: 3, r: null, cursor: 0, shown: ['hr', 'map', 'k'], ref: null, editing: null, open: null },
   model: { selected: null },
 };
@@ -501,6 +502,7 @@ function renderTreatment(v) {
         <input id="t-cur" type="range" min="0" max="${h}" step="0.05" value="${T.cursor}">
         <div class="note">${Object.keys(r.conc_mg_L).map((d) => `${esc(dname(d))} : ${fmt(r.conc_mg_L[d][i], 4)} mg/L, E = ${fmt(r.effect[d][i], 2)}`).join(' &nbsp; ')}</div>
         ${outcomeNote(r)}`);
+    html += card('Un chien suivi dans le temps (variabilité naturelle)', mcPanel(r));
     for (const d of Object.keys(r.conc_mg_L)) html += card(`Concentration plasmatique : ${esc(dname(d))} (mg/L) ; pointillés : CE50 = ${cat.drugs.find((x) => x.id === d).ec50_mg_L} mg/L`, canvas('tc-' + d, 120));
     html += card('Effet pharmacodynamique E(t) (0 à 1)', canvas('t-eff', 100));
     if (r.D.some((x) => x !== 0)) {
@@ -512,7 +514,7 @@ function renderTreatment(v) {
     for (const k of T.shown) {
       const ind = INDICATORS.find((x) => x[0] === k); if (!ind || !r.states[k]) continue;
       const j = nearest(r.state_t, T.cursor);
-      html += card(`${ind[1]}${ind[2] ? ` (${ind[2]})` : ''} : ${fmt(r.states[k][j] * (ind[4] || 1), Math.max(ind[3], 2))} à ${dayLabel(r.state_t[j])}`, canvas('ti-' + k, 90));
+      html += card(`${ind[1]}${ind[2] ? ` (${ind[2]})` : ''} : ${fmt(r.states[k][j] * (ind[4] || 1), Math.max(ind[3], 2))} à ${dayLabel(r.state_t[j])}${mcBandNote(k)}`, canvas('ti-' + k, 90));
     }
   }
   const focus = focusKey();
@@ -568,6 +570,7 @@ function renderTreatment(v) {
     S.inputs.death = dead ? { t_h: r.death_t_h, cause, label_fr: DEATH_FR[cause] || 'décès' } : null;
     S.tab = 'patient'; evaluate();
   };
+  bindMc(v);
   for (const b of v.querySelectorAll('[data-ind]')) b.onclick = () => { const k = b.dataset.ind; T.shown = T.shown.includes(k) ? T.shown.filter((x) => x !== k) : [...T.shown, k]; render(); };
   for (const c of v.querySelectorAll('canvas')) c.onclick = (e) => {
     const rect = c.getBoundingClientRect(), left = 44;
@@ -653,8 +656,134 @@ function drawTreatment() {
   }
   for (const k of T.shown) {
     const c = document.getElementById('ti-' + k), ind = INDICATORS.find((x) => x[0] === k);
-    if (c && r.states[k]) timeChart(c, { ...base, series: [{ y: r.states[k].map((x) => x * (ind[4] || 1)), t: r.state_t, color: COLORS.ink }], points: true });
+    if (!c || !r.states[k]) continue;
+    const f = ind[4] || 1, mc = mcFresh() ? S.mc.res : null, b = mc && mc.n > 1 && mc.bands[k];
+    const series = [{ y: r.states[k].map((x) => x * f), t: r.state_t, color: COLORS.ink }];
+    const fills = [];
+    if (b) {
+      const sc = (a) => a.map((x) => x * f);
+      fills.push({ t: mc.t, lo: sc(b.p05), hi: sc(b.p95), color: 'rgba(11,94,122,0.13)' });
+      fills.push({ t: mc.t, lo: sc(b.p25), hi: sc(b.p75), color: 'rgba(11,94,122,0.22)' });
+      for (const tr of mc.examples) series.push({ y: sc(tr[k]), t: mc.t, color: 'rgba(11,94,122,0.55)', width: 0.9 });
+      series.push({ y: sc(b.p50), t: mc.t, color: COLORS.accent, width: 1.8, dash: [5, 3] });
+    }
+    if (mc && mc.n === 1 && mc.examples[0][k]) {
+      series[0].color = 'rgba(27,42,53,0.45)';
+      series.push({ y: mc.examples[0][k].map((x) => x * f), t: mc.t, color: COLORS.accent, width: 1.8 });
+    }
+    timeChart(c, { ...base, series, fills, points: !mc });
   }
+}
+
+// ---------------------------------------------------------------- Monte-Carlo (variabilité)
+// Un animal est généré (variabilité interindividuelle, graine du cas) puis suivi dans le temps :
+// N trajectoires avec fluctuation naturelle, fluctuation/progression de la maladie, variabilité
+// PK/PD et bruit de mesure (modules/variation.json, placeholders D). Calcul dans un Web Worker.
+
+// drug : tiré une fois par chien ; les trois autres retirent à chaque instant (options, coupées par défaut)
+const MC_SRC = [['drug', 'PK/PD propre au chien (tirée une fois)'], ['natural', '+ fluctuation au fil des heures'], ['disease', '+ jours bons/mauvais'], ['measurement', '+ bruit de mesure']];
+
+/** Signature du cas simulé : les résultats Monte-Carlo ne valent que pour elle. */
+function mcSignature() {
+  const M = S.mc, i = S.inputs;
+  return JSON.stringify([i.bw, i.disease, i.stage, M.dog, S.treat.regimens, S.treat.days, M.n, M.individual, M.src, M.progression]);
+}
+function mcFresh() { return S.mc.res && S.mc.sig === mcSignature(); }
+
+function mcPanel(r) {
+  const M = S.mc;
+  const opt = (x) => `<option value="${x}" ${M.n === x ? 'selected' : ''}>${x === 1 ? '1 (ce chien)' : x + ' réalisations'}</option>`;
+  let s = `<div class="row">
+      <label><input type="checkbox" id="mc-ind" ${M.individual ? 'checked' : ''}> chien tiré (lois normales sur ln des paramètres) n° <b>${M.dog}</b></label>
+      <label>suivi <select id="mc-n">${[1, 10, 20].map(opt).join('')}</select></label>
+      ${MC_SRC.map(([k, l]) => `<label><input type="checkbox" data-mcsrc="${k}" ${M.src[k] ? 'checked' : ''}> ${l}</label>`).join('')}
+      ${S.inputs.disease ? `<label>progression (sévérité/jour)<input id="mc-prog" type="number" step="0.001" min="-0.1" max="0.1" style="width:80px" value="${M.progression}"></label>` : ''}
+      ${M.running ? `<button id="mc-stop">Arrêter</button> <progress max="${M.n}" value="${M.progress}"></progress> <span id="mc-pt">${M.progress}/${M.n}</span>`
+        : `<button class="primary" id="mc-run">${M.res ? 'Relancer' : 'Générer ce chien'}</button> <button id="mc-next">Autre chien</button>${M.res ? ' <button id="mc-clear">Effacer</button>' : ''}`}
+    </div>`;
+  if (M.error) s += `<div class="warn">${esc(M.error)}</div>`;
+  if (M.res && !mcFresh() && !M.running) s += '<div class="warn">Résultats d\'un autre réglage : relancer pour mettre à jour.</div>';
+  if (M.res && mcFresh()) {
+    const dead = M.res.alive.map((a) => 1 - a), last = dead[dead.length - 1];
+    s += M.res.n === 1
+      ? `<div class="note">Courbe bleue : le chien n° ${M.dog}, paramètres tirés une fois (lois normales sur ln), suivi dans le temps${['natural', 'disease', 'measurement'].some((k) => M.src[k]) ? ' avec les fluctuations cochées' : ' sans nouveau tirage : la courbe ne bouge que par la maladie et le médicament'} ; trait gris : chien moyen.${last > 0 ? ` Ce chien décède à ${dayLabel(M.res.t[M.res.alive.findIndex((a) => a < 1)])}.` : ''}</div>`
+      : `<div class="note">${M.res.n} réalisations du chien n° ${M.dog}. Bande claire = 5ᵉ–95ᵉ percentile, bande foncée = 25ᵉ–75ᵉ, tirets = médiane, traits fins = 3 réalisations ; trait noir = chien moyen sans aléa.${last > 0 ? ` Décès dans ${fmt(100 * last, 0)} % des réalisations à ${dayLabel(M.res.t[M.res.t.length - 1])}.` : ''}</div>`;
+  }
+  s += `<div class="note">Amplitudes de variabilité (fluctuation des paramètres, de la sévérité, PK/PD, imprécision analytique) : placeholders à caler (evidence D). Calcul ${S.inputs.disease === 'mmvd' ? 'long en MMVD (≈ 0,2 s par point)' : 'de quelques secondes'} ; grille de ${mcTimes(r.plan.horizonH).length} instants.</div>`;
+  return s;
+}
+
+function mcBandNote(k) {
+  if (!mcFresh() || !S.mc.res.bands[k]) return '';
+  if (S.mc.res.n === 1) {
+    const r1 = S.mc.res, j1 = nearest(r1.t, S.treat.cursor), ind1 = INDICATORS.find((x) => x[0] === k);
+    const x = r1.examples[0][k][j1];
+    return Number.isFinite(x) ? ` ; chien n° ${S.mc.dog} : ${fmt(x * (ind1[4] || 1), Math.max(ind1[3], 2))}` : '';
+  }
+  const b = S.mc.res.bands[k], j = nearest(S.mc.res.t, S.treat.cursor), ind = INDICATORS.find((x) => x[0] === k), f = ind[4] || 1;
+  if (!Number.isFinite(b.p05[j])) return '';
+  const d = Math.max(ind[3], 2);
+  return ` ; Monte-Carlo : ${fmt(b.p50[j] * f, d)} [${fmt(b.p05[j] * f, d)} – ${fmt(b.p95[j] * f, d)}]`;
+}
+
+/** Grille d'instants : ~48 points pour un chien, ~24 pour plusieurs réalisations (coût du moteur). */
+function mcTimes(h) {
+  const step = Math.max(1, Math.ceil(h / (S.mc.n === 1 ? 48 : 24)));
+  return Array.from({ length: Math.floor(h / step) + 1 }, (_, i) => i * step);
+}
+
+function bindMc(v) {
+  const M = S.mc;
+  if ($('#mc-n')) $('#mc-n').onchange = (e) => { M.n = +e.target.value; render(); };
+  if ($('#mc-ind')) $('#mc-ind').onchange = (e) => { M.individual = e.target.checked; render(); };
+  if ($('#mc-prog')) $('#mc-prog').onchange = (e) => { const x = parseFloat(e.target.value); M.progression = Number.isFinite(x) ? x : 0; render(); };
+  for (const c of v.querySelectorAll('[data-mcsrc]')) c.onchange = () => { M.src = { ...M.src, [c.dataset.mcsrc]: c.checked }; render(); };
+  if ($('#mc-run')) $('#mc-run').onclick = runMc;
+  if ($('#mc-next')) $('#mc-next').onclick = () => { M.dog += 1; runMc(); };
+  if ($('#mc-stop')) $('#mc-stop').onclick = () => { if (M.worker) M.worker.terminate(); M.worker = null; M.running = false; render(); };
+  if ($('#mc-clear')) $('#mc-clear').onclick = () => { M.res = null; M.error = null; render(); };
+}
+
+function runMc() {
+  const M = S.mc, T = S.treat, i = S.inputs;
+  if (M.worker) M.worker.terminate();
+  const keys = [...new Set([...INDICATORS.map((x) => x[0])])];
+  const times = mcTimes(T.days * 24);
+  const sig = mcSignature();
+  M.running = true; M.progress = 0; M.error = null;
+  const w = new Worker('./mc-worker.js', { type: 'module' });
+  M.worker = w;
+  w.onmessage = (ev) => {
+    const d = ev.data;
+    if (d.error) { M.error = 'Monte-Carlo : ' + d.error; M.running = false; w.terminate(); M.worker = null; render(); return; }
+    if (d.progress !== undefined) { M.progress = d.progress; const p = document.querySelector('#view progress'), pt = $('#mc-pt'); if (p) { p.value = d.progress; if (pt) pt.textContent = `${d.progress}/${M.n}`; } else render(); return; }
+    if (d.done) { M.res = mcSummary(d.t, d.trajectories, keys); M.sig = sig; M.running = false; w.terminate(); M.worker = null; render(); }
+  };
+  w.postMessage({
+    bw: i.bw, seed: M.dog, individual: M.individual, disease: i.disease, stage: i.stage,
+    doses: planDoses({ regimens: T.regimens }), times, n: M.n, keys,
+    scale: Object.fromEntries(MC_SRC.map(([k]) => [k, M.src[k] ? 1 : 0])),
+    progression: i.disease ? { [i.disease]: M.progression } : {}, chunk: i.disease === 'mmvd' ? 1 : 4,
+  });
+  render();
+}
+
+/** Percentiles par instant sur les trajectoires vivantes. */
+function mcSummary(t, trajs, keys) {
+  const q = (a, p) => { if (!a.length) return NaN; const x = p * (a.length - 1), lo = Math.floor(x), hi = Math.min(a.length - 1, lo + 1); return a[lo] + (x - lo) * (a[hi] - a[lo]); };
+  const bands = {};
+  for (const k of keys) {
+    if (!trajs.some((tr) => tr.values[k])) continue;
+    const b = { p05: [], p25: [], p50: [], p75: [], p95: [] };
+    for (let j = 0; j < t.length; j++) {
+      const a = trajs.map((tr) => tr.values[k] && tr.values[k][j]).filter((x) => typeof x === 'number').sort((x, y) => x - y);
+      b.p05.push(q(a, 0.05)); b.p25.push(q(a, 0.25)); b.p50.push(q(a, 0.5)); b.p75.push(q(a, 0.75)); b.p95.push(q(a, 0.95));
+    }
+    bands[k] = b;
+  }
+  const examples = trajs.slice(0, 3).map((tr) => Object.fromEntries(Object.entries(tr.values).map(([k, v]) => [k, v.map((x) => (typeof x === 'number' ? x : NaN))])));
+  const alive = t.map((_, j) => trajs.filter((tr) => tr.outcome[j] !== 'dead').length / trajs.length);
+  return { t, n: trajs.length, bands, examples, alive };
 }
 
 function nearest(t, x) { let b = 0; for (let i = 0; i < t.length; i++) if (Math.abs(t[i] - x) < Math.abs(t[b] - x)) b = i; return b; }

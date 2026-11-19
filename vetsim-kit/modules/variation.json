@@ -1,0 +1,63 @@
+{
+  "schema_version": "1.0.0",
+  "id": "variation",
+  "version": "0.1.0",
+  "description": "Variabilité intra-individuelle au cours du temps (Monte-Carlo) : fluctuation naturelle des paramètres d'un même animal, fluctuation et progression de la sévérité des maladies, variabilité PK/PD des médicaments, imprécision analytique des mesures. Toutes les amplitudes sont des placeholders à caler (evidence D) ; elles sont multipliables à l'appel (options scale).",
+  "natural": {
+    "source": "Placeholder : ordres de grandeur à caler sur des études de variation biologique intra-individuelle chez le chien (CVi) et sur des enregistrements télémétriques (FC, PA) ; aucune valeur reprise d'une source lue.",
+    "evidence": "D",
+    "model": "Processus d'Ornstein-Uhlenbeck sur ln(paramètre) : stationnaire, écart-type cv, temps de corrélation tau_h ; multiplicateur de moyenne 1.",
+    "params": {
+      "hr": { "cv": 0.06, "tau_h": 0.5 },
+      "r_sys": { "cv": 0.06, "tau_h": 2.0 },
+      "ees_lv": { "cv": 0.04, "tau_h": 12.0 },
+      "vo2": { "cv": 0.05, "tau_h": 2.0 },
+      "lact0": { "cv": 0.10, "tau_h": 2.0 },
+      "glucose": { "cv": 0.06, "tau_h": 4.0 },
+      "hb": { "cv": 0.04, "tau_h": 48.0 },
+      "na": { "cv": 0.008, "tau_h": 24.0 },
+      "k": { "cv": 0.04, "tau_h": 24.0 },
+      "cl": { "cv": 0.01, "tau_h": 24.0 },
+      "creat0": { "cv": 0.06, "tau_h": 48.0 },
+      "alb": { "cv": 0.03, "tau_h": 72.0 },
+      "alt": { "cv": 0.12, "tau_h": 72.0 }
+    }
+  },
+  "disease": {
+    "source": "Placeholder : fluctuation de la sévérité (jours bons et mauvais) et progression nulle par défaut ; la vitesse de progression se donne par maladie à l'appel.",
+    "evidence": "D",
+    "model": "s(t) = s0 + progression_per_day·t/24 + severity_sd·x(t), x processus d'Ornstein-Uhlenbeck réduit de temps tau_h, borné à [0, 1] ; les tirages du cas sont conservés.",
+    "severity_sd": 0.03,
+    "tau_h": 72.0,
+    "progression_per_day": {}
+  },
+  "drug": {
+    "source": "Placeholder : variabilité PK/PD d'une réalisation à l'autre (multiplicateurs lognormaux de moyenne 1 tirés une fois par trajectoire).",
+    "evidence": "D",
+    "cl_cv": 0.20,
+    "vc_cv": 0.15,
+    "ec50_cv": 0.30
+  },
+  "measurement": {
+    "source": "Placeholder : imprécision analytique (CVa) des mesures, à caler sur les analyseurs ; bruit multiplicatif indépendant à chaque prélèvement.",
+    "evidence": "D",
+    "outputs": {
+      "hr": 0.02,
+      "map": 0.05,
+      "sap": 0.05,
+      "dap": 0.05,
+      "pao2": 0.03,
+      "pco2": 0.02,
+      "lactate": 0.05,
+      "na": 0.007,
+      "k": 0.02,
+      "cl": 0.01,
+      "glucose": 0.03,
+      "creat": 0.04,
+      "urea": 0.04,
+      "phos": 0.03,
+      "alb": 0.03,
+      "hct": 0.02
+    }
+  }
+}

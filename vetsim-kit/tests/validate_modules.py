@@ -1,10 +1,10 @@
 """Valide tous les modules JSON contre les schémas. python tests/validate_modules.py"""
 import json, glob, sys, jsonschema
 from referencing import Registry, Resource
-names = ['expr', 'disease', 'drug', 'patient', 'auscultation']
+names = ['expr', 'disease', 'drug', 'patient', 'auscultation', 'variation']
 reg = Registry().with_resources([(f'{n}.schema.json', Resource.from_contents(json.load(open(f'schema/{n}.schema.json')))) for n in names])
 bad = 0
-for pat, sch in [('modules/diseases/*.json', 'disease'), ('modules/drugs/*.json', 'drug'), ('modules/healthy_dog.json', 'patient'), ('modules/auscultation.json', 'auscultation')]:
+for pat, sch in [('modules/diseases/*.json', 'disease'), ('modules/drugs/*.json', 'drug'), ('modules/healthy_dog.json', 'patient'), ('modules/auscultation.json', 'auscultation'), ('modules/variation.json', 'variation')]:
     v = jsonschema.Draft202012Validator(json.load(open(f'schema/{sch}.schema.json')), registry=reg)
     for f in glob.glob(pat):
         errs = list(v.iter_errors(json.load(open(f))))
