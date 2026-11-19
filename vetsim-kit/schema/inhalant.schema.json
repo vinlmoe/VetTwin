@@ -1,0 +1,95 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "inhalant.schema.json",
+ "title": "Agent anesthésique inhalé",
+ "type": "object",
+ "required": [
+  "schema_version",
+  "id",
+  "version",
+  "name",
+  "evidence",
+  "mac_pct",
+  "blood_gas",
+  "tissue_blood",
+  "vaporizer_max_pct"
+ ],
+ "properties": {
+  "schema_version": {
+   "const": "1.0.0"
+  },
+  "species": {
+   "type": "array"
+  },
+  "license": {
+   "type": "string"
+  },
+  "id": {
+   "type": "string"
+  },
+  "version": {
+   "type": "string"
+  },
+  "name": {
+   "type": "object"
+  },
+  "evidence": {
+   "enum": [
+    "A",
+    "B",
+    "C",
+    "D"
+   ]
+  },
+  "mac_pct": {
+   "type": "number",
+   "exclusiveMinimum": 0
+  },
+  "blood_gas": {
+   "type": "number",
+   "exclusiveMinimum": 0
+  },
+  "tissue_blood": {
+   "type": "object",
+   "required": [
+    "vrg",
+    "muscle",
+    "fat"
+   ],
+   "properties": {
+    "vrg": {
+     "type": "number",
+     "exclusiveMinimum": 0
+    },
+    "muscle": {
+     "type": "number",
+     "exclusiveMinimum": 0
+    },
+    "fat": {
+     "type": "number",
+     "exclusiveMinimum": 0
+    }
+   }
+  },
+  "vaporizer_max_pct": {
+   "type": "number",
+   "exclusiveMinimum": 0
+  },
+  "effects": {
+   "type": "array",
+   "description": "Variables M (pression artérielle/MAC) et MB (cérébrale/MAC)."
+  },
+  "value_sources": {
+   "type": "object"
+  },
+  "refs": {
+   "type": "array",
+   "items": {
+    "type": "string"
+   }
+  },
+  "notes": {
+   "type": "string"
+  }
+ }
+}

@@ -1,0 +1,92 @@
+{
+ "schema_version": "1.0.0",
+ "species": [
+  "dog"
+ ],
+ "license": "CC-BY-4.0",
+ "id": "ketamine",
+ "version": "1.0.0",
+ "name": {
+  "fr": "Kétamine"
+ },
+ "evidence": "C",
+ "pk": {
+  "vc_L_kg": 0.371,
+  "vp_L_kg": 3.69,
+  "cl_mL_min_kg": 58.2,
+  "q_mL_min_kg": 60.0,
+  "ka_per_h": 1.0,
+  "f": 0.0,
+  "renal_exp": 0.0,
+  "hep_exp": 1.0
+ },
+ "pd": {
+  "type": "emax",
+  "emax": 1.0,
+  "ec50_mg_L": 2.0,
+  "hill": 1.5,
+  "effects": [
+   {
+    "param": "s0",
+    "op": "add",
+    "expr": {
+     "mul": [
+      0.3,
+      "E"
+     ]
+    },
+    "clamp": [
+     0,
+     1
+    ]
+   },
+   {
+    "param": "vent_drive",
+    "op": "mul",
+    "expr": {
+     "add": [
+      1,
+      {
+       "mul": [
+        -0.2,
+        "E"
+       ]
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "anesthesia": {
+  "classes": [
+   "dissociative"
+  ],
+  "ke0_per_min": 0.5,
+  "c_imm_mg_L": 20.0,
+  "mac_reduction": {
+   "max": 0.922,
+   "ec50_mg_L": 2.945,
+   "hill": 3.01
+  },
+  "antinociception": {
+   "max": 0.4,
+   "ec50_mg_L": 1.0,
+   "hill": 1.0
+  },
+  "antihyperalgesia": {
+   "max": 0.8,
+   "ec50_mg_L": 0.2,
+   "hill": 1.0
+  },
+  "evidence": "C",
+  "source": "PK : Vc 0,371 L/kg, Vss 4,06 L/kg, Cl 58,2 mL/min/kg (Pypendop & Ilkiw 2005, résumé) ; Q placeholder D. Épargne de MAC de l'isoflurane : Emax 92,2 %, EC50 2,945 µg/mL, γ 3,01 (Pypendop 2007, résumé, sur les données de Solano 2006). c_imm (perte de conscience) calé sur la dose d'induction de 6,1 mg/kg avec diazépam (Hampton 2019) : D. Antinociception, effet anti-hyperalgésique (NMDA) à faible concentration et ke0 : placeholders D."
+ },
+ "refs": [
+  "Pypendop BH, Ilkiw JE 2005, Am J Vet Res, doi:10.2460/ajvr.2005.66.2034 (résumé)",
+  "Pypendop BH et al. 2007, Vet Anaesth Analg, doi:10.1111/j.1467-2995.2006.00324.x (résumé)",
+  "Solano AM et al. 2006, Am J Vet Res, doi:10.2460/ajvr.67.1.21 (résumé)",
+  "Hampton CE et al. 2019, Am J Vet Res (résumé)",
+  "Muir WW et al. 2003, Am J Vet Res 64:1155 (résumé)"
+ ],
+ "notes": "Anesthésie dissociative : réflexe palpébral conservé, globe central. Stimulation sympathique (s0) calée pour FC +75 % après induction (Hampton 2019, kétamine-diazépam). Remarque : la contribution hypnotique (c_imm) et l'épargne de MAC se cumulent dans la profondeur Δ : simplification signalée."
+}

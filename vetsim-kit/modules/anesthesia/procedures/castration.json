@@ -1,0 +1,57 @@
+{
+ "schema_version": "1.0.0",
+ "id": "castration",
+ "version": "1.0.0",
+ "name": {
+  "fr": "Orchiectomie (chien)"
+ },
+ "evidence": "D",
+ "territories": [
+  "scrotum",
+  "spermatic_cord"
+ ],
+ "steps": [
+  {
+   "id": "skin_incision",
+   "label": {
+    "fr": "Incision prescrotale"
+   },
+   "intensity": 0.8,
+   "duration_s": 60,
+   "territory": "scrotum"
+  },
+  {
+   "id": "cord_1",
+   "label": {
+    "fr": "Ligature du premier cordon spermatique"
+   },
+   "intensity": 1.1,
+   "duration_s": 120,
+   "territory": "spermatic_cord"
+  },
+  {
+   "id": "cord_2",
+   "label": {
+    "fr": "Ligature du second cordon spermatique"
+   },
+   "intensity": 1.1,
+   "duration_s": 120,
+   "territory": "spermatic_cord"
+  },
+  {
+   "id": "closure",
+   "label": {
+    "fr": "Fermeture"
+   },
+   "intensity": 0.5,
+   "duration_s": 300,
+   "territory": "scrotum"
+  }
+ ],
+ "postop": {
+  "intensity": 0.4,
+  "tau_h": 8,
+  "territory": "scrotum"
+ },
+ "notes": "Intensités relatives : placeholders pédagogiques D. Le bloc intratesticulaire se pose sur le territoire « spermatic_cord »."
+}

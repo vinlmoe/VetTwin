@@ -1,0 +1,121 @@
+{
+ "schema_version": "1.0.0",
+ "species": [
+  "dog"
+ ],
+ "license": "CC-BY-4.0",
+ "id": "isoflurane",
+ "version": "1.0.0",
+ "name": {
+  "fr": "Isoflurane"
+ },
+ "evidence": "C",
+ "mac_pct": 1.3,
+ "blood_gas": 1.4,
+ "tissue_blood": {
+  "vrg": 1.57,
+  "muscle": 2.9,
+  "fat": 45.0
+ },
+ "vaporizer_max_pct": 5.0,
+ "effects": [
+  {
+   "param": "ees_lv",
+   "op": "mul",
+   "expr": {
+    "max": [
+     0.1,
+     {
+      "sub": [
+       1,
+       {
+        "mul": [
+         0.235,
+         "M"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "param": "ees_rv",
+   "op": "mul",
+   "expr": {
+    "max": [
+     0.1,
+     {
+      "sub": [
+       1,
+       {
+        "mul": [
+         0.235,
+         "M"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "param": "r_sys",
+   "op": "mul",
+   "expr": {
+    "max": [
+     0.1,
+     {
+      "sub": [
+       1,
+       {
+        "mul": [
+         0.2,
+         "M"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "param": "vent_drive",
+   "op": "mul",
+   "expr": {
+    "max": [
+     0,
+     {
+      "sub": [
+       1,
+       {
+        "mul": [
+         0.3,
+         {
+          "pow": [
+           "M",
+           1.5
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "refs": [
+  "Kazama T, Ikeda K 1988, Anesthesiology 68:435, doi:10.1097/00000542-198803000-00020 (résumé)",
+  "Hofmeister EH et al. 2008, Am J Vet Res 69:451, doi:10.2460/ajvr.69.4.451 (résumé)",
+  "Soares JH et al. 2012, Anesthesiology, doi:10.1097/aln.0b013e3182557cc9 (PMC3381048, lu)",
+  "Yasuda N et al. 1989, Anesth Analg, doi:10.1213/00000539-198909000-00016 (résumé)",
+  "Bernard JM et al. 1990, Anesthesiology, doi:10.1097/00000542-199004000-00014 (résumé)",
+  "Hoka S et al. 1995, J Anesth, doi:10.1007/bf02479873 (résumé)",
+  "Galloway DS et al. 2004, JAVMA 225:700, doi:10.2460/javma.2004.225.700 (résumé)",
+  "Steffey EP et al. 1993, Anesth Analg, doi:10.1213/00000539-199377020-00023 (résumé)",
+  "Lopez LA et al. 2009, Am J Vet Res, doi:10.2460/ajvr.70.11.1339 (résumé)",
+  "Steffey EP, Howland D 1977, Am J Vet Res 38:1833 (résumé)"
+ ],
+ "notes": "MAC 1,3 % (1,28 à 1,39 % : Steffey & Howland 1977, Kazama 1988, Hofmeister 2008, résumés). Sang/gaz canin 1,40 (Soares 2012, lu). Cerveau/sang 1,57 (humain, Yasuda 1989) ; muscle/sang 2,9 et graisse/sang 45 : ordres de grandeur humains classiques, NON LUS (D). Effets en fonction de M = pression artérielle / MAC : Ees VG et VD −23,5 % par MAC (Hoka 1995 : −23 % à 1 MAC, −48 % à 2 MAC) ; vasodilatation r_sys calée par session pour une PAM −22 % à 1,2 MAC (même ordre que le sévoflurane, Bernard 1990 : effets « similaires ») ; commande ventilatoire max(0, 1 − a·M^n) calée pour PaCO2 46 mmHg à 1 MAC en ventilation spontanée (Steffey 1993) et apnée à 2,6 MAC (Galloway 2004). Baroréflexe non déprimé par l'agent (placeholder : effet non sourcé)."
+}

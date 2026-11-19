@@ -1,0 +1,103 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "procedure.schema.json",
+ "title": "Scénario chirurgical",
+ "type": "object",
+ "required": [
+  "schema_version",
+  "id",
+  "version",
+  "name",
+  "evidence",
+  "territories",
+  "steps",
+  "postop"
+ ],
+ "properties": {
+  "schema_version": {
+   "const": "1.0.0"
+  },
+  "id": {
+   "type": "string"
+  },
+  "version": {
+   "type": "string"
+  },
+  "name": {
+   "type": "object"
+  },
+  "evidence": {
+   "enum": [
+    "A",
+    "B",
+    "C",
+    "D"
+   ]
+  },
+  "territories": {
+   "type": "array",
+   "items": {
+    "type": "string"
+   },
+   "minItems": 1
+  },
+  "steps": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "id",
+     "label",
+     "intensity",
+     "duration_s",
+     "territory"
+    ],
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "label": {
+      "type": "object"
+     },
+     "intensity": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 3
+     },
+     "duration_s": {
+      "type": "number",
+      "exclusiveMinimum": 0
+     },
+     "territory": {
+      "type": "string"
+     }
+    }
+   }
+  },
+  "postop": {
+   "type": "object",
+   "required": [
+    "intensity",
+    "tau_h",
+    "territory"
+   ],
+   "properties": {
+    "intensity": {
+     "type": "number",
+     "minimum": 0,
+     "maximum": 3
+    },
+    "tau_h": {
+     "type": "number",
+     "exclusiveMinimum": 0
+    },
+    "territory": {
+     "type": "string"
+    }
+   }
+  },
+  "notes": {
+   "type": "string"
+  }
+ }
+}

@@ -1,0 +1,231 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage[margin=1.9cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs,array,tabularx,longtable,ltablex}
+\keepXColumns
+\usepackage{xcolor}
+\usepackage{fancyvrb}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
+\usepackage[hidelinks]{hyperref}
+\usepackage{textcomp}
+\usepackage{siunitx}
+\sisetup{locale=FR,detect-all}
+
+\setlength{\parskip}{0.4em}
+\setlength{\parindent}{0pt}
+\fvset{fontsize=\small,frame=single,framesep=2mm,rulecolor=\color{black!30}}
+\newcommand{\vp}[1]{\text{\texttt{\detokenize{#1}}}}
+\newcommand{\evC}{\textcolor{orange!80!black}{\textbf{C}}}
+\newcommand{\evD}{\textcolor{red!70!black}{\textbf{D}}}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+\renewcommand{\arraystretch}{1.15}
+\newcommand{\dd}{\mathrm{d}}
+
+\title{Module d'anesthésie en temps réel\\[0.3em]
+\large De la prémédication au réveil, avec la douleur comme variable d'état}
+\author{Projet VetTwin}
+\date{19 novembre 2026 (version 1.0 du module)}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Ce document décrit le module d'anesthésie générale canine du moteur \emph{vetsim} tel qu'il est implémenté :
+architecture, équations, modules JSON, provenance des valeurs, calibration, validation, API et interface web.
+Il fait suite à la proposition du même jour (\vp{docs/PROPOSITION_ANESTHESIE.tex}), dont il réalise les jalons A0 à A5 et une partie de A6.
+Les valeurs publiées sont recensées dans \vp{docs/ANESTHESIE_SOURCES.md}. Beaucoup de constantes restent des placeholders \evD{} :
+le module sert à enseigner des mécanismes, jamais à décider d'une anesthésie réelle.
+\end{abstract}
+
+\tableofcontents
+
+\section{Architecture}
+
+Le moteur cardiovasculaire et métabolique (\vp{engine::evaluate}) est quasi stationnaire et reste la référence normative ;
+il n'a pas été modifié. Une \vp{Session} (\vp{crates/vetsim-core/src/anesthesia/mod.rs}) porte les états dynamiques et avance par pas
+$\Delta t \le \SI{60}{s}$. À chaque pas :
+\begin{enumerate}
+\item les états donnent des paramètres modifiés, toujours par les effets JSON du DSL (aucune formule clinique codée en dur) ;
+\item l'évaluation existante calcule baroréflexe, hémodynamique, gaz du sang et décompensation (décès compris) ;
+\item le débit cardiaque et la ventilation alvéolaire de cette évaluation font avancer les états jusqu'à $t + \Delta t$
+(Runge-Kutta d'ordre 4 à pas fixe de \SI{0,5}{s} au plus, déterministe).
+\end{enumerate}
+
+\begin{center}
+\begin{tikzpicture}[node distance=6mm and 8mm, every node/.style={font=\small},
+  b/.style={draw, rounded corners, align=center, minimum height=9mm, inner sep=3pt},
+  a/.style={-{Latex[length=2mm]}, thick}]
+\node[b, fill=blue!6] (ev) {Actions\\(bolus, perfusion, vaporisateur,\\ventilation, chirurgie, fluides)};
+\node[b, right=of ev, fill=orange!8] (st) {États\\PK + $C_e$, halogénés,\\CO$_2$/O$_2$, $\nu$, $S$, T°, remplissage};
+\node[b, right=of st, fill=green!7] (pa) {Paramètres\\(effets JSON)};
+\node[b, below=of pa, fill=gray!10] (en) {\vp{evaluate}\\(inchangé)};
+\node[b, left=of en, fill=red!6] (mo) {Instantané : moniteur,\\réflexes, alarmes, feuille};
+\draw[a] (ev) -- (st); \draw[a] (st) -- (pa); \draw[a] (pa) -- (en); \draw[a] (en) -- (mo);
+\draw[a] (en.west) ++(0,0.25) -| node[pos=0.25, above, font=\scriptsize]{DC, $\dot V_A$} (st.south);
+\end{tikzpicture}
+\end{center}
+
+\paragraph{Invariant d'équilibre.} Une session sans médicament reproduit \vp{eval} : FC, PAM, PaCO$_2$ et PaO$_2$ identiques
+à $10^{-9}$ près en relatif (test \vp{session_without_drugs_reproduces_eval}). La couche dynamique ne modifie donc pas le modèle validé.
+
+\section{Équations}
+
+\subsection{Pharmacocinétique}
+Par agent : dépôts IM et SC, compartiments central et périphérique (constantes de \vp{pkpd::pk_constants}, donc allométrie et
+fonctions rénale et hépatique du patient), site effet :
+\begin{align*}
+\dot A_{IM} &= -k_{a,IM} A_{IM}, \qquad \dot A_{SC} = -k_{a,SC} A_{SC},\\
+\dot A_c &= k_{a,IM}A_{IM} + k_{a,SC}A_{SC} + R_{CRI} - \tfrac{CL + Q}{V_c}A_c + \tfrac{Q}{V_p}A_p, \qquad
+\dot A_p = \tfrac{Q}{V_c}A_c - \tfrac{Q}{V_p}A_p,\\
+\dot C_e &= k_{e0}\,(A_c/V_c - C_e).
+\end{align*}
+Les effets JSON du médicament reçoivent $E$ (Emax au site effet) et $EP$ (Emax plasmatique) ; les termes toxiques reçoivent $T$ (plasma).
+Un antagoniste multiplie toutes les EC50 de ses cibles par $1 + \sum C_{e,ant}/K_i$ (antagonisme compétitif).
+
+\subsection{Stocks de CO$_2$ et d'O$_2$}
+\[
+C_{CO_2}\,\frac{\dd P_aCO_2}{\dd t} = \dot V_{CO_2} - \frac{\dot V_A\,P_aCO_2}{0{,}863},\qquad
+V_{CRF}\,\frac{\dd P_AO_2}{\dd t} = \dot V_A\,(P_IO_2 - P_AO_2) - 0{,}863\,\frac{\dot V_{CO_2}}{QR}.
+\]
+Leurs équilibres sont exactement les relations algébriques de \vp{gas.rs} ($P_aCO_2 = 0{,}863\,\dot V_{CO_2}/\dot V_A$,
+$P_AO_2 = F_IO_2(P_B - 47) - P_aCO_2/QR$). L'évaluation reçoit une commande ventilatoire et une FiO$_2$ \emph{équivalentes},
+qui lui font retrouver les valeurs dynamiques :
+\[
+\vp{vent_drive}_{eq} = \frac{0{,}863\,\dot V_{CO_2}/P_aCO_2}{\vp{va0}\cdot bw\cdot f_{K}\cdot \chi(P_aCO_2, pH, P_aO_2)},\qquad
+F_IO_{2,eq} = \frac{P_AO_2 + P_aCO_2/QR}{P_B - 47},
+\]
+où $\chi$ est la stimulation chimique de \vp{gas_exchange} et $f_K$ la faiblesse hypokaliémique de \vp{evaluate}.
+La ventilation réelle vaut $\vp{va0}\cdot bw\cdot\vp{vent_drive}\cdot f_K\cdot\chi$ en ventilation spontanée
+et $\mathrm{FR}\,(V_T - V_D)$ en ventilation contrôlée. Apnée signalée si $\dot V_A < 10\,\%$ du repos.
+
+\subsection{Halogénés}
+Pressions partielles en \% d'atmosphère ; circuit filtre de volume $V_{circ}$, alvéoles ($V_{CRF}$), trois tissus perfusés
+(groupe richement vascularisé dont le cerveau, muscle, graisse) :
+\begin{align*}
+V_{circ}\,\dot P_I &= \dot V_{DGF}(P_{vap} - P_I) - \dot V_A(P_I - P_A) \quad(\text{intubé}),\\
+V_{CRF}\,\dot P_A &= \dot V_A(P_I - P_A) - \lambda_{s/g}\,\mathrm{DC}\,(P_A - P_{\bar v}), \qquad P_{\bar v} = \textstyle\sum_i f_i P_i,\\
+\dot P_i &= \frac{f_i\,\mathrm{DC}}{V_i\,\lambda_{t/s,i}}\,(P_A - P_i).
+\end{align*}
+En circuit sans réinhalation, $P_I$ suit $P_{vap}$ (constante \SI{0,1}{min}). Non intubé, $P_I = 0$ (élimination à l'air).
+Les effets de l'agent sont des effets JSON des variables $M = P_A/\mathrm{MAC}$ et $MB = P_{cerveau}/\mathrm{MAC}$ ; le couplage avec
+DC et $\dot V_A$ fait émerger la spirale du surdosage, le réveil retardé par l'hypoventilation et l'approfondissement lent en bas débit.
+
+\subsection{Profondeur et conscience}
+\[
+H = \sum_{\text{halogénés}} \frac{P_{cerveau}}{\mathrm{MAC}} + \sum_{\text{IV}} \frac{C_e}{c_{imm}},\qquad
+\Delta = \frac{H}{(1 - R)\,f_T},\qquad
+L = \frac{H}{(1 - S_d)\,f_T},
+\]
+$R = 1 - \prod(1 - R_j)$ l'épargne de MAC combinée, $S_d = 1 - \prod(1 - S_j)$ la sédation combinée,
+$f_T = \max(0{,}3;\ 1 - \vp{mac_per_c}\,(T_0 - T))$. Conscience perdue si $L \ge \vp{loc_mac}$ ; niveau de conscience
+$(1 - S_d)\,\mathrm{clip}(1 - L/\vp{loc_mac}, 0, 1)$. Plans et réflexes par seuils de $\Delta$ (palpébral, mâchoire, globe, mydriase)
+et de $L$ (déglutition) ; un agent dissociatif majoritaire conserve le réflexe palpébral et le globe central.
+
+\subsection{Nociception, douleur et conséquences}
+\begin{align*}
+N_{eff} &= \max_k\ N_k\,(1 - b_{terr(k)})\,(1 + \vp{sens_gain}\,S), \qquad
+\nu^* = N_{eff}\,(1 - A_{méd})\,\Bigl(1 - \frac{\Delta^h}{\mathrm{MAC_{BAR}}^h + \Delta^h}\Bigr),\\
+\dot\nu &= (\nu^* - \nu)/\tau_\nu,\qquad \dot\sigma = (\nu - \sigma)/\tau_{stress},\qquad
+\dot S = k_S\,\nu\,(1 - S)(1 - E_{NMDA}) - S/\tau_S.
+\end{align*}
+$N_k$ : stimuli actifs (temps opératoires du scénario, stimulus test, douleur postopératoire décroissante) ;
+$b$ : fraction bloquée par les blocs locorégionaux du territoire ; $A_{méd}$ : antinociception combinée.
+Mouvement si $u_k < 1/(1 + (\Delta/N_{eff})^\gamma)$, $u_k$ tiré à chaque stimulus (graine explicite), patient inconscient.
+Les conséquences passent par les effets JSON de \vp{anesthesia_model.json} : $\nu$ relève le tonus sympathique de base \vp{s0}
+(d'où FC, inotropisme, RVS et recrutement veineux par le baroréflexe existant) et la commande ventilatoire ; l'état de stress $\sigma$
+augmente VO$_2$, VCO$_2$ et la glycémie. La sensibilisation $S$ amplifie les stimuli ultérieurs et la douleur postopératoire.
+Indice de douleur du modèle $10\,\nu$ (échelle 0--10 non validée) quand le patient est conscient ; agitation au réveil si la
+conscience est partielle et $\nu > 0{,}4$.
+
+\subsection{Température, remplissage, hémorragie}
+\[
+\dot T = \frac{(T_0 - T_{amb})\,\frac{VO_2}{VO_{2,0}} - [1 + (g - 1)\,a]\,(T - T_{amb})}{\tau} + \dot T_{réch},\qquad
+\dot V_f = \text{débit} - V_f/\tau_{crist},
+\]
+$a = \mathrm{clip}(L/\vp{loc_mac}, 0, 1)$. Le volume intravasculaire de cristalloïde s'ajoute à \vp{vol_shift}, les pertes sanguines
+s'en retranchent ; $hb \leftarrow hb\cdot(VS - pertes)/(VS - pertes + V_f)$. VO$_2$ et VCO$_2$ suivent un Q$_{10}$ de 2 (effet JSON de $DT$).
+
+\section{Modules et schémas}
+\begin{tabularx}{\linewidth}{P{5.2cm}P{3.6cm}L}
+\toprule
+Fichiers & Schéma & Contenu \\
+\midrule
+\vp{modules/anesthesia/agents/*.json} & \vp{drug.schema.json} + bloc \vp{anesthesia} & 12 agents : dexmédétomidine, acépromazine, méthadone, fentanyl, propofol, alfaxalone, kétamine, midazolam, lidocaïne, bupivacaïne, atipamézole, naloxone. \\
+\vp{modules/anesthesia/inhalants/*.json} & \vp{inhalant.schema.json} & isoflurane, sévoflurane. \\
+\vp{modules/anesthesia/anesthesia_model.json} & \vp{anesthesia_model.schema.json} & constantes (chacune avec niveau de preuve et source), tissus, effets de la nociception et de la température. \\
+\vp{modules/anesthesia/procedures/*.json} & \vp{procedure.schema.json} & ovariohystérectomie, orchiectomie (temps opératoires, territoires, douleur postopératoire). \\
+\bottomrule
+\end{tabularx}
+
+Les modules d'anesthésie sont rangés à part : les catalogues existants (\vp{modules/drugs}) et le golden ne changent pas.
+Les modules médicaments ordinaires (atropine, par exemple) peuvent aussi être chargés dans une session.
+
+\section{Provenance des valeurs}
+\input{anesthesie_provenance.tex}
+
+\section{Calibration}
+\input{anesthesie_calibration.tex}
+
+\section{Validation}
+Tests \vp{crates/vetsim-core/tests/anesthesia.rs} (18) et \vp{crates/vetsim-api/tests/anesthesia.rs} (1). Chaque test compare un
+scénario à un témoin sans le facteur étudié, pour pouvoir échouer pour la raison qu'il vérifie.
+\begin{tabularx}{\linewidth}{P{6.2cm}L}
+\toprule
+Test & Propriété \\
+\midrule
+\vp{session_without_drugs_reproduces_eval} & invariant d'équilibre ($10^{-9}$). \\
+\vp{apnea_raises_paco2_and_preoxygenation_delays_desaturation} & PaCO$_2$ monte en apnée ; délai de désaturation plus de 3 fois plus long après 3 min d'O$_2$. \\
+\vp{sevoflurane_equilibrates_faster_than_isoflurane} & $F_A/F_I$ plus haut à 5 min (solubilité). \\
+\vp{low_fresh_gas_flow_slows_deepening} & bas débit de gaz frais : approfondissement plus lent. \\
+\vp{isoflurane_depresses_blood_pressure_and_ventilation_dose_dependently} & PAM, PaCO$_2$, $\Delta$ dépendants de la dose. \\
+\vp{fentanyl_spares_mac} & épargne de MAC, $\Delta$ augmenté à vaporisateur égal. \\
+\vp{surgical_stimulus_activates_sympathetic_and_analgesia_blunts_it} & le pédicule ovarien élève FC et PAM ; fentanyl et bloc atténuent $\nu$. \\
+\vp{light_plane_moves_under_supramaximal_stimulus} & mouvement sous 1 MAC, pas en plan profond. \\
+\vp{sevoflurane_recovers_faster_than_isoflurane} & retour de la déglutition plus précoce (ordre de Lopez 2009). \\
+\vp{atipamezole_reverses_dexmedetomidine} & sédation levée, FC remontée. \\
+\vp{premedication_reduces_propofol_requirement} & 2,6 mg/kg de propofol : inconscience seulement après prémédication. \\
+\vp{uncontrolled_nociception_sensitizes_and_ketamine_limits_it} & sensibilisation, freinée par la kétamine. \\
+\vp{anesthesia_cools_and_warming_limits_it} & hypothermie peropératoire, limitée par le réchauffement. \\
+\vp{hemorrhage_lowers_pressure_and_hematocrit_dilutes_with_fluids} & hémorragie, remplissage, hémodilution. \\
+\vp{deterministic_for_a_seed}, \vp{record_and_milestones}, \vp{invalid_actions_are_rejected}, \vp{modules_load} & déterminisme, feuille et jalons, erreurs, validation. \\
+\bottomrule
+\end{tabularx}
+
+\section{API et interface}
+Messages JSON (\vp{vetsim-api}, donc UniFFI et WebAssembly) :
+\begin{Verbatim}
+{"op": "anesthesia_list"}
+{"op": "anesthesia_start",  "patient": "p1", "options": {"seed": 1, "procedure": "ovariohysterectomy"}}
+{"op": "anesthesia_event",  "options": {"session": "a2", "event": {"type": "bolus", "agent": "propofol",
+                                        "mg_per_kg": 4, "route": "iv"}}}
+{"op": "anesthesia_step",   "options": {"session": "a2", "dt_s": 5, "n": 12, "all": true, "waves_s": 4}}
+{"op": "anesthesia_record", "options": {"session": "a2"}}
+\end{Verbatim}
+Événements : \vp{bolus}, \vp{cri}, \vp{vaporizer}, \vp{fresh_gas}, \vp{circuit}, \vp{intubate}, \vp{extubate}, \vp{ventilation},
+\vp{oxygen}, \vp{stimulus}, \vp{procedure_step}, \vp{end_surgery}, \vp{local_block}, \vp{fluids}, \vp{fluid_bolus}, \vp{hemorrhage}, \vp{warming}.
+\vp{loadModules} accepte un bloc \vp{anesthesia} (\vp{model}, \vp{agents}, \vp{inhalants}, \vp{procedures}).
+
+L'onglet « Anesthésie » de l'application web (\vp{web/anesthesia.js}) affiche un moniteur (ECG D~II et pression artérielle simulés
+par le moteur, capnogramme schématique, valeurs, alarmes), les signes cliniques, trois tendances, les actions et la feuille d'anesthésie ;
+vitesse ×1, ×10 ou ×60.
+
+\section{Limites connues}
+\begin{itemize}
+\item Baroréflexe en régime permanent à chaque pas (pas de retard propre) : acceptable pour des pas de quelques secondes.
+\item Aucune synergie spécifique opioïde--halogéné sur la ventilation (effets multiplicatifs simples) ; la PaCO$_2$ de 55 mmHg
+après morphine sous isoflurane (Steffey 1993) n'est pas une cible du modèle.
+\item Contribution hypnotique et épargne de MAC de la kétamine cumulées dans $\Delta$.
+\item Propofol : $c_{imm}$ calé sur l'épargne de MAC place la perte de conscience vers \SI{4}{mg/L}, au-dessus des cibles d'induction
+publiées (2,5--3,5 µg/mL prédits) : écart signalé, non corrigé.
+\item Toxicité de la lidocaïne (convulsions) non représentée ; ESV de stress non branchées ; pas de modèle de voies aériennes
+(obstruction, intubation sélective), ni de chat.
+\item Intensités des temps opératoires, constantes de nociception, de température et de stockage des gaz : placeholders \evD.
+\end{itemize}
+
+\end{document}

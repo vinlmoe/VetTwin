@@ -235,6 +235,227 @@
   },
   "notes": {
    "type": "string"
+  },
+  "anesthesia": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "classes",
+    "evidence"
+   ],
+   "description": "Pharmacodynamie anesthésique (session d'anesthésie, docs/ANESTHESIE.md). Effets en fonction de la concentration au site effet Ce (mg/L).",
+   "properties": {
+    "classes": {
+     "type": "array",
+     "items": {
+      "enum": [
+       "alpha2_agonist",
+       "phenothiazine",
+       "benzodiazepine",
+       "opioid",
+       "hypnotic",
+       "dissociative",
+       "local_anesthetic",
+       "antagonist"
+      ]
+     }
+    },
+    "ke0_per_min": {
+     "type": "number",
+     "exclusiveMinimum": 0
+    },
+    "im": {
+     "type": "object",
+     "required": [
+      "f",
+      "ka_per_h"
+     ],
+     "properties": {
+      "f": {
+       "type": "number",
+       "minimum": 0,
+       "maximum": 1
+      },
+      "ka_per_h": {
+       "type": "number",
+       "exclusiveMinimum": 0
+      }
+     }
+    },
+    "sc": {
+     "type": "object",
+     "required": [
+      "f",
+      "ka_per_h"
+     ],
+     "properties": {
+      "f": {
+       "type": "number",
+       "minimum": 0,
+       "maximum": 1
+      },
+      "ka_per_h": {
+       "type": "number",
+       "exclusiveMinimum": 0
+      }
+     }
+    },
+    "c_imm_mg_L": {
+     "type": "number",
+     "exclusiveMinimum": 0,
+     "description": "Ce équivalente à 1 MAC : contribution hypnotique Ce/c_imm."
+    },
+    "sedation": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "max",
+      "ec50_mg_L",
+      "hill"
+     ],
+     "properties": {
+      "max": {
+       "type": "number",
+       "minimum": 0,
+       "maximum": 1
+      },
+      "ec50_mg_L": {
+       "type": "number",
+       "exclusiveMinimum": 0
+      },
+      "hill": {
+       "type": "number",
+       "exclusiveMinimum": 0
+      }
+     }
+    },
+    "mac_reduction": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "max",
+      "ec50_mg_L",
+      "hill"
+     ],
+     "properties": {
+      "max": {
+       "type": "number",
+       "minimum": 0,
+       "maximum": 1
+      },
+      "ec50_mg_L": {
+       "type": "number",
+       "exclusiveMinimum": 0
+      },
+      "hill": {
+       "type": "number",
+       "exclusiveMinimum": 0
+      }
+     }
+    },
+    "antinociception": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "max",
+      "ec50_mg_L",
+      "hill"
+     ],
+     "properties": {
+      "max": {
+       "type": "number",
+       "minimum": 0,
+       "maximum": 1
+      },
+      "ec50_mg_L": {
+       "type": "number",
+       "exclusiveMinimum": 0
+      },
+      "hill": {
+       "type": "number",
+       "exclusiveMinimum": 0
+      }
+     }
+    },
+    "antihyperalgesia": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "max",
+      "ec50_mg_L",
+      "hill"
+     ],
+     "properties": {
+      "max": {
+       "type": "number",
+       "minimum": 0,
+       "maximum": 1
+      },
+      "ec50_mg_L": {
+       "type": "number",
+       "exclusiveMinimum": 0
+      },
+      "hill": {
+       "type": "number",
+       "exclusiveMinimum": 0
+      }
+     }
+    },
+    "antagonist": {
+     "type": "object",
+     "required": [
+      "targets",
+      "ki_mg_L"
+     ],
+     "properties": {
+      "targets": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "minItems": 1
+      },
+      "ki_mg_L": {
+       "type": "number",
+       "exclusiveMinimum": 0
+      }
+     }
+    },
+    "local": {
+     "type": "object",
+     "required": [
+      "onset_min",
+      "duration_min",
+      "efficacy"
+     ],
+     "properties": {
+      "onset_min": {
+       "type": "number",
+       "minimum": 0
+      },
+      "duration_min": {
+       "type": "number",
+       "exclusiveMinimum": 0
+      },
+      "efficacy": {
+       "type": "number",
+       "minimum": 0,
+       "maximum": 1
+      }
+     }
+    },
+    "evidence": {
+     "enum": [
+      "A",
+      "B",
+      "C",
+      "D"
+     ]
+    },
+    "source": {
+     "type": "string"
+    }
+   }
   }
  }
 }

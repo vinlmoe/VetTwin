@@ -154,6 +154,10 @@ pub fn apply_drug_effects(
         );
         let x = |c: f64| if urinary { c * p.nephron_mass } else { c };
         env.set_num("E", c.map_or(0.0, |c| emax_effect(m, x(c))));
+        // agents d'anesthésie : hors session, site effet = plasma
+        if m.anesthesia.is_some() {
+            env.set_num("EP", c.map_or(0.0, |c| emax_effect(m, x(c))));
+        }
         if diuretic {
             env.set_num("D", d);
             env.set_num("U", u);

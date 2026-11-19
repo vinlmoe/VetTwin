@@ -64,11 +64,11 @@ export function timeChart(canvas, opts) {
   const Y = (v) => 4 + (1 - (v - lo) / ys) * (H - 8);
   // graduations
   ctx.font = '10px system-ui, sans-serif'; ctx.fillStyle = COLORS.muted; ctx.strokeStyle = COLORS.grid; ctx.lineWidth = 1;
-  const ticks = opts.ticks === 'treatment' ? treatmentTicks(span) : secondTicks(span);
+  const ticks = opts.ticks === 'treatment' ? treatmentTicks(span) : opts.ticks === 'min' ? minuteTicks(span) : secondTicks(span);
   for (let t = Math.ceil(x0 / ticks) * ticks; t <= x1 + 1e-9; t += ticks) {
     const x = X(t);
     ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
-    const lab = opts.ticks === 'treatment' ? (ticks >= 24 ? `J${Math.round(t / 24)}` : dayLabel(t)) : `${fmt(t, ticks < 0.5 ? 2 : 1)} s`;
+    const lab = opts.ticks === 'treatment' ? (ticks >= 24 ? `J${Math.round(t / 24)}` : dayLabel(t)) : opts.ticks === 'min' ? `${Math.round(t)} min` : `${fmt(t, ticks < 0.5 ? 2 : 1)} s`;
     if (x + 40 < w) ctx.fillText(lab, x + 2, h - 3);
   }
   // graduations verticales « rondes » (1, 2, 5 × 10ⁿ) dans [lo, hi], avec lignes de grille
@@ -128,6 +128,7 @@ function niceTicks(lo, hi, n) {
 }
 
 function secondTicks(span) { return span <= 1 ? 0.1 : span <= 3 ? 0.25 : span <= 6 ? 0.5 : 1; }
+function minuteTicks(span) { return span <= 12 ? 1 : span <= 30 ? 5 : span <= 90 ? 10 : 30; }
 function treatmentTicks(span) { return span <= 48 ? 6 : 24; }
 
 function countVisible(s, x0, x1) {

@@ -1,0 +1,282 @@
+{
+ "schema_version": "1.0.0",
+ "id": "anesthesia_model",
+ "version": "1.1.0",
+ "name": {
+  "fr": "Constantes du modèle d'anesthésie"
+ },
+ "evidence": "D",
+ "values": {
+  "co2_store_ml_mmhg_kg": {
+   "value": 1.0,
+   "evidence": "D",
+   "source": "Placeholder : capacité de stockage du CO2 choisie pour une montée de PaCO2 de l'ordre de 4 à 5 mmHg/min en apnée (VCO2 4,6 mL/kg/min du patient). À sourcer sur une étude d'apnée chez le chien."
+  },
+  "frc_ml_kg": {
+   "value": 45.0,
+   "evidence": "D",
+   "source": "Placeholder : CRF de l'ordre de 45 mL/kg, non sourcée ; fixe le délai de désaturation en apnée."
+  },
+  "vd_ml_kg": {
+   "value": 3.0,
+   "evidence": "D",
+   "source": "Placeholder : espace mort anatomique + appareil en ventilation contrôlée."
+  },
+  "circuit_l": {
+   "value": 3.0,
+   "evidence": "D",
+   "source": "Placeholder : volume d'un circuit filtre adulte."
+  },
+  "etco2_gap_mmhg": {
+   "value": 3.0,
+   "evidence": "D",
+   "source": "Placeholder : écart PaCO2 − EtCO2 chez le sujet sain."
+  },
+  "flowby_fio2": {
+   "value": 0.4,
+   "evidence": "D",
+   "source": "Placeholder : FiO2 obtenue en flow-by."
+  },
+  "loc_mac": {
+   "value": 0.65,
+   "evidence": "C",
+   "source": "MAC-awake du chien : rapports 0,77 (isoflurane 1,0/1,3 %) et 0,62 (sévoflurane 1,3/2,1 %), Hofmeister 2008 (résumé) ; moyenne arrondie."
+  },
+  "swallow_mac": {
+   "value": 0.5,
+   "evidence": "C",
+   "source": "MAC-extubation du sévoflurane : rapport 0,51 ± 0,08 (le chien lève la tête ou mâchonne la sonde), Murahata 2018 (PMC6068302, lu)."
+  },
+  "palpebral_mac": {
+   "value": 0.9,
+   "evidence": "D",
+   "source": "Placeholder : perte du réflexe palpébral."
+  },
+  "jaw_mac": {
+   "value": 1.2,
+   "evidence": "D",
+   "source": "Placeholder : perte du tonus de la mâchoire."
+  },
+  "surgical_mac": {
+   "value": 1.0,
+   "evidence": "D",
+   "source": "Placeholder : début du plan chirurgical (1 MAC : 50 % d'immobilité au stimulus supramaximal)."
+  },
+  "deep_mac": {
+   "value": 1.8,
+   "evidence": "D",
+   "source": "Placeholder : plan profond (globe recentré)."
+  },
+  "excessive_mac": {
+   "value": 2.5,
+   "evidence": "D",
+   "source": "Placeholder : surdosage (mydriase)."
+  },
+  "mac_bar": {
+   "value": 1.6,
+   "evidence": "C",
+   "source": "MAC-BAR du sévoflurane : 3,33 % pour une MAC de 2,10 % (rapport 1,59, Yamashita 2012, résumé) ; rapport 2,05 chez Murahata 2018."
+  },
+  "bar_hill": {
+   "value": 3.0,
+   "evidence": "D",
+   "source": "Placeholder : pente de la suppression de la réponse autonome."
+  },
+  "move_hill": {
+   "value": 10.0,
+   "evidence": "D",
+   "source": "Placeholder : pente de la courbe d'immobilité (relation dose-réponse raide de la MAC)."
+  },
+  "tau_nu_s": {
+   "value": 15.0,
+   "evidence": "D",
+   "source": "Placeholder : constante de temps de la réponse nociceptive."
+  },
+  "tau_stress_min": {
+   "value": 20.0,
+   "evidence": "D",
+   "source": "Placeholder : constante de temps de la réponse de stress (VO2, glycémie)."
+  },
+  "sens_rate_per_min": {
+   "value": 0.05,
+   "evidence": "D",
+   "source": "Placeholder : vitesse de sensibilisation centrale sous nociception non contrôlée."
+  },
+  "sens_tau_h": {
+   "value": 24.0,
+   "evidence": "D",
+   "source": "Placeholder : retour de la sensibilisation."
+  },
+  "sens_gain": {
+   "value": 0.5,
+   "evidence": "D",
+   "source": "Placeholder : amplification maximale de la nociception par la sensibilisation (+50 %)."
+  },
+  "t0_c": {
+   "value": 38.5,
+   "evidence": "D",
+   "source": "Placeholder : température de référence du chien."
+  },
+  "t_amb_c": {
+   "value": 21.0,
+   "evidence": "D",
+   "source": "Placeholder : température du bloc opératoire."
+  },
+  "tau_cool_h": {
+   "value": 12.0,
+   "evidence": "D",
+   "source": "Placeholder : constante thermique ; avec loss_gain_anesth = 2 et VO2 −20 %, refroidissement initial ≈ 1,75 °C/h."
+  },
+  "loss_gain_anesth": {
+   "value": 2.0,
+   "evidence": "D",
+   "source": "Placeholder : pertes thermiques doublées sous anesthésie (vasodilatation, perte du comportement)."
+  },
+  "warming_c_per_h": {
+   "value": 1.5,
+   "evidence": "D",
+   "source": "Placeholder : apport d'un réchauffement actif à air pulsé."
+  },
+  "mac_per_c": {
+   "value": 0.05,
+   "evidence": "D",
+   "source": "Placeholder : réduction de MAC par °C d'hypothermie (ordre de grandeur humain non lu)."
+  },
+  "blood_volume_ml_kg": {
+   "value": 85.0,
+   "evidence": "D",
+   "source": "Volume sanguin de 85 mL/kg, déjà utilisé par le baroréflexe du moteur (MODEL_SPEC §3)."
+  },
+  "crystalloid_tau_min": {
+   "value": 30.0,
+   "evidence": "D",
+   "source": "Placeholder : sortie vasculaire des cristalloïdes."
+  }
+ },
+ "tissues": {
+  "vrg": {
+   "vol_L_kg": 0.09,
+   "co_frac": 0.75
+  },
+  "muscle": {
+   "vol_L_kg": 0.5,
+   "co_frac": 0.19
+  },
+  "fat": {
+   "vol_L_kg": 0.2,
+   "co_frac": 0.06
+  }
+ },
+ "nociception_effects": [
+  {
+   "param": "s0",
+   "op": "add",
+   "expr": {
+    "mul": [
+     0.4,
+     "NU"
+    ]
+   },
+   "clamp": [
+    0,
+    1
+   ]
+  },
+  {
+   "param": "vent_drive",
+   "op": "mul",
+   "expr": {
+    "add": [
+     1,
+     {
+      "mul": [
+       0.3,
+       "NU"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "param": "vo2",
+   "op": "mul",
+   "expr": {
+    "add": [
+     1,
+     {
+      "mul": [
+       0.15,
+       "STRESS"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "param": "vco2",
+   "op": "mul",
+   "expr": {
+    "add": [
+     1,
+     {
+      "mul": [
+       0.15,
+       "STRESS"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "param": "glucose",
+   "op": "mul",
+   "expr": {
+    "add": [
+     1,
+     {
+      "mul": [
+       0.3,
+       "STRESS"
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "temperature_effects": [
+  {
+   "param": "vo2",
+   "op": "mul",
+   "expr": {
+    "exp": [
+     {
+      "mul": [
+       0.0693,
+       "DT"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "param": "vco2",
+   "op": "mul",
+   "expr": {
+    "exp": [
+     {
+      "mul": [
+       0.0693,
+       "DT"
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "refs": [
+  "Hofmeister EH et al. 2008, Am J Vet Res 69:451, doi:10.2460/ajvr.69.4.451 (résumé)",
+  "Murahata Y et al. 2018, J Vet Med Sci (PMC6068302, lu)",
+  "Yamashita K et al. 2012, J Vet Med Sci, doi:10.1292/jvms.11-0274 (résumé)"
+ ],
+ "notes": "Tous placeholders D : mécanismes posés, valeurs à sourcer. Tissus : répartition classique des modèles physiologiques d'absorption (groupe richement vascularisé 9 % du poids et 75 % du débit ; muscle 50 % / 19 % ; graisse 20 % / 6 %), d'origine humaine, non lue. Nociception : NU relève le tonus sympathique de base (s0, d'où FC, inotropisme, RVS et recrutement veineux par le baroréflexe du moteur), la commande ventilatoire, et, par l'état de stress lent, VO2, VCO2 et la glycémie. Température : Q10 = 2 sur VO2 et VCO2 (exp(ln2/10·ΔT)). Les ESV de stress (vpc_rate) ne sont pas branchées : elles basculeraient l'évaluation sur la conduction battement par battement."
+}

@@ -1,0 +1,77 @@
+{
+ "schema_version": "1.0.0",
+ "species": [
+  "dog"
+ ],
+ "license": "CC-BY-4.0",
+ "id": "alfaxalone",
+ "version": "1.0.0",
+ "name": {
+  "fr": "Alfaxalone"
+ },
+ "evidence": "C",
+ "pk": {
+  "vc_L_kg": 0.4,
+  "vp_L_kg": 0.54,
+  "cl_mL_min_kg": 26.0,
+  "q_mL_min_kg": 8.5,
+  "ka_per_h": 1.0,
+  "f": 0.0,
+  "renal_exp": 0.0,
+  "hep_exp": 1.0
+ },
+ "pd": {
+  "type": "emax",
+  "emax": 1.0,
+  "ec50_mg_L": 1.0,
+  "hill": 2.0,
+  "effects": [
+   {
+    "param": "r_sys",
+    "op": "mul",
+    "expr": {
+     "add": [
+      1,
+      {
+       "mul": [
+        -0.15,
+        "E"
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "param": "vent_drive",
+    "op": "mul",
+    "expr": {
+     "add": [
+      1,
+      {
+       "mul": [
+        -0.85,
+        "E"
+       ]
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "anesthesia": {
+  "classes": [
+   "hypnotic"
+  ],
+  "ke0_per_min": 0.7,
+  "c_imm_mg_L": 2.0,
+  "evidence": "C",
+  "source": "PK : Vss 0,94 L/kg, Cl 26 mL/kg/min, Q 8,5 mL/kg/min (Dehuisser 2019, résumé) ; partage Vc/Vp placeholder D. ke0 placeholder D (classe). c_imm calé pour que la dose d'induction publiée sans prémédication (2,6–2,8 mg/kg, Maney 2013, Hampton 2019) atteigne la perte de conscience avec la même marge que le propofol à 5,2 mg/kg (calage par session)."
+ },
+ "refs": [
+  "Dehuisser V et al. 2019, Vet Anaesth Analg, doi:10.1016/j.vaa.2019.04.014 (résumé)",
+  "Ferré PJ et al. 2006, Vet Anaesth Analg, doi:10.1111/j.1467-2995.2005.00264.x (résumé)",
+  "Hampton CE et al. 2019, Am J Vet Res, doi:10.2460/ajvr.80.1.33 (résumé)",
+  "Sarotti D et al. 2024, Front Vet Sci (PMC11422344, lu)"
+ ],
+ "notes": "Hémodynamique : PAM peu modifiée (Sarotti 2024, lu ; hypotension 1/14), FC +54 % (Hampton 2019) : vasodilatation modérée placeholder D. Apnée : vent_drive −85 % placeholder D (11/16 chiens, Bigby 2017)."
+}

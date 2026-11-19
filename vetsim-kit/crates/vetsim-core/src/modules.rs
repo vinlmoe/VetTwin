@@ -22,11 +22,11 @@ pub const SCHEMA_VERSION: &str = "1.0.0";
 // Outils de validation
 // ---------------------------------------------------------------------------------------------
 
-struct Ctx {
-    issues: Vec<Issue>,
+pub(crate) struct Ctx {
+    pub(crate) issues: Vec<Issue>,
 }
 
-fn kind_of(v: &Json) -> &'static str {
+pub(crate) fn kind_of(v: &Json) -> &'static str {
     match v {
         Json::Null => "null",
         Json::Bool(_) => "un booléen",
@@ -37,20 +37,20 @@ fn kind_of(v: &Json) -> &'static str {
     }
 }
 
-fn child(path: &str, key: &str) -> String {
+pub(crate) fn child(path: &str, key: &str) -> String {
     format!("{path}/{}", ptr_seg(key))
 }
 
 impl Ctx {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self { issues: Vec::new() }
     }
 
-    fn err(&mut self, path: impl Into<String>, msg: impl Into<String>) {
+    pub(crate) fn err(&mut self, path: impl Into<String>, msg: impl Into<String>) {
         self.issues.push(Issue::new(path, msg));
     }
 
-    fn finish<T>(self, origin: &str, value: T) -> Result<T, LoadError> {
+    pub(crate) fn finish<T>(self, origin: &str, value: T) -> Result<T, LoadError> {
         if self.issues.is_empty() {
             Ok(value)
         } else {
@@ -62,7 +62,7 @@ impl Ctx {
     }
 
     /// Erreur de chargement (garantit au moins un problème).
-    fn fail(mut self, origin: &str) -> LoadError {
+    pub(crate) fn fail(mut self, origin: &str) -> LoadError {
         if self.issues.is_empty() {
             self.err("", "module incomplet");
         }
@@ -72,7 +72,7 @@ impl Ctx {
         }
     }
 
-    fn as_obj<'a>(&mut self, v: &'a Json, path: &str) -> Option<&'a Map<String, Json>> {
+    pub(crate) fn as_obj<'a>(&mut self, v: &'a Json, path: &str) -> Option<&'a Map<String, Json>> {
         match v {
             Json::Object(m) => Some(m),
             other => {
@@ -82,7 +82,7 @@ impl Ctx {
         }
     }
 
-    fn as_num(&mut self, v: &Json, path: &str) -> Option<f64> {
+    pub(crate) fn as_num(&mut self, v: &Json, path: &str) -> Option<f64> {
         match v.as_f64() {
             Some(x) if v.is_number() && x.is_finite() => Some(x),
             _ => {
@@ -92,7 +92,7 @@ impl Ctx {
         }
     }
 
-    fn as_str<'a>(&mut self, v: &'a Json, path: &str) -> Option<&'a str> {
+    pub(crate) fn as_str<'a>(&mut self, v: &'a Json, path: &str) -> Option<&'a str> {
         match v {
             Json::String(s) => Some(s),
             other => {
@@ -102,7 +102,12 @@ impl Ctx {
         }
     }
 
-    fn req<'a>(&mut self, m: &'a Map<String, Json>, path: &str, key: &str) -> Option<&'a Json> {
+    pub(crate) fn req<'a>(
+        &mut self,
+        m: &'a Map<String, Json>,
+        path: &str,
+        key: &str,
+    ) -> Option<&'a Json> {
         let v = m.get(key);
         if v.is_none() {
             self.err(path, format!("champ requis « {key} » manquant"));
@@ -110,17 +115,27 @@ impl Ctx {
         v
     }
 
-    fn req_str<'a>(&mut self, m: &'a Map<String, Json>, path: &str, key: &str) -> Option<&'a str> {
+    pub(crate) fn req_str<'a>(
+        &mut self,
+        m: &'a Map<String, Json>,
+        path: &str,
+        key: &str,
+    ) -> Option<&'a str> {
         let v = self.req(m, path, key)?;
         self.as_str(v, &child(path, key))
     }
 
-    fn req_num(&mut self, m: &Map<String, Json>, path: &str, key: &str) -> Option<f64> {
+    pub(crate) fn req_num(&mut self, m: &Map<String, Json>, path: &str, key: &str) -> Option<f64> {
         let v = self.req(m, path, key)?;
         self.as_num(v, &child(path, key))
     }
 
-    fn opt_num(&mut self, m: &Map<String, Json>, path: &str, key: &str) -> Option<Option<f64>> {
+    pub(crate) fn opt_num(
+        &mut self,
+        m: &Map<String, Json>,
+        path: &str,
+        key: &str,
+    ) -> Option<Option<f64>> {
         match m.get(key) {
             None => Some(None),
             Some(v) => self.as_num(v, &child(path, key)).map(Some),
@@ -128,7 +143,7 @@ impl Ctx {
     }
 
     /// Nombre requis vérifiant un prédicat de domaine.
-    fn req_num_in(
+    pub(crate) fn req_num_in(
         &mut self,
         m: &Map<String, Json>,
         path: &str,
@@ -145,11 +160,11 @@ impl Ctx {
         }
     }
 
-    fn expr(&mut self, v: &Json, path: &str, scope: &[&str]) -> Option<Expr> {
+    pub(crate) fn expr(&mut self, v: &Json, path: &str, scope: &[&str]) -> Option<Expr> {
         Expr::parse(v, path, scope, &mut self.issues)
     }
 
-    fn pair(&mut self, v: &Json, path: &str) -> Option<(f64, f64)> {
+    pub(crate) fn pair(&mut self, v: &Json, path: &str) -> Option<(f64, f64)> {
         match v {
             Json::Array(a) if a.len() == 2 => {
                 let lo = self.as_num(&a[0], &format!("{path}/0"))?;
@@ -166,7 +181,7 @@ impl Ctx {
         }
     }
 
-    fn schema_version(&mut self, m: &Map<String, Json>) {
+    pub(crate) fn schema_version(&mut self, m: &Map<String, Json>) {
         if let Some(v) = self.req_str(m, "", "schema_version") {
             if v != SCHEMA_VERSION {
                 self.err(
@@ -179,7 +194,7 @@ impl Ctx {
         }
     }
 
-    fn semver(&mut self, m: &Map<String, Json>) -> String {
+    pub(crate) fn semver(&mut self, m: &Map<String, Json>) -> String {
         let v = self.req_str(m, "", "version").unwrap_or_default();
         let ok = v.split('.').count() == 3
             && v.split('.')
@@ -190,7 +205,7 @@ impl Ctx {
         v.to_string()
     }
 
-    fn evidence(&mut self, m: &Map<String, Json>) -> Evidence {
+    pub(crate) fn evidence(&mut self, m: &Map<String, Json>) -> Evidence {
         let e = self.req_str(m, "", "evidence");
         match e {
             Some("A") => Evidence::A,
@@ -207,7 +222,7 @@ impl Ctx {
         }
     }
 
-    fn text(&mut self, m: &Map<String, Json>, key: &str, required: bool) -> Localized {
+    pub(crate) fn text(&mut self, m: &Map<String, Json>, key: &str, required: bool) -> Localized {
         let mut out = Localized::default();
         let Some(v) = m.get(key) else {
             if required {
@@ -226,7 +241,7 @@ impl Ctx {
         out
     }
 
-    fn species(&mut self, m: &Map<String, Json>) -> Vec<String> {
+    pub(crate) fn species(&mut self, m: &Map<String, Json>) -> Vec<String> {
         let mut out = Vec::new();
         if let Some(v) = m.get("species") {
             match v {
@@ -249,7 +264,7 @@ impl Ctx {
         out
     }
 
-    fn strings(&mut self, m: &Map<String, Json>, key: &str) -> Vec<String> {
+    pub(crate) fn strings(&mut self, m: &Map<String, Json>, key: &str) -> Vec<String> {
         let mut out = Vec::new();
         if let Some(v) = m.get(key) {
             let path = child("", key);
@@ -268,7 +283,7 @@ impl Ctx {
     }
 
     /// Un identifiant de variable (draw, let) : `[A-Za-z_][A-Za-z0-9_]*`.
-    fn ident(&mut self, name: &str, path: &str) -> bool {
+    pub(crate) fn ident(&mut self, name: &str, path: &str) -> bool {
         let mut chars = name.chars();
         let ok = matches!(chars.next(), Some(c) if c.is_ascii_alphabetic() || c == '_')
             && chars.all(|c| c.is_ascii_alphanumeric() || c == '_');
@@ -278,7 +293,7 @@ impl Ctx {
         ok
     }
 
-    fn param(&mut self, name: &str, path: &str) -> Option<&'static str> {
+    pub(crate) fn param(&mut self, name: &str, path: &str) -> Option<&'static str> {
         let found = Params::NAMES.iter().copied().find(|n| *n == name);
         if found.is_none() {
             self.err(path, format!("paramètre inconnu « {name} »"));
@@ -286,7 +301,7 @@ impl Ctx {
         found
     }
 
-    fn effects(
+    pub(crate) fn effects(
         &mut self,
         v: Option<&Json>,
         path: &str,
@@ -313,7 +328,7 @@ impl Ctx {
         out
     }
 
-    fn effect(&mut self, v: &Json, path: &str, scope: &[&str]) -> Option<Effect> {
+    pub(crate) fn effect(&mut self, v: &Json, path: &str, scope: &[&str]) -> Option<Effect> {
         let m = self.as_obj(v, path)?;
         let before = self.issues.len();
         for k in m.keys() {
@@ -370,7 +385,7 @@ impl Ctx {
     }
 }
 
-fn parse_json(json: &str, origin: &str) -> Result<Json, LoadError> {
+pub(crate) fn parse_json(json: &str, origin: &str) -> Result<Json, LoadError> {
     serde_json::from_str(json).map_err(|source| LoadError::Json {
         origin: origin.to_string(),
         source,
@@ -1011,6 +1026,8 @@ pub struct DrugModule {
     pub refs: Vec<String>,
     /// Notes libres.
     pub notes: Option<String>,
+    /// Pharmacodynamie anesthésique (optionnelle, module d'anesthésie).
+    pub anesthesia: Option<crate::anesthesia::agent::AnesthesiaPd>,
 }
 
 impl DrugModule {
@@ -1033,10 +1050,14 @@ impl DrugModule {
             .req(m, "", "pk")
             .and_then(|v| c.as_obj(v, "/pk"))
             .and_then(|pk| Self::pk(&mut c, pk));
+        let anesthetic = m.contains_key("anesthesia");
         let pd = c
             .req(m, "", "pd")
             .and_then(|v| c.as_obj(v, "/pd"))
-            .and_then(|pd| Self::pd(&mut c, pd));
+            .and_then(|pd| Self::pd(&mut c, pd, anesthetic));
+        let anesthesia = m
+            .get("anesthesia")
+            .and_then(|a| crate::anesthesia::agent::parse(&mut c, a, "/anesthesia"));
         let refs = c.strings(m, "refs");
         let notes = m
             .get("notes")
@@ -1054,6 +1075,7 @@ impl DrugModule {
                     pd,
                     refs,
                     notes,
+                    anesthesia,
                 },
             ),
             _ => Err(c.fail(origin)),
@@ -1084,7 +1106,7 @@ impl DrugModule {
         })
     }
 
-    fn pd(c: &mut Ctx, m: &Map<String, Json>) -> Option<Pd> {
+    fn pd(c: &mut Ctx, m: &Map<String, Json>, anesthetic: bool) -> Option<Pd> {
         let p = "/pd";
         let kind = match c.req_str(m, p, "type") {
             Some("emax") => Some(PdKind::Emax),
@@ -1143,6 +1165,8 @@ impl DrugModule {
         let hill = c.req_num_in(m, p, "hill", |x| x > 0.0, "> 0");
         let scope: &[&str] = match kind {
             Some(PdKind::Diuretic { .. }) => &["E", "D", "U"],
+            // agent d'anesthésie : `E` au site effet, `EP` sur la concentration plasmatique
+            _ if anesthetic => &["E", "EP"],
             _ => &["E"],
         };
         let effects = c.req(m, p, "effects");

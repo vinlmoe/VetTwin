@@ -1,0 +1,75 @@
+{
+ "schema_version": "1.0.0",
+ "id": "ovariohysterectomy",
+ "version": "1.0.0",
+ "name": {
+  "fr": "Ovariohystérectomie (chienne)"
+ },
+ "evidence": "D",
+ "territories": [
+  "abdominal_wall",
+  "viscera"
+ ],
+ "steps": [
+  {
+   "id": "skin_incision",
+   "label": {
+    "fr": "Incision cutanée et de la ligne blanche"
+   },
+   "intensity": 0.8,
+   "duration_s": 60,
+   "territory": "abdominal_wall"
+  },
+  {
+   "id": "exteriorize",
+   "label": {
+    "fr": "Extériorisation de la corne utérine"
+   },
+   "intensity": 0.7,
+   "duration_s": 120,
+   "territory": "viscera"
+  },
+  {
+   "id": "ovarian_ligament",
+   "label": {
+    "fr": "Rupture du ligament suspenseur et ligature du pédicule ovarien"
+   },
+   "intensity": 1.2,
+   "duration_s": 180,
+   "territory": "viscera"
+  },
+  {
+   "id": "second_pedicle",
+   "label": {
+    "fr": "Second pédicule ovarien"
+   },
+   "intensity": 1.2,
+   "duration_s": 180,
+   "territory": "viscera"
+  },
+  {
+   "id": "cervix",
+   "label": {
+    "fr": "Ligature du col utérin"
+   },
+   "intensity": 0.9,
+   "duration_s": 120,
+   "territory": "viscera"
+  },
+  {
+   "id": "closure",
+   "label": {
+    "fr": "Fermeture de la paroi et de la peau"
+   },
+   "intensity": 0.5,
+   "duration_s": 600,
+   "territory": "abdominal_wall"
+  }
+ ],
+ "postop": {
+  "intensity": 0.6,
+  "tau_h": 12,
+  "territory": "abdominal_wall"
+ },
+ "notes": "Intensités relatives (1 = stimulus supramaximal de la définition de la MAC) : placeholders pédagogiques D qui ordonnent les temps opératoires (le pédicule ovarien est le temps le plus stimulant, enseignement classique). Aucune valeur publiée."
+}
