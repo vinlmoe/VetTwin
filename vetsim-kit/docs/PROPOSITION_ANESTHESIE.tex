@@ -1,0 +1,285 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage[margin=1.9cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs,array,tabularx,longtable,ltablex}
+\keepXColumns
+\usepackage{xcolor}
+\usepackage{fancyvrb}
+\usepackage{caption}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit}
+\usepackage[hidelinks]{hyperref}
+\usepackage{textcomp}
+\usepackage{siunitx}
+\sisetup{locale=FR,detect-all}
+
+\setlength{\parskip}{0.4em}
+\setlength{\parindent}{0pt}
+\fvset{fontsize=\small,frame=single,framesep=2mm,rulecolor=\color{black!30}}
+\newcommand{\vp}[1]{\text{\texttt{\detokenize{#1}}}}
+\newcommand{\evC}{\textcolor{orange!80!black}{\textbf{C}}}
+\newcommand{\evD}{\textcolor{red!70!black}{\textbf{D}}}
+\newcommand{\alire}{\textcolor{red!70!black}{\textsl{(non lu, à vérifier)}}}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+\renewcommand{\arraystretch}{1.15}
+\newcommand{\dd}{\mathrm{d}}
+
+\title{Module d'anesthésie en temps réel\\[0.3em]
+\large Proposition d'architecture : de la prémédication au réveil, avec la douleur comme variable d'état}
+\author{Projet VetTwin}
+\date{19 novembre 2026 (exploration, rien n'est implémenté)}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Ce document explore l'ajout au moteur \emph{vetsim} d'un module d'anesthésie générale canine joué en temps réel :
+prémédication, induction, intubation, maintien sous agent halogéné, analgésie peropératoire et réveil.
+La douleur y est une variable d'état à part entière : la stimulation chirurgicale, filtrée par l'antinociception,
+active le sympathique, augmente le besoin en anesthésique, déstabilise l'hémodynamique et conditionne la qualité du réveil.
+Le moteur actuel est quasi stationnaire ; on propose une couche dynamique (session à pas de temps) qui
+réutilise intégralement l'évaluation existante. Toutes les valeurs numériques citées sont des ordres de grandeur
+à sourcer : conformément aux règles du projet, aucune n'entrera dans un module sans source lue, et les manques seront
+des placeholders \evD. Usage pédagogique uniquement.
+\end{abstract}
+
+\section{Point de départ : ce que le moteur sait déjà faire}
+
+\begin{tabularx}{\linewidth}{P{3.4cm}L}
+\toprule
+Brique existante & Utilité pour l'anesthésie \\
+\midrule
+\vp{pkpd.rs} & PK bicompartimentale + dépôt oral, effet Emax, termes toxiques ; effets appliqués aux paramètres par le DSL. Manquent : perfusion continue, voies IM/SC, compartiment effet ($k_{e0}$), agents inhalés. \\
+\vp{engine.rs} (baroréflexe) & Point fixe sympathique/vagal : $s_{tot}$, $v_{tot}$, \vp{vagal_add}, \vp{beta_block}. C'est la porte d'entrée naturelle de la douleur (activation sympathique) et des $\alpha_2$-agonistes. \\
+\vp{gas.rs} & Stewart, échanges gazeux, \vp{vent_drive}, \vp{fio2}. Mais $\mathrm{PaCO_2}$ y est \emph{algébrique} (équilibre instantané) : pas de stock de CO$_2$ ni d'O$_2$, donc pas de cinétique d'apnée ni de préoxygénation. \\
+Décompensation & Acidémie, hypoxie, ischémie coronaire, décès (\vp{map_arrest}, \vp{oxygen_debt}) : directement réutilisables pour les complications anesthésiques. \\
+\vp{rhythm.rs}, ECG, PCG & Bradycardie vagale, bloc AV (contre-indication des $\alpha_2$), ESV (\vp{vpc_rate}) sensibles aux catécholamines. \\
+Modules maladies & MMVD, MRC, Addison, bloc AV, FA : comorbidités anesthésiques toutes prêtes (classe ASA). \\
+Opioïde générique & PK méthadone, PD calée sur le chien vigile ; la note du module signale déjà que l'apnée sous halogéné « n'est pas modélisée ». \\
+\bottomrule
+\end{tabularx}
+
+\paragraph{Faisabilité du temps réel.} Mesure du 19/11/2026 (binaire natif, \vp{vetsim-cli eval}, chien de \SI{20}{kg} sous opioïde) :
+20 évaluations complètes en \SI{0,31}{s}, lancement du processus compris, soit environ \SI{15}{ms} par évaluation.
+Une réévaluation à \SIrange{1}{4}{Hz} tient donc largement, y compris en WebAssembly, et autorise une accélération ×10 à ×60
+(réveil d'une heure joué en quelques minutes).
+
+\section{Principe : une session dynamique autour du moteur quasi stationnaire}
+
+Le moteur reste la référence normative et n'est pas réécrit. On ajoute une \emph{session} qui porte les états lents et rapides
+absents aujourd'hui, avance par pas $\Delta t$ (typiquement \SI{1}{s}), et à chaque pas :
+\begin{enumerate}
+\item intègre les états dynamiques (PK IV et compartiments effet, agents inhalés, stocks de CO$_2$/O$_2$, douleur, température) ;
+\item transforme ces états en paramètres modifiés (DSL, comme \vp{apply_drug_effects}) ;
+\item appelle l'évaluation existante (baroréflexe, hémodynamique, gaz, décompensation) ;
+\item renvoie au pas suivant les grandeurs dont dépendent les états (débit cardiaque, ventilation alvéolaire, PAM).
+\end{enumerate}
+
+\begin{center}
+\begin{tikzpicture}[node distance=7mm and 9mm, every node/.style={font=\small},
+  b/.style={draw, rounded corners, align=center, minimum height=9mm, inner sep=3pt},
+  a/.style={-{Latex[length=2mm]}, thick}]
+\node[b, fill=blue!6] (ev) {Événements\\(doses, vaporisateur,\\stimulus, ventilateur)};
+\node[b, right=of ev, fill=orange!8] (st) {États dynamiques\\PK + $C_e$, inhalés,\\CO$_2$/O$_2$, douleur, T°};
+\node[b, right=of st, fill=green!7] (pa) {Paramètres\\modifiés (DSL)};
+\node[b, below=of pa, fill=gray!10] (en) {Moteur existant\\baroréflexe, hémo,\\gaz, décompensation};
+\node[b, left=of en, fill=red!6] (mo) {Moniteur, réflexes,\\feuille d'anesthésie};
+\draw[a] (ev) -- (st);
+\draw[a] (st) -- (pa);
+\draw[a] (pa) -- (en);
+\draw[a] (en) -- (mo);
+\draw[a] (en.west) ++(0,0.25) -| node[pos=0.25, above, font=\scriptsize]{DC, $\dot V_A$, PAM} (st.south);
+\end{tikzpicture}
+\end{center}
+
+\paragraph{Invariant fondamental (test d'acceptation).} Une session sans médicament, sans stimulus, laissée à l'équilibre,
+doit reproduire l'évaluation \vp{eval} du golden au bit près (ou à une tolérance documentée si un filtre est ajouté).
+De même, une session sous concentrations constantes doit converger vers \vp{eval --conc}. Cela garantit que la couche
+dynamique n'altère pas le modèle validé.
+
+\subsection{Dynamiques rapides à ajouter}
+\begin{description}
+\item[Stock de CO$_2$.] Remplacer l'équilibre algébrique par
+$V_{CO_2}^{\,stock}\,\dd \mathrm{PaCO_2}/\dd t = \dot V_{CO_2} - \dot V_A\,\mathrm{PaCO_2}/0{,}863$,
+dont l'état stationnaire redonne exactement la relation actuelle de \vp{gas.rs}. La capacité de stockage est à sourcer (\evD{} sinon).
+C'est ce qui rend l'apnée d'induction et l'hypoventilation du réveil visibles (montée de l'EtCO$_2$ en minutes).
+\item[Stock d'O$_2$ (CRF).] Réserve pulmonaire $\propto$ CRF $\times F_AO_2$ : la préoxygénation allonge le délai de désaturation
+en apnée ; la désaturation est d'autant plus rapide que la CRF est réduite (décubitus, obésité, distension abdominale).
+\item[Baroréflexe à retard.] Le point fixe actuel donne la cible ; la session filtre la commande $d$ par un premier ordre
+(constante de quelques secondes, cohérente avec le $\tau_s = \SI{3}{s}$ du modèle autonome). Sinon une hypotension d'induction
+serait corrigée instantanément.
+\item[Température.] Optionnel (jalon tardif) : perte de chaleur peropératoire, avec effets sur MAC, métabolisme ($\dot V_{O_2}$),
+clairances, FC et durée du réveil.
+\end{description}
+
+\section{Pharmacologie à couvrir}
+
+\subsection{Agents intraveineux, IM, SC}
+Extensions de la PK existante (schéma \vp{drug.schema.json}, rétrocompatibles) :
+\begin{itemize}
+\item voies \vp{im}, \vp{sc} (dépôt avec $k_a$ propre, déjà presque disponible via le dépôt oral) et \vp{cri} (débit en \si{\micro\gram\per\kilo\gram\per\minute} ou \si{mg/kg/h}, début, fin) ;
+\item compartiment effet : $\dd C_e/\dd t = k_{e0}(C_p - C_e)$, champ optionnel \vp{pk.ke0_per_min}. Indispensable pour le décalage induction/perte de conscience et pour le titrage « à effet » du propofol ;
+\item rôles PD séparés : \vp{pd.hypnosis} (contribution à l'hypnose), \vp{pd.antinociception}, \vp{pd.mac_reduction} (fraction maximale, EC50), en plus des \vp{effects} hémodynamiques actuels ;
+\item antagonistes (atipamézole, naloxone) : déplacement compétitif de l'Emax, $E = \dfrac{(C/EC_{50})^h}{1 + (C/EC_{50})^h + (C_{ant}/K_i)^{h}}$.
+\end{itemize}
+
+\begin{tabularx}{\linewidth}{P{2.7cm}P{2.4cm}L}
+\toprule
+Phase & Classe & Effets attendus sur les paramètres du moteur (sens qualitatif, valeurs à sourcer) \\
+\midrule
+Prémédication & $\alpha_2$-agoniste (dexmédétomidine, médétomidine) & \vp{r_sys} $\uparrow$ (phase périphérique) puis sympatholyse centrale (\vp{sympathetic} $\downarrow$), \vp{vagal_add} $\uparrow$ : bradycardie, bloc AV possible (couplage avec \vp{rhythm.rs}), DC $\downarrow$ ; forte épargne de MAC ; sédation. \\
+ & Phénothiazine (acépromazine) & Blocage $\alpha_1$ : \vp{r_sys} $\downarrow$, \vp{ven_cap} $\uparrow$ ; séquestration splénique : \vp{hb} $\downarrow$ ; pas d'analgésie. \\
+ & Opioïde (méthadone existante, fentanyl, buprénorphine) & Module actuel + antinociception + épargne de MAC ; dépression ventilatoire nettement majorée sous halogéné (interaction à modéliser). \\
+ & Benzodiazépine & Faible effet hémodynamique, co-induction (épargne de propofol). \\
+Induction & Propofol, alfaxalone & Hypnose rapide ($k_{e0}$ élevé), apnée d'induction (\vp{vent_drive} $\downarrow$), \vp{r_sys} $\downarrow$, \vp{ees_lv} $\downarrow$ modéré. \\
+ & Kétamine & Hypnose dissociative, \vp{sympathetic} $\uparrow$ (FC et PAM préservées), antinociception NMDA, épargne de MAC, prévention de l'hyperalgésie. \\
+Analgésie & Lidocaïne IV, kétamine CRI, fentanyl CRI & Antinociception, épargne de MAC ; lidocaïne : toxicité (convulsions, dépression cardiaque) en terme \vp{toxicity}. \\
+ & Bloc locorégional & Antinociception locale sur les stimuli d'un territoire (ex. bloc du nerf ou épidurale) : réduit $N$ sans effet systémique, sauf bloc sympathique épidural (\vp{r_sys} $\downarrow$). \\
+\bottomrule
+\end{tabularx}
+
+\subsection{Agents inhalés : modèle d'absorption physiologique}
+Nouveau schéma \vp{inhalant.schema.json} (isoflurane, sévoflurane) et nouveau bloc Rust \vp{inhalant.rs}.
+
+\begin{itemize}
+\item \textbf{Circuit} : volume $V_c$, débit de gaz frais $\dot V_{DGF}$, réglage du vaporisateur $F_{vap}$ ; mélange
+$V_c\,\dd F_I/\dd t = \dot V_{DGF}(F_{vap} - F_I) + (\text{gaz expiré réinhalé})$. Un DGF bas ralentit l'approfondissement :
+point pédagogique classique.
+\item \textbf{Alvéoles} (CRF) : apport $\dot V_A(F_I - F_A)$, captation par le sang $\lambda_{s/g}\,\mathrm{DC}\,(F_A - F_{\bar v})$.
+\item \textbf{Compartiments tissulaires} limités par la perfusion (groupe richement vascularisé dont le cerveau, muscle, graisse, peu vascularisé),
+avec coefficients de partage tissu/sang et fractions du débit cardiaque.
+\item \textbf{Couplage bidirectionnel} avec le moteur : $\mathrm{DC}$ et $\dot V_A$ viennent de l'évaluation ; l'agent les déprime en retour.
+D'où les comportements émergents à faire vivre aux étudiants : surdosage auto-entretenu en ventilation contrôlée
+(l'agent baisse le DC, donc la captation, donc $F_A$ monte plus vite), réveil retardé par l'hypoventilation, approfondissement plus rapide
+chez l'animal en bas débit.
+\item \textbf{Profondeur} : multiple de MAC $= F_{A,\text{cerveau}}/\mathrm{MAC}_{eff}$, avec $\mathrm{MAC}_{eff}$ réduite par les agents IV
+(surface de réponse, § \ref{sec:profondeur}), par l'hypothermie et l'âge.
+\item \textbf{Effets} en fonction du multiple de MAC : \vp{r_sys} $\downarrow$, \vp{ees_lv}/\vp{ees_rv} $\downarrow$, \vp{baro_gain} $\downarrow$
+(réflexe émoussé : l'hypotension n'est plus compensée), \vp{vent_drive} $\downarrow$ jusqu'à l'apnée, \vp{vo2} $\downarrow$.
+\end{itemize}
+
+Ordres de grandeur couramment cités, \emph{à confirmer sur source lue avant intégration} : MAC canine de l'isoflurane voisine de \SI{1,3}{\%}
+et du sévoflurane voisine de \SIrange{2,1}{2,4}{\%} ; coefficient sang/gaz voisin de 1,4 (isoflurane) et de 0,65 (sévoflurane), ces derniers
+souvent mesurés chez l'humain. Sources candidates : chapitre de Steffey et Mama dans \emph{Lumb \& Jones' Veterinary Anesthesia and Analgesia} \alire.
+
+\section{Profondeur d'anesthésie et nociception}\label{sec:profondeur}
+
+\subsection{Deux axes : hypnose et antinociception}
+On distingue, comme en clinique :
+\begin{description}
+\item[Hypnose $H(t)\in[0,1]$] : combinaison des effets hypnotiques (compartiments effet des IV, multiple de MAC des halogénés),
+par une surface de réponse (modèle d'interaction de type Greco ou Bouillon, \alire) plutôt qu'une simple somme : synergie propofol--opioïde,
+additivité entre halogénés.
+\item[Antinociception $A(t)\in[0,1]$] : opioïdes, kétamine, lidocaïne, $\alpha_2$, halogéné à fort multiple de MAC, blocs locaux (par territoire).
+\end{description}
+
+\subsection{La douleur comme variable d'état}
+\begin{itemize}
+\item \textbf{Stimulus} $N(t)$ : profil fourni par un scénario chirurgical (schéma \vp{procedure.schema.json}), p.\,ex. ovariohystérectomie :
+tonte et préparation (faible), incision cutanée (fort, bref), traction du pédicule ovarien (maximal), fermeture (modéré).
+Chaque stimulus porte un territoire, pour l'effet des blocs locorégionaux.
+\item \textbf{Nociception nette} $\nu(t) = N(t)\,(1 - A(t))$, filtrée en entrée (montée en secondes).
+\item \textbf{Sensibilisation} $S(t)$ (hyperalgésie, « wind-up ») : état lent alimenté par $\nu$ non contrôlée, freiné par la kétamine
+et les blocs, qui amplifie $N$ ultérieur et la douleur postopératoire :
+$\dd S/\dd t = k_{in}\,\nu\,(1 - S)(1 - E_{NMDA}) - S/\tau_S$.
+\end{itemize}
+
+\subsection{Conséquences de la douleur sur l'anesthésie}
+C'est le cœur pédagogique demandé ; chaque conséquence passe par un paramètre existant du moteur, sans logique ad hoc.
+\begin{center}
+\begin{tabularx}{\linewidth}{P{4.2cm}P{3.6cm}L}
+\toprule
+Conséquence & Branchement moteur & Ce que voit l'étudiant \\
+\midrule
+Activation sympathique & $s_{tot} \mathrel{+}= g_s\,\nu$ dans le baroréflexe & Tachycardie, hypertension à l'incision ; atténuées par l'opioïde, absentes sous bloc. \\
+Besoin anesthésique accru & $\mathrm{MAC}_{eff}$ et seuil d'hypnose augmentés avec $\nu$ & Mouvement, réflexe palpébral, mâchoire tonique si $H$ insuffisante pour le stimulus courant. \\
+Spirale « je monte le vaporisateur » & Conséquence émergente & Le stimulus cesse, le multiple de MAC élevé reste : hypotension, hypoventilation, réveil prolongé. Montre l'intérêt de l'analgésie multimodale plutôt que de l'approfondissement. \\
+Arythmies & \vp{vpc_rate} $\uparrow$ avec $s_{eff}$ & ESV sous stimulation forte, surtout avec hypercapnie ou hypokaliémie. \\
+Métabolisme & \vp{vo2}, \vp{vco2}, \vp{glucose} $\uparrow$ & Hausse de l'EtCO$_2$, hyperglycémie de stress. \\
+Ventilation & \vp{vent_drive} $\uparrow$ si plan léger & Tachypnée, halètement. \\
+Réveil & $S(t)$, $\nu$ résiduelle & Réveil agité ; distinction douleur / dysphorie / délire d'émergence à faire par l'étudiant (score). \\
+Postopératoire & douleur thoracique ou abdominale $\Rightarrow$ \vp{vent_drive} $\downarrow$ & Hypoventilation antalgique ; score de douleur, décision de secours analgésique. \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\subsection{Signes cliniques de profondeur}
+Les réflexes sont des sorties probabilistes (logistique en fonction de $H$ et de $\nu$, graine explicite pour le déterminisme) :
+réflexe palpébral, position du globe (rotation ventrale en plan chirurgical, recentrage en plan profond), tonus de la mâchoire,
+réflexe de déglutition (critère d'extubation), mouvement au stimulus. Au réveil : délai de relevé du sternum, score de sédation,
+score de douleur postopératoire (structure inspirée de l'échelle de Glasgow abrégée, Reid 2007 \alire) produit à partir de $\nu$, $S$ et de la sédation résiduelle.
+
+\section{Ventilation et monitorage}
+\begin{itemize}
+\item Modes : spontané, assisté manuellement, ventilation contrôlée (FR, $V_T$) qui impose $\dot V_A = \mathrm{FR}\,(V_T - V_D)$ à la place de
+la commande ventilatoire ; intubation/extubation, sonde déconnectée ou obstruée (incidents scénarisables).
+\item Moniteur à \SI{1}{Hz} : ECG (signaux existants), FC, PNI/PAI (pressions déjà calculées), SpO$_2$ (\vp{sao2}), EtCO$_2$ et capnogramme
+(forme de plateau à générer), FR, $F_I$/$F_E$ de l'agent, multiple de MAC, température.
+\item Feuille d'anesthésie automatique (relevé toutes les \SI{5}{min} et événements horodatés), exportable pour la correction.
+\item Alarmes : hypotension (PAM $< \SI{60}{mmHg}$ comme seuil enseigné, à sourcer), bradycardie, désaturation, apnée, hypercapnie.
+\end{itemize}
+
+\section{Architecture logicielle}
+
+\subsection{Cœur Rust (\vp{vetsim-core})}
+\begin{Verbatim}
+anesthesia/
+  session.rs     Session { params, pk (dont C_e), inhalants, co2_o2, baro_d,
+                           nociception {N, nu, S}, temp, t_s, rng }
+                 apply(Event), step(dt_s) -> Snapshot
+  inhalant.rs    circuit + alvéoles + tissus (ODE), multiple de MAC
+  interaction.rs surfaces de réponse : hypnose, antinociception, MAC_eff
+  nociception.rs stimulus, nociception nette, sensibilisation
+  reflexes.rs    signes cliniques probabilistes, critères d'extubation
+  record.rs      feuille d'anesthésie
+\end{Verbatim}
+Événements : \vp{Dose}, \vp{StartCri}/\vp{StopCri}, \vp{SetVaporizer}, \vp{SetFgf}, \vp{Intubate}/\vp{Extubate},
+\vp{SetVentilation}, \vp{Stimulus}, \vp{LocalBlock}, \vp{Fluids}, \vp{Antagonist}. Règles projet respectées :
+noyau sans I/O, déterminisme par graine, formules d'effet uniquement via le DSL, nouveaux mécanismes en Rust nommé.
+
+\subsection{API, FFI, web}
+Messages JSON versionnés : \vp{anesthesia_start}, \vp{anesthesia_event}, \vp{anesthesia_step} (renvoie un ou plusieurs \vp{Snapshot}).
+Web : onglet « Anesthésie » avec moniteur défilant, boutons d'action (seringues, vaporisateur, ventilateur), vitesse ×1/×10/×60,
+pause ; scénarios partageables par l'adresse comme les cas actuels.
+
+\section{Jalons proposés}
+\begin{tabularx}{\linewidth}{P{1cm}P{4.4cm}L}
+\toprule
+Jalon & Contenu & Critère d'acceptation \\
+\midrule
+A0 & Session dynamique : stocks CO$_2$/O$_2$, baroréflexe filtré, voies CRI/IM/SC, $k_{e0}$ & Invariant d'équilibre = \vp{eval} ; apnée $\Rightarrow$ montée de PaCO$_2$ ; préoxygénation allonge le délai de désaturation (propriétés qualitatives puis cibles publiées). \\
+A1 & Agents inhalés, multiple de MAC & Courbes $F_A/F_I$ ordonnées selon la solubilité ; cibles publiées de $F_A/F_I$ et de MAC canine. \\
+A2 & Prémédication et induction ($\alpha_2$, acépromazine, propofol, alfaxalone, kétamine, benzodiazépine), antagonistes & Cibles hémodynamiques publiées par agent (comme pour l'opioïde actuel). \\
+A3 & Antinociception, épargne de MAC, nociception, sensibilisation & Réductions de MAC publiées (opioïde, lidocaïne, kétamine, $\alpha_2$) ; réponse hémodynamique à l'incision atténuée par l'analgésie. \\
+A4 & Réveil, extubation, douleur postopératoire, scores & Ordre des délais de réveil isoflurane / sévoflurane ; effet de l'hypoventilation. \\
+A5 & Interface, scénarios (OVH, castration, fracture), feuille d'anesthésie & Démo jouable de bout en bout. \\
+A6 & Comorbidités (MMVD, MRC, bloc AV, Addison) et évaluation des décisions & Contre-indications émergentes (bloc AV sous $\alpha_2$, hypotension chez l'Addisonien). \\
+\bottomrule
+\end{tabularx}
+
+\section{Données à sourcer (pistes, aucune encore lue)}
+Toutes les références ci-dessous sont des pistes de lecture \alire. Aucune valeur n'en sera tirée avant lecture ; les manques seront \evD.
+\begin{itemize}
+\item MAC canines, solubilités, effets hémodynamiques des halogénés : Steffey EP, Mama KR, chapitre « Inhalation anesthetics », \emph{Lumb \& Jones' Veterinary Anesthesia and Analgesia}.
+\item Épargne de MAC : Muir WW et al.\ 2003, \emph{Am J Vet Res} (morphine, lidocaïne, kétamine et association, isoflurane) ; Valverde A et al.\ 2004, \emph{Vet Surg} (lidocaïne) ; Ueyama Y et al.\ 2009, \emph{Am J Vet Res} (fentanyl).
+\item PK de l'alfaxalone chez le chien : Ferré PJ et al.\ 2006, \emph{Vet Anaesth Analg}. PK du propofol et de la dexmédétomidine chez le chien : à rechercher.
+\item Modèles d'absorption des halogénés et d'interaction : travaux de Mapleson et d'Eger (modèles physiologiques) ; surfaces de réponse de Greco, Minto 2000 et Bouillon 2004 (humain).
+\item Douleur postopératoire : Reid J et al.\ 2007, \emph{Animal Welfare} (échelle de Glasgow abrégée).
+\end{itemize}
+La recherche bibliographique systématique peut être faite avec le circuit de l'outil (recherche, acquisition, lecture), comme pour les modules existants.
+
+\section{Questions ouvertes}
+\begin{enumerate}
+\item Espèce : chien seul au départ, ou chat dès la conception (MAC, métabolisme, PK très différents) ?
+\item Public : étudiants de 3\textsuperscript{e}--4\textsuperscript{e} année (scénarios guidés, correction) ou internes et résidents (bac à sable libre) ?
+\item Liste prioritaire des médicaments pour A2 (proposition : dexmédétomidine, acépromazine, méthadone, propofol, alfaxalone, kétamine, isoflurane, sévoflurane, atipamézole) ?
+\item Faut-il évaluer les décisions de l'étudiant (score automatique) ou seulement restituer la feuille d'anesthésie ?
+\item Profondeur des blocs locorégionaux : simple antinociception par territoire, ou PK locale des anesthésiques locaux ?
+\end{enumerate}
+
+\end{document}
