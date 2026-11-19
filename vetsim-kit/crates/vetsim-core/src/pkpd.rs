@@ -182,6 +182,11 @@ pub fn apply_drug_effects_sites(
         if diuretic {
             env.set_num("D", d);
             env.set_num("U", u);
+            // volumes sanguin et plasmatique (mL) du patient avant effets : le déficit D est
+            // prélevé sur le plasma (hémoconcentration)
+            let vb = VB_ML_KG * p.bvf * p.bw;
+            env.set_num("Vb", vb);
+            env.set_num("Vp", vb * (1.0 - 3.0 * p.hb / 100.0));
         }
         let mods = evaluate_effects(&m.pd.effects, &env, &m.id)?;
         let relabel = |e: Error| match e {
@@ -235,6 +240,9 @@ impl Timecourse {
             .map(|(_, v)| v.as_slice())
     }
 }
+
+/// Volume sanguin de référence (mL/kg) ; `bvf` le module (hemo.rs).
+pub const VB_ML_KG: f64 = 85.0;
 
 /// Tolérances de l'intégration PK (celles de la référence).
 pub const PK_RTOL: f64 = 1e-8;

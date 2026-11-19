@@ -324,6 +324,33 @@ define_params! {
     k_vpc,
     /// K (mmol/L) d'arrêt atrial.
     k_atrial_standstill,
+    // --- périphérie : thermorégulation, pupille, digestif, SNC (`periph.rs`) ---
+    /// Température centrale courante (°C) : entrée de l'évaluation (FC, VO2, P50, CAM) ;
+    /// intégrée dans le temps par `periph::thermal_course`.
+    temp_c,
+    /// Point de consigne thermique hypothalamique (°C).
+    t_set,
+    /// Température ambiante (°C).
+    t_amb,
+    /// Réchauffement actif (W/kg, couverture, air pulsé).
+    warming,
+    /// Anesthésique halogéné en multiples de CAM (n'agit que sur la périphérie : les effets
+    /// hémodynamiques et respiratoires des halogénés ne sont pas modélisés).
+    anesth_mac,
+    /// Blocage muscarinique périphérique (glandes, muscle lisse digestif), 0–1.
+    musc_block,
+    /// Blocage muscarinique du sphincter de l'iris, 0–1.
+    pupil_block,
+    /// Commande constrictrice ajoutée du noyau d'Edinger-Westphal (opioïdes).
+    pupil_ew,
+    /// Éclairement (1 : lumière ambiante ≈ 220 lux ; 0 : obscurité).
+    light,
+    /// Inhibition non cholinergique de la motilité digestive (µ-opioïdes), 0–1.
+    gi_inhib,
+    /// Commande sédative (sans dimension ; 0 : vigile).
+    sedation,
+    /// Commande d'excitation centrale (dysphorie, délire ; sans dimension).
+    excitation,
 }
 
 #[cfg(test)]
@@ -343,6 +370,6 @@ mod tests {
             assert_eq!(p.get(n), Some(v));
         }
         assert_eq!(p.get("nope"), None);
-        assert_eq!(Params::NAMES.len(), 130); // 73 + 11 décompensation + 6 oreillettes/systole + 3 force-intervalle + 22 conduction + 7 corrections du 18/11/2026 (creat_vd, urea_vd, map_arrest, av_symp, ven_cap, mr_k, mr_vref) + 3 échappements (esc_overdrive → esc_sup_gain, esc_sup_tau, esc_a_s, esc_a_v) + 5 chronologie (act_gamma, tr_frac, emd_v, emd_a, pa_ia)
+        assert_eq!(Params::NAMES.len(), 142); // 73 + 11 décompensation + 6 oreillettes/systole + 3 force-intervalle + 22 conduction + 7 corrections du 18/11/2026 (creat_vd, urea_vd, map_arrest, av_symp, ven_cap, mr_k, mr_vref) + 3 échappements (esc_overdrive → esc_sup_gain, esc_sup_tau, esc_a_s, esc_a_v) + 5 chronologie (act_gamma, tr_frac, emd_v, emd_a, pa_ia) + 12 périphérie (temp_c … excitation)
     }
 }

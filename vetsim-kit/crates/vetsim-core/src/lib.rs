@@ -23,6 +23,7 @@ pub mod ode;
 pub mod params;
 pub mod patient;
 pub mod pcg;
+pub mod periph;
 pub mod pkpd;
 pub mod rhythm;
 pub mod rng;

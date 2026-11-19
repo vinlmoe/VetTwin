@@ -5,26 +5,29 @@
  ],
  "license": "CC-BY-4.0",
  "id": "atropine",
- "version": "1.0.0",
+ "version": "1.1.0",
  "name": {
   "fr": "Atropine"
  },
- "evidence": "D",
+ "evidence": "C",
  "pk": {
-  "vc_L_kg": 0.7,
-  "vp_L_kg": 1.0,
-  "cl_mL_min_kg": 8.0,
-  "q_mL_min_kg": 10.0,
+  "vc_L_kg": 1.0,
+  "vp_L_kg": 2.2,
+  "cl_mL_min_kg": 44.0,
+  "q_mL_min_kg": 44.0,
   "ka_per_h": 2.0,
   "f": 0.8,
   "renal_exp": 0.3,
-  "hep_exp": 0.5
+  "hep_exp": 0.5,
+  "ka_im_per_h": 5.94,
+  "f_im": 1.0
  },
  "pd": {
   "type": "emax",
   "emax": 1.0,
-  "ec50_mg_L": 0.004,
+  "ec50_mg_L": 0.0106,
   "hill": 1.5,
+  "ke0_per_h": 20.0,
   "effects": [
    {
     "param": "vagal_block",
@@ -34,9 +37,124 @@
      0,
      1
     ]
+   },
+   {
+    "param": "pupil_block",
+    "op": "add",
+    "expr": "E",
+    "clamp": [
+     0,
+     1
+    ]
+   }
+  ],
+  "toxicity": [
+   {
+    "id": "paradoxical_vagal",
+    "emax": 1.0,
+    "ec50_mg_L": 0.004,
+    "hill": 2.0,
+    "site": "plasma",
+    "evidence": "C",
+    "source": "Effet vagal paradoxal à faible dose : ralentissement du nœud sinusal à 6,25 µg/kg IV (Kantelip 1985, résumé) ; potentialisation transitoire de la bradycardie (−16 bpm) 1,4 min en IV, 4,6 min en IM, 9,1 min en SC à 0,02 mg/kg (Rishniw 1996, résumé) ; BAV2 à 0,01 mg/kg sous oxymorphone (Copland 1992). Terme au site plasmatique (sans délai) contre le blocage au site d'effet (ke0) : la dissociation temporelle produit le paradoxe. Amplitude : vagal_add 0,2 ≈ −16 bpm chez le chien sain du modèle ; EC50 placée à la concentration de 6,25 µg/kg IV.",
+    "effects": [
+     {
+      "param": "vagal_add",
+      "op": "add",
+      "expr": {
+       "mul": [
+        0.2,
+        "T"
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "id": "antimuscarinic_peripheral",
+    "emax": 1.0,
+    "ec50_mg_L": 0.0015,
+    "hill": 1.5,
+    "site": "effect",
+    "evidence": "C",
+    "source": "Glandes et muscle lisse digestif plus sensibles que le nœud sinusal : motilité du grêle −93 ± 13,9 % à 39,5 µg/kg IV, dose qui n'augmente la FC que de 50 % (Hendrix 1997, résumé) ; sécrétions salivaire et gastrique réduites dès 0,3–1 µg/kg IV (Daly 1982) ; arrêt de la motilité antrale ≥ 30 min à 0,02 mg/kg IM, > 3 h à 0,04 (Burger 2006) ; SOI 47,9 → 13,2 mmHg (Strombeck 1985). EC50 0,0015 mg/L : −97 % de motilité à 39,5 µg/kg IV (10 min) et −91 % 30 min après 0,02 mg/kg IM, dans les bornes de Hendrix 1997 et Burger 2006 ; glandes plus sensibles encore (Daly 1982).",
+    "effects": [
+     {
+      "param": "musc_block",
+      "op": "add",
+      "expr": "T",
+      "clamp": [
+       0,
+       1
+      ]
+     }
+    ]
+   },
+   {
+    "id": "excess_tachycardia",
+    "emax": 1.0,
+    "ec50_mg_L": 0.045,
+    "hill": 3.0,
+    "site": "plasma",
+    "evidence": "C",
+    "source": "Tachycardie excessive (au-delà de la FC après vagotomie) : +26 ± 6 bpm à 0,1 mg/kg IV (Rigel 1984, résumé) ; aux doses intermédiaires (Vicenzi 1995, mécanisme ganglionnaire évoqué). EC50 et pente placées pour +15 % de FC intrinsèque à 0,1 mg/kg et < 3 % à 39,5 µg/kg.",
+    "effects": [
+     {
+      "param": "hr",
+      "op": "mul",
+      "expr": {
+       "add": [
+        1,
+        {
+         "mul": [
+          0.2,
+          "T"
+         ]
+        }
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "id": "central_anticholinergic",
+    "emax": 1.0,
+    "ec50_mg_L": 0.15,
+    "hill": 3.0,
+    "site": "effect",
+    "evidence": "D",
+    "source": "Délire anticholinergique (agitation, vocalises, cécité apparente) : un cas après ≈ 0,16 mg/kg en 5 h avec lidocaïne (Fedotova 2025, lu) ; seuils cités en source secondaire contradictoires (« dès 1,5 mg/kg », « 5–10 mg/kg IV »). Placeholder D : EC50 au-dessus des concentrations des doses usuelles (0,1 mg/kg IV ⇒ pic 0,1 mg/L). Ne jamais utiliser pour une dose réelle.",
+    "effects": [
+     {
+      "param": "excitation",
+      "op": "add",
+      "expr": "T",
+      "clamp": [
+       0,
+       1
+      ]
+     }
+    ]
    }
   ]
  },
- "refs": [],
- "notes": "PLACEHOLDER (aucune donnée publiée utilisée). Pas de terme toxique : cibles toxiques (hyperthermie, iléus, effets centraux) non modélisées."
+ "refs": [
+  "Thiermann H et al. 1996, Arch Toxicol, doi:10.1007/s002040050276 (résumé : V 3,2 L/kg, Cl 44 mL/min/kg, t½ abs IM 7 min)",
+  "Smallridge RC et al. 1989, Crit Care Med, doi:10.1097/00003246-198912000-00003 (résumé : 0,05 mg/kg IM, pic 20,6 ng/mL)",
+  "Hendrix PK, Robinson EP 1997, J Vet Pharmacol Ther, doi:10.1046/j.1365-2885.1997.00084.x (résumé)",
+  "Little CJ et al. 1999, Am J Physiol, doi:10.1152/ajpheart.1999.276.2.H758 (résumé)",
+  "Kantelip JP et al. 1985, Br J Anaesth, doi:10.1093/bja/57.2.214 (résumé)",
+  "Rishniw M et al. 1996, Am J Vet Res 57:337 (résumé)",
+  "Copland VS et al. 1992, Vet Surg, doi:10.1111/j.1532-950x.1992.tb01719.x (résumé)",
+  "Rigel DF et al. 1984, Am J Physiol, doi:10.1152/ajpheart.1984.246.2.H168 (résumé)",
+  "Vicenzi MN et al. 1995, Can J Physiol Pharmacol, doi:10.1139/y95-061 (résumé)",
+  "Burger DM et al. 2006, J Vet Med A, doi:10.1111/j.1439-0442.2006.00787.x (résumé)",
+  "Strombeck DR, Harrold D 1985, Am J Vet Res (PMID 4014848, résumé)",
+  "Daly MJ et al. 1982, Br J Pharmacol (PMC2071796, résumé)",
+  "Kovalcuka L et al. 2015, Vet Ophthalmol, doi:10.1111/vop.12138 (résumé : mydriase maximale à 30 min après 0,06 mg/kg IM)",
+  "Weisse I et al. 1975, Naunyn-Schmiedeberg's Arch Pharmacol, doi:10.1007/BF00501796 (résumé)",
+  "Blatt CM et al. 1972, Science, doi:10.1126/science.177.4051.804 (résumé)",
+  "Fedotova S et al. 2025, Front Vet Sci (PMC12557774, lu)"
+ ],
+ "notes": "Version 1.1.0 (19/11/2026). PK : Thiermann 1996 (V 3,2 L/kg réparti en vc 1,0 + vp 2,2, partage D ; Cl 44 mL/min/kg ; ka IM = ln2/7 min = 5,94/h ; f_im = 1, cohérent avec le pic de Smallridge 1989 à 0,05 mg/kg IM). Voie orale (ka, f) : placeholders D. PD : blocage vagal (E) au site d'effet (ke0 20/h, t½ d'équilibre ≈ 2 min, D) ; EC50 0,0106 mg/L calée pour +50 % de FC à 39,5 µg/kg IV (Hendrix 1997) en présence du terme paradoxal ; blocage complet ⇒ FC × 1,74 (Little 1999 : × 1,9 ; FC intrinsèque 141–146, Billman 2015). Mydriase (pupil_block = E) : mydriase et tachycardie aux mêmes doses (de Ponti 1993), maximum 30 min après 0,06 mg/kg IM (Kovalcuka 2015) ; 0,02 mg/kg SC sans mydriase significative (Kim 2015). Termes secondaires (tableau toxicity) : effet vagal paradoxal (plasma), blocage muscarinique périphérique (glandes, motilité, SOI, glande nasale latérale du halètement), tachycardie excessive, délire central (D). Température : aucune donnée canine dose–température (recherche du 19/11/2026) ; seul mécanisme modélisé : perte évaporative de la glande nasale latérale (19–36 % de l'évaporation respiratoire, Blatt 1972) sous blocage muscarinique, hypothèse D. Non modélisés : ESV et bigéminisme sous halothane (Muir 1978), aggravation de l'hypertension des α2-agonistes (Alvaides 2008, molécules absentes du catalogue), baisse du seuil de FV (Yoon 1977)."
 }

@@ -280,7 +280,19 @@
   "vpc_rate": 0.0,
   "vpc_k_gain": 1.0,
   "k_vpc": 3.0,
-  "k_atrial_standstill": 8.5
+  "k_atrial_standstill": 8.5,
+  "temp_c": 38.6,
+  "t_set": 38.6,
+  "t_amb": 26.0,
+  "warming": 0.0,
+  "anesth_mac": 0.0,
+  "musc_block": 0.0,
+  "pupil_block": 0.0,
+  "pupil_ew": 0.0,
+  "light": 1.0,
+  "gi_inhib": 0.0,
+  "sedation": 0.0,
+  "excitation": 0.0
  },
  "interindividual_variability": {
   "ees_lv": {

@@ -401,7 +401,8 @@ def evaluate(p, n_beats=11):
     de la contractilité, acidémie -> vasoplégie (boucle). Lève NonViable si la pompe s'arrête
     (FC < hr_arrest), si la circulation s'effondre (DC < co_arrest_frac × DC de référence), si aucun
     état stationnaire n'existe (racine introuvable) ou si la spirale ne converge pas."""
-    p0 = dict(p)
+    import periph
+    p0 = periph.apply_temperature(dict(p))   # FC intrinsèque, VO2, P50 (identité à 38,6 °C)
     bw = p0['bw']
     co_ref = 3.29 * (bw / 20.0) ** 0.75
     f_vent = max(F_FLOOR, 1.0 - p0['k_weak_vent'] * max(0.0, p0['k_weak'] - p0['k']))

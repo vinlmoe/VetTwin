@@ -87,6 +87,10 @@ def healthy_params(bw=20.0):
         esc_a_v=0.72,                 # ralentissement du foyer jonctionnel par le vague effectif (atropine : pause ×0,76, Tanahashi 1979)
         vpc_rate=0.0, vpc_k_gain=1.0, k_vpc=3.0,   # foyer ectopique (/min), gain hypokaliémique (/min par mmol/L sous k_vpc)
         k_atrial_standstill=8.5,     # K d'arrêt atrial, conduction sino-ventriculaire conservée (8,5-10 ; Hariman 1983)
+        # périphérie (periph.py) : température centrale 38,6 °C (Dorn 2024, n = 9117) ; ambiante 26 °C
+        # = limite basse de neutralité thermique (Sugano 1981) ; entrées pilotées par médicaments/scénario
+        temp_c=38.6, t_set=38.6, t_amb=26.0, warming=0.0, anesth_mac=0.0,
+        musc_block=0.0, pupil_block=0.0, pupil_ew=0.0, light=1.0, gi_inhib=0.0, sedation=0.0, excitation=0.0,
     )
     return p
 

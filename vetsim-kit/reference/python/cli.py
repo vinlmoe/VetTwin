@@ -22,6 +22,8 @@ def flat(r):
              na=c['na'], k=c['k'], cl=c['cl'], glucose=c['glucose'], creat=c['creat'], urea=c['urea'], phos=c['phos'], alb=c['alb'],
              hct=c['hct'], gfr=c['gfr'], anion_gap=c['anion_gap'], do2_kg=r['do2_kg'], er=r['er'],
              s_tone=r['autonomic']['s'], v_tone=r['autonomic']['v'])
+    import periph
+    d.update(periph.peripheral(r['p'], r['autonomic']['s']))
     return {k: float(x) for k, x in d.items()}
 
 def main(argv=None):
@@ -29,7 +31,7 @@ def main(argv=None):
     e = sub.add_parser('eval'); e.add_argument('--bw', type=float, default=20.0); e.add_argument('--disease', action='append', default=[])
     e.add_argument('--conc', action='append', default=[]); e.add_argument('--D', type=float, default=0.0); e.add_argument('--U', type=float, default=0.0)
     k = sub.add_parser('pk'); k.add_argument('--bw', type=float, default=20.0); k.add_argument('--drug', required=True); k.add_argument('--dose', type=float, required=True)
-    k.add_argument('--route', choices=['iv', 'po'], required=True); k.add_argument('--times', required=True)
+    k.add_argument('--route', choices=['iv', 'po', 'im', 'sc'], required=True); k.add_argument('--times', required=True)
     k.add_argument('--disease', action='append', default=[])
     a = ap.parse_args(argv)
     diseases.KM['zsd'] = 0.0

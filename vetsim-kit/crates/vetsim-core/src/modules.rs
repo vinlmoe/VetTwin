@@ -1175,7 +1175,7 @@ impl DrugModule {
         let ec50 = c.req_num_in(m, p, "ec50_mg_L", |x| x > 0.0, "> 0");
         let hill = c.req_num_in(m, p, "hill", |x| x > 0.0, "> 0");
         let scope: &[&str] = match kind {
-            Some(PdKind::Diuretic { .. }) => &["E", "D", "U"],
+            Some(PdKind::Diuretic { .. }) => &["E", "D", "U", "Vb", "Vp"],
             _ => &["E"],
         };
         let effects = c.req(m, p, "effects");

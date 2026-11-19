@@ -323,7 +323,13 @@ impl Evaluation {
         out.extend(self.metabolic.to_flat());
         out.push(("s_tone", self.autonomic.s));
         out.push(("v_tone", self.autonomic.v));
+        out.extend(self.peripheral().to_flat());
         out
+    }
+
+    /// Indicateurs de la périphérie (température, pupille, digestif, SNC).
+    pub fn peripheral(&self) -> crate::periph::Peripheral {
+        crate::periph::peripheral(&self.params, &self.autonomic)
     }
 }
 
@@ -558,6 +564,8 @@ fn is_physiological_failure(e: &Error) -> bool {
 /// (choc irréversible), si VO2 dépasse DO2 (`er ≥ 1`), si
 /// aucun état stationnaire n'existe ou si la spirale ne converge pas en 30 passes.
 pub fn evaluate(p0: &Params) -> Result<Evaluation, Error> {
+    // température centrale : FC intrinsèque, VO2, P50 (identité à 38,6 °C sans anesthésie)
+    let p0 = &crate::periph::apply_temperature(p0);
     let co_ref = 3.29 * math::pow(p0.bw / 20.0, 0.75);
     let f_vent = f64::max(
         F_FLOOR,
