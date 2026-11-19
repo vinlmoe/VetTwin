@@ -139,7 +139,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -280,7 +292,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -421,7 +445,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -562,7 +598,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -703,7 +751,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -844,7 +904,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -985,7 +1057,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -1126,7 +1210,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -1198,7 +1294,7 @@
     "creat_vd": 0.539,
     "urea_vd": 0.66,
     "hepatic_fn": 1.0,
-    "pr": 0.12,
+    "pr": 0.11522143217723148,
     "qrs": 0.045,
     "qt": 0.2,
     "r_amp": 1.7,
@@ -1247,7 +1343,7 @@
     "af_cycle": 0.12,
     "af_cv": 0.3,
     "hv": 0.035,
-    "av_erp": 0.15,
+    "av_erp": 0.14402679022153936,
     "av_beta": 0.1,
     "av_tau": 0.15,
     "av_conceal": 0.75,
@@ -1267,7 +1363,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -1339,7 +1447,7 @@
     "creat_vd": 0.539,
     "urea_vd": 0.66,
     "hepatic_fn": 1.0,
-    "pr": 0.12,
+    "pr": 0.105,
     "qrs": 0.045,
     "qt": 0.2,
     "r_amp": 1.7,
@@ -1388,7 +1496,7 @@
     "af_cycle": 0.12,
     "af_cv": 0.3,
     "hv": 0.035,
-    "av_erp": 0.15,
+    "av_erp": 0.13125,
     "av_beta": 0.1,
     "av_tau": 0.15,
     "av_conceal": 0.75,
@@ -1408,7 +1516,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -1480,7 +1600,7 @@
     "creat_vd": 0.539,
     "urea_vd": 0.66,
     "hepatic_fn": 1.0,
-    "pr": 0.12,
+    "pr": 0.09178052829308303,
     "qrs": 0.045,
     "qt": 0.2,
     "r_amp": 1.7,
@@ -1529,7 +1649,7 @@
     "af_cycle": 0.12,
     "af_cv": 0.3,
     "hv": 0.035,
-    "av_erp": 0.15,
+    "av_erp": 0.11472566036635379,
     "av_beta": 0.1,
     "av_tau": 0.15,
     "av_conceal": 0.75,
@@ -1549,7 +1669,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -1621,7 +1753,7 @@
     "creat_vd": 0.539,
     "urea_vd": 0.66,
     "hepatic_fn": 1.0,
-    "pr": 0.12,
+    "pr": 0.09000753376689784,
     "qrs": 0.045,
     "qt": 0.2,
     "r_amp": 1.7,
@@ -1670,7 +1802,7 @@
     "af_cycle": 0.12,
     "af_cv": 0.3,
     "hv": 0.035,
-    "av_erp": 0.15,
+    "av_erp": 0.1125094172086223,
     "av_beta": 0.1,
     "av_tau": 0.15,
     "av_conceal": 0.75,
@@ -1690,7 +1822,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -1831,7 +1975,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -1972,20 +2128,32 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
    "bw": 20,
    "diseases": [],
    "conc": {
-    "atropine": 0.001
+    "atropine": 0.00265
    },
    "D": 0.0,
    "U": 0.0,
    "params": {
     "bw": 20.0,
-    "hr": 87.0,
+    "hr": 87.00355271725941,
     "ees_lv": 4.4915,
     "v0_lv": 4.0,
     "a_lv": 1.0,
@@ -2055,7 +2223,7 @@
     "v0": 0.6,
     "a_s": 0.4,
     "a_v": 0.75,
-    "vagal_add": 0.0,
+    "vagal_add": 0.061005538060592904,
     "vagal_block": 0.1111111111111111,
     "beta_block": 0.0,
     "rsa_depth": 0.64,
@@ -2113,20 +2281,32 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.7013305342364966,
+    "pupil_block": 0.1111111111111111,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
    "bw": 20,
    "diseases": [],
    "conc": {
-    "atropine": 0.004
+    "atropine": 0.0106
    },
    "D": 0.0,
    "U": 0.0,
    "params": {
     "bw": 20.0,
-    "hr": 87.0,
+    "hr": 87.22448627332444,
     "ees_lv": 4.4915,
     "v0_lv": 4.0,
     "a_lv": 1.0,
@@ -2196,7 +2376,7 @@
     "v0": 0.6,
     "a_s": 0.4,
     "a_v": 0.75,
-    "vagal_add": 0.0,
+    "vagal_add": 0.17507011530071676,
     "vagal_block": 0.5,
     "beta_block": 0.0,
     "rsa_depth": 0.64,
@@ -2254,20 +2434,32 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.9494578424971364,
+    "pupil_block": 0.5,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
    "bw": 20,
    "diseases": [],
    "conc": {
-    "atropine": 0.04
+    "atropine": 0.106
    },
    "D": 0.0,
    "U": 0.0,
    "params": {
     "bw": 20.0,
-    "hr": 87.0,
+    "hr": 103.16333804160384,
     "ees_lv": 4.4915,
     "v0_lv": 4.0,
     "a_lv": 1.0,
@@ -2337,7 +2529,7 @@
     "v0": 0.6,
     "a_s": 0.4,
     "a_v": 0.75,
-    "vagal_add": 0.0,
+    "vagal_add": 0.19971560611446854,
     "vagal_block": 0.9693465699682845,
     "beta_block": 0.0,
     "rsa_depth": 0.64,
@@ -2395,20 +2587,32 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.9983194647379544,
+    "pupil_block": 0.9693465699682845,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
    "bw": 20,
    "diseases": [],
    "conc": {
-    "atropine": 4.0
+    "atropine": 10.6
    },
    "D": 0.0,
    "U": 0.0,
    "params": {
     "bw": 20.0,
-    "hr": 87.0,
+    "hr": 104.39999866872076,
     "ees_lv": 4.4915,
     "v0_lv": 4.0,
     "a_lv": 1.0,
@@ -2478,8 +2682,8 @@
     "v0": 0.6,
     "a_s": 0.4,
     "a_v": 0.75,
-    "vagal_add": 0.0,
-    "vagal_block": 0.9999683782233666,
+    "vagal_add": 0.19999997152011798,
+    "vagal_block": 0.9999683782233667,
     "beta_block": 0.0,
     "rsa_depth": 0.64,
     "vag_noise": 0.025,
@@ -2536,7 +2740,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.9999983166386187,
+    "pupil_block": 0.9999683782233667,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -2677,7 +2893,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -2818,7 +3046,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -2959,7 +3199,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -3100,7 +3352,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -3241,7 +3505,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -3382,7 +3658,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -3523,7 +3811,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -3664,7 +3964,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -3805,7 +4117,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.316828844740265,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.14158557762986687,
+    "light": 1.0,
+    "gi_inhib": 0.12742701986688018,
+    "sedation": 0.028317115525973376,
+    "excitation": 0.0
    }
   },
   {
@@ -3946,7 +4270,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 37.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.5,
+    "light": 1.0,
+    "gi_inhib": 0.45,
+    "sedation": 0.1,
+    "excitation": 0.0
    }
   },
   {
@@ -4087,7 +4423,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 36.69545344206841,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.952273278965796,
+    "light": 1.0,
+    "gi_inhib": 0.8570459510692164,
+    "sedation": 0.19045465579315923,
+    "excitation": 0.0
    }
   },
   {
@@ -4228,7 +4576,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 36.600251753388484,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.9998741233057574,
+    "light": 1.0,
+    "gi_inhib": 0.8998867109751817,
+    "sedation": 0.1999748246611515,
+    "excitation": 0.0
    }
   },
   {
@@ -4278,7 +4638,7 @@
     "edema_k": 4.0,
     "fio2": 0.21,
     "pb": 760.0,
-    "hb": 15.0,
+    "hb": 16.451612903225804,
     "p50": 30.0,
     "hill_n": 2.7,
     "rq": 0.84,
@@ -4286,7 +4646,7 @@
     "k": 4.052309533258197,
     "cl": 113.08994847663921,
     "xa": -2.48,
-    "alb": 3.77,
+    "alb": 4.490382165605095,
     "phos": 1.42,
     "lact0": 1.2,
     "glucose": 5.2,
@@ -4367,7 +4727,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -4417,7 +4789,7 @@
     "edema_k": 4.0,
     "fio2": 0.21,
     "pb": 760.0,
-    "hb": 15.0,
+    "hb": 14.739884393063583,
     "p50": 30.0,
     "hill_n": 2.7,
     "rq": 0.84,
@@ -4425,7 +4797,7 @@
     "k": 4.1,
     "cl": 113.6,
     "xa": -2.48,
-    "alb": 3.77,
+    "alb": 3.65279792746114,
     "phos": 1.42,
     "lact0": 1.2,
     "glucose": 5.2,
@@ -4506,7 +4878,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -4558,7 +4942,7 @@
     "edema_k": 4.0,
     "fio2": 0.21,
     "pb": 760.0,
-    "hb": 15.0,
+    "hb": 15.74074074074074,
     "p50": 30.0,
     "hill_n": 2.7,
     "rq": 0.84,
@@ -4566,7 +4950,7 @@
     "k": 4.064179890577364,
     "cl": 113.21724626025276,
     "xa": -2.48,
-    "alb": 3.77,
+    "alb": 4.122748538011696,
     "phos": 1.42,
     "lact0": 1.2,
     "glucose": 5.2,
@@ -4647,7 +5031,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -4656,7 +5052,7 @@
    "conc": {
     "furosemide": 0.4824,
     "pimobendan": 0.06,
-    "atropine": 0.008,
+    "atropine": 0.0212,
     "betabloquant": 0.3,
     "opioide": 0.03
    },
@@ -4664,7 +5060,7 @@
    "U": 3.0,
    "params": {
     "bw": 20.0,
-    "hr": 87.0,
+    "hr": 88.64713636321368,
     "ees_lv": 5.586777693485333,
     "v0_lv": 4.0,
     "a_lv": 1.0,
@@ -4703,7 +5099,7 @@
     "edema_k": 4.0,
     "fio2": 0.21,
     "pb": 760.0,
-    "hb": 15.0,
+    "hb": 16.139240506329113,
     "p50": 30.0,
     "hill_n": 2.7,
     "rq": 0.84,
@@ -4711,7 +5107,7 @@
     "k": 4.028672727554497,
     "cl": 112.83578213692537,
     "xa": -2.48,
-    "alb": 3.77,
+    "alb": 4.325092024539877,
     "phos": 1.42,
     "lact0": 1.2,
     "glucose": 5.2,
@@ -4723,7 +5119,7 @@
     "creat_vd": 0.539,
     "urea_vd": 0.66,
     "hepatic_fn": 1.0,
-    "pr": 0.12,
+    "pr": 0.09909808635068781,
     "qrs": 0.045,
     "qt": 0.2,
     "r_amp": 1.7,
@@ -4734,8 +5130,8 @@
     "v0": 0.6,
     "a_s": 0.4,
     "a_v": 0.75,
-    "vagal_add": 0.19201690456363887,
-    "vagal_block": 0.7387961250362586,
+    "vagal_add": 0.3851416897131748,
+    "vagal_block": 0.7387961250362585,
     "beta_block": 0.5922208867305114,
     "rsa_depth": 0.64,
     "vag_noise": 0.025,
@@ -4772,7 +5168,7 @@
     "af_cycle": 0.12,
     "af_cv": 0.3,
     "hv": 0.035,
-    "av_erp": 0.15,
+    "av_erp": 0.12387260793835977,
     "av_beta": 0.1,
     "av_tau": 0.15,
     "av_conceal": 0.75,
@@ -4792,7 +5188,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 37.17765255878786,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.9815270869356961,
+    "pupil_block": 0.7387961250362585,
+    "pupil_ew": 0.7111737206060699,
+    "light": 1.0,
+    "gi_inhib": 0.6400563485454629,
+    "sedation": 0.14223474412121398,
+    "excitation": 0.0
    }
   },
   {
@@ -4938,7 +5346,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -5084,7 +5504,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -5230,7 +5662,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -5376,7 +5820,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -5522,7 +5978,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -5668,7 +6136,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -5814,7 +6294,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -5960,7 +6452,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -6037,7 +6541,7 @@
     "creat_vd": 0.539,
     "urea_vd": 0.66,
     "hepatic_fn": 1.0,
-    "pr": 0.12,
+    "pr": 0.11522143217723148,
     "qrs": 0.045,
     "qt": 0.2,
     "r_amp": 1.7,
@@ -6086,7 +6590,7 @@
     "af_cycle": 0.12,
     "af_cv": 0.3,
     "hv": 0.035,
-    "av_erp": 0.15,
+    "av_erp": 0.14402679022153936,
     "av_beta": 0.1,
     "av_tau": 0.15,
     "av_conceal": 0.75,
@@ -6106,7 +6610,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -6183,7 +6699,7 @@
     "creat_vd": 0.539,
     "urea_vd": 0.66,
     "hepatic_fn": 1.0,
-    "pr": 0.12,
+    "pr": 0.105,
     "qrs": 0.045,
     "qt": 0.2,
     "r_amp": 1.7,
@@ -6232,7 +6748,7 @@
     "af_cycle": 0.12,
     "af_cv": 0.3,
     "hv": 0.035,
-    "av_erp": 0.15,
+    "av_erp": 0.13125,
     "av_beta": 0.1,
     "av_tau": 0.15,
     "av_conceal": 0.75,
@@ -6252,7 +6768,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -6329,7 +6857,7 @@
     "creat_vd": 0.539,
     "urea_vd": 0.66,
     "hepatic_fn": 1.0,
-    "pr": 0.12,
+    "pr": 0.09178052829308303,
     "qrs": 0.045,
     "qt": 0.2,
     "r_amp": 1.7,
@@ -6378,7 +6906,7 @@
     "af_cycle": 0.12,
     "af_cv": 0.3,
     "hv": 0.035,
-    "av_erp": 0.15,
+    "av_erp": 0.11472566036635379,
     "av_beta": 0.1,
     "av_tau": 0.15,
     "av_conceal": 0.75,
@@ -6398,7 +6926,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -6475,7 +7015,7 @@
     "creat_vd": 0.539,
     "urea_vd": 0.66,
     "hepatic_fn": 1.0,
-    "pr": 0.12,
+    "pr": 0.09000753376689784,
     "qrs": 0.045,
     "qt": 0.2,
     "r_amp": 1.7,
@@ -6524,7 +7064,7 @@
     "af_cycle": 0.12,
     "af_cv": 0.3,
     "hv": 0.035,
-    "av_erp": 0.15,
+    "av_erp": 0.1125094172086223,
     "av_beta": 0.1,
     "av_tau": 0.15,
     "av_conceal": 0.75,
@@ -6544,7 +7084,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -6690,7 +7242,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -6836,7 +7400,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -6848,13 +7424,13 @@
     ]
    ],
    "conc": {
-    "atropine": 0.001
+    "atropine": 0.00265
    },
    "D": 0.0,
    "U": 0.0,
    "params": {
     "bw": 20.0,
-    "hr": 87.0,
+    "hr": 87.00355271725941,
     "ees_lv": 4.4915,
     "v0_lv": 7.568,
     "a_lv": 1.0,
@@ -6924,7 +7500,7 @@
     "v0": 0.16666666666666657,
     "a_s": 0.4,
     "a_v": 0.75,
-    "vagal_add": 0.0,
+    "vagal_add": 0.061005538060592904,
     "vagal_block": 0.1111111111111111,
     "beta_block": 0.0,
     "rsa_depth": 0.64,
@@ -6982,7 +7558,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.7013305342364966,
+    "pupil_block": 0.1111111111111111,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -6994,13 +7582,13 @@
     ]
    ],
    "conc": {
-    "atropine": 0.004
+    "atropine": 0.0106
    },
    "D": 0.0,
    "U": 0.0,
    "params": {
     "bw": 20.0,
-    "hr": 87.0,
+    "hr": 87.22448627332444,
     "ees_lv": 4.4915,
     "v0_lv": 7.568,
     "a_lv": 1.0,
@@ -7070,7 +7658,7 @@
     "v0": 0.16666666666666657,
     "a_s": 0.4,
     "a_v": 0.75,
-    "vagal_add": 0.0,
+    "vagal_add": 0.17507011530071676,
     "vagal_block": 0.5,
     "beta_block": 0.0,
     "rsa_depth": 0.64,
@@ -7128,7 +7716,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.9494578424971364,
+    "pupil_block": 0.5,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -7140,13 +7740,13 @@
     ]
    ],
    "conc": {
-    "atropine": 0.04
+    "atropine": 0.106
    },
    "D": 0.0,
    "U": 0.0,
    "params": {
     "bw": 20.0,
-    "hr": 87.0,
+    "hr": 103.16333804160384,
     "ees_lv": 4.4915,
     "v0_lv": 7.568,
     "a_lv": 1.0,
@@ -7216,7 +7816,7 @@
     "v0": 0.16666666666666657,
     "a_s": 0.4,
     "a_v": 0.75,
-    "vagal_add": 0.0,
+    "vagal_add": 0.19971560611446854,
     "vagal_block": 0.9693465699682845,
     "beta_block": 0.0,
     "rsa_depth": 0.64,
@@ -7274,7 +7874,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.9983194647379544,
+    "pupil_block": 0.9693465699682845,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -7286,13 +7898,13 @@
     ]
    ],
    "conc": {
-    "atropine": 4.0
+    "atropine": 10.6
    },
    "D": 0.0,
    "U": 0.0,
    "params": {
     "bw": 20.0,
-    "hr": 87.0,
+    "hr": 104.39999866872076,
     "ees_lv": 4.4915,
     "v0_lv": 7.568,
     "a_lv": 1.0,
@@ -7362,8 +7974,8 @@
     "v0": 0.16666666666666657,
     "a_s": 0.4,
     "a_v": 0.75,
-    "vagal_add": 0.0,
-    "vagal_block": 0.9999683782233666,
+    "vagal_add": 0.19999997152011798,
+    "vagal_block": 0.9999683782233667,
     "beta_block": 0.0,
     "rsa_depth": 0.64,
     "vag_noise": 0.025,
@@ -7420,7 +8032,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.9999983166386187,
+    "pupil_block": 0.9999683782233667,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -7566,7 +8190,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -7712,7 +8348,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -7858,7 +8506,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -8004,7 +8664,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -8150,7 +8822,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -8296,7 +8980,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -8442,7 +9138,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -8588,7 +9296,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -8734,7 +9454,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.316828844740265,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.14158557762986687,
+    "light": 1.0,
+    "gi_inhib": 0.12742701986688018,
+    "sedation": 0.028317115525973376,
+    "excitation": 0.0
    }
   },
   {
@@ -8880,7 +9612,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 37.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.5,
+    "light": 1.0,
+    "gi_inhib": 0.45,
+    "sedation": 0.1,
+    "excitation": 0.0
    }
   },
   {
@@ -9026,7 +9770,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 36.69545344206841,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.952273278965796,
+    "light": 1.0,
+    "gi_inhib": 0.8570459510692164,
+    "sedation": 0.19045465579315923,
+    "excitation": 0.0
    }
   },
   {
@@ -9172,7 +9928,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 36.600251753388484,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.9998741233057574,
+    "light": 1.0,
+    "gi_inhib": 0.8998867109751817,
+    "sedation": 0.1999748246611515,
+    "excitation": 0.0
    }
   },
   {
@@ -9227,7 +9995,7 @@
     "edema_k": 4.0,
     "fio2": 0.21,
     "pb": 760.0,
-    "hb": 15.0,
+    "hb": 16.143615519286158,
     "p50": 30.0,
     "hill_n": 2.7,
     "rq": 0.84,
@@ -9235,7 +10003,7 @@
     "k": 4.052309533258197,
     "cl": 113.08994847663921,
     "xa": -2.48,
-    "alb": 3.77,
+    "alb": 4.327365559309412,
     "phos": 1.42,
     "lact0": 1.2,
     "glucose": 5.2,
@@ -9316,7 +10084,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -9371,7 +10151,7 @@
     "edema_k": 4.0,
     "fio2": 0.21,
     "pb": 760.0,
-    "hb": 15.0,
+    "hb": 14.79044859522947,
     "p50": 30.0,
     "hill_n": 2.7,
     "rq": 0.84,
@@ -9379,7 +10159,7 @@
     "k": 4.1,
     "cl": 113.6,
     "xa": -2.48,
-    "alb": 3.77,
+    "alb": 3.6753235175117545,
     "phos": 1.42,
     "lact0": 1.2,
     "glucose": 5.2,
@@ -9460,7 +10240,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -9517,7 +10309,7 @@
     "edema_k": 4.0,
     "fio2": 0.21,
     "pb": 760.0,
-    "hb": 15.0,
+    "hb": 15.588973114468015,
     "p50": 30.0,
     "hill_n": 2.7,
     "rq": 0.84,
@@ -9525,7 +10317,7 @@
     "k": 4.064179890577364,
     "cl": 113.21724626025276,
     "xa": -2.48,
-    "alb": 3.77,
+    "alb": 4.048076290677006,
     "phos": 1.42,
     "lact0": 1.2,
     "glucose": 5.2,
@@ -9606,7 +10398,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -9620,7 +10424,7 @@
    "conc": {
     "furosemide": 0.4824,
     "pimobendan": 0.06,
-    "atropine": 0.008,
+    "atropine": 0.0212,
     "betabloquant": 0.3,
     "opioide": 0.03
    },
@@ -9628,7 +10432,7 @@
    "U": 3.0,
    "params": {
     "bw": 20.0,
-    "hr": 87.0,
+    "hr": 88.64713636321368,
     "ees_lv": 5.586777693485333,
     "v0_lv": 7.568,
     "a_lv": 1.0,
@@ -9667,7 +10471,7 @@
     "edema_k": 4.0,
     "fio2": 0.21,
     "pb": 760.0,
-    "hb": 15.0,
+    "hb": 15.901151471324471,
     "p50": 30.0,
     "hill_n": 2.7,
     "rq": 0.84,
@@ -9675,7 +10479,7 @@
     "k": 4.028672727554497,
     "cl": 112.83578213692537,
     "xa": -2.48,
-    "alb": 3.77,
+    "alb": 4.203086737543012,
     "phos": 1.42,
     "lact0": 1.2,
     "glucose": 5.2,
@@ -9687,7 +10491,7 @@
     "creat_vd": 0.539,
     "urea_vd": 0.66,
     "hepatic_fn": 1.0,
-    "pr": 0.12,
+    "pr": 0.09909808635068781,
     "qrs": 0.045,
     "qt": 0.2,
     "r_amp": 1.7,
@@ -9698,8 +10502,8 @@
     "v0": 0.16666666666666657,
     "a_s": 0.4,
     "a_v": 0.75,
-    "vagal_add": 0.19201690456363887,
-    "vagal_block": 0.7387961250362586,
+    "vagal_add": 0.3851416897131748,
+    "vagal_block": 0.7387961250362585,
     "beta_block": 0.5922208867305114,
     "rsa_depth": 0.64,
     "vag_noise": 0.025,
@@ -9736,7 +10540,7 @@
     "af_cycle": 0.12,
     "af_cv": 0.3,
     "hv": 0.035,
-    "av_erp": 0.15,
+    "av_erp": 0.12387260793835977,
     "av_beta": 0.1,
     "av_tau": 0.15,
     "av_conceal": 0.75,
@@ -9756,7 +10560,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 37.17765255878786,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.9815270869356961,
+    "pupil_block": 0.7387961250362585,
+    "pupil_ew": 0.7111737206060699,
+    "light": 1.0,
+    "gi_inhib": 0.6400563485454629,
+    "sedation": 0.14223474412121398,
+    "excitation": 0.0
    }
   },
   {
@@ -9902,7 +10718,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -10048,7 +10876,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -10194,7 +11034,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -10340,7 +11192,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -10486,7 +11350,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -10632,7 +11508,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -10778,7 +11666,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -10924,7 +11824,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -11001,7 +11913,7 @@
     "creat_vd": 0.539,
     "urea_vd": 0.66,
     "hepatic_fn": 1.0,
-    "pr": 0.12,
+    "pr": 0.11522143217723148,
     "qrs": 0.045,
     "qt": 0.2,
     "r_amp": 1.7,
@@ -11050,7 +11962,7 @@
     "af_cycle": 0.12,
     "af_cv": 0.3,
     "hv": 0.035,
-    "av_erp": 0.15,
+    "av_erp": 0.14402679022153936,
     "av_beta": 0.1,
     "av_tau": 0.15,
     "av_conceal": 0.75,
@@ -11070,7 +11982,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -11147,7 +12071,7 @@
     "creat_vd": 0.539,
     "urea_vd": 0.66,
     "hepatic_fn": 1.0,
-    "pr": 0.12,
+    "pr": 0.105,
     "qrs": 0.045,
     "qt": 0.2,
     "r_amp": 1.7,
@@ -11196,7 +12120,7 @@
     "af_cycle": 0.12,
     "af_cv": 0.3,
     "hv": 0.035,
-    "av_erp": 0.15,
+    "av_erp": 0.13125,
     "av_beta": 0.1,
     "av_tau": 0.15,
     "av_conceal": 0.75,
@@ -11216,7 +12140,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -11293,7 +12229,7 @@
     "creat_vd": 0.539,
     "urea_vd": 0.66,
     "hepatic_fn": 1.0,
-    "pr": 0.12,
+    "pr": 0.09178052829308303,
     "qrs": 0.045,
     "qt": 0.2,
     "r_amp": 1.7,
@@ -11342,7 +12278,7 @@
     "af_cycle": 0.12,
     "af_cv": 0.3,
     "hv": 0.035,
-    "av_erp": 0.15,
+    "av_erp": 0.11472566036635379,
     "av_beta": 0.1,
     "av_tau": 0.15,
     "av_conceal": 0.75,
@@ -11362,7 +12298,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -11439,7 +12387,7 @@
     "creat_vd": 0.539,
     "urea_vd": 0.66,
     "hepatic_fn": 1.0,
-    "pr": 0.12,
+    "pr": 0.09000753376689784,
     "qrs": 0.045,
     "qt": 0.2,
     "r_amp": 1.7,
@@ -11488,7 +12436,7 @@
     "af_cycle": 0.12,
     "af_cv": 0.3,
     "hv": 0.035,
-    "av_erp": 0.15,
+    "av_erp": 0.1125094172086223,
     "av_beta": 0.1,
     "av_tau": 0.15,
     "av_conceal": 0.75,
@@ -11508,7 +12456,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -11654,7 +12614,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -11800,7 +12772,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -11812,13 +12796,13 @@
     ]
    ],
    "conc": {
-    "atropine": 0.001
+    "atropine": 0.00265
    },
    "D": 0.0,
    "U": 0.0,
    "params": {
     "bw": 5.0,
-    "hr": 123.03657992645928,
+    "hr": 123.04160422739082,
     "ees_lv": 17.966,
     "v0_lv": 1.0,
     "a_lv": 1.0,
@@ -11888,7 +12872,7 @@
     "v0": 0.6,
     "a_s": 0.4,
     "a_v": 0.75,
-    "vagal_add": 0.0,
+    "vagal_add": 0.061005538060592904,
     "vagal_block": 0.1111111111111111,
     "beta_block": 0.0,
     "rsa_depth": 0.64,
@@ -11946,7 +12930,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.7013305342364966,
+    "pupil_block": 0.1111111111111111,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -11958,13 +12954,13 @@
     ]
    ],
    "conc": {
-    "atropine": 0.004
+    "atropine": 0.0106
    },
    "D": 0.0,
    "U": 0.0,
    "params": {
     "bw": 5.0,
-    "hr": 123.03657992645928,
+    "hr": 123.3540514587613,
     "ees_lv": 17.966,
     "v0_lv": 1.0,
     "a_lv": 1.0,
@@ -12034,7 +13030,7 @@
     "v0": 0.6,
     "a_s": 0.4,
     "a_v": 0.75,
-    "vagal_add": 0.0,
+    "vagal_add": 0.17507011530071676,
     "vagal_block": 0.5,
     "beta_block": 0.0,
     "rsa_depth": 0.64,
@@ -12092,7 +13088,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.9494578424971364,
+    "pupil_block": 0.5,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -12104,13 +13112,13 @@
     ]
    ],
    "conc": {
-    "atropine": 0.04
+    "atropine": 0.106
    },
    "D": 0.0,
    "U": 0.0,
    "params": {
     "bw": 5.0,
-    "hr": 123.03657992645928,
+    "hr": 145.89499179811642,
     "ees_lv": 17.966,
     "v0_lv": 1.0,
     "a_lv": 1.0,
@@ -12180,7 +13188,7 @@
     "v0": 0.6,
     "a_s": 0.4,
     "a_v": 0.75,
-    "vagal_add": 0.0,
+    "vagal_add": 0.19971560611446854,
     "vagal_block": 0.9693465699682845,
     "beta_block": 0.0,
     "rsa_depth": 0.64,
@@ -12238,7 +13246,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.9983194647379544,
+    "pupil_block": 0.9693465699682845,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -12250,13 +13270,13 @@
     ]
    ],
    "conc": {
-    "atropine": 4.0
+    "atropine": 10.6
    },
    "D": 0.0,
    "U": 0.0,
    "params": {
     "bw": 5.0,
-    "hr": 123.03657992645928,
+    "hr": 147.64389402903797,
     "ees_lv": 17.966,
     "v0_lv": 1.0,
     "a_lv": 1.0,
@@ -12326,8 +13346,8 @@
     "v0": 0.6,
     "a_s": 0.4,
     "a_v": 0.75,
-    "vagal_add": 0.0,
-    "vagal_block": 0.9999683782233666,
+    "vagal_add": 0.19999997152011798,
+    "vagal_block": 0.9999683782233667,
     "beta_block": 0.0,
     "rsa_depth": 0.64,
     "vag_noise": 0.025,
@@ -12384,7 +13404,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.9999983166386187,
+    "pupil_block": 0.9999683782233667,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -12530,7 +13562,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -12676,7 +13720,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -12822,7 +13878,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -12968,7 +14036,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -13114,7 +14194,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -13260,7 +14352,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -13406,7 +14510,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -13552,7 +14668,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -13698,7 +14826,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.316828844740265,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.14158557762986687,
+    "light": 1.0,
+    "gi_inhib": 0.12742701986688018,
+    "sedation": 0.028317115525973376,
+    "excitation": 0.0
    }
   },
   {
@@ -13844,7 +14984,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 37.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.5,
+    "light": 1.0,
+    "gi_inhib": 0.45,
+    "sedation": 0.1,
+    "excitation": 0.0
    }
   },
   {
@@ -13990,7 +15142,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 36.69545344206841,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.952273278965796,
+    "light": 1.0,
+    "gi_inhib": 0.8570459510692164,
+    "sedation": 0.19045465579315923,
+    "excitation": 0.0
    }
   },
   {
@@ -14136,7 +15300,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 36.600251753388484,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.9998741233057574,
+    "light": 1.0,
+    "gi_inhib": 0.8998867109751817,
+    "sedation": 0.1999748246611515,
+    "excitation": 0.0
    }
   },
   {
@@ -14191,7 +15367,7 @@
     "edema_k": 4.0,
     "fio2": 0.21,
     "pb": 760.0,
-    "hb": 12.560020491889327,
+    "hb": 19.410940760192595,
     "p50": 30.0,
     "hill_n": 2.7,
     "rq": 0.84,
@@ -14199,7 +15375,7 @@
     "k": 4.052309533258197,
     "cl": 113.08994847663921,
     "xa": -0.31999999999999984,
-    "alb": 3.5437999999999996,
+    "alb": 8.171792418273833,
     "phos": 1.996,
     "lact0": 1.2,
     "glucose": 5.2,
@@ -14280,7 +15456,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -14335,7 +15523,7 @@
     "edema_k": 4.0,
     "fio2": 0.21,
     "pb": 760.0,
-    "hb": 12.560020491889327,
+    "hb": 11.731887272643878,
     "p50": 30.0,
     "hill_n": 2.7,
     "rq": 0.84,
@@ -14343,7 +15531,7 @@
     "k": 4.1,
     "cl": 113.6,
     "xa": -0.31999999999999984,
-    "alb": 3.5437999999999996,
+    "alb": 3.1832421277774934,
     "phos": 1.996,
     "lact0": 1.2,
     "glucose": 5.2,
@@ -14424,7 +15612,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -14481,7 +15681,7 @@
     "edema_k": 4.0,
     "fio2": 0.21,
     "pb": 760.0,
-    "hb": 12.560020491889327,
+    "hb": 15.47248901174772,
     "p50": 30.0,
     "hill_n": 2.7,
     "rq": 0.84,
@@ -14489,7 +15689,7 @@
     "k": 4.064179890577364,
     "cl": 113.21724626025276,
     "xa": -0.31999999999999984,
-    "alb": 3.5437999999999996,
+    "alb": 5.077416794820387,
     "phos": 1.996,
     "lact0": 1.2,
     "glucose": 5.2,
@@ -14570,7 +15770,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 38.6,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.0,
+    "pupil_block": 0.0,
+    "pupil_ew": 0.0,
+    "light": 1.0,
+    "gi_inhib": 0.0,
+    "sedation": 0.0,
+    "excitation": 0.0
    }
   },
   {
@@ -14584,7 +15796,7 @@
    "conc": {
     "furosemide": 0.4824,
     "pimobendan": 0.06,
-    "atropine": 0.008,
+    "atropine": 0.0212,
     "betabloquant": 0.3,
     "opioide": 0.03
    },
@@ -14592,7 +15804,7 @@
    "U": 3.0,
    "params": {
     "bw": 5.0,
-    "hr": 123.03657992645928,
+    "hr": 125.36598251039395,
     "ees_lv": 22.34711077394133,
     "v0_lv": 1.0,
     "a_lv": 1.0,
@@ -14631,7 +15843,7 @@
     "edema_k": 4.0,
     "fio2": 0.21,
     "pb": 760.0,
-    "hb": 12.560020491889327,
+    "hb": 17.501667898534308,
     "p50": 30.0,
     "hill_n": 2.7,
     "rq": 0.84,
@@ -14639,7 +15851,7 @@
     "k": 4.028672727554497,
     "cl": 112.83578213692537,
     "xa": -0.31999999999999984,
-    "alb": 3.5437999999999996,
+    "alb": 6.4794397003952025,
     "phos": 1.996,
     "lact0": 1.2,
     "glucose": 5.2,
@@ -14651,7 +15863,7 @@
     "creat_vd": 0.539,
     "urea_vd": 0.66,
     "hepatic_fn": 1.0,
-    "pr": 0.12,
+    "pr": 0.09909808635068781,
     "qrs": 0.045,
     "qt": 0.2,
     "r_amp": 1.7,
@@ -14662,8 +15874,8 @@
     "v0": 0.6,
     "a_s": 0.4,
     "a_v": 0.75,
-    "vagal_add": 0.19201690456363887,
-    "vagal_block": 0.7387961250362586,
+    "vagal_add": 0.3851416897131748,
+    "vagal_block": 0.7387961250362585,
     "beta_block": 0.5922208867305114,
     "rsa_depth": 0.64,
     "vag_noise": 0.025,
@@ -14700,7 +15912,7 @@
     "af_cycle": 0.12,
     "af_cv": 0.3,
     "hv": 0.035,
-    "av_erp": 0.15,
+    "av_erp": 0.12387260793835977,
     "av_beta": 0.1,
     "av_tau": 0.15,
     "av_conceal": 0.75,
@@ -14720,7 +15932,19 @@
     "vpc_rate": 0.0,
     "vpc_k_gain": 1.0,
     "k_vpc": 3.0,
-    "k_atrial_standstill": 8.5
+    "k_atrial_standstill": 8.5,
+    "temp_c": 38.6,
+    "t_set": 37.17765255878786,
+    "t_amb": 26.0,
+    "warming": 0.0,
+    "anesth_mac": 0.0,
+    "musc_block": 0.9815270869356961,
+    "pupil_block": 0.7387961250362585,
+    "pupil_ew": 0.7111737206060699,
+    "light": 1.0,
+    "gi_inhib": 0.6400563485454629,
+    "sedation": 0.14223474412121398,
+    "excitation": 0.0
    }
   }
  ],
@@ -15051,6 +16275,81 @@
      17.351559192773664
     ],
     "furosemide": [
+     0.0,
+     0.6607271149725428,
+     0.5730019196615509,
+     0.4395996294930504,
+     0.33380227436059784,
+     0.25515583395058233,
+     0.19689876230846107,
+     0.1534517963605092,
+     0.12075843440464656,
+     0.09591840493146724,
+     0.07685649434373101,
+     0.06208136186518374,
+     0.0505152643072425,
+     0.041374327044987516,
+     0.034084285970743484,
+     0.02822107298422244,
+     0.02346881263384621,
+     0.019590036638987052,
+     0.01640448602530406,
+     0.013773961082114684,
+     0.01159144058771255,
+     0.00977322319312704,
+     0.00825321523704821,
+     0.006978748924286456,
+     0.00590749674582924,
+     0.6657322896439062,
+     0.5772457379060477,
+     0.4432001028352931,
+     0.3368584663353763,
+     0.2577510942975276,
+     0.1991033557414375,
+     0.15532505213549389,
+     0.1223505145821292,
+     0.0972717676761184,
+     0.07800710993846297,
+     0.0630597270869748,
+     0.051347251392846543,
+     0.04208189619014845,
+     0.034686084698423054,
+     0.02873294133214945,
+     0.023904209655613837,
+     0.019960400963366636,
+     0.016719541012056922,
+     0.01404197332788463,
+     0.01181943908171108,
+     0.009967185230219078,
+     0.008418224212889977,
+     0.007119128317549044,
+     0.006026923941665896,
+     0.6658338929205454,
+     0.5773321775037307,
+     0.44327364238989975,
+     0.33692103127345807,
+     0.2578043225824546,
+     0.1991486408237292,
+     0.15536357945597806,
+     0.12238329264385707,
+     0.09729965445821637,
+     0.07803083536815854,
+     0.06307991215525231,
+     0.051364424414998694,
+     0.04209650663846084,
+     0.0346985149696309,
+     0.02874351675817683,
+     0.0239132070199709,
+     0.019968055746358716,
+     0.016726053554603534,
+     0.014047514075397546,
+     0.011824153045362688,
+     0.009971195782424867,
+     0.008421636316393083,
+     0.007122031271819862,
+     0.00602939372217123
+    ],
+    "furosemide@e": [
      0.0,
      0.6607271149725428,
      0.5730019196615509,
@@ -15462,6 +16761,108 @@
      0.0003683823781754946,
      0.000299172782193758,
      0.00024297420050439807
+    ],
+    "furosemide@e": [
+     9.64785335262904,
+     1.395653610607466,
+     0.34616172977902887,
+     0.1906299954159398,
+     0.14935736485393167,
+     0.125486592612664,
+     0.10656611960827646,
+     0.09064036252203352,
+     0.0771121880726929,
+     0.06560527766676696,
+     0.055815730588430264,
+     0.047487002039886185,
+     0.04040107630217574,
+     0.03437250038520403,
+     0.029243497802680332,
+     0.02487983576833465,
+     0.02116731153102492,
+     0.01800876349130921,
+     0.01532152832740287,
+     0.013035277555213526,
+     0.011090177000244951,
+     0.009435320839240239,
+     0.008027399327112588,
+     0.006829565320965428,
+     0.005810469944500396,
+     0.004943442053506202,
+     0.004205790508276955,
+     0.0035782100047997614,
+     0.003044275936839629,
+     0.0025900145513066304,
+     0.0022035372336464396,
+     0.001874729367080442,
+     0.0015949856197995406,
+     0.001356984732194301,
+     0.001154497909952457,
+     0.0009822258084731886,
+     0.0008356598397584756,
+     0.0007109641822619524,
+     0.0006048753885132625,
+     0.0005146169736433174,
+     0.0004378267569487014,
+     0.0003724950383958972,
+     0.0003169120017244136,
+     0.00026962296566080687,
+     0.00022939031441097406,
+     0.0001951611069538182,
+     0.00016603952023674565,
+     0.0001412634043081614,
+     0.00012018433561366937
+    ],
+    "pimobendan@e": [
+     0.0,
+     0.01881249312136739,
+     0.021845870430479714,
+     0.019811524802269297,
+     0.01659312806816451,
+     0.013488466129522323,
+     0.010849660614951729,
+     0.008705602168739276,
+     0.006990698903854173,
+     0.005624082212099077,
+     0.0045337088895748045,
+     0.0036612449040305146,
+     0.002960970178183176,
+     0.0023973390393341055,
+     0.0019426551869830375,
+     0.0015752070756888284,
+     0.001277856739882554,
+     0.0010369896552546072,
+     0.0008417320711367309,
+     0.0006833620028628244,
+     0.0005548603349716354,
+     0.00045056430880143,
+     0.00036589699867361916,
+     0.0002971540940604069,
+     0.00024133457074113442,
+     0.01900849854024938,
+     0.02200506352923207,
+     0.019940820960282102,
+     0.016698143055540838,
+     0.013573760395062967,
+     0.010918937886207404,
+     0.00876187038967092,
+     0.007036401038394148,
+     0.005661202425559642,
+     0.004563858725796304,
+     0.003685733271731902,
+     0.002980860186278984,
+     0.0024134941530623245,
+     0.0019557767501122247,
+     0.0015858647201150993,
+     0.0012865131325866582,
+     0.0010440205844944874,
+     0.0008474427606132571,
+     0.0006880003622469781,
+     0.0005586277228901935,
+     0.00045362427361804534,
+     0.0003683823781754946,
+     0.000299172782193758,
+     0.00024297420050439807
     ]
    }
   },
@@ -15542,17 +16943,30 @@
      0.0
     ],
     "atropine": [
-     0.05714285714285715,
-     0.050598315755654814,
-     0.0425964982596284,
-     0.032926807251403005,
-     0.02205073533582006,
-     0.045464349667872606,
-     0.03066831452433908,
-     0.019935221554585887,
-     0.016167366589509666,
-     0.01209240595097884,
-     0.009214429151098697
+     0.04,
+     0.02694701275883745,
+     0.01612736833971055,
+     0.008836600984555909,
+     0.005331663303516426,
+     0.0242848091563176,
+     0.007985352313619288,
+     0.004633300765560757,
+     0.003230299822077145,
+     0.0015765576482700283,
+     0.0007694596054009083
+    ],
+    "atropine@e": [
+     0.0,
+     0.02675486680567296,
+     0.019026679251180553,
+     0.009847598852437616,
+     0.005500173355502419,
+     0.004368993218625919,
+     0.008556482697768226,
+     0.004720880568312786,
+     0.0032893065620815945,
+     0.0016053459508696716,
+     0.0007835101420742723
     ]
    }
   },
@@ -15669,6 +17083,25 @@
      0.19275863833644824,
      0.16916053183119034,
      0.1496923021022955
+    ],
+    "betabloquant@e": [
+     0.0,
+     0.17945341997598074,
+     0.22121850095488824,
+     0.21165969677254118,
+     0.18688614503999873,
+     0.16082808403442853,
+     0.13802382148483036,
+     0.1193013386269556,
+     0.10421028062537034,
+     0.2714545905313001,
+     0.30319532361839857,
+     0.2852465763156208,
+     0.2533131840476784,
+     0.22103825577682668,
+     0.19275863833644824,
+     0.16916053183119034,
+     0.1496923021022955
     ]
    }
   },
@@ -15752,6 +17185,30 @@
      0.018415122346395422
     ],
     "opioide": [
+     0.1,
+     0.09505811758012256,
+     0.07816992253720942,
+     0.06228234646347467,
+     0.042122706315218576,
+     0.02471008244853152,
+     0.015036910855540351,
+     0.011059490460218804,
+     0.008299835605255193,
+     0.004693247766763511
+    ],
+    "furosemide@e": [
+     19.29570670525808,
+     16.144578233234693,
+     8.02781680585942,
+     3.5376754575247555,
+     0.9942988247973457,
+     0.4070819478661652,
+     0.21433244467080118,
+     0.11603775253914501,
+     0.0628238287017198,
+     0.018415122346395422
+    ],
+    "opioide@e": [
      0.1,
      0.09505811758012256,
      0.07816992253720942,
@@ -15846,6 +17303,19 @@
      14.754380420563365
     ],
     "furosemide": [
+     0.0,
+     2.7207095475153316,
+     2.042462086511301,
+     1.0353964175994748,
+     10.246847501028926,
+     4.147796456921971,
+     2.1404817898789372,
+     1.1231965090565077,
+     0.4409814947698785,
+     0.12313384604632137,
+     0.03442338725568558
+    ],
+    "furosemide@e": [
      0.0,
      2.7207095475153316,
      2.042462086511301,

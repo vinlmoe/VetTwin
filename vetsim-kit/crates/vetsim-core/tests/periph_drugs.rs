@@ -141,7 +141,7 @@ fn atropine_glands_gut_and_pupil() {
 }
 
 #[test]
-fn opioid_hypothermia_myosis_gut_and_dysphoria() {
+fn opioid_hypothermia_myosis_and_gut() {
     let p = healthy();
     // perfusion de méthadone 0,1 mg/kg/h après 0,2 mg/kg (Amon 2021) : T 38,4 → 37,1 °C
     let mut ds = vec![dose("opioide", 0.2, Route::Iv, 0.0)];
@@ -157,14 +157,6 @@ fn opioid_hypothermia_myosis_gut_and_dysphoria() {
     // sédation légère seulement (Amon 2021, KuKanich 2008) : score < 7/21
     assert!(per.sedation_score > 2.0 && per.sedation_score < 7.0, "{per:?}");
     assert!(per.pupil.diameter < 8.53, "myosis : {per:?}");
-    // dysphorie : présente à 1 mg/kg IV (Garofalo 2012), absente à 0,5 (KuKanich 2008)
-    let exc = |mg: f64| {
-        eval_at(&p, &[dose("opioide", mg, Route::Iv, 0.0)], 10.0 / 60.0)
-            .peripheral()
-            .excitation
-    };
-    assert!(exc(1.0) > 0.5, "1 mg/kg : {}", exc(1.0));
-    assert!(exc(0.5) < 0.3, "0,5 mg/kg : {}", exc(0.5));
 }
 
 #[test]

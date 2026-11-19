@@ -51,7 +51,19 @@
     "do2_kg": 52.81811212876045,
     "er": 0.17512490050148566,
     "s_tone": 0.20931340609455207,
-    "v_tone": 0.593014945429086
+    "v_tone": 0.593014945429086,
+    "temp_c": 38.6,
+    "shiver": 0.0,
+    "panting": 0.0,
+    "vasomotor": 1.0,
+    "pupil_mm": 8.613676375712343,
+    "plr_pct": 22.42569496457792,
+    "gi_motility": 1.0,
+    "les_mmhg": 47.9,
+    "salivation": 1.0,
+    "mac_eff": 0.0,
+    "sedation_score": 1.0,
+    "excitation": 0.0
    }
   },
   {
@@ -104,7 +116,19 @@
     "do2_kg": 24.23341520263878,
     "er": 0.17035938779322937,
     "s_tone": 0.2,
-    "v_tone": 0.6
+    "v_tone": 0.6,
+    "temp_c": 38.6,
+    "shiver": 0.0,
+    "panting": 0.0,
+    "vasomotor": 1.0,
+    "pupil_mm": 8.53,
+    "plr_pct": 22.977725674091435,
+    "gi_motility": 1.0,
+    "les_mmhg": 47.9,
+    "salivation": 1.0,
+    "mac_eff": 0.0,
+    "sedation_score": 1.0,
+    "excitation": 0.0
    }
   },
   {
@@ -159,7 +183,19 @@
     "do2_kg": 45.3768522333195,
     "er": 0.14413951078012646,
     "s_tone": 0.29875942470085637,
-    "v_tone": 0.4582220981410243
+    "v_tone": 0.4582220981410243,
+    "temp_c": 38.6,
+    "shiver": 0.0,
+    "panting": 0.0,
+    "vasomotor": 1.0,
+    "pupil_mm": 9.199484353602646,
+    "plr_pct": 18.19527566733451,
+    "gi_motility": 1.0,
+    "les_mmhg": 47.9,
+    "salivation": 1.0,
+    "mac_eff": 0.0,
+    "sedation_score": 1.0,
+    "excitation": 0.0
    }
   },
   {
@@ -212,7 +248,19 @@
     "do2_kg": 37.33250189068747,
     "er": 0.14732138227941627,
     "s_tone": 0.5088949708377013,
-    "v_tone": 0.21937043853839064
+    "v_tone": 0.21937043853839064,
+    "temp_c": 38.6,
+    "shiver": 0.0,
+    "panting": 0.0,
+    "vasomotor": 1.0,
+    "pupil_mm": 9.858061989879683,
+    "plr_pct": 12.572791137685131,
+    "gi_motility": 1.0,
+    "les_mmhg": 47.9,
+    "salivation": 1.0,
+    "mac_eff": 0.0,
+    "sedation_score": 1.0,
+    "excitation": 0.0
    }
   },
   {
@@ -265,7 +313,19 @@
     "do2_kg": 31.949531493258167,
     "er": 0.17213802424756686,
     "s_tone": 0.587891150643111,
-    "v_tone": 0.14658163701766666
+    "v_tone": 0.14658163701766666,
+    "temp_c": 38.6,
+    "shiver": 0.0,
+    "panting": 0.0,
+    "vasomotor": 1.0,
+    "pupil_mm": 9.99610234996661,
+    "plr_pct": 11.26065496822493,
+    "gi_motility": 1.0,
+    "les_mmhg": 47.9,
+    "salivation": 1.0,
+    "mac_eff": 0.0,
+    "sedation_score": 1.0,
+    "excitation": 0.0
    }
   },
   {
@@ -318,7 +378,19 @@
     "do2_kg": 21.8500614687308,
     "er": 0.25170132776393067,
     "s_tone": 0.2,
-    "v_tone": 0.6
+    "v_tone": 0.6,
+    "temp_c": 38.6,
+    "shiver": 0.0,
+    "panting": 0.0,
+    "vasomotor": 1.0,
+    "pupil_mm": 8.53,
+    "plr_pct": 22.977725674091435,
+    "gi_motility": 1.0,
+    "les_mmhg": 47.9,
+    "salivation": 1.0,
+    "mac_eff": 0.0,
+    "sedation_score": 1.0,
+    "excitation": 0.0
    }
   },
   {
@@ -371,7 +443,19 @@
     "do2_kg": 25.878772102836393,
     "er": 0.2125246260372937,
     "s_tone": 0.6473965824848114,
-    "v_tone": 0.2644525631363915
+    "v_tone": 0.2644525631363915,
+    "temp_c": 38.6,
+    "shiver": 0.0,
+    "panting": 0.0,
+    "vasomotor": 1.0,
+    "pupil_mm": 10.079885370260904,
+    "plr_pct": 10.439416281617966,
+    "gi_motility": 1.0,
+    "les_mmhg": 47.9,
+    "salivation": 1.0,
+    "mac_eff": 0.0,
+    "sedation_score": 1.0,
+    "excitation": 0.0
    }
   },
   {
@@ -424,7 +508,19 @@
     "do2_kg": 25.364456916319135,
     "er": 0.21683359422880125,
     "s_tone": 0.6764768839373001,
-    "v_tone": 0.24264233704702493
+    "v_tone": 0.24264233704702493,
+    "temp_c": 38.6,
+    "shiver": 0.0,
+    "panting": 0.0,
+    "vasomotor": 1.0,
+    "pupil_mm": 10.11594235863044,
+    "plr_pct": 10.08003762375337,
+    "gi_motility": 1.0,
+    "les_mmhg": 47.9,
+    "salivation": 1.0,
+    "mac_eff": 0.0,
+    "sedation_score": 1.0,
+    "excitation": 0.0
    }
   },
   {
@@ -477,7 +573,19 @@
     "do2_kg": 24.96446706261318,
     "er": 0.2203074282326934,
     "s_tone": 0.7086109291688101,
-    "v_tone": 0.2185418031233925
+    "v_tone": 0.2185418031233925,
+    "temp_c": 38.6,
+    "shiver": 0.0,
+    "panting": 0.0,
+    "vasomotor": 1.0,
+    "pupil_mm": 10.152635449920268,
+    "plr_pct": 9.710576280501618,
+    "gi_motility": 1.0,
+    "les_mmhg": 47.9,
+    "salivation": 1.0,
+    "mac_eff": 0.0,
+    "sedation_score": 1.0,
+    "excitation": 0.0
    }
   },
   {
@@ -530,7 +638,19 @@
     "do2_kg": 20.320962604340504,
     "er": 0.2975939407175151,
     "s_tone": 0.2,
-    "v_tone": 0.6
+    "v_tone": 0.6,
+    "temp_c": 38.6,
+    "shiver": 0.0,
+    "panting": 0.0,
+    "vasomotor": 1.0,
+    "pupil_mm": 8.53,
+    "plr_pct": 22.977725674091435,
+    "gi_motility": 1.0,
+    "les_mmhg": 47.9,
+    "salivation": 1.0,
+    "mac_eff": 0.0,
+    "sedation_score": 1.0,
+    "excitation": 0.0
    }
   },
   {
@@ -585,7 +705,19 @@
     "do2_kg": 35.667519762201536,
     "er": 0.15420054095699412,
     "s_tone": 0.34259163918167895,
-    "v_tone": 0.3847229372804074
+    "v_tone": 0.3847229372804074,
+    "temp_c": 38.6,
+    "shiver": 0.0,
+    "panting": 0.0,
+    "vasomotor": 1.0,
+    "pupil_mm": 9.392824340958642,
+    "plr_pct": 16.64715521336305,
+    "gi_motility": 1.0,
+    "les_mmhg": 47.9,
+    "salivation": 1.0,
+    "mac_eff": 0.0,
+    "sedation_score": 1.0,
+    "excitation": 0.0
    }
   },
   {
@@ -642,7 +774,19 @@
     "do2_kg": 22.915423072220705,
     "er": 0.21910094417433812,
     "s_tone": 0.5232400537253579,
-    "v_tone": 0.35756995970598165
+    "v_tone": 0.35756995970598165,
+    "temp_c": 38.6,
+    "shiver": 0.0,
+    "panting": 0.0,
+    "vasomotor": 1.0,
+    "pupil_mm": 9.88588122038483,
+    "plr_pct": 12.312365935634498,
+    "gi_motility": 1.0,
+    "les_mmhg": 47.9,
+    "salivation": 1.0,
+    "mac_eff": 0.0,
+    "sedation_score": 1.0,
+    "excitation": 0.0
    }
   },
   {
@@ -699,7 +843,19 @@
     "do2_kg": 29.771193798679175,
     "er": 0.23229177658378822,
     "s_tone": 0.25922315167160803,
-    "v_tone": 0.5284993029129607
+    "v_tone": 0.5284993029129607,
+    "temp_c": 38.6,
+    "shiver": 0.0,
+    "panting": 0.0,
+    "vasomotor": 1.0,
+    "pupil_mm": 8.9803351134344,
+    "plr_pct": 19.855802128601773,
+    "gi_motility": 1.0,
+    "les_mmhg": 47.9,
+    "salivation": 1.0,
+    "mac_eff": 0.0,
+    "sedation_score": 1.0,
+    "excitation": 0.0
    }
   }
  ]

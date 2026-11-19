@@ -115,26 +115,6 @@
       }
      }
     ]
-   },
-   {
-    "id": "central_anticholinergic",
-    "emax": 1.0,
-    "ec50_mg_L": 0.15,
-    "hill": 3.0,
-    "site": "effect",
-    "evidence": "D",
-    "source": "Délire anticholinergique (agitation, vocalises, cécité apparente) : un cas après ≈ 0,16 mg/kg en 5 h avec lidocaïne (Fedotova 2025, lu) ; seuils cités en source secondaire contradictoires (« dès 1,5 mg/kg », « 5–10 mg/kg IV »). Placeholder D : EC50 au-dessus des concentrations des doses usuelles (0,1 mg/kg IV ⇒ pic 0,1 mg/L). Ne jamais utiliser pour une dose réelle.",
-    "effects": [
-     {
-      "param": "excitation",
-      "op": "add",
-      "expr": "T",
-      "clamp": [
-       0,
-       1
-      ]
-     }
-    ]
    }
   ]
  },
@@ -153,8 +133,7 @@
   "Daly MJ et al. 1982, Br J Pharmacol (PMC2071796, résumé)",
   "Kovalcuka L et al. 2015, Vet Ophthalmol, doi:10.1111/vop.12138 (résumé : mydriase maximale à 30 min après 0,06 mg/kg IM)",
   "Weisse I et al. 1975, Naunyn-Schmiedeberg's Arch Pharmacol, doi:10.1007/BF00501796 (résumé)",
-  "Blatt CM et al. 1972, Science, doi:10.1126/science.177.4051.804 (résumé)",
-  "Fedotova S et al. 2025, Front Vet Sci (PMC12557774, lu)"
+  "Blatt CM et al. 1972, Science, doi:10.1126/science.177.4051.804 (résumé)"
  ],
- "notes": "Version 1.1.0 (19/11/2026). PK : Thiermann 1996 (V 3,2 L/kg réparti en vc 1,0 + vp 2,2, partage D ; Cl 44 mL/min/kg ; ka IM = ln2/7 min = 5,94/h ; f_im = 1, cohérent avec le pic de Smallridge 1989 à 0,05 mg/kg IM). Voie orale (ka, f) : placeholders D. PD : blocage vagal (E) au site d'effet (ke0 20/h, t½ d'équilibre ≈ 2 min, D) ; EC50 0,0106 mg/L calée pour +50 % de FC à 39,5 µg/kg IV (Hendrix 1997) en présence du terme paradoxal ; blocage complet ⇒ FC × 1,74 (Little 1999 : × 1,9 ; FC intrinsèque 141–146, Billman 2015). Mydriase (pupil_block = E) : mydriase et tachycardie aux mêmes doses (de Ponti 1993), maximum 30 min après 0,06 mg/kg IM (Kovalcuka 2015) ; 0,02 mg/kg SC sans mydriase significative (Kim 2015). Termes secondaires (tableau toxicity) : effet vagal paradoxal (plasma), blocage muscarinique périphérique (glandes, motilité, SOI, glande nasale latérale du halètement), tachycardie excessive, délire central (D). Température : aucune donnée canine dose–température (recherche du 19/11/2026) ; seul mécanisme modélisé : perte évaporative de la glande nasale latérale (19–36 % de l'évaporation respiratoire, Blatt 1972) sous blocage muscarinique, hypothèse D. Non modélisés : ESV et bigéminisme sous halothane (Muir 1978), aggravation de l'hypertension des α2-agonistes (Alvaides 2008, molécules absentes du catalogue), baisse du seuil de FV (Yoon 1977)."
+ "notes": "Version 1.1.0 (19/11/2026). PK : Thiermann 1996 (V 3,2 L/kg réparti en vc 1,0 + vp 2,2, partage D ; Cl 44 mL/min/kg ; ka IM = ln2/7 min = 5,94/h ; f_im = 1, cohérent avec le pic de Smallridge 1989 à 0,05 mg/kg IM). Voie orale (ka, f) : placeholders D. PD : blocage vagal (E) au site d'effet (ke0 20/h, t½ d'équilibre ≈ 2 min, D) ; EC50 0,0106 mg/L calée pour +50 % de FC à 39,5 µg/kg IV (Hendrix 1997) en présence du terme paradoxal ; blocage complet ⇒ FC × 1,74 (Little 1999 : × 1,9 ; FC intrinsèque 141–146, Billman 2015). Mydriase (pupil_block = E) : mydriase et tachycardie aux mêmes doses (de Ponti 1993), maximum 30 min après 0,06 mg/kg IM (Kovalcuka 2015) ; 0,02 mg/kg SC sans mydriase significative (Kim 2015). Termes secondaires (tableau toxicity) : effet vagal paradoxal (plasma), blocage muscarinique périphérique (glandes, motilité, SOI, glande nasale latérale du halètement), tachycardie excessive. Température : aucune donnée canine dose–température (recherche du 19/11/2026) ; seul mécanisme modélisé : perte évaporative de la glande nasale latérale (19–36 % de l'évaporation respiratoire, Blatt 1972) sous blocage muscarinique, hypothèse D. Non modélisés : ESV et bigéminisme sous halothane (Muir 1978), aggravation de l'hypertension des α2-agonistes (Alvaides 2008, molécules absentes du catalogue), baisse du seuil de FV (Yoon 1977). Délire anticholinergique non modélisé (19/11/2026) : un seul cas canin publié (Fedotova 2025), avec lidocaïne associée et des seuils de source secondaire contradictoires (« dès 1,5 mg/kg » contre « 5–10 mg/kg IV »)."
 }

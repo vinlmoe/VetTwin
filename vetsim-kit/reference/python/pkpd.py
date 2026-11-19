@@ -30,13 +30,11 @@ DRUGS = {
 # émergente via D et U.
 TOX = {
     'pimobendan': [dict(id='vasodilation', emax=1.0, ec50=0.3, hill=3.0)],
-    'opioide': [dict(id='respiratory_depression', emax=1.0, ec50=1.0, hill=3.0),   # chien vigile : pas d'apnée (Bailey 1987)
-                dict(id='dysphoria', emax=1.0, ec50=0.25, hill=4.0)],               # Garofalo 2012 / KuKanich 2008
+    'opioide': [dict(id='respiratory_depression', emax=1.0, ec50=1.0, hill=3.0)],   # chien vigile : pas d'apnée (Bailey 1987)
     # atropine : termes secondaires (sources dans modules/drugs/atropine.json)
     'atropine': [dict(id='paradoxical_vagal', emax=1.0, ec50=0.004, hill=2.0, site='plasma'),
                  dict(id='antimuscarinic_peripheral', emax=1.0, ec50=0.0015, hill=1.5, site='effect'),
-                 dict(id='excess_tachycardia', emax=1.0, ec50=0.045, hill=3.0, site='plasma'),
-                 dict(id='central_anticholinergic', emax=1.0, ec50=0.15, hill=3.0, site='effect')],
+                 dict(id='excess_tachycardia', emax=1.0, ec50=0.045, hill=3.0, site='plasma')],
 }
 VB_ML_KG = 85.0
 URINE_MAX = 0.2044    # mL/kg/min à effet maximal (furosémide, Koh 2021)
@@ -169,8 +167,6 @@ def apply_drug_effects(p, conc, D, U, conc_e=None):
         q['sedation'] += 0.2 * e               # sédation légère du vigile
         t = tox_effect(TOX['opioide'][0], conc['opioide'])
         q['vent_drive'] *= 1 - 0.8 * t         # toxique : plateau de PaCO2 ≈ 65 mmHg, sans apnée (Bailey 1987)
-        t = tox_effect(TOX['opioide'][1], conc['opioide'])
-        q['excitation'] = min(1.0, max(0.0, q['excitation'] + t))   # dysphorie
     if 'atropine' in conc:
         e = effect('atropine', ce('atropine'))            # blocage au site d'effet (ke0)
         q['vagal_block'] = min(1.0, q['vagal_block'] + e)
@@ -180,7 +176,6 @@ def apply_drug_effects(p, conc, D, U, conc_e=None):
         q['vagal_add'] += 0.2 * T['paradoxical_vagal']
         q['musc_block'] = min(1.0, max(0.0, q['musc_block'] + T['antimuscarinic_peripheral']))
         q['hr'] *= 1 + 0.2 * T['excess_tachycardia']
-        q['excitation'] = min(1.0, max(0.0, q['excitation'] + T['central_anticholinergic']))
     if 'betabloquant' in conc:
         q['beta_block'] = min(1.0, q['beta_block'] + effect('betabloquant', conc['betabloquant']))
         # profil aténolol : pas de terme toxique de stabilisation de membrane (propranolol)

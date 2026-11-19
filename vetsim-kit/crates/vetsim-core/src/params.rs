@@ -349,7 +349,9 @@ define_params! {
     gi_inhib,
     /// Commande sédative (sans dimension ; 0 : vigile).
     sedation,
-    /// Commande d'excitation centrale (dysphorie, délire ; sans dimension).
+    /// Commande d'excitation centrale (entrée de scénario ; aucun médicament du catalogue ne
+    /// l'actionne : délire anticholinergique et dysphorie non modélisés, faute de données
+    /// canines chiffrées, voir `modules/drugs/*.json`).
     excitation,
 }
 

@@ -505,7 +505,10 @@ impl Engine {
 
     /// Évolution temporelle : `{"doses": [{"t_h": 0, "drug": "furosemide", "mg_per_kg": 2,
     /// "route": "iv"}], "t_end_h": 12, "t_eval_h": [0, 1, 2], "states": true}` →
-    /// concentrations, `D`, `U` et (si `states`) l'état plat à chaque instant.
+    /// concentrations, `D`, `U` et (si `states`) l'état plat à chaque instant. Avec
+    /// `state_times_h`, l'option `thermal` intègre en plus le bilan thermique
+    /// ([`vetsim_core::periph::thermal_course`]) et injecte la température centrale dans chaque
+    /// état renvoyé (`temp_c`, et ses effets sur la FC intrinsèque, la VO2 et la P50).
     pub fn timecourse(&mut self, patient_id: &str, doses: &str) -> String {
         self.respond(|e| {
             let o = parse(doses, "doses")?;
@@ -575,6 +578,18 @@ impl Engine {
                     return Err(ApiError::one("/state_times_h", "au plus 400 instants"));
                 }
                 let tcs = timecourse(&s.patient.params, &c.drugs, &ds, t_end, &times)?;
+                // Température centrale : intégrée séparément (échelle de temps lente), puis
+                // injectée dans chaque état (FC intrinsèque, VO2, P50 ; periph.rs).
+                let thermal = if opt_bool(m, "thermal", false)? {
+                    Some(vetsim_core::periph::thermal_course(
+                        &s.patient.params,
+                        &c.drugs,
+                        &ds,
+                        &times,
+                    )?)
+                } else {
+                    None
+                };
                 let mut states = Vec::with_capacity(tcs.t.len());
                 let mut death: Option<f64> = None;
                 let mut cause = Json::Null;
@@ -584,7 +599,10 @@ impl Engine {
                         states.push(dead_entry(&cause));
                         continue;
                     }
-                    let p = effects_at(&s.patient.params, &c.drugs, &tcs, i)?;
+                    let mut p = effects_at(&s.patient.params, &c.drugs, &tcs, i)?;
+                    if let Some(th) = &thermal {
+                        p.temp_c = th[i].tc;
+                    }
                     let st = state_entry(&p)?;
                     if st["outcome"] == "dead" {
                         death = Some(tcs.t[i]);
@@ -1611,7 +1629,7 @@ mod tests {
             (Some("g_mr"), Some("add"))
         );
         assert_eq!(m0["blocks"][0], "valves");
-        assert_eq!(l["blocks"].as_array().unwrap().len(), 15);
+        assert_eq!(l["blocks"].as_array().unwrap().len(), 19);
         let ckd = l["diseases"]
             .as_array()
             .unwrap()

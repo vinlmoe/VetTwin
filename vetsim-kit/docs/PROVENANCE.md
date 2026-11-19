@@ -125,3 +125,32 @@ Accès : « lu » = texte intégral, « résumé » = résumé seul. Detail : `d
 - La rétention est plafonnée par l'effet du furosémide (Suzuki 2013) : à 0,38, la baisse de POG passe sous le seuil de 18 %.
 - La cible de FC du stade D, 140–180 (non sourcée), est remplacée par 100–150 au repos.
 - Limite : B2 reste sous l'élévation publiée (×1,05 contre ×1,11–1,23).
+
+## Périphérie et relations dose-effet (19/11/2026)
+Recherche bibliographique PubMed/Europe PMC sur six volets (thermorégulation, pupille, digestif et
+sécrétions, système nerveux, atropine, opioïdes, furosémide, pimobendane). Le volet bêtabloquants
+est resté incomplet : l'agent de recherche a été arrêté par les garde-fous d'Anthropic avant d'avoir
+fini. Aucune série d'intoxication canine n'a été trouvée pour cette classe, ni pour le furosémide
+ou l'atropine.
+
+- **Modèle thermique** : calé sur la seule cinétique de refroidissement sous anesthésie
+  (Redondo 2012, n = 1525 ; Sage 2023, n = 1097). Aucune valeur canine publiée n'a été trouvée pour
+  la chaleur spécifique du corps (3470 J/kg/°C : valeur humaine), la conductance sèche, les seuils
+  de vasoconstriction et de frisson, ni les pertes respiratoires en W/kg. `fc`, `Ts` neutre, la part
+  respiratoire, les gains vasomoteurs et les plages de recrutement sont donc des placeholders D.
+  Le modèle de Potter 2020 (J Therm Biol, payant) contient probablement ces constantes.
+- **Pupille** : trois diamètres mesurés fixent exactement les gains (Mills 2022, lu, 126 yeux ;
+  Whiting 2013 ; Weisse 1975). Le modèle est statique : la cinétique du réflexe n'est pas simulée.
+  Aucune relation diamètre–concentration d'isoflurane publiée chez le chien.
+- **Digestif et salive** : indices relatifs. Aucun débit salivaire canin en mL/min chez le vigile,
+  aucune courbe dose–réduction de la salive sous atropine ou glycopyrrolate aux doses cliniques.
+- **SNC** : l'échelle de Grint (Wagner 2017, lu) et la table BIS de Greene 2003 sont sourcées, mais
+  la forme de la relation concentration–score est un placeholder D.
+- **Atropine 1.1.0** : PK issue d'une étude IM (Thiermann 1996) ; aucune PK IV chez le chien vigile
+  n'a été trouvée. L'effet biphasique est reproduit par la dissociation plasma / site d'effet, et
+  non par un mécanisme démontré : aucune source canine lue ne démontre le mécanisme du paradoxe, et
+  aucune ne relie l'effet à une concentration.
+- **Non modélisés, faute de données chiffrées** : délire anticholinergique (un seul cas canin,
+  Fedotova 2025, avec lidocaïne associée et seuils de source secondaire contradictoires), dysphorie
+  des opioïdes (pas d'échelle ni de relation concentration–score), ototoxicité du furosémide
+  (relation dose-réponse décrite sans seuil accessible), vomissements, convulsions.
