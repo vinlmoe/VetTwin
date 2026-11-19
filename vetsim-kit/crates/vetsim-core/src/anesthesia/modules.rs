@@ -186,6 +186,10 @@ pub struct AnesthesiaModel {
     pub o2_debt_tol_ml_kg: f64,
     /// Constante de remboursement de la dette d'O2 (min).
     pub o2_debt_tau_min: f64,
+    /// Apport d'O2 critique (mL/kg/min) sous lequel la consommation devient dépendante de l'apport.
+    pub do2_crit_ml_kg_min: f64,
+    /// Effets de la dette d'O2 (variable `DEBT`, fraction 0–1 de la dette tolérée).
+    pub hypoxia_effects: Vec<Effect>,
     /// Niveau de preuve global du module.
     pub evidence: Evidence,
     /// Références.
@@ -240,6 +244,7 @@ impl AnesthesiaModel {
         let push = num(&mut c, "iv_push_s");
         let debt = num(&mut c, "o2_debt_tol_ml_kg");
         let dtau = num(&mut c, "o2_debt_tau_min");
+        let dcrit = num(&mut c, "do2_crit_ml_kg_min");
         let mut tissues = [Tissue {
             vol_l_kg: 0.0,
             co_frac: 0.0,
@@ -287,9 +292,16 @@ impl AnesthesiaModel {
             &["DT"],
             false,
         );
+        let he = c.effects(
+            m.get("hypoxia_effects"),
+            "/hypoxia_effects",
+            &["DEBT"],
+            false,
+        );
         let all = [
             co2, frc, vd, circ, gap, flowby, loc, swallow, palp, jaw, surg, deep, exc, bar, barh,
             mh, tnu, tst, sr, st, sg, t0, tamb, tcool, lga, warm, mpc, bv, ctau, push, debt, dtau,
+            dcrit,
         ];
         if all.iter().any(Option::is_none) || !t_ok {
             return Err(c.fail(origin));
@@ -332,6 +344,8 @@ impl AnesthesiaModel {
             iv_push_s: g(push),
             o2_debt_tol_ml_kg: g(debt),
             o2_debt_tau_min: g(dtau),
+            do2_crit_ml_kg_min: g(dcrit),
+            hypoxia_effects: he,
             evidence,
             refs,
         };

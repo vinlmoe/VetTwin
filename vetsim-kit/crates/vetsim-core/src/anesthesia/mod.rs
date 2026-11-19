@@ -997,7 +997,38 @@ impl Session {
             &env,
             "anesthesia_model",
         )?;
+        // dette d'O2 : dépression myocardique et bradycardie hypoxiques (variable DEBT 0–1)
+        let mut env = Env::new();
+        env.set_num("DEBT", self.debt_frac());
+        apply(
+            &mut q,
+            &self.model.hypoxia_effects,
+            &env,
+            "anesthesia_model",
+        )?;
         Ok(q)
+    }
+
+    /// Fraction de la dette d'O2 tolérée (0–1).
+    fn debt_frac(&self) -> f64 {
+        (self.o2_debt_ml / (self.model.o2_debt_tol_ml_kg * self.base.bw)).clamp(0.0, 1.0)
+    }
+
+    /// Dette d'O2 : elle s'accroît quand l'apport passe sous l'apport critique (consommation
+    /// dépendante de l'apport) ou sous la consommation, et se rembourse sinon. Vrai si la dette
+    /// tolérée est dépassée (décès).
+    fn account_o2(&mut self, e: &Evaluation, dt_s: f64) -> bool {
+        let bw = self.base.bw;
+        let vo2 = e.params.vo2 * bw;
+        let do2 = e.metabolic.do2;
+        let crit = self.model.do2_crit_ml_kg_min * bw;
+        let deficit = f64::max(vo2 - do2, vo2 * (1.0 - do2 / crit)).max(0.0);
+        if deficit > 0.0 {
+            self.o2_debt_ml += deficit * dt_s / 60.0;
+        } else {
+            self.o2_debt_ml *= math::exp(-dt_s / 60.0 / self.model.o2_debt_tau_min);
+        }
+        self.o2_debt_ml > self.model.o2_debt_tol_ml_kg * bw
     }
 
     fn fio2_true(&self) -> f64 {
@@ -1068,11 +1099,14 @@ impl Session {
             q.fio2 = (pao2_alv + paco2 / q.rq) / (q.pb - 47.0);
             match evaluate(&q) {
                 Ok(e) => {
-                    // remboursement de la dette d'O2 quand l'apport redevient suffisant
-                    self.o2_debt_ml *= math::exp(-dt_s / 60.0 / self.model.o2_debt_tau_min);
-                    snap_eval = Some(e.clone());
-                    self.last = Some(e);
-                    q_used = Some(q);
+                    if self.account_o2(&e, dt_s) {
+                        self.dead = Some("hypoxic_arrest");
+                        self.log.push((self.t_s, "décès : arrêt hypoxique".into()));
+                    } else {
+                        snap_eval = Some(e.clone());
+                        self.last = Some(e);
+                        q_used = Some(q);
+                    }
                 }
                 // Hypoxie transitoire (VO2 > DO2) : le moteur stationnaire conclut au décès, mais
                 // l'organisme tolère une dette d'O2 limitée (réserves, anaérobiose) ; le décès
@@ -1081,11 +1115,9 @@ impl Session {
                     cause: "oxygen_debt",
                     last: Some(e),
                 }) => {
-                    let vo2 = e.params.vo2 * e.params.bw;
-                    self.o2_debt_ml += (vo2 - e.metabolic.do2).max(0.0) * dt_s / 60.0;
-                    if self.o2_debt_ml > self.model.o2_debt_tol_ml_kg * self.base.bw {
-                        self.dead = Some("oxygen_debt");
-                        self.log.push((self.t_s, "décès : oxygen_debt".into()));
+                    if self.account_o2(&e, dt_s) {
+                        self.dead = Some("hypoxic_arrest");
+                        self.log.push((self.t_s, "décès : arrêt hypoxique".into()));
                     } else {
                         snap_eval = Some((*e).clone());
                         self.last = Some(*e);

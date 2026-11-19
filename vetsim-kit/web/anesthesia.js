@@ -15,7 +15,7 @@ const ALARM_FR = {
 };
 const DEATH_FR = {
   cardiac_arrest: 'arrêt cardiaque', circulatory_collapse: 'effondrement circulatoire', irreversible_shock: 'choc irréversible',
-  oxygen_debt: "dette d'oxygène", no_steady_state: 'aucun état viable', vicious_circle: 'spirale de décompensation',
+  oxygen_debt: "dette d'oxygène", hypoxic_arrest: 'arrêt cardiaque hypoxique', no_steady_state: 'aucun état viable', vicious_circle: 'spirale de décompensation',
 };
 const CLASS_FR = {
   alpha2_agonist: 'α2-agoniste', phenothiazine: 'phénothiazine', benzodiazepine: 'benzodiazépine', opioid: 'opioïde',

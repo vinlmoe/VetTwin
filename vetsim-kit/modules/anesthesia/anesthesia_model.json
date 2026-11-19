@@ -1,7 +1,7 @@
 {
  "schema_version": "1.0.0",
  "id": "anesthesia_model",
- "version": "1.4.0",
+ "version": "1.5.0",
  "name": {
   "fr": "Constantes du modèle d'anesthésie"
  },
@@ -160,12 +160,17 @@
   "o2_debt_tol_ml_kg": {
    "value": 20.0,
    "evidence": "D",
-   "source": "Placeholder : dette d'O2 tolérée (réserves sanguines et tissulaires, anaérobiose) avant l'arrêt, de l'ordre de 4 min de VO2 totale (5,5 mL/kg/min) ; le moteur stationnaire, lui, conclut au décès dès que VO2 dépasse DO2."
+   "source": "Placeholder : dette d'O2 tolérée avant l'arrêt hypoxique (réserves, anaérobiose), environ 4 min de VO2 totale (5,5 mL/kg/min) : l'arrêt survient alors quelques minutes après le début d'une apnée à l'air ambiant. Le moteur stationnaire, lui, conclut au décès dès que VO2 dépasse DO2."
   },
   "o2_debt_tau_min": {
    "value": 10.0,
    "evidence": "D",
    "source": "Placeholder : constante de remboursement de la dette d'O2 une fois l'apport rétabli."
+  },
+  "do2_crit_ml_kg_min": {
+   "value": 9.8,
+   "evidence": "D",
+   "source": "Apport d'O2 critique du chien de l'ordre de 10 mL/kg/min (valeur classique attribuée à Cain 1977, J Appl Physiol, hypoxie hypoxique ; NON LUE, à vérifier) : en dessous, la consommation devient dépendante de l'apport et la dette d'O2 s'accumule."
   }
  },
  "tissues": {
@@ -374,5 +379,52 @@
   "Murahata Y et al. 2018, J Vet Med Sci (PMC6068302, lu)",
   "Yamashita K et al. 2012, J Vet Med Sci, doi:10.1292/jvms.11-0274 (résumé)"
  ],
- "notes": "Tous placeholders D : mécanismes posés, valeurs à sourcer. Tissus : répartition classique des modèles physiologiques d'absorption (groupe richement vascularisé 9 % du poids et 75 % du débit ; muscle 50 % / 19 % ; graisse 20 % / 6 %), d'origine humaine, non lue. Nociception : une activation sympathique Δs = 0,4·NU (gain placeholder D) relève le tonus de base s0 et retire du tonus vagal (vagal_add − 0,3·NU, placeholder D) : FC et, avec les coefficients mêmes du baroréflexe du moteur (MODEL_SPEC §3 : ees × (1 + 0,4·Δs), r_sys × (1 + 0,5·Δs), vol_shift + 0,2·85·bw·Δs), l'inotropisme, les RVS et le recrutement veineux, que le baroréflexe calcule par rapport à s0 ; elle réinitialise le baroréflexe vers le haut (map_set + 20·NU mmHg, réaction de défense : amplitude placeholder D), sans quoi le baroréflexe opposerait une bradycardie à l'hypertension de la stimulation ; elle relève aussi la commande ventilatoire, et, par l'état de stress lent, VO2, VCO2 et la glycémie. Température : Q10 = 2 sur VO2 et VCO2 (exp(ln2/10·ΔT)). Les ESV de stress (vpc_rate) ne sont pas branchées : elles basculeraient l'évaluation sur la conduction battement par battement."
+ "notes": "Tous placeholders D : mécanismes posés, valeurs à sourcer. Tissus : répartition classique des modèles physiologiques d'absorption (groupe richement vascularisé 9 % du poids et 75 % du débit ; muscle 50 % / 19 % ; graisse 20 % / 6 %), d'origine humaine, non lue. Nociception : une activation sympathique Δs = 0,4·NU (gain placeholder D) relève le tonus de base s0 et retire du tonus vagal (vagal_add − 0,3·NU, placeholder D) : FC et, avec les coefficients mêmes du baroréflexe du moteur (MODEL_SPEC §3 : ees × (1 + 0,4·Δs), r_sys × (1 + 0,5·Δs), vol_shift + 0,2·85·bw·Δs), l'inotropisme, les RVS et le recrutement veineux, que le baroréflexe calcule par rapport à s0 ; elle réinitialise le baroréflexe vers le haut (map_set + 20·NU mmHg, réaction de défense : amplitude placeholder D), sans quoi le baroréflexe opposerait une bradycardie à l'hypertension de la stimulation ; elle relève aussi la commande ventilatoire, et, par l'état de stress lent, VO2, VCO2 et la glycémie. Température : Q10 = 2 sur VO2 et VCO2 (exp(ln2/10·ΔT)). Les ESV de stress (vpc_rate) ne sont pas branchées : elles basculeraient l'évaluation sur la conduction battement par battement. Dette d'O2 : la fraction DEBT de la dette tolérée déprime la contractilité (ees × (1 − 0,7·DEBT)) et la FC (hr × (1 − 0,6·DEBT), bradycardie hypoxique) : placeholders D ; l'arrêt survient quand la dette tolérée est atteinte.",
+ "hypoxia_effects": [
+  {
+   "param": "ees_lv",
+   "op": "mul",
+   "expr": {
+    "sub": [
+     1,
+     {
+      "mul": [
+       0.7,
+       "DEBT"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "param": "ees_rv",
+   "op": "mul",
+   "expr": {
+    "sub": [
+     1,
+     {
+      "mul": [
+       0.7,
+       "DEBT"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "param": "hr",
+   "op": "mul",
+   "expr": {
+    "sub": [
+     1,
+     {
+      "mul": [
+       0.6,
+       "DEBT"
+      ]
+     }
+    ]
+   }
+  }
+ ]
 }

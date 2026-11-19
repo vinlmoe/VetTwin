@@ -567,3 +567,35 @@ fn breathing_resumes_when_co2_rises_after_hyperventilation() {
         later.va
     );
 }
+
+#[test]
+fn untreated_apnea_desaturates_then_causes_hypoxic_arrest() {
+    // apnée totale (ventilateur à 0) chez un chien intubé sous O2 : réserve pulmonaire, puis
+    // désaturation, dépression hypoxique et arrêt ; sans ventilation, le décès est inévitable
+    let mut s = session();
+    anesthetized(&mut s, "isoflurane", 1.8);
+    run(&mut s, 300.0, 30.0);
+    s.apply(Event::SetVentilation(Ventilation::Controlled {
+        rr: 0.0,
+        vt_ml_kg: 0.0,
+    }))
+    .unwrap();
+    let (mut t_desat, mut t_dead) = (None, None);
+    for _ in 0..180 {
+        let sn = s.step(10.0).unwrap();
+        let spo2 = sn.eval.as_ref().map_or(0.0, |e| e.metabolic.art.sao2);
+        if t_desat.is_none() && spo2 < 90.0 {
+            t_desat = Some(sn.t_s);
+        }
+        if sn.dead.is_some() {
+            assert_eq!(sn.dead, Some("hypoxic_arrest"));
+            t_dead = Some(sn.t_s);
+            break;
+        }
+    }
+    let (d, a) = (
+        t_desat.expect("désaturation"),
+        t_dead.expect("arrêt hypoxique"),
+    );
+    assert!(a > d + 60.0, "arrêt {a} s, désaturation {d} s");
+}
