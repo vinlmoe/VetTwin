@@ -1,0 +1,107 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage[margin=1.9cm]{geometry}
+\usepackage{booktabs,array,tabularx}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{siunitx}
+\sisetup{locale=FR,detect-all}
+\setlength{\parskip}{0.4em}
+\setlength{\parindent}{0pt}
+\newcommand{\ok}{\textcolor{green!45!black}{\textbf{OK}}}
+\newcommand{\ecart}{\textcolor{red!70!black}{\textbf{Écart}}}
+\newcommand{\partiel}{\textcolor{orange!80!black}{\textbf{Partiel}}}
+\newcommand{\absent}{\textcolor{red!70!black}{\textbf{Absent}}}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\renewcommand{\arraystretch}{1.15}
+
+\title{Bruits du cœur en MMVD : le modèle face à la littérature}
+\date{19 novembre 2026}
+\begin{document}
+\maketitle
+\textbf{Usage pédagogique uniquement.} Complète \texttt{docs/VERIFICATION\_PCG.md}, qui compare le timbre et le niveau du souffle à des enregistrements (TiHo). Ici on compare l'évolution des signes d'auscultation \emph{avec le stade ACVIM} aux données publiées.
+
+\section{Méthode}
+Moteur Rust (référence normative) : \texttt{vetsim-cli pcg --bw 20 --disease mmvd:$s$}, graine 0, site par défaut (base). Sévérités des stades du modèle : B1 $s=0{,}2$ ; B2 $0{,}45$ ; C $0{,}7$ ; D $0{,}9$ et $1{,}0$. POG et PAP moyenne lues dans la référence Python (\texttt{Patient(20 kg)}, mode déterministe), qui sert aussi de contre-vérification.
+
+\section{Sorties du modèle}
+\begin{center}\small
+\begin{tabular}{lrrrrrrrrr}
+\toprule
+Stade & FC & POG & PAPm & $Q_\text{rég}$ max & Grade & B1 & B2 & B3 & B1$\to$B2 \\
+ & (/min) & (mmHg) & (mmHg) & (mL/s) & (/6) & & & & (s)\\
+\midrule
+Sain & 88 & 4,6 & 13,7 & 1,4 & 0 & 0,29 & 0,79 & non & 0,272\\
+B1 & 88 & 5,3 & 14,6 & 25 & 3 & 0,31 & 0,81 & non & 0,269\\
+B2 & 93 & 7,1 & 16,6 & 90 & 5 & 0,33 & 0,82 & non & 0,235\\
+C & 111 & 14,0 & 24,9 & 363 & 6 & 0,43 & 0,91 & non & 0,169\\
+D & 128 & 27,6 & 38,6 & 1172 & 6 & 0,47 & 0,89 & oui & 0,157\\
+D ($s=1$) & 150 & 37,4 & 48,7 & 1799 & 6 & 0,47 & 0,89 & oui & 0,145\\
+\bottomrule
+\end{tabular}
+\end{center}
+Fraction de régurgitation (Python) : 13 \% (B1), 35 \% (B2), 63 \% (C), 81 \% (D). Niveau du souffle rapporté à l'amplitude de B1 : $-26$ dB (B1), $-14$ dB (B2), $-2$ dB (C), $+9$ dB (D).
+
+\textbf{Écart Rust/Python relevé} (à analyser, non corrigé) : grades, B3, FC et intervalles concordent, mais l'amplitude de B2 diffère (Rust 0,79 à 0,91 ; Python 0,27 à 0,31, si bien que B1 $>$ B2 en Python et B1 $<$ B2 en Rust au site base) et le débit régurgitant maximal diverge aux fortes sévérités (D : \num{1172} contre \num{1077} mL/s ; $s=1$ : \num{1799} contre \num{1524}).
+
+\section{Comparaison}
+\begin{tabularx}{\linewidth}{p{3.2cm}LLp{1.3cm}}
+\toprule
+Signe & Littérature & Modèle & Verdict\\
+\midrule
+Intensité du souffle et sévérité &
+Corrélée au stade et aux dimensions échographiques ($P<0{,}001$, 79 CKCS) \cite{haggstrom1995}. Souffle faible : 90 \% sans remodelage, aucun ICC ; remodelage absent chez 56 \% (modéré), 29 \% (fort), 8 \% (frémissant) \cite{ljungvall2014}. &
+Monotone avec la sévérité. & \ok\\
+Grade au stade B1 &
+Premier signe habituel : souffle 1/6 à l'apex ; souffle faible (1--2/6) très majoritaire en B1 \cite{ljungvall2014}. &
+3/6. & \ecart\\
+Grade au stade B2 &
+Critère ACVIM : souffle $\ge 3/6$ \cite{keene2019}. Grades 3--4 courants ; frémissement surtout en maladie avancée \cite{ljungvall2014}. &
+5/6 (frémissant). & \ecart\\
+Grade aux stades C--D &
+4 à 6/6 ; frémissement associé aux formes sévères \cite{ljungvall2014}. &
+6/6 dès C ; le niveau continue de monter de $\approx 11$ dB par stade sans plafond. & \partiel\\
+B3 (galop) &
+B3 au PCG chez 21/68 CKCS, fréquence croissante avec la classe d'insuffisance ; absent en classe I, apparu chez 7/13 chiens passés en classe II \cite{haggstrom1995}. &
+Seuil POG $>15$ mmHg : absent en C (POG 14), présent en D. & \partiel\\
+Rapport B1/B2 &
+Augmente quand la maladie progresse (classe I$\to$II, $P<0{,}01$) \cite{haggstrom1995}. &
+B1 croît (dP/dt), B2 presque constant : B1/B2 de 0,36 à 0,53 (Rust). & \ok\\
+Intervalle B1--B2 (et Q--B2) &
+Raccourcit avec la progression ($P<0{,}01$) \cite{haggstrom1995}. &
+0,272 $\to$ 0,145 s. Valeur de base trop longue (0,26 contre 0,18 s mesuré, \texttt{VERIFICATION\_PCG.md}). & \partiel\\
+Clic mésosystolique &
+Signe précoce (prolapsus), peut précéder le souffle ; souvent pris pour un galop \cite{vinrush}. &
+Non modélisé. & \absent\\
+Forme du souffle &
+Souffle d'abord protosystolique ou télésystolique, puis holosystolique en plateau \cite{vinrush}. &
+Holosystolique dès le stade B1. & \partiel\\
+B2 en hypertension pulmonaire &
+B2 fort ou dédoublé possible en HTP (à vérifier dans \cite{reinero2020}). &
+PAPm 39--49 mmHg au stade D, mais la composante pulmonaire de B2 ne dépend pas de la PAP. & \absent\\
+\bottomrule
+\end{tabularx}
+
+\section{Ce qu'il faut retenir}
+\begin{enumerate}
+\item \textbf{Le grade affiché est surestimé d'environ deux crans} en B1 et B2. Ce n'est pas le timbre (calé sur TiHo) mais la table débit $\to$ grade (\texttt{grade.thresholds\_ml\_s}, niveau D, non calibrée) et le débit régurgitant produit par l'hémodynamique. Seuils compatibles avec la littérature pour ces débits : B1 $\approx$ 1--2/6, B2 $\approx$ 3--4/6, C--D $\approx$ 4--6/6.
+\item \textbf{Le souffle ne sature pas.} Avec un niveau en $Q^{1{,}15}$, il dépasse B1 au stade D. Le débit régurgitant maximal (\num{1172} mL/s à 20 kg) paraît lui-même élevé : à vérifier côté hémodynamique avant d'ajouter un plafond dans le module audio.
+\item \textbf{B3 arrive un stade trop tard} : le seuil de 15 mmHg exclut le stade C du modèle (POG 14 mmHg). Häggström et al.\ l'observent dès l'entrée en classe II.
+\item \textbf{Deux signes manquent} : le clic mésosystolique des stades précoces et la modification de B2 en hypertension pulmonaire.
+\item Les tendances de B1/B2 et de l'intervalle B1--B2 sont dans le bon sens.
+\end{enumerate}
+
+\section*{Limites}
+Les chiffres de la littérature viennent des résumés \cite{haggstrom1995,ljungvall2014} et de la synthèse ACVIM \cite{keene2019}, pas du texte intégral. Les grades de Levine sont subjectifs (variabilité interobservateur). Un seul gabarit (20 kg, site par défaut), mode déterministe.
+
+\begin{thebibliography}{9}
+\bibitem{haggstrom1995} Häggström J, Kvart C, Hansson K. Heart sounds and murmurs: changes related to severity of chronic valvular disease in the Cavalier King Charles spaniel. \emph{J Vet Intern Med} 1995;9(2):75--85.
+\bibitem{ljungvall2014} Ljungvall I, Rishniw M, Porciello F, Ferasin L, Ohad DG. Murmur intensity in small-breed dogs with myxomatous mitral valve disease reflects disease severity. \emph{J Small Anim Pract} 2014;55(11):545--550. doi:10.1111/jsap.12265
+\bibitem{keene2019} Keene BW, Atkins CE, Bonagura JD, et al. ACVIM consensus guidelines for the diagnosis and treatment of myxomatous mitral valve disease in dogs. \emph{J Vet Intern Med} 2019;33(3):1127--1140.
+\bibitem{reinero2020} Reinero C, Visser LC, Kellihan HB, et al. ACVIM consensus statement guidelines for the diagnosis, classification, treatment, and monitoring of pulmonary hypertension in dogs. \emph{J Vet Intern Med} 2020;34(2):549--573. (Non consulté pour ce point.)
+\bibitem{vinrush} Rush JE. Chronic valvular heart disease in dogs. VIN, \url{https://www.vin.com/doc/?id=3843678} (support de cours, non revu par les pairs).
+\end{thebibliography}
+\end{document}
