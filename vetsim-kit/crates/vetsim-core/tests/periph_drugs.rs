@@ -17,10 +17,16 @@ fn read(rel: &str) -> String {
 }
 
 fn drugs() -> Vec<DrugModule> {
-    ["atropine", "betabloquant", "furosemide", "opioide", "pimobendan"]
-        .iter()
-        .map(|d| DrugModule::from_json(&read(&format!("modules/drugs/{d}.json")), d).unwrap())
-        .collect()
+    [
+        "atropine",
+        "betabloquant",
+        "furosemide",
+        "opioide",
+        "pimobendan",
+    ]
+    .iter()
+    .map(|d| DrugModule::from_json(&read(&format!("modules/drugs/{d}.json")), d).unwrap())
+    .collect()
 }
 
 fn healthy() -> Params {
@@ -45,8 +51,7 @@ fn params_at(p: &Params, ds: &[Dose], t: f64, thermal: bool) -> Params {
         v.iter().map(|(d, x)| (d.clone(), x[0])).collect()
     };
     let mut q =
-        apply_drug_effects_sites(p, &dr, &at(&tc.conc), &at(&tc.conc_e), tc.d[0], tc.u[0])
-            .unwrap();
+        apply_drug_effects_sites(p, &dr, &at(&tc.conc), &at(&tc.conc_e), tc.d[0], tc.u[0]).unwrap();
     if thermal {
         q.temp_c = thermal_course(p, &dr, ds, &[t]).unwrap()[0].tc;
     }
@@ -95,7 +100,12 @@ fn atropine_paradoxical_bradycardia_at_low_dose() {
     let hr0 = evaluate(&healthy()).unwrap().params.hr;
     // 6,25 µg/kg IV : ralentissement du nœud sinusal (Kantelip 1985)
     let low = (1..=10)
-        .map(|m| hr_at(&[dose("atropine", 0.00625, Route::Iv, 0.0)], m as f64 / 60.0))
+        .map(|m| {
+            hr_at(
+                &[dose("atropine", 0.00625, Route::Iv, 0.0)],
+                m as f64 / 60.0,
+            )
+        })
         .fold(f64::INFINITY, f64::min);
     assert!(low < hr0 - 3.0, "6,25 µg/kg : FC min {low:.1} / {hr0:.1}");
     // 0,02 mg/kg IM : bradycardie transitoire (≈ 4,6 min, Rishniw 1996) puis tachycardie
@@ -130,10 +140,16 @@ fn atropine_glands_gut_and_pupil() {
     let at30 = pup(30.0);
     let base_plr = evaluate(&p).unwrap().peripheral().pupil.plr_pct;
     assert!(at30.diameter > base + 0.5, "{at30:?} vs {base}");
-    assert!(at30.plr_pct < 0.8 * base_plr, "réflexe photomoteur : {at30:?}");
+    assert!(
+        at30.plr_pct < 0.8 * base_plr,
+        "réflexe photomoteur : {at30:?}"
+    );
     // pic de mydriase entre 10 et 45 min
     let tmax = (1..=90).max_by(|a, b| {
-        pup(*a as f64).diameter.partial_cmp(&pup(*b as f64).diameter).unwrap()
+        pup(*a as f64)
+            .diameter
+            .partial_cmp(&pup(*b as f64).diameter)
+            .unwrap()
     });
     assert!((10..=45).contains(&tmax.unwrap()), "pic à {tmax:?} min");
     // retour vers la base quand le médicament s'élimine
@@ -155,7 +171,10 @@ fn opioid_hypothermia_myosis_and_gut() {
     assert!(per.thermo.panting >= 0.0);
     assert!(per.gi_motility < 0.5, "{per:?}");
     // sédation légère seulement (Amon 2021, KuKanich 2008) : score < 7/21
-    assert!(per.sedation_score > 2.0 && per.sedation_score < 7.0, "{per:?}");
+    assert!(
+        per.sedation_score > 2.0 && per.sedation_score < 7.0,
+        "{per:?}"
+    );
     assert!(per.pupil.diameter < 8.53, "myosis : {per:?}");
 }
 
@@ -187,7 +206,12 @@ fn temperature_feeds_back_on_heart_rate_and_oxygen() {
     p.temp_c = 34.0;
     let e = evaluate(&p).unwrap();
     // FC −17 % de 38,5 à ≈ 34 °C sous isoflurane (Yoshida 2001) : intrinsèque, avant baroréflexe
-    assert!(e.params.hr < e0.params.hr, "{} vs {}", e.params.hr, e0.params.hr);
+    assert!(
+        e.params.hr < e0.params.hr,
+        "{} vs {}",
+        e.params.hr,
+        e0.params.hr
+    );
     // P50 abaissée (Bohr thermique) : ΔlogP50 = 0,021 × ΔT
     assert!(e.metabolic.art.p50 < e0.metabolic.art.p50);
     // frisson : VO2 augmentée chez le vigile hypotherme

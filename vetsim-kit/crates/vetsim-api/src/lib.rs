@@ -912,7 +912,14 @@ fn effects_at(
     let at = |v: &[(String, Vec<f64>)]| -> Vec<(String, f64)> {
         v.iter().map(|(d, x)| (d.clone(), x[i])).collect()
     };
-    apply_drug_effects_sites(base, drugs, &at(&tc.conc), &at(&tc.conc_e), tc.d[i], tc.u[i])
+    apply_drug_effects_sites(
+        base,
+        drugs,
+        &at(&tc.conc),
+        &at(&tc.conc_e),
+        tc.d[i],
+        tc.u[i],
+    )
 }
 
 fn parse_doses(m: &Map<String, Json>) -> Result<Vec<Dose>, ApiError> {
@@ -931,7 +938,12 @@ fn parse_doses(m: &Map<String, Json>) -> Result<Vec<Dose>, ApiError> {
             Some("iv") => Route::Iv,
             Some("po") => Route::Po,
             Some("im") | Some("sc") => Route::Im,
-            _ => return Err(ApiError::one(path("route"), "« iv », « po » ou « im » (« sc ») attendu")),
+            _ => {
+                return Err(ApiError::one(
+                    path("route"),
+                    "« iv », « po » ou « im » (« sc ») attendu",
+                ))
+            }
         };
         ds.push(Dose {
             t_h: opt_f64(dm, "t_h", 0.0)

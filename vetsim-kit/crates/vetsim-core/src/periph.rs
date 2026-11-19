@@ -106,9 +106,7 @@ pub fn effectors(p: &Params, tc: f64) -> ThermoEffectors {
     ThermoEffectors {
         inhib,
         vasomotor: math::exp((1.0 - inhib) * vm),
-        shiver: (1.0 - inhib)
-            * SHIVER_MAX
-            * ((-e - SHIVER_OFFSET) / SHIVER_SPAN).clamp(0.0, 1.0),
+        shiver: (1.0 - inhib) * SHIVER_MAX * ((-e - SHIVER_OFFSET) / SHIVER_SPAN).clamp(0.0, 1.0),
         panting: (1.0 - inhib) * PANT_MAX * ((e - PANT_OFFSET) / PANT_SPAN).clamp(0.0, 1.0),
     }
 }
@@ -238,8 +236,7 @@ pub fn apply_temperature(p: &Params) -> Params {
     let dt = p.temp_c - T_REF;
     let ef = effectors(p, p.temp_c);
     q.hr = p.hr * math::pow(Q10_HR, dt / 10.0);
-    q.vo2 = p.vo2
-        * ((1.0 - ANESTH_MET * ef.inhib) * math::pow(Q10_VO2, dt / 10.0) + ef.shiver);
+    q.vo2 = p.vo2 * ((1.0 - ANESTH_MET * ef.inhib) * math::pow(Q10_VO2, dt / 10.0) + ef.shiver);
     q.p50 = p.p50 * math::pow10(BOHR_T * dt);
     q
 }

@@ -320,8 +320,8 @@ pub fn timecourse(
             let ka = m.pk.ka_per_h;
             let ka_im = m.pk.ka_im_per_h.unwrap_or(0.0);
             dy[i] = -ka * gut;
-            dy[i + 1] = ka * gut + ka_im * im - (k.cl / k.vc) * ac - (k.q / k.vc) * ac
-                + (k.q / k.vp) * ap;
+            dy[i + 1] =
+                ka * gut + ka_im * im - (k.cl / k.vc) * ac - (k.q / k.vc) * ac + (k.q / k.vp) * ap;
             dy[i + 2] = (k.q / k.vc) * ac - (k.q / k.vp) * ap;
             dy[i + 3] = -ka_im * im;
             dy[i + 4] = m.pd.ke0_per_h.map_or(0.0, |ke0| ke0 * (ac / k.vc - ce));

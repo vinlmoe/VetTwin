@@ -269,7 +269,12 @@ fn intramuscular_route_and_effect_compartment() {
     let (cp, ce) = (&tc.conc[0].1, &tc.conc_e[0].1);
     assert!(cp[0] > 0.0 && ce[0] == 0.0, "C {cp:?} Ce {ce:?}");
     assert!(ce[1] < 0.5 * cp[1], "équilibration non instantanée");
-    assert!((ce[4] - cp[4]).abs() < 0.1 * cp[4], "équilibre à 1 h : {} / {}", ce[4], cp[4]);
+    assert!(
+        (ce[4] - cp[4]).abs() < 0.1 * cp[4],
+        "équilibre à 1 h : {} / {}",
+        ce[4],
+        cp[4]
+    );
     // E suit Ce (blocage vagal), le terme plasma suit C
     let early = vetsim_core::apply_drug_effects_sites(
         &pt.params,

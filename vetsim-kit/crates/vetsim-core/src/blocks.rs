@@ -185,7 +185,13 @@ pub fn blocks_of(name: &str) -> &'static [Block] {
         | "k_vpc"
         | "k_atrial_standstill" => &[AcidBase, Autonomic, Ecg],
         // température : FC intrinsèque, VO2 (Q10, frisson), P50, CAM
-        "temp_c" => &[Thermoregulation, Autonomic, Metabolism, OxygenTransport, Neuro],
+        "temp_c" => &[
+            Thermoregulation,
+            Autonomic,
+            Metabolism,
+            OxygenTransport,
+            Neuro,
+        ],
         "t_set" | "t_amb" | "warming" => &[Thermoregulation],
         "anesth_mac" => &[Thermoregulation, Digestive, Neuro],
         // muscarinique périphérique : glandes, motilité, glande nasale latérale (halètement)
