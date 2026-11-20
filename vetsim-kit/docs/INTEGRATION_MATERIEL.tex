@@ -1,0 +1,622 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage[margin=2.1cm]{geometry}
+\usepackage{booktabs,array,tabularx}
+\usepackage{xcolor}
+\usepackage{fancyvrb}
+\usepackage{fvextra}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit}
+\usepackage[hidelinks]{hyperref}
+\usepackage{textcomp}
+\usepackage{newunicodechar}
+\newunicodechar{→}{\ensuremath{\rightarrow}}
+\newunicodechar{₂}{\textsubscript{2}}
+\usepackage{amsmath,amssymb}
+\newunicodechar{✓}{\ensuremath{\checkmark}}
+\newunicodechar{✗}{\ensuremath{\times}}
+\newunicodechar{Ω}{\ensuremath{\Omega}}
+\newunicodechar{−}{-}
+
+
+\setlength{\parskip}{0.4em}
+\setlength{\parindent}{0pt}
+\fvset{fontsize=\small,frame=single,framesep=2mm,rulecolor=\color{black!30},breaklines=true,breakanywhere=true}
+\usepackage{xurl}
+\DeclareUrlCommand\vp{\urlstyle{tt}}  % chemins et identifiants (coupure possible)
+\newcommand{\cmd}[1]{\texttt{\detokenize{#1}}}  % commandes ASCII avec espaces (pas d'accents : detokenize)
+\newcommand{\aremplacer}[1]{\textcolor{red!60!black}{\texttt{#1}}}
+\newcommand{\attention}[1]{\par\noindent\fbox{\parbox{0.96\linewidth}{\textbf{Attention.} #1}}\par}
+\renewcommand{\arraystretch}{1.15}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+
+\title{Intégrer VetTwins au matériel d'une salle de simulation\\[0.3em]
+\large Relais, moniteur, auscultation, injection, machine d'anesthésie, pouls, boîtier du formateur}
+\author{Projet VetTwin}
+\date{20 novembre 2026}
+
+\begin{document}
+\sloppy
+\maketitle
+
+\begin{center}
+\fbox{\parbox{0.92\linewidth}{\textbf{Usage pédagogique uniquement.} VetTwins est un patient virtuel canin destiné à
+l'enseignement ; beaucoup de paramètres du module d'anesthésie sont des placeholders (niveau de preuve D). Aucun
+résultat ne doit servir à décider d'une dose ou d'un traitement réel. Les boîtiers décrits ici sont des accessoires
+d'entraînement à très basse tension (USB 5~V) : aucun n'est un dispositif médical.}}
+\end{center}
+
+\tableofcontents
+
+\section{Principe}
+\subsection{Qui calcule quoi}
+La salle reprend l'onglet \emph{Anesthésie} de l'application web (\vp{web/anesthesia.js}). Trois règles
+structurent l'installation :
+\begin{enumerate}
+  \item \textbf{Un seul moteur.} Seule la \emph{régie} (le navigateur du formateur, page \vp{index.html?room=1})
+  exécute la session d'anesthésie. Les autres postes affichent ou jouent ce qu'elle diffuse ; le lecteur
+  d'auscultation est la seule exception, il synthétise le son lui-même à partir du patient et de la FC reçus.
+  \item \textbf{Les boîtiers mesurent, la régie traduit.} Un boîtier envoie ce qu'il constate dans la salle (seringue
+  de propofol à \(10\)~mg/mL, \(6\)~mL poussés ; cadran du vaporisateur à \(2\)~\% ; oxymètre posé). La régie convertit
+  en événement du moteur (mg/kg avec le poids du patient) et \emph{renvoie au boîtier le verdict du moteur} : action
+  acceptée, ou refusée avec son motif (« intubation impossible : déglutition présente »). Aucun boîtier ne connaît
+  la physiologie ni le poids.
+  \item \textbf{Un relais entre les deux.} Un petit serveur (\vp{salle/relay.py}, Python, bibliothèque standard)
+  sert l'application, fait transiter les messages et garde le dernier état pour les boîtiers de sortie (pouls).
+  Il ne calcule rien.
+\end{enumerate}
+
+\begin{figure}[h]
+\centering
+\resizebox{\linewidth}{!}{%
+\begin{tikzpicture}[font=\small,
+  b/.style={draw, rounded corners, align=center, minimum height=9mm, inner sep=4pt},
+  a/.style={-{Stealth[length=2mm]}, thick}, l/.style={font=\footnotesize, fill=white, inner sep=1.5pt}]
+\node[b, fill=blue!8] (relay) at (0,0) {\textbf{Relais} \texttt{salle/relay.py}\\ Mac mini, Raspberry Pi ou portable\\ \texttt{http://IP:8765}};
+\node[b, fill=green!10] (regie) at (0,4.2) {\textbf{Régie} (formateur)\\ \texttt{index.html?room=1}\\ moteur WebAssembly};
+\node[b, fill=red!6] (mon) at (7.2,1.3) {\textbf{Moniteur de salle}\\ \texttt{monitor.html}};
+\node[b, fill=red!6] (ausc) at (7.2,-1.5) {\textbf{Lecteur d'auscultation}\\ \texttt{ausc.html} \(\to\) haut-parleur\\ du thorax};
+\node[b, fill=orange!10] (in) at (-7.4,1.3) {\textbf{Boîtiers d'entrée} (ESP32)\\ capteurs posés, stéthoscope,\\ pupitre RFID, machine,\\ boîtier du formateur};
+\node[b, fill=orange!10] (out) at (-7.4,-1.5) {\textbf{Boîtier de sortie} (ESP32)\\ pouls fémoral};
+\draw[a, <->] (regie) -- node[l, left=2pt, align=right]{WebSocket \texttt{/ws}\\ entrées et verdicts \(\downarrow\uparrow\), état diffusé} (relay);
+\draw[a] (relay.east) -- node[l, above, sloped]{état, tracés} (mon.west);
+\draw[a] (relay.east) -- node[l, below, sloped]{patient, site, FC} (ausc.west);
+\draw[a, <->] (in.east) -- node[l, above, sloped]{\texttt{POST /api/device}} (relay.west);
+\draw[a] (relay.west) -- node[l, below, sloped]{\texttt{GET /api/pulse}} (out.east);
+\end{tikzpicture}}
+\caption{Architecture de la salle. Toutes les liaisons restent sur le réseau local de la salle.}
+\end{figure}
+
+\subsection{Contenu du dépôt}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{0.38\linewidth}L}
+\toprule
+\textbf{Fichier} & \textbf{Rôle} \\
+\midrule
+\vp{salle/relay.py} & relais : fichiers de \vp{web/}, WebSocket \vp{/ws}, API des boîtiers \\
+\vp{salle/vettwins-relay.service}, \vp{salle/fr.vettwins.relay.plist} & lancement au démarrage (systemd, launchd) \\
+\vp{web/room.js} & liaison des pages au relais (reconnexion automatique) \\
+\vp{web/anesthesia.js} (fin du fichier) & régie : traduction des entrées des boîtiers, diffusion de l'état \\
+\vp{web/monitor.html}, \vp{monitor.js}, \vp{monitor-view.js} & moniteur de salle ; moniteur défilant partagé avec la régie \\
+\vp{web/ausc.html}, \vp{ausc.js} & lecteur d'auscultation \\
+\vp{salle/firmware/libraries/VetTwinRelay} & bibliothèque Arduino commune (Wi-Fi, envoi, lecture du pouls) \\
+\texttt{salle/firmware/<boîtier>/}\allowbreak\texttt{<boîtier>.ino} & micrologiciel de chaque boîtier (six croquis) \\
+\vp{tests/check_relay.py}, \vp{check_firmware.py}, \vp{room_e2e.mjs} & essais (section~\ref{sec:essais}) \\
+\bottomrule
+\end{tabularx}
+
+\subsection{Ce qui a été vérifié, et ce qui ne l'a pas été}
+\begin{itemize}
+  \item \textbf{Vérifié} (20/11/2026) : le relais (\vp{tests/check_relay.py}, 39 contrôles : aller-retour boîtier
+  \(\to\) régie \(\to\) verdict, refus, délai, clé, sortie du dossier web refusée) ; la chaîne complète dans Chromium
+  (\vp{tests/room_e2e.mjs} : régie, moniteur, lecteur d'auscultation, boîtiers simulés par HTTP, refus d'une
+  intubation trop précoce renvoyé tel quel au boîtier) ; les six croquis compilés sur ordinateur en C++11 contre
+  des en-têtes factices, et la bibliothèque \vp{VetTwinRelay} exécutée sur des réponses réelles du relais
+  (\vp{tests/check_firmware.py}).
+  \item \textbf{Non vérifié} : la compilation pour ESP32 avec la chaîne Arduino réelle, le téléversement et le
+  câblage. Aucun boîtier n'a été monté. Les essais de la section~\ref{sec:essais} sont à faire à la première mise
+  en route ; signalez les écarts.
+\end{itemize}
+
+\section{Réseau et relais}\label{sec:relais}
+\subsection{Matériel}
+\begin{itemize}
+  \item \textbf{Serveur} : le Mac mini déjà décrit dans \vp{docs/DEPLOIEMENT_MACMINI.pdf}, un Raspberry Pi 4 ou 5,
+  ou un portable. Le relais ne calcule rien : toute machine qui exécute Python~3.8 convient.
+  \item \textbf{Point d'accès Wi-Fi dédié à la salle}, en 2,4~GHz (l'ESP32 n'a pas de 5~GHz), protégé par WPA2
+  personnel. Les ESP32 ne savent pas se connecter simplement aux réseaux d'établissement à identifiant
+  (WPA2-Entreprise, eduroam) : d'où ce point d'accès. Il n'a pas besoin d'accès à Internet.
+  \item Une \textbf{adresse fixe} pour le serveur (réservation DHCP dans le point d'accès), par exemple
+  \aremplacer{192.168.50.10}. Les écrans et le poste de régie peuvent être en Wi-Fi ou en Ethernet sur le même
+  réseau.
+\end{itemize}
+
+\subsection{Installation}
+\begin{Verbatim}
+cd ~/srv/VetTwin/vetsim-kit
+sh web/build.sh                       # moteur WebAssembly et modules (voir DEPLOIEMENT_MACMINI)
+python3 -I salle/relay.py --web web --host 0.0.0.0 --port 8765
+\end{Verbatim}
+\cmd{--host 0.0.0.0} écoute sur toutes les interfaces : le relais n'est à lancer ainsi que sur le réseau isolé de la
+salle. Option \cmd{--key SECRET} (ou variable \vp{VETTWIN_KEY}) : clé partagée exigée par l'API et le WebSocket ; les
+pages la reçoivent par \vp{&key=SECRET}, les boîtiers par \vp{VETTWIN_RELAY_KEY}.
+
+Lancement au démarrage :
+\begin{itemize}
+  \item \textbf{Raspberry Pi, Linux} : \vp{salle/vettwins-relay.service} (remplacer \aremplacer{UTILISATEUR}) puis
+  \cmd{sudo systemctl enable --now vettwins-relay} ; journal : \cmd{journalctl -u vettwins-relay -f}.
+  \item \textbf{Mac mini} : \vp{salle/fr.vettwins.relay.plist} (remplacer \aremplacer{VOUS}), comme le service web
+  de \vp{DEPLOIEMENT_MACMINI}. Le relais sert lui-même \vp{web/} : le service \vp{fr.vettwins.web} n'est pas
+  nécessaire dans la salle. Si le pare-feu macOS est actif, autoriser les connexions entrantes pour \vp{python3}.
+\end{itemize}
+
+\subsection{Contrôle}
+\begin{Verbatim}
+curl -s http://192.168.50.10:8765/api/status
+{"ok": true, "protocol": 1, "regie": false, "clients": {}, "last_snapshot_age_s": null}
+\end{Verbatim}
+\attention{Ne pas exposer le relais sur Internet (pas de \cmd{tailscale funnel}, pas de redirection de port) : l'API
+des boîtiers n'a pas d'authentification forte, seulement une clé partagée en clair.}
+
+\section{Poste de régie}
+\begin{enumerate}
+  \item Ouvrir \vp{http://192.168.50.10:8765/index.html?room=1} (ajouter \vp{&key=...} si besoin), choisir le patient
+  dans la barre latérale (poids, maladie), puis l'onglet \emph{Anesthésie}.
+  \item La ligne \emph{Salle} indique : relais connecté, capteurs posés (barrés s'ils sont absents), site du
+  stéthoscope, et donne les liens du moniteur de salle et du lecteur d'auscultation.
+  \item Choisir le scénario chirurgical, démarrer la session. Laisser la vitesse à \(\times 1\) pendant la séance.
+  \item Chaque action d'un boîtier apparaît dans la barre d'état, préfixée par son nom (\cmd{[pupitre] propofol 3 mg/kg IV}).
+  La feuille d'anesthésie et le journal la conservent pour le débriefing.
+\end{enumerate}
+Une seule régie à la fois : si une seconde page \vp{?room=1} se connecte, la première est prévenue et ne reçoit plus
+les boîtiers. Les entrées des boîtiers sont refusées tant qu'aucune session n'est démarrée, sauf les capteurs et le
+stéthoscope, qui sont mémorisés.
+
+\section{Mise en route d'un boîtier ESP32 (commun)}\label{sec:esp32}
+Les six boîtiers utilisent une carte \textbf{ESP32 DevKitC} (module ESP32-WROOM-32, port USB), alimentée par un
+chargeur USB 5~V ou une batterie USB. Les entrées sont actives à l'état bas : chaque contact ou bouton relie sa
+broche à la masse (GND), la résistance de tirage interne de l'ESP32 suffit.
+
+\begin{enumerate}
+  \item Installer l'IDE Arduino 2. \emph{Préférences} \(\to\) URL de cartes supplémentaires :\\
+  \vp{https://espressif.github.io/arduino-esp32/package_esp32_index.json} ; \emph{Gestionnaire de cartes} :
+  « esp32 » (Espressif). Carte : \emph{ESP32 Dev Module}.
+  \item Copier \vp{salle/firmware/libraries/VetTwinRelay} dans le dossier \vp{libraries} du carnet de croquis
+  (\vp{~/Documents/Arduino/libraries/} sous macOS et Windows, \vp{~/Arduino/libraries/} sous Linux).
+  \item Dans cette copie, dupliquer \vp{src/VetTwinConfig.example.h} en \vp{src/VetTwinConfig.h} et le remplir
+  (réseau de la salle, adresse du relais, clé). Ce fichier n'est pas versionné (mot de passe Wi-Fi).
+  \item Pour le pupitre : installer \emph{MFRC522} et \emph{LiquidCrystal I2C} (Frank de Brabander) par le
+  gestionnaire de bibliothèques.
+  \item Ouvrir le croquis (\texttt{salle/firmware/<boîtier>/<boîtier>.ino}), téléverser, ouvrir le moniteur série à
+  115\,200 bauds : le boîtier affiche son adresse IP puis chaque envoi et son verdict.
+\end{enumerate}
+Équivalent en ligne de commande :
+\begin{Verbatim}
+arduino-cli core install esp32:esp32 \
+  --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+arduino-cli lib install MFRC522 "LiquidCrystal I2C"
+arduino-cli compile --fqbn esp32:esp32:esp32 --libraries salle/firmware/libraries salle/firmware/capteurs
+arduino-cli upload  --fqbn esp32:esp32:esp32 -p /dev/ttyUSB0 salle/firmware/capteurs
+\end{Verbatim}
+
+\textbf{Broches à éviter} sur l'ESP32 : GPIO 6 à 11 (mémoire flash), GPIO 0, 2, 12 et 15 au démarrage si on y relie un
+contact fermé au repos (broches de configuration), GPIO 34 à 39 n'ont pas de résistance de tirage (réservées ici
+aux potentiomètres). Avec le Wi-Fi actif, seules les entrées analogiques de l'ADC1 (GPIO 32 à 39) fonctionnent.
+
+\textbf{Essai sans boîtier} : chaque entrée se simule avec \vp{curl} depuis n'importe quel ordinateur du réseau,
+ce qui permet de préparer une séance avant que le matériel soit prêt :
+\begin{Verbatim}
+curl -s -X POST http://192.168.50.10:8765/api/device -H 'Content-Type: application/json' \
+  -d '{"device":"essai","input":{"type":"probes","spo2":false}}'
+{"ok": true, "text": "capteurs : ecg ✓ spo2 ✗ nibp ✓ art ✓ capno ✓ temp ✓"}
+\end{Verbatim}
+Codes HTTP : 200 (verdict du moteur, champ \vp{ok}), 400 (entrée mal formée), 403 (clé), 503 (régie absente),
+504 (régie muette plus de 3~s).
+
+%---------------------------------------------------------------------------------------------
+\section{Dispositif 1 : écran moniteur de la salle}
+\subsection{Rôle}
+Afficher aux étudiants le moniteur d'anesthésie seul (ECG D~II, pression artérielle, capnogramme, valeurs, alarmes,
+bip à chaque QRS de tonalité liée à la SpO\(_2\)), sans les commandes ni les variables cachées du modèle (plan,
+concentrations, cause d'un décès). Une voie dont le capteur n'est pas posé (dispositif~2) reste vide, et ses alarmes
+ne sont pas affichées.
+
+\subsection{Matériel}
+\begin{itemize}
+  \item Écran de 24 à 32 pouces sur bras articulé ou pied roulant, à la tête du mannequin.
+  \item Ordinateur d'affichage : mini-PC, Raspberry Pi 4 ou 5 (le moniteur ne calcule pas, il dessine), ou tablette.
+  \item Haut-parleurs actifs (bips et alarmes).
+\end{itemize}
+
+\subsection{Mise en service}
+Adresse : \vp{http://192.168.50.10:8765/monitor.html?room=1&autostart=1}. Le navigateur exige un clic pour
+autoriser le son ; en mode kiosque, Chromium peut l'autoriser d'office :
+\begin{Verbatim}
+chromium --kiosk --autoplay-policy=no-user-gesture-required \
+  "http://192.168.50.10:8765/monitor.html?room=1&autostart=1"
+\end{Verbatim}
+(\vp{chromium-browser} sur certaines versions de Raspberry Pi OS ; à placer dans le démarrage automatique de la
+session graphique, par exemple \vp{~/.config/labwc/autostart} sous Raspberry Pi OS Bookworm.) Désactiver la mise en
+veille de l'écran. Sans \vp{autostart=1}, un bouton « Démarrer le moniteur » s'affiche.
+
+En-tête : « en ligne » (vert) si la régie diffuse ; « régie absente » ou « en attente de la régie » sinon. Le
+moniteur se reconnecte seul après une coupure du relais ou de la régie, et reçoit à la connexion le dernier état.
+
+\subsection{Limites}
+Le capnogramme est schématique (plateau à l'EtCO\(_2\) au rythme respiratoire), comme dans l'onglet de la régie. La PNI
+est affichée en continu (pas de cycle de gonflage). Ces limites sont celles de l'onglet Anesthésie
+(\vp{docs/ANESTHESIE.tex}).
+
+%---------------------------------------------------------------------------------------------
+\section{Dispositif 2 : boîtier des capteurs posés}
+\subsection{Rôle}
+Savoir quels capteurs l'étudiant a réellement posés sur le mannequin : électrodes ECG, pince de l'oxymètre, brassard,
+cathéter artériel, capnographe (raccord sur la sonde), sonde thermique. Entrée \vp{probes}.
+
+\subsection{Matériel}
+\begin{itemize}
+  \item 1 ESP32 DevKitC, 1 boîtier, câble souple à 2 conducteurs par capteur.
+  \item Un contact par capteur, au choix : \textbf{interrupteur à lame souple} (ILS, normalement ouvert) sous la peau
+  du mannequin et un petit aimant néodyme dans le capteur factice ; ou \textbf{micro-rupteur} fermé par le capteur
+  (brassard serré, raccord vissé).
+\end{itemize}
+
+\subsection{Câblage}
+\begin{tabularx}{\linewidth}{lllL}
+\toprule
+\textbf{Capteur} & \textbf{Clé} & \textbf{Broche} & \textbf{Réalisation suggérée} \\
+\midrule
+électrodes ECG & \vp{ecg} & GPIO 13 & 3 pinces en série (contact fermé quand les 3 sont posées), ou ILS sous le patch du membre de référence \\
+oxymètre & \vp{spo2} & GPIO 14 & ILS dans la langue ou le pli du flanc, aimant dans la pince \\
+brassard & \vp{nibp} & GPIO 27 & micro-rupteur sous le velcro, ou ILS + aimant dans le brassard \\
+cathéter artériel & \vp{art} & GPIO 26 & ILS au point de ponction (artère pédieuse), aimant sur l'embase du cathéter \\
+capnographe & \vp{capno} & GPIO 25 & ILS dans le raccord de la sonde, aimant dans l'adaptateur \\
+sonde thermique & \vp{temp} & GPIO 33 & ILS dans le canal \og œsophagien \fg{} ou rectal \\
+LED témoin & & GPIO 2 & LED de la carte : dernier envoi accepté \\
+\bottomrule
+\end{tabularx}
+L'autre borne de chaque contact va à GND. Contact fermé = capteur posé.
+
+\subsection{Code}
+\vp{salle/firmware/capteurs/capteurs.ino} (annexe~\ref{app:code}). À chaque changement, l'état des six capteurs est
+envoyé ; il est renvoyé toutes les 30~s (une régie redémarrée retrouve l'état) et 2~s après un échec.
+
+\subsection{Essai}
+Poser puis retirer chaque capteur : la ligne \emph{Salle} de la régie barre ou rétablit la clé, la voie correspondante
+du moniteur se vide ou se remplit. Sans boîtier des capteurs, tout est affiché.
+
+%---------------------------------------------------------------------------------------------
+\section{Dispositif 3 : auscultation}
+\subsection{Rôle}
+L'étudiant pose un vrai stéthoscope sur le thorax du mannequin et entend les bruits du cœur du patient virtuel, au foyer
+où il le pose (base ou apex), à la FC courante de la session d'anesthésie.
+
+\subsection{Matériel}
+\begin{itemize}
+  \item \textbf{Son} : un transducteur de surface (excitateur, 5 à 10~W) collé à l'intérieur de la paroi thoracique,
+  ou un petit haut-parleur large bande de 40 à 60~mm contre la paroi ; un amplificateur de classe D 5~V
+  (type PAM8403) ; une carte son USB.
+  \item \textbf{Poste de lecture} : l'ordinateur qui joue le son ouvre \vp{ausc.html}. Le plus simple est un
+  Raspberry Pi ou un mini-PC dédié, sous la table ou dans le mannequin, dont la sortie audio par défaut est
+  l'amplificateur. Ce poste exécute son propre moteur (API \vp{pcg}) : temps de calcul sur Raspberry Pi non mesuré.
+  \item \textbf{Détection du foyer} : 1 ESP32, 2 capteurs à effet Hall omnipolaires fonctionnant en 3,3~V à sortie
+  collecteur ouvert (par exemple Honeywell SS451A ; l'A3144 demande au moins 4,5~V et ne convient pas), un aimant
+  néodyme (\(\varnothing\)10~mm environ) collé au dos du pavillon du stéthoscope d'entraînement.
+\end{itemize}
+
+\subsection{Câblage}
+\begin{tabularx}{\linewidth}{lllL}
+\toprule
+\textbf{Élément} & \textbf{Broche} & \textbf{Alimentation} & \textbf{Position} \\
+\midrule
+Hall « base » & GPIO 32 & 3V3, GND & foyer de la base (côté gauche, haut du cœur) \\
+Hall « apex » & GPIO 33 & 3V3, GND & foyer de l'apex (côté gauche, choc de pointe) \\
+\bottomrule
+\end{tabularx}
+Sortie de la carte son USB \(\to\) entrée de l'amplificateur \(\to\) transducteur. Alimenter l'amplificateur par le même
+bloc USB que le poste de lecture évite les boucles de masse (ronflement).
+
+\subsection{Code et mise en service}
+\begin{itemize}
+  \item \vp{salle/firmware/stethoscope/stethoscope.ino} : envoie \vp{{"type":"stethoscope","site":"apex"}}, ou
+  \vp{null} 0,6~s après que l'aimant a quitté les deux capteurs (on peut glisser d'un foyer à l'autre sans coupure).
+  \item Poste de lecture :
+\begin{Verbatim}
+chromium --kiosk --autoplay-policy=no-user-gesture-required \
+  "http://192.168.50.10:8765/ausc.html?room=1&autostart=1"
+\end{Verbatim}
+  La page boucle 8~s de son synthétisé et en recalcule une quand la FC change d'au moins 3~/min, avec un fondu de
+  0,4~s. Le menu \emph{Sortie} choisit une autre sortie audio (Chromium récent ; sinon, régler la sortie par défaut
+  du système). Les boutons \emph{base}, \emph{apex}, \emph{silence} servent à régler le volume sans stéthoscope.
+\end{itemize}
+
+\subsection{Limites}
+\begin{itemize}
+  \item Les agents d'anesthésie ne changent que la \emph{fréquence} du son : souffle et timbre sont ceux de la maladie du
+  patient, pas ceux de l'état hémodynamique de la session.
+  \item Limites du module d'auscultation (\vp{docs/AUSCULTATION.md}) : calage sur huit enregistrements (un chien par
+  grade de souffle), intervalle B1--B2 trop long (0,26~s contre 0,18~s mesuré à FC 90), attribution du site « base »
+  à revoir. Domaine du synthétiseur : FC de 20 à 300~/min ; au-dehors, et après un décès, silence.
+  \item Le transducteur ne reproduit pas fidèlement les basses fréquences de B1 et B2 à travers la paroi : régler le
+  volume à l'oreille, avec le stéthoscope.
+\end{itemize}
+
+%---------------------------------------------------------------------------------------------
+\section{Dispositif 4 : pupitre d'injection RFID}
+\subsection{Rôle}
+Remplacer le bouton « Injecter » de l'écran par un geste : l'étudiant prépare une vraie seringue (remplie d'eau),
+la présente au pupitre, règle le volume poussé, injecte. Le pupitre affiche le verdict du moteur.
+
+\subsection{Matériel}
+\begin{itemize}
+  \item 1 ESP32 DevKitC ; 1 lecteur RFID RC522 (13,56~MHz) ; étiquettes NFC autocollantes NTAG213 ou NTAG215
+  (une par seringue d'entraînement) ;
+  \item 1 bouton rotatif à crans (module KY-040) ; 2 boutons poussoirs (dont un gros bouton « INJECTER ») ;
+  \item 1 écran LCD 16\(\times\)2 avec adaptateur I2C (PCF8574, adresse 0x27 ou 0x3F) ;
+  \item 1 boîtier ; en option, un réservoir (\og veine \fg{} : flacon et tubulure avec site d'injection) pour pousser
+  réellement le liquide.
+\end{itemize}
+
+\subsection{Câblage}
+\begin{tabularx}{\linewidth}{lllL}
+\toprule
+\textbf{Module} & \textbf{Broche du module} & \textbf{ESP32} & \textbf{Remarque} \\
+\midrule
+RC522 & SDA (SS) / SCK / MOSI / MISO & GPIO 5 / 18 / 23 / 19 & bus SPI matériel \\
+RC522 & RST / 3.3V / GND & GPIO 4 / 3V3 / GND & \textbf{3,3~V uniquement} \\
+LCD I2C & SDA / SCL & GPIO 21 / 22 & voir l'encadré ci-dessous \\
+KY-040 & CLK / DT / SW & GPIO 32 / 33 / 25 & SW : pas de 0,1 ou 1~mL \\
+bouton INJECTER & & GPIO 26 & vers GND \\
+bouton ANNULER & & GPIO 27 & oublie la seringue présentée \\
+\bottomrule
+\end{tabularx}
+\attention{Le RC522 se détruit en 5~V. L'adaptateur I2C du LCD s'alimente le plus souvent en 5~V et tire alors SDA
+et SCL à 5~V : intercaler un convertisseur de niveau I2C bidirectionnel (BSS138), ou choisir un écran prévu pour 3,3~V.}
+
+\subsection{Table des seringues}
+Les étiquettes ne contiennent rien : le pupitre lit leur identifiant (UID) et cherche la seringue dans la table
+\vp{SYRINGES} du croquis (agent, mg/mL, voie, durée d'injection IV, libellé). Pour enregistrer une étiquette :
+la présenter, noter l'UID affiché (écran et moniteur série), l'ajouter à la table, téléverser. Les concentrations
+proposées sont celles des présentations commerciales de l'onglet Anesthésie (\vp{docs/ANESTHESIE_SOURCES.md}) ;
+les identifiants d'agent sont ceux des modules (\vp{modules/anesthesia/agents/}). Les UID de la table livrée sont
+des exemples à remplacer.
+
+Voies : la régie refuse une voie absente du module (propofol IM, par exemple). Voies disponibles : IV pour tous ;
+IM aussi pour acépromazine, atipamézole, dexmédétomidine, lidocaïne, méthadone, midazolam, naloxone ; SC pour la
+méthadone.
+
+\subsection{Utilisation}
+Présenter la seringue (l'écran affiche son libellé), tourner le bouton pour le volume (appui sur le bouton : pas de
+1~mL), appuyer sur INJECTER. Entrée envoyée :
+\begin{Verbatim}
+{"type":"inject","agent":"propofol","conc_mg_ml":10,"ml":6,"route":"iv","duration_s":30}
+\end{Verbatim}
+La régie calcule \(6 \times 10 / \text{poids}\) mg/kg ; l'écran affiche \og OK \fg{} et l'action, ou \og REFUSE \fg{}
+et le motif (accents retirés pour l'écran). Une seringue oubliée plus de 2~minutes est désélectionnée.
+
+\subsection{Limites}
+Le volume est \emph{déclaré} au bouton, pas mesuré ; le pupitre ne suit pas le volume restant dans la seringue.
+Mesurer la course du piston (capteur de distance à temps de vol, potentiomètre linéaire) est une évolution possible.
+Une étiquette recollée sur une autre seringue trompe le pupitre : marquer les seringues.
+
+%---------------------------------------------------------------------------------------------
+\section{Dispositif 5 : machine d'anesthésie factice}
+\subsection{Rôle}
+Régler le vaporisateur, le débit de gaz frais et intuber sur un objet, et non plus à l'écran. Entrées \vp{vaporizer},
+\vp{fresh_gas}, \vp{intubate}, \vp{extubate}.
+
+\subsection{Matériel}
+\begin{itemize}
+  \item 1 ESP32 DevKitC ; 2 potentiomètres rotatifs linéaires 10~k\(\Omega\) (axe de 6~mm) ; 1 interrupteur à bascule
+  (choix de l'agent) ; 1 ILS et 1 aimant annulaire ; 2 LED (verte, rouge) avec résistances de 330~\(\Omega\).
+  \item Façade : cadran de vaporisateur imprimé en 3D ou vaporisateur réformé dont on a retiré la cuve, bouton de
+  débitmètre.
+\end{itemize}
+
+\subsection{Câblage}
+\begin{tabularx}{\linewidth}{llLL}
+\toprule
+\textbf{Élément} & \textbf{Broche} & \textbf{Branchement} & \textbf{Remarque} \\
+\midrule
+potentiomètre vaporisateur & GPIO 34 & extrémités sur 3V3 et GND, curseur sur la broche & ADC1 (compatible Wi-Fi) \\
+potentiomètre gaz frais & GPIO 35 & idem & ADC1 \\
+sélecteur d'agent & GPIO 16 & vers GND & ouvert = isoflurane, fermé = sévoflurane \\
+ILS d'intubation & GPIO 17 & vers GND & dans la trachée du mannequin, aimant sur la sonde \\
+LED verte / rouge & GPIO 18 / 19 & anode sur la broche, cathode vers GND par 330~\(\Omega\) & verdict \\
+\bottomrule
+\end{tabularx}
+
+\subsection{Graduation et code}
+\vp{salle/firmware/machine/machine.ino}. Les butées du cadran sont les \vp{vaporizer_max_pct} des modules :
+5~\% pour l'isoflurane, 8~\% pour le sévoflurane ; graduation de 0,25~\% comme l'onglet Anesthésie ; les 3~\%
+du bas de course forment le cran \og fermé \fg{}. Graduer la façade en conséquence (angle utile du potentiomètre
+divisé en 20 ou 32 pas). Le débitmètre va de 0 à 4~L/min par 0,25 : c'est une pleine échelle choisie pour le boîtier,
+à modifier dans \vp{FGF_MAX}. Un réglage n'est envoyé qu'après 400~ms de stabilité.
+
+Si le cadran dépasse la butée de l'agent choisi, la régie ramène à la butée et le signale. Changer d'agent avec le
+vaporisateur ouvert ferme l'ancien.
+
+\subsection{Intubation}
+Sonde en place (aimant devant l'ILS) : \vp{intubate}. Le moteur refuse si le patient déglutit encore (« intubation
+impossible : déglutition présente (plan trop léger) ») : la LED rouge s'allume, l'étudiant retire la sonde et
+recommence plus tard. Sonde retirée : \vp{extubate}, qui arrête aussi la ventilation contrôlée.
+
+\subsection{Limites}
+Pas de ballon ni de ventilateur sur le boîtier : la ventilation contrôlée se règle à la régie. Pas de modèle des
+voies aériennes (intubation sélective, obstruction) dans le moteur.
+
+%---------------------------------------------------------------------------------------------
+\section{Dispositif 6 : pouls fémoral}
+\subsection{Rôle}
+Boîtier de \emph{sortie} : un vibreur sous la peau de la face interne de la cuisse bat à la FC du patient virtuel, avec
+une force qui suit la pression pulsée (PAS \(-\) PAD). Plus de pouls si le patient est décédé, si la régie est absente
+ou si l'état a plus de 5~s.
+
+\subsection{Matériel}
+\begin{itemize}
+  \item 1 ESP32 DevKitC ; 1 moteur vibrant à masselotte de type « pièce » (ERM, 3~V, \(\varnothing\)10~mm), ou un
+  mini-solénoïde 5~V pour un choc plus net ;
+  \item 1 MOSFET canal N à seuil logique (IRLZ44N en boîtier TO-220, ou AO3400) ; 1 diode de roue libre (1N5819) ;
+  résistances de 100~\(\Omega\) (grille) et 100~k\(\Omega\) (grille vers GND).
+\end{itemize}
+
+\subsection{Câblage}
+\begin{Verbatim}
++3V3 (ou +5V pour un solénoïde) ----+---- moteur (+)
+                                    |
+                           cathode 1N5819 (bague)
+                           anode   1N5819
+                                    |
+                                    +---- moteur (-) ---- drain du MOSFET
+GPIO 25 ---- 100 ohms ---- grille du MOSFET
+grille du MOSFET ---- 100 kohms ---- GND
+source du MOSFET ---- GND
+\end{Verbatim}
+La diode, montée en sens inverse aux bornes du moteur, protège le MOSFET des surtensions. Un moteur de 3~V se
+branche sur la sortie 3V3 de la carte (quelques dizaines de mA) ; un solénoïde sur le 5~V USB.
+
+\subsection{Code et réglage}
+\vp{salle/firmware/pouls/pouls.ino}. Une tâche lit \cmd{GET /api/pulse} chaque seconde (ligne
+\texttt{fc pas pad décès valide âge}) ; la boucle principale produit les battements à la FC. Deux réglages d'usage, à
+faire au toucher : \vp{PP_FULL} (pression pulsée qui donne la force maximale, 60~mmHg par défaut) et
+\vp{MOTOR_START} (rapport cyclique en dessous duquel ce moteur ne démarre pas). Ce ne sont pas des seuils
+cliniques : aucun seuil de \og pouls non palpable \fg{} n'est sourcé dans le projet.
+
+\subsection{Limites}
+Les battements sont produits localement à la FC : ils ne sont pas synchrones des QRS du moniteur, et une arythmie
+(bloc AV) n'apparaît pas dans le pouls. La FC est mise à jour chaque seconde.
+
+%---------------------------------------------------------------------------------------------
+\section{Dispositif 7 : boîtier du formateur}
+\subsection{Rôle}
+Déclencher les temps du scénario depuis la salle, sans retourner à la régie : temps opératoire suivant, hémorragie,
+stimulus (pince), bolus de cristalloïde, fin de chirurgie.
+
+\subsection{Matériel et câblage}
+1 ESP32 DevKitC, 5 boutons d'arcade (30~mm), 2 LED avec résistances de 330~\(\Omega\), 1 boîtier.
+
+\begin{tabularx}{\linewidth}{llL}
+\toprule
+\textbf{Bouton} & \textbf{Broche} & \textbf{Entrée envoyée} \\
+\midrule
+temps opératoire suivant & GPIO 13 & \vp{{"type":"procedure_next"}} (le suivant du scénario choisi à la régie) \\
+hémorragie & GPIO 14 & \vp{{"type":"hemorrhage","ml_kg":5}} \\
+stimulus & GPIO 27 & \vp{{"type":"stimulus","intensity":1,"duration_s":30}} \\
+bolus de cristalloïde & GPIO 26 & \vp{{"type":"fluid_bolus","ml_kg":10}} \\
+fin de chirurgie & GPIO 25 & \vp{{"type":"end_surgery"}} \\
+LED verte / rouge & GPIO 18 / 19 & verdict \\
+\bottomrule
+\end{tabularx}
+Les valeurs sont celles proposées par défaut dans l'onglet Anesthésie ; ce sont des réglages du scénario, à adapter
+dans \vp{salle/firmware/formateur/formateur.ino}. Le compteur des temps opératoires suit aussi les boutons de la
+régie ; à la fin du scénario, la LED rouge s'allume (« tous les temps opératoires sont réalisés »).
+
+%---------------------------------------------------------------------------------------------
+\section{Essais et vérifications}\label{sec:essais}
+\subsection{Sur un ordinateur (avant tout montage)}
+\begin{Verbatim}
+python3 tests/check_relay.py         # relais : 39 contrôles
+python3 tests/check_firmware.py      # six croquis compilés sur l'hôte + bibliothèque VetTwinRelay
+sh web/build.sh && node tests/room_e2e.mjs   # chaîne complète dans Chromium (Playwright)
+\end{Verbatim}
+
+\subsection{Première mise en route de chaque boîtier}
+\begin{enumerate}
+  \item Moniteur série à 115\,200 bauds : \og Wi-Fi connecté, IP ... \fg{}. Sinon, vérifier le réseau 2,4~GHz et
+  \vp{VetTwinConfig.h}.
+  \item Régie fermée : une action du boîtier doit donner \og 503 régie non connectée \fg{} dans le moniteur série
+  (le relais est joint, la régie non).
+  \item Régie ouverte, session démarrée : l'action apparaît dans la barre d'état de la régie, préfixée par le nom du
+  boîtier, et le verdict revient au boîtier (LED, écran, moniteur série).
+\end{enumerate}
+
+\subsection{Avant chaque séance}
+\begin{itemize}
+  \item Relais : \cmd{curl http://IP:8765/api/status} ; régie : ligne \emph{Salle} \og relais connecté \fg{}.
+  \item Moniteur et lecteur d'auscultation \og en ligne \fg{} ; volume réglé avec les boutons \emph{base} et \emph{apex}.
+  \item Capteurs retirés : voies vides au moniteur. Seringues présentées une à une : libellés corrects.
+  \item Session démarrée à \(\times 1\), patient et scénario choisis ; feuille d'anesthésie vide.
+\end{itemize}
+
+\subsection{Dépannage}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{0.36\linewidth}L}
+\toprule
+\textbf{Symptôme} & \textbf{Cause probable et remède} \\
+\midrule
+Boîtier : \og Wi-Fi absent \fg{} & réseau 5~GHz seulement, ou réseau à identifiant (WPA2-Entreprise) : point d'accès dédié en 2,4~GHz. \\
+Boîtier : \og relais injoignable \fg{} & adresse ou port faux dans \vp{VetTwinConfig.h} ; relais lancé avec \cmd{--host 127.0.0.1} ; pare-feu du serveur. \\
+503 \og régie non connectée \fg{} & page de régie fermée, ou ouverte sans \vp{?room=1}. \\
+504 \og pas de réponse de la régie \fg{} & onglet de la régie en arrière-plan sur un portable en veille ; garder la régie au premier plan, désactiver la veille. \\
+403 & clé du relais différente entre le relais, les pages (\vp{&key=}) et \vp{VetTwinConfig.h}. \\
+\og session non démarrée \fg{} & démarrer la session dans l'onglet Anesthésie ; changer le patient de la barre latérale arrête la session. \\
+Moniteur muet & clic \og Démarrer le moniteur \fg{} non fait, ou Chromium sans \vp{--autoplay-policy=no-user-gesture-required}. \\
+Pupitre : écran vide & adresse I2C 0x3F au lieu de 0x27 ; contraste (potentiomètre de l'adaptateur). \\
+Pupitre : aucune lecture RFID & RC522 alimenté en 5~V (détruit) ou fil SDA/RST inversé. \\
+Pouls permanent ou absent & régie absente (pas de pouls, voulu) ; \vp{MOTOR_START} trop haut pour le moteur. \\
+\bottomrule
+\end{tabularx}
+
+\section{Sécurité et limites générales}
+\begin{itemize}
+  \item Tout fonctionne en très basse tension (USB 5~V, 3,3~V) ; pas de secteur dans le mannequin. Fixer les câbles
+  pour qu'on ne puisse pas tirer sur une carte ; isoler les soudures (gaine thermorétractable).
+  \item Les liquides (seringues remplies d'eau, réservoir) restent hors des boîtiers électroniques.
+  \item Les valeurs du modèle sont pédagogiques et, pour beaucoup, des placeholders (niveau D) ; le dire aux étudiants
+  pendant le briefing. Limites du module d'anesthésie : \vp{docs/ANESTHESIE.tex} (pas de chat, pas de voies
+  aériennes, pas de toxicité de la lidocaïne, spirale de décompensation possible après un propofol très rapide).
+  \item Un essai reproduit la même séance avec la même graine et les mêmes gestes ; la feuille d'anesthésie et le
+  journal de la régie (onglet Anesthésie, \og Actualiser \fg{}) servent au débriefing.
+\end{itemize}
+
+\appendix
+\section{Protocole des boîtiers (version 1)}
+\cmd{POST /api/device} avec \cmd{{"device": "<nom>", "input": {"type": ..., ...}}}. Réponse :
+\cmd{{"ok": true|false, "text": "..."}}.
+
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{0.2\linewidth}>{\raggedright\arraybackslash}p{0.36\linewidth}L}
+\toprule
+\textbf{\vp{type}} & \textbf{Champs} & \textbf{Traduction par la régie} \\
+\midrule
+\vp{probes} & \vp{ecg}, \vp{spo2}, \vp{nibp}, \vp{art}, \vp{capno}, \vp{temp} (booléens, facultatifs) & capteurs posés (hors moteur) \\
+\vp{stethoscope} & \vp{site} : \vp{"base"}, \vp{"apex"} ou \vp{null} & site joué par le lecteur (hors moteur) \\
+\vp{inject} & \vp{agent}, \vp{conc_mg_ml}, \vp{ml}, \vp{route} (\vp{iv}), \vp{duration_s} (30) & \vp{bolus} en mg/kg = mL \(\times\) mg/mL / poids \\
+\vp{vaporizer} & \vp{agent} (celui de la machine), \vp{pct} & \vp{vaporizer}, borné à \vp{vaporizer_max_pct} \\
+\vp{fresh_gas} & \vp{l_min} & \vp{fresh_gas} \\
+\vp{oxygen} & \vp{on} & \vp{oxygen} (masque) \\
+\vp{intubate}, \vp{extubate} & & idem \\
+\vp{procedure_next} & & \vp{procedure_step} suivant du scénario \\
+\vp{end_surgery} & & idem \\
+\vp{stimulus} & \vp{intensity} (1), \vp{duration_s} (30), \vp{territory} & idem \\
+\vp{hemorrhage}, \vp{fluid_bolus} & \vp{ml_kg} & idem \\
+\vp{fluids} & \vp{ml_kg_h} & idem \\
+\vp{warming} & \vp{on} & idem \\
+\vp{circuit} & \vp{kind} : \vp{circle}, \vp{non_rebreathing} & idem \\
+\vp{ventilation} & \vp{mode} : \vp{spontaneous} ou \vp{controlled} avec \vp{rr}, \vp{vt_ml_kg} & idem \\
+\bottomrule
+\end{tabularx}
+
+Autres points de l'API : \cmd{GET /api/status} (régie, clients), \cmd{GET /api/state} (dernier état : pouls, capteurs,
+temps), \cmd{GET /api/pulse} (ligne \texttt{fc pas pad décès valide âge\_s}). WebSocket \vp{/ws} : premier message
+\vp{{"kind":"hello","role":"regie"|"monitor"|"ausc"}} ; la régie diffuse \vp{snapshot}, \vp{waves}, \vp{session},
+\vp{probes}, \vp{steth} et répond aux \vp{device} par \vp{result}.
+
+\section{Code des boîtiers}\label{app:code}
+\subsection{Bibliothèque commune \texttt{VetTwinRelay}}
+\VerbatimInput{../salle/firmware/libraries/VetTwinRelay/src/VetTwinRelay.h}
+\VerbatimInput{../salle/firmware/libraries/VetTwinRelay/src/VetTwinConfig.example.h}
+\subsection{Boîtier des capteurs}
+\VerbatimInput{../salle/firmware/capteurs/capteurs.ino}
+\subsection{Stéthoscope}
+\VerbatimInput{../salle/firmware/stethoscope/stethoscope.ino}
+\subsection{Pupitre d'injection}
+\VerbatimInput{../salle/firmware/pupitre/pupitre.ino}
+\subsection{Machine d'anesthésie}
+\VerbatimInput{../salle/firmware/machine/machine.ino}
+\subsection{Pouls fémoral}
+\VerbatimInput{../salle/firmware/pouls/pouls.ino}
+\subsection{Boîtier du formateur}
+\VerbatimInput{../salle/firmware/formateur/formateur.ino}
+
+\end{document}

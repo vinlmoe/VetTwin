@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VetTwins, lecteur d'auscultation</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    body { margin: 0; min-height: 100vh; background: #0d1418; color: #e8eef2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 16px; box-sizing: border-box; }
+    h1 { font-size: 20px; margin: 0; }
+    .state { font-size: 28px; font-weight: 600; text-align: center; }
+    .sub { opacity: 0.7; font-size: 13px; text-align: center; max-width: 560px; }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; }
+    button, select, input { font: inherit; }
+    button { font-size: 18px; padding: 10px 22px; border-radius: 24px; border: none; background: #0b5e7a; color: white; cursor: pointer; }
+    button.sec { font-size: 13px; padding: 6px 12px; background: #23313a; }
+    button.on { background: #1d7a46; }
+    .link { font-size: 12px; padding: 2px 8px; border-radius: 10px; background: #23313a; } .link.ok { background: #14432a; } .link.bad { background: #5a1a14; }
+  </style>
+</head>
+<body>
+  <h1>Lecteur d'auscultation</h1>
+  <span id="link" class="link">relais…</span>
+  <button id="go">Activer le son</button>
+  <div class="state" id="state">—</div>
+  <div class="sub" id="detail"></div>
+  <div class="row">
+    <label>Volume <input id="gain" type="range" min="0" max="3" step="0.05" value="1"></label>
+    <label>Sortie <select id="sink"><option value="">sortie par défaut</option></select></label>
+  </div>
+  <div class="row">
+    <span class="sub">Essai sans stéthoscope :</span>
+    <button class="sec" data-site="base">base</button><button class="sec" data-site="apex">apex</button><button class="sec" data-site="">silence</button>
+  </div>
+  <p class="sub">Bruits du cœur synthétisés par le moteur (module auscultation) pour le patient de la régie, à la fréquence cardiaque courante de la session. Les agents d'anesthésie ne modifient que la fréquence : souffle et timbre restent ceux de la maladie. Usage pédagogique uniquement.</p>
+  <script type="module" src="ausc.js"></script>
+</body>
+</html>

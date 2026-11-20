@@ -1,22 +1,15 @@
 // Onglet « Anesthésie » de VetTwins : session en temps réel de la prémédication au réveil.
 // Le moteur (WebAssembly) porte toute la physiologie ; ce fichier n'affiche que ses sorties et
 // lui transmet les actions. Usage pédagogique uniquement.
-import { COLORS, timeChart, setup } from './charts.js';
+import { COLORS, timeChart } from './charts.js';
+import { MonitorView, PROBES, ALARM_FR, DEATH_FR } from './monitor-view.js';
+import { Room, roomConfig } from './room.js';
 
 const fmt = (v, d = 0) => (v === undefined || v === null || Number.isNaN(v) ? '—' : Number(v).toFixed(d).replace('.', ','));
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const clock = (t) => { const m = Math.floor(t / 60), s = Math.floor(t % 60); return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}:${String(s).padStart(2, '0')}`; };
 
 const PLANE_FR = { awake: 'vigile', sedated: 'sédation', light: 'plan léger', surgical: 'plan chirurgical', deep: 'plan profond', excessive: 'surdosage' };
-const ALARM_FR = {
-  hypotension: 'Hypotension (PAM < 60)', hypertension: 'Hypertension', bradycardia: 'Bradycardie', tachycardia: 'Tachycardie',
-  desaturation: 'Désaturation (SpO₂ < 90 %)', apnea: 'Apnée', hypercapnia: 'Hypercapnie (PaCO₂ > 60)', hypothermia: 'Hypothermie (< 36 °C)',
-  movement: 'Mouvement', cardiac_arrest: 'Arrêt cardiorespiratoire', tissue_hypoxia: 'Hypoxie tissulaire (dette d\u2019O₂)',
-};
-const DEATH_FR = {
-  cardiac_arrest: 'arrêt cardiaque', circulatory_collapse: 'effondrement circulatoire', irreversible_shock: 'choc irréversible',
-  oxygen_debt: "dette d'oxygène", hypoxic_arrest: 'arrêt cardiaque hypoxique', no_steady_state: 'aucun état viable', vicious_circle: 'spirale de décompensation',
-};
 const CLASS_FR = {
   alpha2_agonist: 'α2-agoniste', phenothiazine: 'phénothiazine', benzodiazepine: 'benzodiazépine', opioid: 'opioïde',
   hypnotic: 'hypnotique', dissociative: 'dissociatif', local_anesthetic: 'anesthésique local', antagonist: 'antagoniste',
@@ -26,11 +19,13 @@ const MS_FR = [['loc', 'Perte de conscience'], ['intubation', 'Intubation'], ['v
 
 const A = {
   list: null, session: null, key: null, hist: [], snap: null, waves: null, running: false, speed: 10, timer: null, last: null,
-  mon: null, sound: false, audio: null, raf: 0, lastAlarm: 0,
+  monv: new MonitorView(), sound: false, raf: 0,
   syr: [], pumps: [], nextId: 1,
   machine: { o2: 2, circuit: 'circle', vap: null, pct: 0, vent: false, rr: 10, vt: 12 },
   prep: { agent: null, conc: '', vol: 10, pAgent: null, pConc: '', pVol: 50, pRate: 5 },
   procedure: '', rec: null, lastWave: 0, err: null,
+  // salle de simulation (room.js) : relais, capteurs posés, site du stéthoscope, dernier temps opératoire
+  room: null, roomSt: { connected: false }, probes: null, steth: null, procIdx: -1, ctl: null, view: null, ctx: null, inputs: null,
   form: { agent: null, dose: '', route: 'iv', push: 30, cri: '', vap: 'isoflurane', pct: 2, fgf: 2, rr: 10, vt: 12, block: null, territory: null, fluids: 5, bolus: 10, bleed: 5 },
 };
 
@@ -46,7 +41,8 @@ export function renderAnesthesia(v, ctx) {
     A.form.block = (A.list.agents.find((a) => a.routes.local) || {}).id || null;
   }
   const key = JSON.stringify([inputs.bw, inputs.disease, inputs.stage]);
-  A.bw = inputs.bw;
+  A.bw = inputs.bw; A.ctl = ctl; A.view = v; A.ctx = ctx; A.inputs = inputs; A.curKey = key;
+  roomInit();
   if (A.key !== key) stop();
   v.innerHTML = layout(ctl, inputs, key);
   wire(v, ctl, inputs, key, ctx);
@@ -56,6 +52,7 @@ export function renderAnesthesia(v, ctx) {
 function stop() {
   if (A.timer) clearInterval(A.timer);
   A.timer = null; A.running = false;
+  roomSnapshot();
 }
 
 function start(ctl, inputs, key) {
@@ -68,11 +65,12 @@ function start(ctl, inputs, key) {
   const opts = { seed: inputs.seed || 1 };
   if (A.procedure) opts.procedure = A.procedure;
   const r = ctl.call('message', JSON.stringify({ op: 'anesthesia_start', patient: pid, options: opts }));
-  A.session = r.session; A.key = key; A.hist = [r.snapshot]; A.snap = r.snapshot; A.rec = null; A.waves = null; A.lastWave = -1e9; A.mon = null;
+  A.session = r.session; A.key = key; A.hist = [r.snapshot]; A.snap = r.snapshot; A.rec = null; A.waves = null; A.lastWave = -1e9; A.monv.reset();
   // nouvelle session : seringues et pousse-seringues préparés conservés (pleins, à l'arrêt)
   for (const x of A.syr) x.left = x.vol;
   for (const x of A.pumps) { x.left = x.vol; x.on = false; }
-  A.machine.vent = false;
+  A.machine.vent = false; A.procIdx = -1;
+  roomSession();
   event(ctl, { type: 'fresh_gas', l_min: A.machine.o2 });
   event(ctl, { type: 'circuit', kind: A.machine.circuit });
   if (A.machine.vap && A.machine.pct > 0) event(ctl, { type: 'vaporizer', agent: A.machine.vap, pct: A.machine.pct });
@@ -115,15 +113,19 @@ function play(ctl, v) {
 function advance(ctl, wallS, v) {
   // pas de 1 s jusqu'à ×10, de 5 s au-delà : coût borné à ~12 évaluations par seconde réelle
   const sim = wallS * A.speed, dt = A.speed > 10 ? 5 : 1, n = Math.max(1, Math.round(sim / dt));
-  const wantWaves = !A.mon || A.mon.pending.length === 0;
+  const wantWaves = A.monv.pending === 0;
   try {
     const r = ctl.call('message', JSON.stringify({ op: 'anesthesia_step', options: { session: A.session, dt_s: dt, n, all: true, waves_s: wantWaves ? 6 : 0, seed: 1 } }));
     const t0 = A.snap ? A.snap.t_s : 0;
     for (const s of r.snapshots) A.hist.push(s);
     if (A.hist.length > 20000) A.hist.splice(0, A.hist.length - 20000);
     A.snap = r.snapshots[r.snapshots.length - 1];
-    if (r.ecg) { A.waves = { ecg: r.ecg, fs: r.ecg_fs, pr: r.pressures, at: performance.now() }; A.lastWave = performance.now(); feedMonitor(r); }
+    if (r.ecg) {
+      A.waves = { ecg: r.ecg, fs: r.ecg_fs, pr: r.pressures, at: performance.now() }; A.lastWave = performance.now(); A.monv.feed(r);
+      if (A.room) A.room.send({ kind: 'waves', ecg: r.ecg, ecg_fs: r.ecg_fs, pressures: r.pressures });
+    }
     pumpTick(ctl, A.snap.t_s - t0);
+    roomSnapshot();
     if (A.snap.dead) stop();
   } catch (e) { A.err = e.message; stop(); }
   paint(v);
@@ -152,6 +154,7 @@ function layout(ctl, inputs, key) {
       <button id="an-step" ${started && !A.running ? '' : 'disabled'}>+1 min</button>
       <span class="clock" id="an-clock">${started ? clock(A.snap.t_s) : '—'}</span>
     </div>
+    ${A.room ? '<p class="room-line" id="an-room"></p>' : ''}
     <p class="sub">Patient de la barre latérale (poids, maladie). Toutes les valeurs du modèle sont pédagogiques ; beaucoup sont des placeholders (niveau D). Ne jamais utiliser pour une anesthésie réelle.</p>
     ${A.err ? `<p class="warn">${esc(A.err)}</p>` : ''}
   </div>
@@ -215,9 +218,7 @@ function wire(v, ctl, inputs, key, ctx) {
   for (const b of v.querySelectorAll('[data-speed]')) b.onclick = () => { A.speed = +b.dataset.speed; rerender(); };
   on('an-step', () => { const s0 = A.speed; A.speed = 60; advance(ctl, 1, v); A.speed = s0; rerender(); });
   on('an-sound', () => {
-    A.sound = !A.sound;
-    if (A.sound && !A.audio) { try { A.audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { A.sound = false; } }
-    if (A.audio && A.audio.state === 'suspended') A.audio.resume();
+    A.sound = A.monv.setSound(!A.sound);
     const b = document.getElementById('an-sound'); if (b) b.textContent = A.sound ? '🔊 Son' : '🔇 Son coupé';
   });
   wireStations(v, ctl, ev, rerender);
@@ -228,7 +229,7 @@ function wire(v, ctl, inputs, key, ctx) {
   const keep = (id, k) => { const el = document.getElementById(id); if (el) el.onchange = () => { f[k] = el.value; }; };
   keep('an-dose', 'dose'); keep('an-push', 'push'); keep('an-route', 'route'); keep('an-cri', 'cri'); keep('an-vap', 'vap'); keep('an-pct', 'pct'); keep('an-fgf', 'fgf');
   keep('an-rr', 'rr'); keep('an-vt', 'vt'); keep('an-block', 'block'); keep('an-terr', 'territory'); keep('an-fl', 'fluids'); keep('an-bo', 'bolus'); keep('an-bl', 'bleed');
-  for (const b of v.querySelectorAll('[data-step]')) b.onclick = () => ev({ type: 'procedure_step', index: +b.dataset.step });
+  for (const b of v.querySelectorAll('[data-step]')) b.onclick = () => { A.procIdx = +b.dataset.step; ev({ type: 'procedure_step', index: +b.dataset.step }); };
   on('an-end', () => ev({ type: 'end_surgery' }));
   on('an-pinch', () => ev({ type: 'stimulus', intensity: 1.0, duration_s: 30, territory: f.territory || 'skin' }));
   on('an-block-go', () => ev({ type: 'local_block', agent: document.getElementById('an-block').value, territory: document.getElementById('an-terr').value }));
@@ -246,6 +247,7 @@ function paint(v) {
   const s = A.snap; if (!s) return;
   const c = document.getElementById('an-clock'); if (c) c.textContent = clock(s.t_s);
   paintStatus();
+  paintRoom();
   paintStations();
   const m = document.getElementById('an-mon-vals'); if (!m) return;
   const vi = s.vitals || {};
@@ -337,120 +339,16 @@ function paintStatus() {
     <span class="last">${last}</span>`;
 }
 
-// ------------------------------------------------------------------ moniteur défilant et son
-// Les tracés (ECG D II, pression artérielle) viennent du moteur par segments de quelques
-// secondes ; ils sont découpés aux ondes R puis mis bout à bout et défilent à vitesse réelle
-// (balayage de 6 s), indépendamment de l'accélération de la simulation, comme un moniteur.
-const SWEEP_S = 6, GAP_S = 0.25;
-
-function rPeaks(ecg, fs) {
-  let mx = -Infinity; for (const x of ecg) if (x > mx) mx = x;
-  const thr = 0.5 * mx, out = [], refr = Math.round(0.2 * fs);
-  for (let i = 1; i < ecg.length - 1; i++) {
-    if (ecg[i] > thr && ecg[i] >= ecg[i - 1] && ecg[i] > ecg[i + 1] && (!out.length || i - out[out.length - 1] > refr)) out.push(i);
-  }
-  return out;
-}
-
-/** Segment reçu du moteur : coupé entre la première et la dernière onde R (battements entiers). */
-function feedMonitor(r) {
-  const fs = r.ecg_fs, ecg = r.ecg;
-  const pr = r.pressures, k = pr ? Math.max(1, Math.round(fs / pr.fs)) : 1;
-  const art = ecg.map((_, i) => (pr ? pr.ao[Math.min(pr.ao.length - 1, Math.floor(i / k))] : NaN));
-  const pk = rPeaks(ecg, fs);
-  let seg;
-  if (pk.length >= 2) {
-    const a = pk[0], b = pk[pk.length - 1];
-    seg = { ecg: ecg.slice(a, b), art: art.slice(a, b), peaks: pk.slice(0, -1).map((i) => i - a) };
-  } else seg = { ecg, art, peaks: pk };
-  if (!A.mon) A.mon = { fs, ecg: [], art: [], peaks: [], base: 0, pos: 0, pending: [], last: null, t: performance.now() };
-  A.mon.pending.push(seg);
-  if (A.mon.pending.length > 2) A.mon.pending.shift();
-}
-
-function appendSeg(M) {
-  const seg = M.pending.length ? M.pending.shift() : M.last;
-  if (!seg) return false;
-  M.last = seg;
-  const off = M.base + M.ecg.length;
-  for (let i = 0; i < seg.ecg.length; i++) { M.ecg.push(seg.ecg[i]); M.art.push(seg.art[i]); }
-  for (const p of seg.peaks) M.peaks.push(off + p);
-  return seg.ecg.length > 0;
-}
-
+// ------------------------------------------------------------------ moniteur défilant et son (monitor-view.js)
 function startMonitor() {
   if (A.raf) return;
   const frame = (now) => {
     const ecgC = document.getElementById('an-ecg');
     if (!ecgC || !A.session) { A.raf = 0; return; }
     A.raf = requestAnimationFrame(frame);
-    drawMonitor(now);
+    A.monv.draw(now, A.snap, { ecg: ecgC, art: document.getElementById('an-art'), cap: document.getElementById('an-cap') });
   };
   A.raf = requestAnimationFrame(frame);
-}
-
-function beep(freq, dur, type = 'sine', vol = 0.15, delay = 0) {
-  const ac = A.audio; if (!ac || !A.sound) return;
-  const t0 = ac.currentTime + delay, o = ac.createOscillator(), g = ac.createGain();
-  o.type = type; o.frequency.value = freq;
-  g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(vol, t0 + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-  o.connect(g); g.connect(ac.destination); o.start(t0); o.stop(t0 + dur + 0.02);
-}
-
-function drawMonitor(now) {
-  const s = A.snap; if (!s) return;
-  const M = A.mon;
-  const ecgC = document.getElementById('an-ecg'), artC = document.getElementById('an-art'), capC = document.getElementById('an-cap');
-  const fs = M ? M.fs : 250;
-  // tête de lecture à vitesse réelle
-  let prev = 0, P = 0;
-  if (M) {
-    const dt = Math.min(0.25, (now - M.t) / 1000); M.t = now;
-    prev = M.base + M.pos; M.pos += dt * fs;
-    while (M.pos >= M.ecg.length && appendSeg(M)) { /* rallonge par battements entiers */ }
-    if (M.pos >= M.ecg.length) M.pos = M.ecg.length - 1;
-    const keep = Math.ceil(SWEEP_S * fs) + 10, drop = Math.floor(M.pos) - keep;
-    if (drop > 0) { M.ecg.splice(0, drop); M.art.splice(0, drop); M.base += drop; M.pos -= drop; M.peaks = M.peaks.filter((p) => p >= M.base); }
-    P = M.base + M.pos;
-    // bip à chaque QRS franchi par la tête de lecture ; tonalité selon la SpO2
-    if (!s.dead) for (const pk of M.peaks) if (pk > prev && pk <= P) {
-      const spo2 = s.vitals ? s.vitals.spo2 : 90;
-      beep(Math.max(250, Math.min(900, 300 + 6 * (spo2 - 60))), 0.06);
-    }
-  } else P = (now / 1000) * fs;
-  // alarmes sonores (toutes les 4 s) ; arrêt : tonalité continue répétée
-  if (A.sound && (s.alarms.length || s.dead) && now - A.lastAlarm > (s.dead ? 1000 : 4000)) {
-    A.lastAlarm = now;
-    if (s.dead) beep(960, 0.9, 'square', 0.08);
-    else [0, 0.18, 0.36].forEach((d, i) => beep(i === 1 ? 740 : 880, 0.12, 'square', 0.07, d));
-  }
-  const sweep = (c, yOf, lo, hi, color, left) => {
-    const { ctx, w, h } = setup(c);
-    const W = w - left, n = Math.floor((SWEEP_S - GAP_S) * fs), Y = (v) => 4 + (1 - (v - lo) / (hi - lo)) * (h - 8);
-    ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.font = '10px system-ui'; 
-    if (left) { ctx.fillText(String(hi), 2, 10); ctx.fillText(String(lo), 2, h - 3); }
-    ctx.strokeStyle = color; ctx.lineWidth = 1.6; ctx.beginPath();
-    let lastX = null;
-    for (let k = n; k >= 0; k--) {
-      const ia = P - k, v = yOf(ia);
-      if (!Number.isFinite(v)) { lastX = null; continue; }
-      const x = left + (((ia / fs) % SWEEP_S) / SWEEP_S) * W;
-      if (lastX === null || x < lastX) ctx.moveTo(x, Y(v)); else ctx.lineTo(x, Y(v));
-      lastX = x;
-    }
-    ctx.stroke();
-  };
-  const at = (arr, ia) => { if (!M) return NaN; const i = Math.floor(ia - M.base); return i >= 0 && i < arr.length ? arr[i] : NaN; };
-  const flat = s.dead || !M;
-  sweep(ecgC, (ia) => (flat ? 0 : at(M.ecg, ia)), -1.5, 2.5, '#35e08a', 0);
-  sweep(artC, (ia) => (s.dead ? 0 : at(M ? M.art : [], ia)), 0, 200, '#ff6b6b', 26);
-  // capnogramme : plateau à l'EtCO2, au rythme respiratoire, sur le même balayage
-  const per = s.rr > 0 ? 60 / s.rr : Infinity;
-  sweep(capC, (ia) => {
-    if (!Number.isFinite(per) || s.dead) return 0;
-    const ph = ((ia / fs) % per) / per, e = s.etco2;
-    return ph < 0.4 ? 0 : ph < 0.45 ? e * (ph - 0.4) / 0.05 : ph < 0.9 ? e * (0.92 + 0.08 * (ph - 0.45) / 0.45) : e * (1 - (ph - 0.9) / 0.1);
-  }, 0, 60, '#f2d45c', 26);
 }
 
 // ------------------------------------------------------------------ postes : pharmacie, pousse-seringues, machine
@@ -688,4 +586,150 @@ function paintStations() {
       ex.innerHTML = `<b>Non intubé</b> (${s.fio2 > 0.3 ? 'O₂ au masque' : 'air ambiant'}). Intubation possible : ${ok(!r.swallowing)} déglutition abolie · tonus de la mâchoire ${['absent', 'diminué', 'présent'][r.jaw_tone]}.`;
     }
   }
+}
+
+// ------------------------------------------------------------------ salle de simulation (relais, boîtiers)
+// La régie est la seule à exécuter le moteur. Les boîtiers (docs/INTEGRATION_MATERIEL.tex)
+// envoient des entrées en unités de la salle (seringue : mg/mL et mL) ; elles sont traduites ici
+// en événements du moteur (mg/kg avec le poids du patient), et le verdict du moteur leur revient.
+// Les instantanés sont diffusés au moniteur de salle, au lecteur d'auscultation et au pouls.
+
+function roomInit() {
+  if (A.room) return;
+  const cfg = roomConfig(); if (!cfg) return;
+  A.room = new Room(cfg, 'regie', {
+    onMessage: (m) => {
+      if (m.kind === 'device') {
+        let res;
+        try { res = deviceInput(String(m.device || '?'), m.input || {}); } catch (e) { res = { ok: false, text: e.message }; }
+        A.room.send({ kind: 'result', req: m.req, ok: res.ok, text: res.text });
+      }
+      if (m.kind === 'replaced') { A.err = 'Une autre régie s’est connectée au relais : cette page ne reçoit plus les boîtiers.'; A.room.close(); refresh(); }
+      if (m.kind === 'welcome') { roomSession(); roomProbes(); roomSteth(); roomSnapshot(); }
+    },
+    onStatus: (st) => { A.roomSt = st; paintRoom(); },
+  });
+  // battement de cœur : l'état reste frais pour les boîtiers de sortie même en pause
+  setInterval(() => { if (!A.running) roomSnapshot(); }, 2000);
+}
+
+const patientDesc = () => (A.inputs ? { bw: A.inputs.bw, disease: A.inputs.disease, stage: A.inputs.stage, seed: A.inputs.seed || 1 } : null);
+function roomSession() { if (A.room) A.room.send({ kind: 'session', session: A.session, patient: patientDesc(), procedure: A.procedure || null }); }
+function roomProbes() { if (A.room) A.room.send({ kind: 'probes', probes: A.probes }); }
+function roomSteth() { if (A.room) A.room.send({ kind: 'steth', site: A.steth, patient: patientDesc() }); }
+function roomSnapshot() {
+  if (!A.room || !A.snap) return;
+  const s = A.snap, vi = s.vitals || {};
+  A.room.send({
+    kind: 'snapshot', t_s: s.t_s, snap: s, probes: A.probes, running: A.running, speed: A.speed, patient: patientDesc(),
+    pulse: { hr: vi.hr ?? null, sap: vi.sap ?? null, dap: vi.dap ?? null, map: vi.map ?? null, dead: !!s.dead, running: A.running },
+  });
+}
+
+/** Réaffiche l'onglet s'il est à l'écran ; sans casser une saisie du formateur en cours. */
+function refresh() {
+  if (!A.view || !document.getElementById('an-start')) return;
+  const f = document.activeElement;
+  if (f && A.view.contains(f) && /^(INPUT|SELECT|TEXTAREA)$/.test(f.tagName)) paint(A.view);
+  else renderAnesthesia(A.view, A.ctx);
+}
+
+const inRange = (x, lo, hi) => (typeof x === 'number' && Number.isFinite(x) && x >= lo && x <= hi ? x : null);
+
+/** Entrée d'un boîtier → événement du moteur ; renvoie {ok, text} (verdict du moteur). */
+function deviceInput(dev, inp) {
+  const tag = `[${dev}] `;
+  const done = (ok, text) => { A.last = { t: A.snap ? A.snap.t_s : 0, text: tag + text, ok }; paintStatus(); paintRoom(); return { ok, text }; };
+  // capteurs et stéthoscope : hors moteur, possibles avant le démarrage
+  if (inp.type === 'probes') {
+    const p = { ...(A.probes || {}) };
+    for (const [k] of PROBES) if (typeof inp[k] === 'boolean') p[k] = inp[k];
+    A.probes = p; roomProbes(); roomSnapshot();
+    return done(true, 'capteurs : ' + PROBES.map(([k]) => `${k} ${p[k] === false ? '✗' : '✓'}`).join(' '));
+  }
+  if (inp.type === 'stethoscope') {
+    A.steth = inp.site === 'base' || inp.site === 'apex' ? inp.site : null; roomSteth();
+    return done(true, A.steth ? `stéthoscope posé (${A.steth})` : 'stéthoscope retiré');
+  }
+  if (!A.session || A.key !== A.curKey) return done(false, 'session non démarrée');
+  if (A.snap && A.snap.dead) return done(false, 'patient décédé');
+  const M = A.machine, L = A.list;
+  let e = null, after = () => {};
+  switch (inp.type) {
+    case 'inject': {
+      const ag = L.agents.find((a) => a.id === inp.agent);
+      if (!ag) return done(false, `agent inconnu « ${inp.agent} »`);
+      const conc = inRange(inp.conc_mg_ml, 1e-6, 1000), ml = inRange(inp.ml, 1e-3, 100);
+      if (conc === null || ml === null) return done(false, 'conc_mg_ml et ml attendus (nombres > 0)');
+      const route = inp.route || 'iv';
+      if (!routesOf(ag.id).includes(route)) return done(false, `voie ${route} non disponible pour ${ag.name}`);
+      e = { type: 'bolus', agent: ag.id, mg_per_kg: (ml * conc) / A.bw, route };
+      if (route === 'iv') e.duration_s = inRange(inp.duration_s, 0, 3600) ?? 30;
+      after = () => { A.last.text += ` (${n2(ml, 2)} mL à ${n2(conc, 3)} mg/mL)`; };
+      break;
+    }
+    case 'vaporizer': {
+      const agent = inp.agent || M.vap, inh = L.inhalants.find((i) => i.id === agent);
+      if (!inh) return done(false, `halogéné inconnu « ${agent} »`);
+      const pct = inRange(inp.pct, 0, 100);
+      if (pct === null) return done(false, 'pct attendu (nombre ≥ 0)');
+      const p = Math.min(inh.vaporizer_max_pct, pct);
+      if (agent !== M.vap && M.pct > 0) event(A.ctl, { type: 'vaporizer', agent: M.vap, pct: 0 });
+      M.vap = agent; M.pct = p;
+      e = { type: 'vaporizer', agent, pct: p };
+      if (p < pct) after = () => { A.last.text += ` (butée du vaporisateur : ${fmt(inh.vaporizer_max_pct, 0)} %)`; };
+      break;
+    }
+    case 'fresh_gas': {
+      const l = inRange(inp.l_min, 0, 20); if (l === null) return done(false, 'l_min attendu (0 à 20)');
+      M.o2 = l; e = { type: 'fresh_gas', l_min: l }; break;
+    }
+    case 'oxygen': e = { type: 'oxygen', on: inp.on !== false }; break;
+    case 'procedure_next': {
+      const proc = L.procedures.find((p) => p.id === A.procedure);
+      if (!proc) return done(false, 'aucun scénario chirurgical choisi');
+      const i = A.procIdx + 1;
+      if (i >= proc.steps.length) return done(false, 'tous les temps opératoires sont réalisés');
+      e = { type: 'procedure_step', index: i };
+      after = () => { A.procIdx = i; A.last.text += ` : ${proc.steps[i].label}`; };
+      break;
+    }
+    case 'end_surgery': case 'intubate': e = { type: inp.type }; break;
+    case 'extubate': e = { type: 'extubate' }; after = () => { M.vent = false; }; break;
+    case 'warming': e = { type: 'warming', on: inp.on !== false }; break;
+    case 'fluids': { const x = inRange(inp.ml_kg_h, 0, 100); if (x === null) return done(false, 'ml_kg_h attendu'); e = { type: 'fluids', ml_kg_h: x }; break; }
+    case 'fluid_bolus': { const x = inRange(inp.ml_kg, 0, 100); if (x === null) return done(false, 'ml_kg attendu'); e = { type: 'fluid_bolus', ml_kg: x }; break; }
+    case 'hemorrhage': { const x = inRange(inp.ml_kg, 0, 100); if (x === null) return done(false, 'ml_kg attendu'); e = { type: 'hemorrhage', ml_kg: x }; break; }
+    case 'stimulus':
+      e = { type: 'stimulus', intensity: inRange(inp.intensity, 0, 10) ?? 1.0, duration_s: inRange(inp.duration_s, 1, 3600) ?? 30, territory: inp.territory || A.form.territory || 'skin' };
+      break;
+    case 'circuit': e = { type: 'circuit', kind: inp.kind }; after = () => { M.circuit = inp.kind; }; break;
+    case 'ventilation':
+      if (inp.mode === 'controlled') {
+        M.rr = inRange(inp.rr, 1, 60) ?? M.rr; M.vt = inRange(inp.vt_ml_kg, 1, 30) ?? M.vt;
+        e = { type: 'ventilation', mode: 'controlled', rr: M.rr, vt_ml_kg: M.vt }; after = () => { M.vent = true; };
+      } else { e = { type: 'ventilation', mode: 'spontaneous' }; after = () => { M.vent = false; }; }
+      break;
+    default: return done(false, `entrée inconnue « ${inp.type} »`);
+  }
+  event(A.ctl, e);
+  const ok = !!(A.last && A.last.ok);
+  if (ok) after();
+  A.last.text = tag + A.last.text;
+  advance(A.ctl, 0.0001, A.view);
+  refresh();
+  return { ok, text: A.last.text.slice(tag.length) };
+}
+
+/** Ligne d'état de la salle (régie) : relais, capteurs posés, stéthoscope, lien du moniteur. */
+function paintRoom() {
+  const el = document.getElementById('an-room'); if (!el || !A.room) return;
+  const st = A.roomSt;
+  const p = A.probes;
+  const probes = PROBES.map(([k, l]) => `<span class="${p && p[k] === false ? 'off' : 'on'}" title="${esc(l)}">${k}</span>`).join('');
+  const q = location.search;
+  el.innerHTML = `<b>Salle</b> : ${st.connected ? '<span class="ok">relais connecté</span>' : '<span class="warn">relais déconnecté (nouvel essai…)</span>'}
+    · capteurs ${p ? '' : '(pas de boîtier : tous affichés) '}<span class="probes">${probes}</span>
+    · stéthoscope ${A.steth ? `<b>${A.steth}</b>` : 'non posé'}
+    · <a href="monitor.html${q}" target="_blank">moniteur de salle</a> · <a href="ausc.html${q}" target="_blank">lecteur d'auscultation</a>`;
 }

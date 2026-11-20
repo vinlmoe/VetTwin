@@ -74,6 +74,10 @@ jobs:
       - run: pip install numpy scipy jsonschema
       - run: python tests/validate_modules.py
       - run: python tests/check_modules.py
+      - name: Salle de simulation — relais (bibliothèque standard)
+        run: python tests/check_relay.py
+      - name: Salle de simulation — micrologiciels ESP32 compilés sur l'hôte (g++) et bibliothèque VetTwinRelay
+        run: python tests/check_firmware.py
 
   cross-platform:
     # Mêmes bits sur Linux x86_64 (natif) et wasm32-wasip1 (wasmtime) : sorties JSON identiques.

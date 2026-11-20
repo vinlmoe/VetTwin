@@ -10,6 +10,7 @@ Contenu
 - `reference/python/` : implémentation secondaire (contre-vérification indépendante) et scripts de calage.
 - `tests/` : validation des schémas, équivalence JSON ↔ Python, tests golden et runner de conformité.
 - `calibration/` : cibles publiées et résultats du banc de calibration Python.
+- `salle/` : salle de simulation (relais, micrologiciels ESP32 des boîtiers : capteurs posés, stéthoscope, pupitre d'injection RFID, machine d'anesthésie, pouls, boîtier du formateur) ; guide : `docs/INTEGRATION_MATERIEL.pdf`.
 
 Vérifications : d'abord le moteur Rust (normatif), puis les contre-vérifications Python (secondaires ; Python 3, numpy, scipy, jsonschema)
 ```

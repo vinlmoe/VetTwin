@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VetTwins, moniteur de salle</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    html, body { margin: 0; height: 100%; background: #05090b; color: #e8eef2; overflow: hidden; }
+    body { display: flex; flex-direction: column; padding: 1.2vh 1.2vw; box-sizing: border-box; gap: 1vh; }
+    header { display: flex; align-items: center; gap: 12px; font-size: 1.6vh; opacity: 0.85; }
+    header .clock { font: 600 2.4vh ui-monospace, monospace; margin-left: auto; }
+    header .link { font-size: 1.4vh; padding: 2px 8px; border-radius: 10px; background: #23313a; }
+    header .link.ok { background: #14432a; } header .link.bad { background: #5a1a14; }
+    .alarms { min-height: 4vh; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .alarms span { background: #c0392b; color: white; border-radius: 6px; padding: 2px 10px; font-size: 2.2vh; font-weight: 600; animation: blink 1s steps(2) infinite; }
+    .dead { background: #c0392b; color: white; padding: 6px 12px; border-radius: 6px; font-weight: 700; font-size: 2.6vh; }
+    @keyframes blink { 50% { opacity: 0.45; } }
+    main { flex: 1; display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 1.25fr); gap: 1.2vw; min-height: 0; }
+    .waves { display: grid; grid-template-rows: 1.2fr 1fr 0.8fr; gap: 1vh; min-height: 0; }
+    .wave { position: relative; border-bottom: 1px solid #15222a; min-height: 0; }
+    .wave canvas { width: 100%; height: 100%; display: block; }
+    .wave label { position: absolute; top: 2px; left: 4px; font-size: 1.4vh; opacity: 0.7; }
+    .vals { display: grid; grid-template-rows: repeat(4, minmax(0, 1fr)); grid-template-columns: 1fr 1fr; gap: 1vh; min-height: 0; }
+    .mv { display: flex; flex-direction: column; justify-content: center; padding: 0.6vh 0.8vw; border: 1px solid #1b2830; border-radius: 8px; min-width: 0; }
+    .mv.wide { grid-column: span 2; }
+    .mv span { font-size: 1.6vh; opacity: 0.8; } .mv i { font-size: 1.4vh; font-style: normal; opacity: 0.7; }
+    .mv b { font: 600 6vh ui-monospace, monospace; line-height: 1.05; white-space: nowrap; overflow: hidden; }
+    .mv.wide b { font-size: 6.5vh; }
+    .mv.small b { font-size: 4vh; }
+    .g b { color: #35e08a; } .r b { color: #ff6b6b; } .b b { color: #5ab0ff; } .y b { color: #f2d45c; } .w b { color: #e8eef2; }
+    .mv.off b { color: #3a4a53 !important; }
+    #start { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; background: rgba(5, 9, 11, 0.92); z-index: 9; }
+    #start button { font: inherit; font-size: 22px; padding: 14px 28px; border-radius: 30px; border: none; background: #0b5e7a; color: white; cursor: pointer; }
+    #start p { max-width: 560px; text-align: center; opacity: 0.8; margin: 0 16px; font-size: 14px; }
+    footer { font-size: 1.2vh; opacity: 0.45; }
+    @media (max-width: 700px) { main { grid-template-columns: 1fr; } .waves { min-height: 40vh; } }
+  </style>
+</head>
+<body>
+  <div id="start">
+    <button id="go">Démarrer le moniteur (son)</button>
+    <p>Écran de salle : il affiche la session conduite depuis la régie (onglet Anesthésie ouvert avec <code>?room=1</code>). Le clic est nécessaire au navigateur pour autoriser le son ; en mode kiosque, lancer Chromium avec <code>--autoplay-policy=no-user-gesture-required</code> et ajouter <code>&amp;autostart=1</code> à l'adresse.</p>
+  </div>
+  <header>
+    <b>VetTwins</b><span id="who">—</span><span id="link" class="link">relais…</span><span class="clock" id="clock">--:--:--</span>
+  </header>
+  <div class="alarms" id="alarms"></div>
+  <main>
+    <div class="waves">
+      <div class="wave"><label>ECG D II</label><canvas id="ecg"></canvas></div>
+      <div class="wave"><label>PA (mmHg)</label><canvas id="art"></canvas></div>
+      <div class="wave"><label>CO₂ (mmHg)</label><canvas id="cap"></canvas></div>
+    </div>
+    <div class="vals" id="vals"></div>
+  </main>
+  <footer>Patient virtuel pédagogique : valeurs du modèle, en partie placeholders (niveau D). Ne jamais utiliser pour une anesthésie réelle.</footer>
+  <script type="module" src="monitor.js"></script>
+</body>
+</html>

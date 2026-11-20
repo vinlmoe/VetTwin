@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Service launchd du relais de salle (Mac mini). Remplacer VOUS (deux fois), puis :
+     sudo cp salle/fr.vettwins.relay.plist /Library/LaunchDaemons/
+     sudo chown root:wheel /Library/LaunchDaemons/fr.vettwins.relay.plist
+     sudo launchctl bootstrap system /Library/LaunchDaemons/fr.vettwins.relay.plist
+     Dépôt hors de Documents, Bureau et Téléchargements (docs/DEPLOIEMENT_MACMINI.tex). -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>            <string>fr.vettwins.relay</string>
+  <key>UserName</key>         <string>VOUS</string>
+  <key>WorkingDirectory</key> <string>/Users/VOUS/srv/VetTwin/vetsim-kit</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/python3</string> <string>-I</string> <string>salle/relay.py</string>
+    <string>--web</string> <string>web</string>
+    <string>--host</string> <string>0.0.0.0</string>
+    <string>--port</string> <string>8765</string>
+  </array>
+  <key>RunAtLoad</key>        <true/>
+  <key>KeepAlive</key>        <true/>
+  <key>StandardOutPath</key>  <string>/tmp/vettwins-relay.log</string>
+  <key>StandardErrorPath</key><string>/tmp/vettwins-relay.log</string>
+</dict>
+</plist>
