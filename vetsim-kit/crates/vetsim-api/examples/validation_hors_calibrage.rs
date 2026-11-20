@@ -173,11 +173,7 @@ fn hemorrhage(anesth: bool) {
     );
     for k in 1..=10 {
         s.apply(Event::Hemorrhage(0.05 * 85.0)).unwrap();
-        let sn = if anesth {
-            run(&mut s, 300.0, 10.0)
-        } else {
-            run(&mut s, 300.0, 10.0)
-        };
+        let sn = run(&mut s, 300.0, 10.0);
         println!(
             "hemorragie {} {} % : {}",
             if anesth { "iso1.3" } else { "vigile" },
