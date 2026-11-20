@@ -1,4 +1,4 @@
-import numpy as np, json
+import numpy as np, json, os
 from scipy.optimize import least_squares
 from params import healthy_params
 from physio import evaluate
@@ -18,4 +18,5 @@ s=least_squares(res,x0,diff_step=0.05,bounds=([-1,-300,-0.7,-1,-1.5],[1,1500,0.7
 print(s.x, s.cost, res(s.x))
 r=evaluate(mk(s.x));h=r['hemo']
 print({k:round(float(h[k]),2) for k in ['map','sap','dap','co','sv','edv','esv','ef','la_mean','pap_mean','cvp','lv_edp']}, r['p']['hr'])
+os.makedirs('out',exist_ok=True)
 json.dump(s.x.tolist(),open('out/fit_hemo.json','w'))
