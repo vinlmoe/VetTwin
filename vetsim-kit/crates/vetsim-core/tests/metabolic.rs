@@ -101,6 +101,7 @@ fn golden_gas_and_chemistry_with_reference_hemodynamics() {
             co: exp["co"].as_f64().unwrap(),
             map: exp["map"].as_f64().unwrap(),
             la_mean: exp["la_mean"].as_f64().unwrap(),
+            cvp: exp["cvp"].as_f64().unwrap_or(4.7),
         };
         let pt = patient(&c, bw, &diseases);
         let m = metabolic_state(&pt.params, &h).unwrap();
@@ -156,6 +157,7 @@ fn metabolic_state_matches_python_reference_strictly() {
             co: hm["co"].as_f64().unwrap(),
             map: hm["map"].as_f64().unwrap(),
             la_mean: hm["la_mean"].as_f64().unwrap(),
+            cvp: hm["cvp"].as_f64().unwrap_or(4.7),
         };
         let label = format!(
             "{bw} kg {:?} {} {}",
@@ -193,16 +195,19 @@ fn invalid_hemodynamics_are_refused() {
             co: 0.0,
             map: 100.0,
             la_mean: 6.0,
+            cvp: 4.7,
         },
         HemoInputs {
             co: f64::NAN,
             map: 100.0,
             la_mean: 6.0,
+            cvp: 4.7,
         },
         HemoInputs {
             co: 3.0,
             map: f64::INFINITY,
             la_mean: 6.0,
+            cvp: 4.7,
         },
     ] {
         assert!(matches!(

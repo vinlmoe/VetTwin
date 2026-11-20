@@ -370,7 +370,10 @@ def _evaluate_once(p, n_beats=22):
     co_ref = 3.29 * (bw / 20.0) ** 0.75
     perf = float(min(np.clip((h['map'] - 40.0) / 35.0, 0, 1), np.clip((h['co'] / co_ref - 0.5) / 0.5, 0, 1)))
     perf = max(perf, 0.25)        # plateau de l'azotémie prérénale (au-delà : IRA, non modélisée)
-    gfr_ratio = p['nephron_mass'] * perf
+    # axe cardio-rénal (miroir de engine::metabolic_state) : congestion (PVC) et vasoconstriction rénale
+    f_cong = max(0.3, 1.0 - p['renal_k_cong'] * max(0.0, h['cvp'] - p['renal_cvp_ref']))
+    f_symp = max(0.3, 1.0 - p['renal_k_symp'] * max(0.0, p['sympathetic'] - p['renal_s_ref']))
+    gfr_ratio = p['nephron_mass'] * perf * f_cong * f_symp
     gfr_ratio = max(gfr_ratio, 0.03)
     chem = dict(
         na=p['na'], k=p['k'], cl=p['cl'], lactate=lact, glucose=p['glucose'],
@@ -447,6 +450,8 @@ def evaluate(p, n_beats=22):
         q['ees_lv'] = p0['ees_lv'] * fc * (1.0 + p0['hypox_inotropy'] * fh)
         q['ees_rv'] = p0['ees_rv'] * fc * (1.0 + p0['hypox_inotropy'] * fh)
         q['r_sys'] = p0['r_sys'] * fr * max(0.2, 1.0 - p0['hypox_vaso'] * fh)
+        if p0['anemia_visc'] != 0.0 and p0['hb_ref'] > 0.0:      # rein → cœur : anémie (viscosité)
+            q['r_sys'] *= (p0['hb'] / p0['hb_ref']) ** p0['anemia_visc']
         try:
             res = _evaluate_once(q, n_beats)
         except (ValueError, ZeroDivisionError):

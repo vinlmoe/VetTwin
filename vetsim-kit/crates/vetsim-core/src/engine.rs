@@ -18,6 +18,8 @@ pub struct HemoInputs {
     pub map: f64,
     /// Pression moyenne de l'OG / veine pulmonaire (mmHg).
     pub la_mean: f64,
+    /// Pression veineuse centrale (mmHg) : congestion veineuse rénale.
+    pub cvp: f64,
 }
 
 /// Sang veineux mêlé.
@@ -159,7 +161,11 @@ pub fn metabolic_state(p: &Params, h: &HemoInputs) -> Result<MetabolicState, Err
     let by_map = ((h.map - 40.0) / 35.0).clamp(0.0, 1.0);
     let by_co = ((h.co / co_ref - 0.5) / 0.5).clamp(0.0, 1.0);
     let perf = by_map.min(by_co).max(0.25);
-    let gfr_ratio = (p.nephron_mass * perf).max(0.03);
+    // axe cardio-rénal : congestion veineuse rénale (PVC) et vasoconstriction rénale
+    // neurohormonale (tonus sympathique, RAAS) abaissent le DFG à PAM et débit conservés
+    let f_cong = (1.0 - p.renal_k_cong * f64::max(0.0, h.cvp - p.renal_cvp_ref)).max(0.3);
+    let f_symp = (1.0 - p.renal_k_symp * f64::max(0.0, p.sympathetic - p.renal_s_ref)).max(0.3);
+    let gfr_ratio = (p.nephron_mass * perf * f_cong * f_symp).max(0.03);
     let chem = Chemistry {
         na: p.na,
         k: p.k,
@@ -479,6 +485,7 @@ fn evaluate_once(base: &Params) -> Result<Evaluation, Error> {
             co: hs.co,
             map: hs.map,
             la_mean: hs.la_mean,
+            cvp: hs.cvp,
         },
     )?;
     let autonomic = Autonomic {
@@ -596,6 +603,10 @@ pub fn evaluate(p0: &Params) -> Result<Evaluation, Error> {
         q.ees_lv = p0.ees_lv * fc * (1.0 + p0.hypox_inotropy * fh);
         q.ees_rv = p0.ees_rv * fc * (1.0 + p0.hypox_inotropy * fh);
         q.r_sys = p0.r_sys * fr * (1.0 - p0.hypox_vaso * fh).max(0.2);
+        // rein → cœur : l'anémie (MRC) abaisse la viscosité, donc les résistances systémiques
+        if p0.anemia_visc != 0.0 && p0.hb_ref > 0.0 {
+            q.r_sys *= math::pow(p0.hb / p0.hb_ref, p0.anemia_visc);
+        }
         let e = match evaluate_once(&q) {
             Ok(e) => e,
             Err(err) if is_physiological_failure(&err) => {
