@@ -5,14 +5,14 @@
  ],
  "license": "CC-BY-4.0",
  "id": "pneumonia",
- "version": "1.0.0",
+ "version": "1.1.0",
  "name": {
   "fr": "Pneumonie",
   "en": "Pneumonia"
  },
- "evidence": "D",
+ "evidence": "C",
  "description": {
-  "fr": "Altération des échanges (gradient alvéolo-artériel), léger hypermétabolisme. Non calibrée sur données publiées."
+  "fr": "Altération des échanges (gradient alvéolo-artériel), léger hypermétabolisme, hyperventilation non hypoxique (récepteurs pulmonaires, inflammation) avec compensation rénale chlorée de l'alcalose respiratoire, tachycardie. Calée le 20/11/2026 sur Viitanen 2017 et Young 2022 (docs/VALIDATION_HORS_CALIBRAGE.tex)."
  },
  "severity": {
   "stages": {
@@ -97,10 +97,75 @@
      "s"
     ]
    }
+  },
+  {
+   "param": "vent_drive",
+   "op": "mul",
+   "expr": {
+    "add": [
+     1,
+     {
+      "mul": [
+       5.0,
+       "s"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "param": "hr",
+   "op": "mul",
+   "expr": {
+    "add": [
+     1,
+     {
+      "mul": [
+       0.7,
+       "s"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "param": "cl",
+   "op": "add",
+   "expr": {
+    "mul": [
+     5.0,
+     "s"
+    ]
+   }
   }
  ],
- "targets": [],
- "refs": [],
+ "targets": [
+  {
+   "stage": "moderee",
+   "var": "pco2",
+   "range": [
+    27.0,
+    33.0
+   ],
+   "source": "Viitanen 2017 (PMC5259651, lu) : PaCO2 30,8 puis 28,8 mmHg, gradient A-a 30,8 ± 10,8 puis 46,5 ± 9,2 ; pH 7,41 ; HCO3 18,2–18,7",
+   "kind": "measured"
+  },
+  {
+   "stage": "severe",
+   "var": "hr",
+   "range": [
+    110.0,
+    135.0
+   ],
+   "source": "Goggs 2022 (PMC8965213, lu) : FC 117 ± 27 ; Young 2022 (PMC9151482, lu) : 126 ± 25 et 130 ± 22",
+   "kind": "measured"
+  }
+ ],
+ "refs": [
+  "Viitanen SJ et al. 2017, J Vet Intern Med, doi:10.1111/jvim.14631 (PMC5259651, lu)",
+  "Young AA et al. 2022, J Vet Intern Med, doi:10.1111/jvim.16434 (PMC9151482, lu)",
+  "Goggs R et al. 2022, J Vet Intern Med, doi:10.1111/jvim.16374 (PMC8965213, lu)"
+ ],
  "presentation": {
   "difficulty": 2,
   "owner_complaint": {

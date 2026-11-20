@@ -98,9 +98,26 @@ def _edp_beat(t, plv, m, a):
     return float(plv[j])
 
 
-def simulate_hemo(p, n_beats=11, dt=0.002, pr=None):
+# Miroir de hemo::N_BEATS (22), hemo::MAP_DRIFT_TOL et hemo::MAX_BEATS (Rust normatif) : si la PAM dérive de plus de
+# 0,5 % entre les deux derniers battements, le régime n'est pas périodique et la simulation est
+# refaite avec deux fois plus de battements (hypovolémie : PAM 70 au lieu de 50 mmHg à 11 battements).
+MAP_DRIFT_TOL = 5e-3
+MAX_BEATS = 176
+
+
+def simulate_hemo(p, n_beats=22, dt=0.002, pr=None):
     """Simule la circulation (rythme régulier) ; renvoie séries temporelles du dernier cycle et
-    indices. `pr` : délai oreillette → ventricule de la conduction (défaut : paramètre `pr`)."""
+    indices. `pr` : délai oreillette → ventricule de la conduction (défaut : paramètre `pr`).
+    Battements doublés tant que le dernier n'est pas périodique (voir MAP_DRIFT_TOL)."""
+    nb = n_beats
+    while True:
+        out = _simulate_hemo_once(p, nb, dt, pr)
+        if out['map_drift'] <= MAP_DRIFT_TOL or 2 * nb > MAX_BEATS:
+            return out
+        nb *= 2
+
+
+def _simulate_hemo_once(p, n_beats, dt, pr):
     T = 60.0 / p['hr']
     ts = p['ts_coef'] * math.sqrt(T)        # durée de systole (ts_coef calé sur B1→B2 du beagle)
     tr = p['tr_frac'] * ts
@@ -140,7 +157,8 @@ def simulate_hemo(p, n_beats=11, dt=0.002, pr=None):
         reg_fraction=float(v_reg / sv_tot) if sv_tot > 0 else 0.0,
         la_mean=P['pv'][last].mean(), la_max=P['pv'][last].max(),
         pap_mean=P['pa'][last].mean(), cvp=P['sv'][last].mean(),
-        lv_edp=_edp_at(t, P['lv'], t_end - T), converged=abs(sv_tot - sv_prev) / max(sv_tot, 1e-6) < 0.03)
+        lv_edp=_edp_at(t, P['lv'], t_end - T), converged=abs(sv_tot - sv_prev) / max(sv_tot, 1e-6) < 0.03,
+        map_drift=abs(P['ao'][last].mean() - P['ao'][prev].mean()) / max(P['ao'][last].mean(), 1e-6))
     # flux mitral : pic protodiastolique E (hors activation atriale) et pic télédiastolique A (pendant)
     ea = _atrial_act(t[last], T, p, pr)
     qf = np.maximum(qmi, 0.0)
@@ -151,6 +169,9 @@ def simulate_hemo(p, n_beats=11, dt=0.002, pr=None):
 
 
 # ------------------------------------------------------------------ gaz / acide-base
+# Gain de la commande ventilatoire à l'acidémie (miroir de gas::PH_GAIN, Rust normatif).
+PH_GAIN = 6.0
+
 def hb_o2_sat(po2, p50, n):
     po2 = max(po2, 1e-3)
     return po2 ** n / (po2 ** n + p50 ** n)
@@ -199,7 +220,7 @@ def gas_exchange(p, hemo, lactate_fn):
         def resid(pco2):
             ph, _ = stewart_ph(p, pco2, p['_lact'])
             va = va0 * p['vent_drive'] * max(0.12, 1 + 0.08 * (pco2 - 37.0)) \
-                * math.exp(-2.5 * (ph - 7.4)) * (1 + 0.03 * max(0.0, 70.0 - paO2))
+                * math.exp(0.05 - PH_GAIN * (ph - 7.38)) * (1 + 0.03 * max(0.0, 70.0 - paO2))
             return pco2 - 0.863 * vco2 / max(va, 1e-3)
         pco2 = brentq(resid, 5.0, 250.0)
         ph, hco3 = stewart_ph(p, pco2, p['_lact'])
@@ -283,7 +304,7 @@ def baro_next(d, g, prev, lo, hi):
     return min(1.0, max(-1.0, nxt))
 
 
-def _evaluate_once(p, n_beats=11):
+def _evaluate_once(p, n_beats=22):
     """Une passe : baroréflexe, hémodynamique, aval métabolique (paramètres déjà couplés)."""
     base = dict(p)
     d = 0.0                                   # commande barorécepteur (>0 : hypotension)
@@ -394,7 +415,7 @@ def coupling_targets(p, res):
     return f_acid_c * f_hyp * f_cor, f_acid_r, f_acid_c, f_hyp, f_cor
 
 
-def evaluate(p, n_beats=11):
+def evaluate(p, n_beats=22):
     """Évalue le patient avec les couplages de décompensation (point fixe amorti).
 
     Hypokaliémie -> faiblesse ventilatoire (direct) ; acidémie et hypoxie tissulaire -> dépression

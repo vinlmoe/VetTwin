@@ -240,6 +240,8 @@ pub struct HemoSummary {
     pub lv_edp: f64,
     /// Régime périodique atteint (volume d'éjection stable à 3 % entre les 2 derniers battements).
     pub converged: bool,
+    /// Dérive relative de la PAM entre les deux derniers battements (périodicité du régime).
+    pub map_drift: f64,
     /// Pic du débit mitral protodiastolique (onde E, hors activation atriale ; mL/s).
     pub mitral_e: f64,
     /// Pic du débit mitral pendant l'activation atriale (onde A ; mL/s).
@@ -302,7 +304,11 @@ pub struct HemoResult {
 }
 
 /// Nombre de battements simulés (régime périodique).
-pub const N_BEATS: usize = 11;
+/// 22 depuis le 20/11/2026 (11 avant) : à 11 battements, le dernier cycle n'était pas périodique
+/// (dérive de PAM 2,7e-3 chez le chien sain, 1,1e-1 en hypovolémie de 30 %) et un seuil de
+/// dérive appliqué à 11 battements rendait le résultat discontinu (bascule à la décimale près entre
+/// Rust et Python). À 22 battements : 1,2e-5 (sain), 3,2e-3 (hypovolémie de 30 %).
+pub const N_BEATS: usize = 22;
 /// Pas d'échantillonnage des indicateurs (s).
 pub const DT: f64 = 0.002;
 
@@ -311,8 +317,29 @@ pub fn simulate_hemo(p: &Params, n_beats: usize) -> Result<HemoResult, Error> {
     simulate_hemo_pr(p, n_beats, None)
 }
 
-/// Comme [`simulate_hemo`], avec le délai oreillette → ventricule de la conduction.
+/// Dérive relative maximale de la PAM entre les deux derniers battements pour accepter le régime
+/// comme périodique. Au-delà, la simulation est refaite avec deux fois plus de battements (filet
+/// pour les cas extrêmes ; à [`N_BEATS`] = 22, aucun cas du golden n'en a besoin). Avant le
+/// 20/11/2026, en hypovolémie de 30 % : PAM 70 au lieu de 50 mmHg (docs/VALIDATION_HORS_CALIBRAGE.tex).
+pub const MAP_DRIFT_TOL: f64 = 5e-3;
+/// Nombre maximal de battements après extension.
+pub const MAX_BEATS: usize = 176;
+
+/// Comme [`simulate_hemo`], avec le délai oreillette → ventricule de la conduction. Si le dernier
+/// battement n'est pas périodique (dérive de PAM > [`MAP_DRIFT_TOL`]), le nombre de battements est
+/// doublé (jusqu'à [`MAX_BEATS`]).
 pub fn simulate_hemo_pr(p: &Params, n_beats: usize, pr: Option<f64>) -> Result<HemoResult, Error> {
+    let mut nb = n_beats;
+    loop {
+        let h = simulate_hemo_once(p, nb, pr)?;
+        if h.summary.map_drift <= MAP_DRIFT_TOL || 2 * nb > MAX_BEATS {
+            return Ok(h);
+        }
+        nb *= 2;
+    }
+}
+
+fn simulate_hemo_once(p: &Params, n_beats: usize, pr: Option<f64>) -> Result<HemoResult, Error> {
     if !(p.hr.is_finite() && p.hr > 0.0) {
         return Err(Error::InvalidInput(format!("FC {} /min", p.hr)));
     }
@@ -408,7 +435,7 @@ pub fn simulate_hemo_pr(p: &Params, n_beats: usize, pr: Option<f64>) -> Result<H
     let edv = max(&w.v_lv);
     let esv = min(&w.v_lv);
     let sv_tot = edv - esv;
-    let v_prev: Vec<f64> = samples[prev].iter().map(|s| s[0]).collect();
+    let v_prev: Vec<f64> = samples[prev.clone()].iter().map(|s| s[0]).collect();
     let sv_prev = max(&v_prev) - min(&v_prev);
     let v_reg = (-w.q_mi.iter().map(|x| x.min(0.0)).sum::<f64>()
         - w.q_ao.iter().map(|x| x.min(0.0)).sum::<f64>())
@@ -429,6 +456,15 @@ pub fn simulate_hemo_pr(p: &Params, n_beats: usize, pr: Option<f64>) -> Result<H
         cvp: mean(&w.p_sv),
         lv_edp,
         converged: (sv_tot - sv_prev).abs() / sv_tot.max(1e-6) < 0.03,
+        map_drift: {
+            let p_prev: Vec<f64> = samples[prev.clone()]
+                .iter()
+                .zip(&t_eval[prev.clone()])
+                .map(|(v, &t)| flows(v, t, p, &tm).0.ao)
+                .collect();
+            let m_last = mean(&w.p_ao);
+            (m_last - mean(&p_prev)).abs() / m_last.max(1e-6)
+        },
         mitral_e: 0.0,
         mitral_a: 0.0,
     };
@@ -842,6 +878,7 @@ pub fn simulate_hemo_beats(
             relaxed.iter().sum::<f64>() / relaxed.len() as f64
         },
         converged: true,
+        map_drift: 0.0,
         mitral_e: bmean(|b| b.mitral_e),
         mitral_a: bmean(|b| b.mitral_a),
     };

@@ -25,9 +25,17 @@ check('FA FC dans l IQR', 116.8 <= np.mean(hrs) <= 156.0, f'{np.mean(hrs):.1f}')
 check('FA CVRR dans l IQR', 0.247 <= np.mean(cvs) <= 0.442, f'{np.mean(cvs):.3f}')
 _, s0 = run(af=1.0, av_conceal=0.0, t_end=400)
 check('contrôle : sans conduction cachée, la FA sort de l IQR', not (0.247 <= s0['cv_rr'] <= 0.442), f"CVRR {s0['cv_rr']:.3f}")
-# 3. BAV de 3e degré : échappement ventriculaire 42 ± 11 /min (n = 97)
+# 3. BAV de 3e degré : échappement ventriculaire 42 ± 11 /min (n = 97). Fréquence OBSERVÉE, donc en
+#    boucle fermée (baroréflexe, gain sympathique des foyers) ; la couche de conduction seule donne
+#    la fréquence intrinsèque `vent_escape_rate` (27 /min depuis le 20/11/2026).
 _, s = run(hp_conduction=0.0)
-check('BAV3 échappement', 31 <= s['hr_v'] <= 53 and set(s['origins']) == {'ventricular_escape'}, f"{s['hr_v']:.1f} {s['origins']}")
+check('BAV3 échappement ventriculaire seul', set(s['origins']) == {'ventricular_escape'}, f"{s['hr_v']:.1f} {s['origins']}")
+import cli, io, contextlib, json
+_b = io.StringIO()
+with contextlib.redirect_stdout(_b):
+    cli.main(['eval', '--bw', '20', '--disease', 'av_block:1'])
+_hr = json.loads(_b.getvalue())['hr']
+check('BAV3 échappement en boucle fermée (42 ± 11)', 31 <= _hr <= 53, f"{_hr:.1f}")
 _, s1 = run(hp_conduction=0.0, vent_escape_rate=0.0, t_end=60)
 check('contrôle : sans foyer d échappement, asystolie', s1['n'] == 0, f"n={s1['n']}")
 # 4. Wenckebach : PR croissant avant chaque onde P bloquée

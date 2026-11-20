@@ -186,6 +186,14 @@ pub struct AnesthesiaModel {
     pub o2_debt_tol_ml_kg: f64,
     /// Constante de remboursement de la dette d'O2 (min).
     pub o2_debt_tau_min: f64,
+    /// Durée cumulée tolérée sous `map_arrest` avant le choc irréversible (min).
+    pub shock_tol_min: f64,
+    /// Pente de la conscience sous la MAC-awake : `1 − (indice/loc_mac)^n`.
+    pub awareness_hill: f64,
+    /// Gradient A-a ajouté sous anesthésie en O2 pur (atélectasie, mmHg).
+    pub atelectasis_aa_mmhg: f64,
+    /// Température où l'excès de pertes thermiques de l'anesthésie s'éteint (°C).
+    pub vasoconstriction_c: f64,
     /// Fraction du volume sanguin dont le contenu en O2 suit l'alvéole (réserve sanguine).
     pub blood_o2_store_frac: f64,
     /// Apport d'O2 critique (mL/kg/min) sous lequel la consommation devient dépendante de l'apport.
@@ -246,6 +254,10 @@ impl AnesthesiaModel {
         let push = num(&mut c, "iv_push_s");
         let debt = num(&mut c, "o2_debt_tol_ml_kg");
         let dtau = num(&mut c, "o2_debt_tau_min");
+        let stol = num(&mut c, "shock_tol_min");
+        let ahill = num(&mut c, "awareness_hill");
+        let atel = num(&mut c, "atelectasis_aa_mmhg");
+        let vcon = num(&mut c, "vasoconstriction_c");
         let dcrit = num(&mut c, "do2_crit_ml_kg_min");
         let bfrac = num(&mut c, "blood_o2_store_frac");
         let mut tissues = [Tissue {
@@ -347,6 +359,10 @@ impl AnesthesiaModel {
             iv_push_s: g(push),
             o2_debt_tol_ml_kg: g(debt),
             o2_debt_tau_min: g(dtau),
+            shock_tol_min: g(stol),
+            awareness_hill: g(ahill),
+            atelectasis_aa_mmhg: g(atel),
+            vasoconstriction_c: g(vcon),
             do2_crit_ml_kg_min: g(dcrit),
             blood_o2_store_frac: g(bfrac),
             hypoxia_effects: he,

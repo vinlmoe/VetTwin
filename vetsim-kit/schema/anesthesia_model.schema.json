@@ -65,6 +65,10 @@
     "crystalloid_tau_min",
     "iv_push_s",
     "o2_debt_tol_ml_kg",
+    "shock_tol_min",
+    "awareness_hill",
+    "atelectasis_aa_mmhg",
+    "vasoconstriction_c",
     "o2_debt_tau_min",
     "do2_crit_ml_kg_min",
     "blood_o2_store_frac"
@@ -1062,6 +1066,126 @@
      ]
     },
     "blood_o2_store_frac": {
+     "oneOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "object",
+       "required": [
+        "value",
+        "evidence"
+       ],
+       "properties": {
+        "value": {
+         "type": "number"
+        },
+        "evidence": {
+         "enum": [
+          "A",
+          "B",
+          "C",
+          "D"
+         ]
+        },
+        "source": {
+         "type": "string"
+        }
+       }
+      }
+     ]
+    },
+    "shock_tol_min": {
+     "oneOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "object",
+       "required": [
+        "value",
+        "evidence"
+       ],
+       "properties": {
+        "value": {
+         "type": "number"
+        },
+        "evidence": {
+         "enum": [
+          "A",
+          "B",
+          "C",
+          "D"
+         ]
+        },
+        "source": {
+         "type": "string"
+        }
+       }
+      }
+     ]
+    },
+    "awareness_hill": {
+     "oneOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "object",
+       "required": [
+        "value",
+        "evidence"
+       ],
+       "properties": {
+        "value": {
+         "type": "number"
+        },
+        "evidence": {
+         "enum": [
+          "A",
+          "B",
+          "C",
+          "D"
+         ]
+        },
+        "source": {
+         "type": "string"
+        }
+       }
+      }
+     ]
+    },
+    "atelectasis_aa_mmhg": {
+     "oneOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "object",
+       "required": [
+        "value",
+        "evidence"
+       ],
+       "properties": {
+        "value": {
+         "type": "number"
+        },
+        "evidence": {
+         "enum": [
+          "A",
+          "B",
+          "C",
+          "D"
+         ]
+        },
+        "source": {
+         "type": "string"
+        }
+       }
+      }
+     ]
+    },
+    "vasoconstriction_c": {
      "oneOf": [
       {
        "type": "number"

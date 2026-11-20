@@ -414,6 +414,8 @@ pub struct Session {
     fluids_ml_kg_h: f64,
     /// Dette d'O2 cumulée (mL).
     o2_debt_ml: f64,
+    /// Temps cumulé sous `map_arrest` (min) : choc irréversible au-delà de `shock_tol_min`.
+    shock_min: f64,
     /// Injections IV en cours : (agent, débit mg/min, fin s).
     pushes: Vec<(usize, f64, f64)>,
     /// Débit d'injection IV par agent pendant le sous-pas courant (mg/min).
@@ -481,6 +483,7 @@ impl Session {
             fluids_ml_kg_h: 0.0,
             pushes: Vec::new(),
             o2_debt_ml: 0.0,
+            shock_min: 0.0,
             push_now: vec![0.0; n_agents],
             blood_lost_ml: 0.0,
             warming: false,
@@ -854,7 +857,8 @@ impl Session {
         let ft = self.temp_factor();
         let delta = s.hypnotic / ((1.0 - s.r).max(1e-3) * ft);
         let loc_index = s.hypnotic / ((1.0 - s.sedation).max(1e-3) * ft);
-        let awareness = (1.0 - s.sedation) * (1.0 - loc_index / m.loc_mac).clamp(0.0, 1.0);
+        let x = (loc_index / m.loc_mac).clamp(0.0, 1.0);
+        let awareness = (1.0 - s.sedation) * (1.0 - math::pow(x, m.awareness_hill));
         let plane = if loc_index < m.loc_mac {
             if s.sedation > 0.3 {
                 Plane::Sedated
@@ -1097,6 +1101,10 @@ impl Session {
             let va_needed = 0.863 * q.vco2 * q.bw / paco2;
             q.vent_drive = va_needed / (q.va0 * q.bw * f_vent(&q) * chemo(paco2, ph, pao2_last));
             q.fio2 = (pao2_alv + paco2 / q.rq) / (q.pb - 47.0);
+            // atélectasie de l'anesthésie : shunt, dont l'effet sur le gradient A-a croît avec la
+            // FiO2 (négligeable à l'air) et la profondeur
+            let anesth = (depth.loc_index / self.model.loc_mac).clamp(0.0, 1.0);
+            q.aagrad += self.model.atelectasis_aa_mmhg * anesth * ((fio2 - 0.21) / 0.79).max(0.0);
             match evaluate(&q) {
                 Ok(e) => {
                     if self.account_o2(&e, dt_s) {
@@ -1116,6 +1124,27 @@ impl Session {
                     last: Some(e),
                 }) => {
                     if self.account_o2(&e, dt_s) {
+                        self.dead = Some("hypoxic_arrest");
+                        self.log.push((self.t_s, "décès : arrêt hypoxique".into()));
+                    } else {
+                        snap_eval = Some((*e).clone());
+                        self.last = Some(*e);
+                        q_used = Some(q);
+                    }
+                }
+                // Hypotension sévère (PAM < map_arrest) : le moteur stationnaire conclut au choc
+                // irréversible, qui demande en réalité 1 à 3 h vers 40 mmHg (MODEL_SPEC §6 bis) ;
+                // le décès n'est retenu qu'au-delà de `shock_tol_min` cumulées.
+                Err(Error::NonViable {
+                    cause: "irreversible_shock",
+                    last: Some(e),
+                }) => {
+                    self.shock_min += dt_s / 60.0;
+                    if self.shock_min >= self.model.shock_tol_min {
+                        self.dead = Some("irreversible_shock");
+                        self.log
+                            .push((self.t_s, "décès : choc irréversible".into()));
+                    } else if self.account_o2(&e, dt_s) {
                         self.dead = Some("hypoxic_arrest");
                         self.log.push((self.t_s, "décès : arrêt hypoxique".into()));
                     } else {
@@ -1472,7 +1501,11 @@ impl Session {
         dy[o + 3] = (y[o + 2] - y[o + 3]) / m.tau_stress_min;
         dy[o + 4] = m.sens_rate_per_min * y[o + 2] * (1.0 - y[o + 4]) * (1.0 - u.nmda)
             - y[o + 4] / (m.sens_tau_h * 60.0);
-        let loss = 1.0 + (m.loss_gain_anesth - 1.0) * u.anesth;
+        // vasoconstriction thermorégulatrice : l'excès de pertes de l'anesthésie s'éteint quand la
+        // température approche `vasoconstriction_c` (plateau de l'hypothermie peropératoire)
+        let vc =
+            ((y[o + 5] - m.vasoconstriction_c) / (m.t0_c - m.vasoconstriction_c)).clamp(0.0, 1.0);
+        let loss = 1.0 + (m.loss_gain_anesth - 1.0) * u.anesth * vc;
         let warm = if self.warming {
             m.warming_c_per_h / 60.0
         } else {
@@ -1537,6 +1570,6 @@ fn f_vent(q: &Params) -> f64 {
 /// Stimulation chimique de la ventilation (même formule que `gas::gas_exchange`).
 fn chemo(pco2: f64, ph: f64, pao2: f64) -> f64 {
     f64::max(0.12, 1.0 + 0.08 * (pco2 - 37.0))
-        * math::exp(-2.5 * (ph - 7.4))
+        * crate::gas::ph_drive(ph)
         * (1.0 + 0.03 * f64::max(0.0, 70.0 - pao2))
 }

@@ -79,7 +79,7 @@ def healthy_params(bw=20.0):
         hp_conduction=1.0,           # probabilité de conduction His-Purkinje (bloc infranodal)
         k_hp_block=10.0, hp_k_slope=0.5,   # K au-delà duquel la conduction infranodale échoue (QRS large > 10,1) ; pente /mmol/L
         junct_rate=47.0,             # automatisme jonctionnel au tonus de repos (/min, D) : entre 37 ± 9 sous cholinergique local (Rosenshtraukh 1986) et l'échappement ventriculaire (42)
-        vent_escape_rate=42.0,       # échappement ventriculaire (/min) : 42 ± 11 en BAV de haut degré (n = 97)
+        vent_escape_rate=27.0,       # intrinsèque : 42,2 /min observés en BAV complet (42 ± 11, n = 97), recalé le 20/11/2026
         esc_k_gain=0.10,             # dépression de l'automatisme d'échappement par mmol/L de K au-delà de 5,5
         esc_sup_gain=1.8,            # suppression par entraînement : 1er intervalle × (1 + g·max(0, cycle·f_moy − 1)) ; pause 4,7 s après entraînement à 2,5× (Tanahashi 1979)
         esc_sup_tau=60.0,            # moyenne glissante de la fréquence d'entraînement (s) ; suppression maximale après ~3 min (Krellenstein 1978), placeholder D

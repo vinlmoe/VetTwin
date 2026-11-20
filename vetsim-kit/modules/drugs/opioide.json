@@ -118,7 +118,7 @@
     "ec50_mg_L": 1.0,
     "hill": 3.0,
     "evidence": "D",
-    "source": "Placeholder (evidence D) borné par la littérature : pas de hausse de PaCO2 à 1 mg/kg IV de méthadone chez le chien vigile (Maiante 2009, résumé ; C ≈ 0,33 mg/L), et ni apnée ni PaCO2 > 67 mmHg avec 125 à 3000 µg/kg de fentanyl IV (Bailey 1987, résumé) : plateau du modèle ≈ 65 mmHg. Ne jamais utiliser pour une dose réelle.",
+    "source": "Placeholder (evidence D) borné par la littérature : pas de hausse de PaCO2 à 1 mg/kg IV de méthadone chez le chien vigile (Maiante 2009, résumé ; C ≈ 0,33 mg/L), et ni apnée ni PaCO2 > 67 mmHg avec 125 à 3000 µg/kg de fentanyl IV (Bailey 1987, résumé) : plateau du modèle ≈ 65 mmHg. Ne jamais utiliser pour une dose réelle. Amplitude 0,8 → 0,9 le 20/11/2026 : la compensation ventilatoire au pH recalée (0,74 mmHg/(mmol/L)) ramenait le plateau à 57 mmHg ; 0,9 le rétablit à 65,5 mmHg.",
     "effects": [
      {
       "param": "vent_drive",
@@ -128,7 +128,7 @@
         1,
         {
          "mul": [
-          -0.8,
+          -0.9,
           "T"
          ]
         }

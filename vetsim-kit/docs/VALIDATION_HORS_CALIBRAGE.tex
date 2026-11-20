@@ -1,0 +1,363 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage[margin=1.8cm]{geometry}
+\usepackage{booktabs,array,tabularx,longtable}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{siunitx}
+\sisetup{locale=FR,detect-all}
+\setlength{\parskip}{0.4em}
+\setlength{\parindent}{0pt}
+\newcommand{\ok}{\textcolor{green!45!black}{\textbf{OK}}}
+\newcommand{\corr}{\textcolor{blue!60!black}{\textbf{Corrigé}}}
+\newcommand{\ecart}{\textcolor{red!70!black}{\textbf{Écart}}}
+\newcommand{\nc}{\textcolor{orange!80!black}{\textbf{Non corrigé}}}
+\usepackage{xurl}
+\newcommand{\vp}[1]{\path{#1}}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+\renewcommand{\arraystretch}{1.15}
+
+\title{Validation hors calibrage : le modèle face à la littérature canine}
+\date{20 novembre 2026}
+\begin{document}
+\maketitle
+
+\textbf{Usage pédagogique uniquement.} Aucun résultat ne sert à décider d'un traitement réel.
+
+\textbf{Qui a fait quoi.} Les simulations, les corrections et ce rapport ont été faits par Claude Code (Anthropic) dans une session de travail du projet. Trois sous-agents de la même session ont fait les recherches bibliographiques (hémodynamique, gaz du sang, anesthésie) via Europe PMC, PMC et des moteurs de recherche. Ce n'est \emph{pas} une relecture par des pairs ni une relecture extérieure. Chaque valeur publiée porte son niveau d'accès : \textbf{lu} (passage ou tableau du texte intégral lu), \textbf{résumé} (abstract seul), \textbf{secondaire} (chiffre lu dans un article qui cite la source).
+
+\section*{Résumé}
+Les vérifications précédentes (\vp{VERIFICATION_LITTERATURE.md}, \vp{VERIFICATION_MALADIES_MEDICAMENTS.tex}, \vp{VERIFICATION_ECG.md}, \vp{VERIFICATION_PCG.md}, calibration de l'anesthésie) comparaient surtout le modèle aux données qui avaient servi à le caler. Ici, on rejoue \emph{d'autres} protocoles publiés : hémorragie, remplissage, apnée, oxygénation sous anesthésie, réveil, hypothermie, perfusions continues, poids corporel, compensation acide-base, pneumonie, crise addisonienne, troubles du rythme.
+
+Résultat : un défaut du moteur (convergence du cycle cardiaque), une loi physiologique fausse (compensation respiratoire) et onze écarts de calage. Tous ont été corrigés sauf quatre, qui demandent un mécanisme absent du modèle (tableau~\ref{tab:bilan}). Les corrections ont été validées par l'utilisateur le 20/11/2026, y compris la régénération du golden et des fixtures Python.
+
+\begin{table}[h]\small
+\caption{Bilan. Avant : moteur du 19/11/2026 (commit \texttt{386478e}). Après : ce rapport.}\label{tab:bilan}
+\begin{tabularx}{\linewidth}{P{3.6cm}P{3.0cm}P{3.0cm}LP{1.5cm}}
+\toprule
+Grandeur & Avant & Après & Littérature (accès) & Statut\\
+\midrule
+DC en hypovolémie de 30 \% & 1,79 L/min (FC$\times$VS 1,01) & 1,53 (FC$\times$VS 1,53) & cohérence interne & \corr\\
+Pente $\Delta$PaCO$_2$/$\Delta$HCO$_3^-$ & 0,41 & 0,74 & 0,74 (Madias 1984, résumé) ; 0,7 (DiBartola, lu) & \corr\\
+Pneumonie (A-a 47) : PaCO$_2$ ; FC & 38,1 ; 87 & 29,9 ; 118 & 28,8 (Viitanen, lu) ; 117–130 (Goggs, Young, lus) & \corr\\
+Addison, crise : HCO$_3^-$ veineux & 22,5 & 15,3 & 14,7 (12,5–19,9) (Chalifoux, lu) & \corr\\
+BAV 3\textsuperscript{e} degré : FC & 57 /min & 42 & 42 $\pm$ 11 ; 43–47 (van Bavel, lu) & \corr\\
+Choc sous isoflurane : décès & dès PAM $<$ 40 & après 60 min cumulées & survie à PAM 40–44 (Cardillo, lu) & \corr\\
+PaCO$_2$ iso 1 MAC (cible de calage) & 44,7 après la pente & 46,2 & 46,2 (Steffey 1993) & \corr\\
+PaO$_2$ sous O$_2$, anesthésié & 628–660 & 523–550 & 523–579 (Kato, Itami, Mosing, lus) & \corr\\
+Sternal après iso 1 MAC, 2 h & 104 min & 16 min & 14,7–18,0 (Rastas, lu) & \corr\\
+Hypothermie à 60/120/180 min & $-$1,4/$-$2,7/$-$4 °C & $-$2,0/$-$2,6/$-$2,8 & $-$2,0/$-$2,6/$-$2,9 (Redondo, résumé) & \corr\\
+Épargne de MAC, dex 0,5 et 3 µg/kg/h & 50 et 73 \% & 18 et 59 \% & 18 et 59 \% (Pascoe 2006, secondaire) & \corr\\
+Dex 2 µg/kg/h (hors échantillon) & 69 \% & 50 \% & 43,4 \% (Acevedo-Arcique, lu) & \corr\\
+Plateau de PaCO$_2$, opioïde massif & 57 (après la pente) & 65,5 & $\le$ 67 (Bailey 1987, résumé) & \corr\\
+Hémorragie (vigile et sous iso) & PAM trop basse & inchangé & PAM tenue jusqu'à 19 mL/kg (Thrasher, résumé) & \nc\\
+FC selon le poids (5 / 55 kg) & 124 / 68 & inchangé & écart 10,5 /min (Hezzell, résumé) & \nc\\
+Réveil après iso 1,54 MAC, 2 h & extubation 44 min & 39 min & station debout 26 (Lopez, résumé) & \nc\\
+FR en pneumonie & 24 & 28 & 41–61 (Young, Viitanen, lus) & \nc\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Méthode}
+\begin{itemize}
+\item \textbf{Moteur} : Rust (référence normative). Python secondaire mis à jour en miroir, qui retrouve les mêmes valeurs (golden : 1862/1862 valeurs conformes).
+\item \textbf{Scénarios stationnaires} :\newline\texttt{python tests/validation\_hors\_calibrage.py -{}-cmd target/release/vetsim-cli} (poids, gradient A-a, compensation acide-base, cohérence DC = FC $\times$ VS).
+\item \textbf{Scénarios dynamiques} :\newline\texttt{cargo run -{}-release -p vetsim-api -{}-example validation\_hors\_calibrage -{}- \emph{scénario}}, graine 1, chien sain de 20 kg. Scénarios : \vp{hemorragie}, \vp{bolus}, \vp{apnee}, \vp{ventilation}, \vp{pao2}, \vp{captation}, \vp{reveil}, \vp{reveil2}, \vp{temperature}, \vp{epargne}, \vp{dexcri}, \vp{dex}, \vp{propofol}, \vp{atipamezole}, \vp{convergence}. La variable \vp{VETSIM_ROOT} rejoue avec une copie modifiée des modules (balayages de calage).
+\item \textbf{Halogénés} : la MAC visée est la fraction \emph{télé-expiratoire} (définition des études), tenue par un réglage du vaporisateur corrigé toutes les 15 s. Une première version réglait sur la MAC cérébrale : elle oscillait et dépassait la cible. Un décès à « 2 MAC » rapporté par cette version était un artefact de ce dépassement.
+\item \textbf{Hors calibrage} : aucune des données du tableau~\ref{tab:bilan} n'avait servi à caler le modèle avant ce travail. Celles qui ont servi à recaler un paramètre sont ensuite \emph{dans} l'échantillon ; le contrôle hors échantillon restant est signalé quand il existe (dexmédétomidine : Acevedo-Arcique).
+\end{itemize}
+
+\section{Défaut du moteur : cycle cardiaque non périodique}
+\vp{simulate_hemo} intégrait 11 battements depuis des volumes initiaux fixes (aorte à 100 mmHg) et mesurait le dernier. En hypovolémie, l'aorte se vidait encore : la PAM et le DC du dernier battement étaient surestimés. L'indicateur \vp{converged} (variation du VS $<$ 3 \%) existait mais n'était lu nulle part, et il répondait « vrai » à $-340$ mL malgré un biais de 4 mmHg.
+
+\begin{center}\small
+\begin{tabular}{lrrrrr}
+\toprule
+Déficit (mL), paramètres effectifs fixés & Battements & PAM & DC & FC$\times$VS & Dérive de PAM\\
+\midrule
+0 & 11 & 103,0 & 3,290 & 3,280 & $2{,}7\cdot10^{-3}$\\
+0 & 80 & 102,6 & 3,275 & 3,277 & $8{,}5\cdot10^{-6}$\\
+510 (30 \%) & 11 & 70,2 & 1,789 & 1,008 & $1{,}1\cdot10^{-1}$\\
+510 (30 \%) & 80 & 50,2 & 1,264 & 1,265 & $3{,}2\cdot10^{-6}$\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Correction} (\vp{hemo.rs}, miroir \vp{physio.py}) : 22 battements (\vp{N_BEATS}), puis doublement tant que la PAM dérive de plus de 0,5 \% entre les deux derniers (\vp{MAP_DRIFT_TOL}, au plus 176). Un premier essai gardait 11 battements avec ce seuil : Rust et Python basculaient différemment pour une dérive de 0,00500 (pneumonie 0,8), d'où 22. Coût : environ deux fois plus de calcul hémodynamique (évaluation $\approx$ 5 ms).
+
+\textbf{Contrôle} : le script stationnaire compare DC et FC$\times$VS. Avant : $+57$ \% à $-510$ mL (échec). Après : $\le 1{,}8$ \% sur tous les cas à rythme régulier. Il ne reste que la maladie du sinus ($+3{,}9$ \%), dont les pauses rendent la moyenne FC$\times$VS non comparable.
+
+\textbf{Conséquence sur la MMVD sévère} : au régime périodique, la POG monte (s = 0,9 : 24,1 $\to$ 26,5 mmHg ; s = 1,0 : 32,4 $\to$ 38,1) et la PaO$_2$ de la MMVD 1,0 tombe de 46 à 25 mmHg. Le calage de la MMVD avait été fait sur le moteur biaisé. Avec le seuil d'œdème déjà signalé (18 mmHg contre 20–24 dans les sources, \vp{VERIFICATION_LITTERATURE.md}), c'est un point \textbf{à arbitrer}.
+
+\section{Physiologie stationnaire}
+\subsection{Compensation respiratoire des acidoses métaboliques}
+La commande ventilatoire variait en $\exp(-2{,}5(\mathrm{pH}-7{,}4))$. La pente obtenue était de 0,41 mmHg de PaCO$_2$ par mmol/L de HCO$_3^-$ (MRC et Addison). Chez le chien, la pente est de 0,74, uniforme de l'acidose sévère à l'alcalose sévère (Madias 1984, \emph{J Appl Physiol} 56:1640, résumé). La table de DiBartola donne 0,7 (lue dans Mazzaferro \& Ford 2012, tableau 1-6).
+
+\textbf{Correction} : $\exp(0{,}05 - 6{,}0\,(\mathrm{pH}-7{,}38))$ (\vp{gas::PH_GAIN}), avec un pivot au pH du chien sain : la PaCO$_2$ de 40,2 mmHg reste inchangée. Pentes obtenues : MRC 0,73–0,75 ; Addison 0,74–0,76. La session d'anesthésie utilise la même fonction.
+
+\textbf{Effets en chaîne, recalés} :
+\begin{itemize}
+\item PaCO$_2$ à 1 MAC d'halogéné : 44,7 au lieu de 46,2. Coefficients ventilatoires de l'isoflurane et du sévoflurane réajustés par \texttt{anesthesia\_calibrate -{}-fit -{}-inhalants}.
+\item Plateau de PaCO$_2$ de l'opioïde massif : 57 au lieu d'environ 65 mmHg. Amplitude du terme toxique (placeholder D) portée de 0,8 à 0,9.
+\end{itemize}
+
+\subsection{Pneumonie}
+Le module (D, « non calibré ») ne changeait que le gradient A-a. Sans hyperventilation ni tachycardie, la PaCO$_2$ restait à 38–40 et la FC à 87.
+
+Valeurs publiées :
+\begin{itemize}
+\item Viitanen 2017 (lu, $n$ = 19), avant puis après 2 jours d'hospitalisation : PaO$_2$ 84,6 puis 69,0 ; PaCO$_2$ 30,8 puis 28,8 ; A-a 30,8 puis 46,5 ; HCO$_3^-$ 18,2–18,7 ; pH 7,41.
+\item Young 2022 (lu, aspiration) : A-a 47–52 ; PaCO$_2$ 24–27 ; FC 126–130.
+\item Goggs 2022 (lu) : FC 117 $\pm$ 27.
+\end{itemize}
+
+\textbf{Correction} (pneumonie 1.1.0, evidence C) : \vp{vent_drive} $\times(1+5s)$, \vp{hr} $\times(1+0{,}7s)$, \vp{cl} $+5s$. Le terme chloré représente la compensation rénale de l'alcalose respiratoire, que le moteur ne calcule pas.
+
+\begin{center}\small
+\begin{tabular}{lrrrrrr}
+\toprule
+& PaO$_2$ & PaCO$_2$ & A-a & HCO$_3^-$ & pH & FC\\
+\midrule
+Modèle $s$ = 0,53 & 78 & 31,7 & 32 & 20,2 & 7,42 & 109\\
+Viitanen, $<$ 2 j & 84,6 & 30,8 & 30,8 & 18,2 & 7,41 & --\\
+Modèle $s$ = 0,72 & 65 & 29,9 & 47 & 19,1 & 7,42 & 118\\
+Viitanen, $>$ 2 j & 69,0 & 28,8 & 46,5 & 18,7 & 7,41 & --\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Non corrigé} : FR 26–29 contre 41–61 publiées. La FR du moteur ($20\sqrt{V_A/V_{A0}}$) ne représente pas la respiration rapide et superficielle.
+
+\subsection{Crise addisonienne}
+Le HCO$_3^-$ restait à 22 mmol/L, même en crise.
+
+Valeurs publiées, HCO$_3^-$ veineux en médiane (étendue) :
+\begin{itemize}
+\item Chalifoux 2023 (lu) : 14,7 (12,5–19,9) en crise ; 17,6 (13,9–21,4) hors crise ; pH veineux 7,25 et 7,30.
+\item Hall 2023 (lu) : 18,4 (11,1–26,0).
+\end{itemize}
+
+\textbf{Correction} (Addison 1.1.0) : anions non mesurés \vp{xa} $+8s$ (hypoaldostéronisme, azotémie).
+
+Résultats : en crise ($s$ = 1), HCO$_3^-$ veineux 15,3 et pH veineux 7,20 ; à $s$ = 0,5, 19,5 et 7,28. Na/K : 17–24, sous le seuil de 27 comme chez 80–85 \% des chiens (Chalifoux).
+
+\textbf{Reste} : glycémie constante. L'hypoglycémie touche 10 à 16 \% des cas (Chalifoux ; Guzmán Ramos 2022, lu). Le module ne la tire qu'avec une probabilité de 0,5, et jamais en mode déterministe.
+
+\subsection{Bloc AV du troisième degré}
+\vp{vent_escape_rate} valait 42 /min en fréquence \emph{intrinsèque}. En boucle fermée, le baroréflexe et le gain sympathique des foyers la portaient à 57 /min. Or la fréquence publiée de 42 $\pm$ 11 /min ($n$ = 97) est une fréquence \emph{observée}, comme les 43–47 /min de van Bavel 2023 (lu, chiens conscients).
+
+\textbf{Correction} : 27 /min intrinsèques, soit 42,2 /min observés. Le contrôle de \vp{check_rhythm.py} porte désormais sur l'évaluation complète. Il échoue avec l'ancienne valeur (57 /min, hors de 31–53).
+
+\textbf{À noter} : DC 2,05 L/min, DFG divisé par deux et créatinine à 300 µmol/L en BAV complet. Le modèle n'a pas le remodelage chronique qui rétablit le débit jusqu'à 90 \% (Loen 2022, lu).
+
+\subsection{Conformes, sans correction}
+\begin{itemize}
+\item \textbf{Fibrillation atriale} : FC 129, 160 et 204 à $s$ = 0,2, 0,5 et 0,8. Menaut 2005 (résumé) : 120 sans cardiopathie, 155 avec cardiopathie, 203 en ICC.
+\item \textbf{Gradient A-a du chien sain} : 0,6 mmHg avec un QR de 0,8, contre 6,3 chez Haskins 2005 (résumé). La PaO$_2$ du modèle (98,9) colle pourtant à celle de Haskins (99,5) : l'écart vient de la convention de calcul de la PAO$_2$, pas du modèle.
+\end{itemize}
+
+\subsection{FC selon le poids (non corrigé)}
+\textbf{Constat} : l'allométrie $87\,(bw/20)^{-0{,}25}$ donne 124 /min à 5 kg et 68 à 55 kg. Hezzell 2013 (résumé, 5000 chiens) ne trouve que 10,5 /min d'écart entre 5 et 55 kg ; Lamb 2010 et Ferasin 2010 (résumés) ne trouvent aucune corrélation.
+
+\textbf{Essai retiré} : une FC indépendante du poids a été essayée. Elle donne 97,5 /min à 5 kg et 80,7 à 55 kg, mais le débit du petit chien chute : DFG 2,82 au lieu de 3,47 mL/min/kg, créatinine 93 au lieu de 76 µmol/L. C'est l'inverse de Bexfield 2008 (résumé), où le DFG/kg est plus élevé chez les petits chiens.
+
+\textbf{Ce qu'il faudrait} : une allométrie de la taille du cœur (volume d'éjection relatif plus grand chez les petits chiens), non sourcée ici. Le modèle reste aussi sans gradient de DFG/kg selon le poids (3,47 de 3 à 60 kg).
+
+\section{Hémodynamique dynamique}
+\subsection{Hémorragie (non corrigé)}
+Retraits de 5 \% du volume sanguin (85 mL/kg) toutes les 5 min, chien de 20 kg.
+
+\begin{center}\small
+\begin{tabular}{lrrrrrr}
+\toprule
+Perte (\% ; mL/kg) & 10 ; 8,5 & 20 ; 17 & 25 ; 21 & 30 ; 25,5 & 35 ; 30 & 40\\
+\midrule
+Vigile : PAM (base 102,6) & 94,3 & 80,9 & 72,9 & 64,5 & 48,2 & décès\\
+Vigile : FC (base 87) & 107 & 140 & 161 & 185 & 204 & --\\
+Iso 1,3 MAC : PAM (base 76,7) & 61,5 & 37,4 & 20,0 & décès & -- & --\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Valeurs publiées chez le chien vigile (résumés) :
+\begin{itemize}
+\item PAM tenue jusqu'à 18,9 $\pm$ 1,8 mL/kg (point de rupture, Thrasher 2001) ;
+\item $-15 \pm 3{,}3$ mmHg à 20 mL/kg (Shen 1990) ;
+\item $-23$ mmHg et FC $+89$ à 26 mL/kg (Vatner 1974) ;
+\item $-35 \pm 10$ mmHg à 30 mL/kg (Thrasher 1998).
+\end{itemize}
+
+Sous isoflurane :
+\begin{itemize}
+\item PAM 62 $\to$ 47 ($-24$ \%) à 20 mL/kg (Seo 2025, lu) ;
+\item survie jusqu'à 40 $\pm$ 12 mL/kg pour une PAM cible de 40 mmHg (Cardillo 2024, lu).
+\end{itemize}
+
+\textbf{Constat} : le modèle perd de la pression dès les premiers millilitres et chute environ deux fois trop sous isoflurane.
+
+\textbf{Mécanismes absents} : remplissage transcapillaire, contraction splénique, vasopressine et angiotensine. Aucune valeur canine n'a été cherchée pour les caler.
+
+\textbf{Corrigé au passage} : le décès « choc irréversible » survenait au premier pas sous PAM 40, alors que la source citée par le modèle (Morales 1999, Granot 1985) parle de 1 à 3 h vers 40 mmHg. La session tolère maintenant 60 min cumulées sous ce seuil (\vp{shock_tol_min}). Le moteur stationnaire, lui, n'a pas de notion de temps et conclut encore au décès sous 40 mmHg. Conséquences :
+\begin{itemize}
+\item à 2 MAC d'isoflurane en ventilation contrôlée, le chien survit (PAM 46) au lieu de mourir ;
+\item sous isoflurane, l'hémorragie mortelle passe de 20 à 30 \%.
+\end{itemize}
+
+\subsection{Bolus de cristalloïde}
+20 mL/kg en 15 min chez le chien vigile :
+\begin{itemize}
+\item FC 87 $\to$ 73 et PAM 103 $\to$ 110 ;
+\item DC $+10$ \% et VS 37,7 $\to$ 49,3 mL ;
+\item Ht 45 $\to$ 38,3, soit environ 74 \% du volume retenu à 15 min, 46 \% à 30 min et 17 \% à 60 min.
+\end{itemize}
+
+\textbf{Littérature} :
+\begin{itemize}
+\item environ 25 \% retenus à 30 min et encore $+18$ \% de volume sanguin à 4 h, après 80 mL/kg (Silverstein 2005, secondaire) ;
+\item VS $+8$ à $+15$ \% après 10 puis 20 mL/kg sous isoflurane (Seo 2025, lu).
+\end{itemize}
+
+\textbf{Écart} : la constante de sortie vasculaire (\vp{crystalloid_tau_min} 30, D) donne une seule exponentielle, sans la queue lente observée. Les protocoles publiés diffèrent trop (dose, anesthésie) pour la caler : non corrigé.
+
+\section{Anesthésie}
+\subsection{Oxygénation sous O$_2$}
+Le modèle n'avait pas de shunt d'atélectasie et donnait une PaO$_2$ de 628 à 660 mmHg sous FiO$_2$ $\approx$ 1.
+
+\textbf{Correction} : un terme A-a de 110 mmHg (\vp{atelectasis_aa_mmhg}), proportionnel à la profondeur et à $(F_\mathrm{I}O_2-0{,}21)/0{,}79$, donc nul à l'air.
+
+Résultats :
+\begin{itemize}
+\item isoflurane 1,1 MAC, ventilation contrôlée : 549,9 mmHg, contre 547 [495–616] (Itami 2019, lu) ;
+\item sévoflurane 1,3 MAC, ventilation spontanée : 523,6 mmHg, contre 523 (513–539) (Kato 2024, lu) ;
+\item Mosing 2025 (lu) : 570–579.
+\end{itemize}
+
+\subsection{Apnée}
+Propofol 6 mg/kg injecté en 5 s, à l'air : SaO$_2$ artérielle $<$ 90 \% à 28 s.
+
+McNally 2009 (résumé) mesure \emph{par oxymétrie de pouls} une SpO$_2$ $<$ 90 \% à 69,6 $\pm$ 10,6 s, mais une PaO$_2$ artérielle déjà à 62 mmHg et une SaO$_2$ à 82 \% à 30 s. Le modèle est donc cohérent avec la mesure artérielle. Il n'a pas le retard du capteur de pouls.
+
+Après pré-oxygénation, le modèle (flow-by, F$_\mathrm{I}$O$_2$ 0,4, D) désature à 88 s. Publié : 66 $\pm$ 17 s en flow-by et 187 $\pm$ 67 s au masque (Ambros 2018, résumé) ; 298 s au masque (McNally). Le modèle n'a pas de mode « masque ».
+
+Montée de la PaCO$_2$ en apnée sous O$_2$ : environ 4 mmHg/min. Publié : de 1,3 à 2,0 mmHg/min en oxygénation apnéique à insufflation (Yokota 2019) jusqu'à environ 8 mmHg/min, valeur que j'ai calculée sur les données de Chae 2026 (résumés). Pas de correction.
+
+\subsection{Réveil}
+La conscience valait $1-\text{indice}/\texttt{loc\_mac}$, une fonction linéaire. Le décubitus sternal demandait donc une MAC cérébrale de 0,13 et arrivait 104 min après 2 h d'isoflurane à 1 MAC.
+
+\textbf{Correction} : $1-(\text{indice}/\texttt{loc\_mac})^3$ (\vp{awareness_hill}).
+
+\begin{center}\small
+\begin{tabular}{llrrr}
+\toprule
+Protocole & Source & Extubation & Tête & Sternal\\
+\midrule
+Iso 1,0 MAC, 2 h & modèle & 10,0 & 9,0 & 15,9\\
+& Rastas 2025 (lu, $n$ = 3) & 9,3–15,0 & -- & 13,7–18,0\\
+Sévo 1,45 MAC, 2 h & modèle & 8,7 & 8,2 & 11,6\\
+& Lozano 2009 (résumé, MAC non précisée) & 7 (5–7) & -- & 9,5 (7,3–11,8)\\
+Iso 1,54 MAC, 2 h & modèle & 39,0 & 36,5 & 47,0\\
+& Lopez 2009 (résumé) & -- & -- & debout 26,3 $\pm$ 7,2\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Non corrigé} : l'élimination de l'isoflurane à forte dose reste trop lente. Les coefficients de partage muscle/sang et graisse/sang sont des ordres de grandeur humains non lus (D). Défaut mineur : la tête se relève parfois avant le retour de la déglutition, car deux indices différents pilotent ces jalons.
+
+\subsection{Hypothermie peropératoire}
+Le modèle refroidissait presque linéairement vers une température d'équilibre de 28 °C : $-1{,}4$, $-2{,}7$ et environ $-4$ °C à 1, 2 et 3 h.
+
+Publié : $-2{,}0$, $-2{,}6$ et $-2{,}9$ °C à 60, 120 et 180 min (Redondo 2012, résumé, 1525 chiens). La température chute vite, puis plafonne après 60 min (Sage 2023, résumé, 1097 chiens).
+
+\textbf{Correction} :
+\begin{itemize}
+\item l'excès de pertes dû à l'anesthésie s'éteint linéairement à l'approche de 35,5 °C (\vp{vasoconstriction_c}, vasoconstriction thermorégulatrice) ;
+\item \vp{loss_gain_anesth} passe de 2 à 3,5.
+\end{itemize}
+
+Résultats : $-2{,}0$, $-2{,}6$ et $-2{,}8$ °C. Avec ces pertes plus fortes, le réchauffement actif (1,5 °C/h) devenait insuffisant. Recalé à 3,5 °C/h : 38,4 °C à 3 h, contre 38,2–38,7 °C avec réchauffement après environ 2 h (Rastas 2025, lu).
+
+\subsection{Perfusions continues et épargne de MAC}
+\textbf{Dexmédétomidine} : l'épargne de MAC avait été calée en supposant les concentrations mesurées par Pascoe 2006. Or la PK du modèle donne, au même débit, des concentrations 3 à 6 fois plus hautes (1,1 contre 0,198 ng/mL ; 6,7 contre 1,9). D'où 50 et 73 \% d'épargne au lieu de 18 et 59 \%. EC50 et pente ont été recalées sur les protocoles (charge puis CRI) aux concentrations du modèle : EC50 3,0 ng/mL, pente 1,27. Résultats : 18 et 59 \% ; hors échantillon, 50 \% contre 43,4 \% (Acevedo-Arcique 2014, lu). \textbf{Reste} : l'incohérence entre la PK (Dent 2019, résumé) et les concentrations mesurées de Pascoe n'est pas résolue.
+
+\textbf{Fentanyl} : 0,15 µg/kg/min sans charge, 24–34 \% ; Ueyama 2009 (résumé), $-35$ \% avec charge. 0,6 µg/kg/min, 52–61 \% ; Steagall 2006 (résumé, clinique), $-54$ à $-66$ \%. Simões 2016 (résumé) donne $-50$ \% à 0,15 µg/kg/min avec charge. Conforme dans l'ensemble.
+
+\textbf{Lidocaïne} : 21, 37 et 52 \% à 50, 100 et 200 µg/kg/min. Publié : 18,7 et 43,3 \% (Valverde, données de calage) ; 27,3 \% à 100 (Acevedo-Arcique, lu) ; 29 \% à 50 (Muir 2003, résumé). Un peu haut, pas corrigé. La Cp du modèle à 200 µg/kg/min est de 6,9 mg/L, contre 4,4–4,7 chez Valverde.
+
+\textbf{Kétamine} : 0 à 10 \% d'épargne de 10 à 100 µg/kg/min. Muir 2003 (résumé) donne $-25$ \% à 10 µg/kg/min, mais cette perfusion produit environ 0,17 µg/mL, une concentration à laquelle la relation de Solano 2006 et Pypendop 2007 (résumés, base du modèle) ne prévoit presque rien. Solano lui-même rapporte des épargnes de 11 à 39 \% à 1,07 µg/mL, que la courbe de Hill du modèle sous-estime (4 \%). Les sources ne s'accordent pas : non tranché.
+
+\subsection{Conformes, sans correction}
+\begin{itemize}
+\item \textbf{Dexmédétomidine IV} : à 2 µg/kg, FC $-50$/$-40$ \% et DC $-49$/$-40$ \% à 30/60 min, PAM $+10$ \%. Moran-Muñoz 2017 (lu, sous sévoflurane, 2 µg/kg puis 2 µg/kg/h) : FC $-39$ \%, DC $-42$ \%, PAM $+10$ \% à 45 min.
+\item \textbf{Propofol}, dose minimale de perte de conscience :
+  \begin{itemize}
+  \item sans prémédication : 5,3 mg/kg (6,16 et 8,68 jusqu'à l'intubation chez Davis 2017 et Smith 2017, résumés) ;
+  \item acépromazine + méthadone : 3,6 (3,48 chez Rögels 2021 ; 4,6 $\pm$ 1,3 chez Souza 2025, lu) ;
+  \item dexmédétomidine 5 µg/kg + méthadone : 2,2 (2,5 $\pm$ 0,6 chez Rastas 2025, lu ; 1,8 $\pm$ 0,6 chez Bigby 2017, résumé).
+  \end{itemize}
+\item \textbf{Atipamézole} : la sédation est levée en 7,8 min, mais la FC ne revient pas à 80 \% de la base en 20 min. Même constat chez Turunen 2019 (résumé) et Ko 2024 (lu).
+\end{itemize}
+
+\section{Effet sur les références du projet}
+\begin{itemize}
+\item \textbf{Golden} (\vp{tests/golden/cases.json}), régénéré depuis le Python corrigé (\vp{make_golden.py}). 121 valeurs sur 1782 sortent de la tolérance de l'ancien golden : pneumonie (62), Addison (28), BAV 0,8 (21), MRC 0,8 (2, PaCO$_2$), et 8 cas où seule \vp{lv_edp} ou \vp{la_mean} bouge (MMVD 0,5 et 0,8, pimobendane, bêtabloquant, furosémide, chiens de 5 et 40 kg), sensibles au régime périodique. Rust contre nouveau golden : 1862/1862 valeurs conformes.
+\item \textbf{Fixtures Python} (M1–M6, conduction, battements, toxicité, PCG) régénérées. \vp{calibration/calibration_run_python.json} régénéré par \vp{reference/python/calibrate.py}, avec l'accord de l'utilisateur. Le dossier \vp{calibration/} est en principe protégé ; \vp{targets.json} n'a pas été touché.
+\item \textbf{Deux tests modifiés}, propriété et seuil conservés :
+  \begin{itemize}
+  \item \vp{isoflurane_depresses_blood_pressure_and_ventilation_dose_dependently} : le palier « profond » passe de 3 \% à 4 \% de vaporisateur. À 3 \%, la MAC cérébrale n'était que de 1,15 et la PaCO$_2$ montait de 2,8 mmHg, ce qui est conforme à la courbe recalée.
+  \item \vp{check_rhythm.py} : la fourchette du BAV porte désormais sur la fréquence observée.
+  \end{itemize}
+\item \vp{severity_and_weight_sweep_stays_finite} (\vp{hemodynamics.rs}) : la liste des décès attendus passe de vide au chien de 3 kg en MMVD 1,0 (dette d'O$_2$). Ce décès vient du régime périodique, qui élève la POG de la MMVD terminale ; il relève du point « à arbitrer » de la section 2.
+\end{itemize}
+
+\section{Recherches et sources bloquées}
+\begin{itemize}
+\item \textbf{Bloqués} :
+  \begin{itemize}
+  \item avmajournals.avma.org (Mutoh, McNally, Galloway, Lopez, Johnson en texte intégral) ;
+  \item ScienceDirect (\emph{Vet Anaesth Analg}), frontiersin.org, J-STAGE ;
+  \item confluence.cornell.edu (de Morais \& DiBartola 1991), vtechworks ;
+  \item api.crossref.org (403), OpenAlex (429 intermittents) ;
+  \item serveur de vérification bibliographique hébergé (proxy 403) ; PDF JCI de Cohen 1964 et Schwartz 1965 (anti-robot PMC, non contourné).
+  \end{itemize}
+\item \textbf{Non trouvés} : série canine donnant PAM, FC et DC à 10, 20, 30 et 40 \% de perte sur un même protocole ; bradycardie chiffrée vers 30 \% ; bolus de 20 mL/kg en 15 min chez le chien normovolémique ; PaCO$_2$ chiffrée à 1,5 et 2 MAC en ventilation spontanée ; FE/FI à 5, 15 et 30 min chez le chien ; pentes de DiBartola avec leurs tolérances.
+\item « Non trouvé » ne veut pas dire « n'existe pas ». Les DOI viennent d'Europe PMC ; ils n'ont pas été revérifiés par Crossref (bloqué).
+\end{itemize}
+
+\section*{Références}
+\small
+\begin{itemize}\setlength\itemsep{0pt}
+\item Acevedo-Arcique CM et al. 2014. \emph{PLoS One}. doi:10.1371/journal.pone.0106620 (lu).
+\item Ambros B et al. 2018. \emph{Vet Anaesth Analg} 45:452. doi:10.1016/j.vaa.2018.03.004 (résumé).
+\item Bexfield NH et al. 2008. \emph{J Vet Intern Med} 22:66. doi:10.1111/j.1939-1676.2007.0035.x (résumé).
+\item Cardillo JH et al. 2024. \emph{Front Vet Sci} 11:1467043. doi:10.3389/fvets.2024.1467043 (lu).
+\item Chalifoux NV et al. 2023. \emph{Can Vet J}, PMC10150554 (lu).
+\item Goggs R et al. 2022. \emph{J Vet Intern Med}. doi:10.1111/jvim.16374 (lu).
+\item Hall H et al. 2023. \emph{J Vet Intern Med}. doi:10.1111/jvim.16786 (lu).
+\item Haskins S et al. 2005. \emph{Comp Med} 55:156 (résumé).
+\item Hezzell MJ et al. 2013. \emph{J Small Anim Pract} 54:318. doi:10.1111/jsap.12079 (résumé).
+\item Itami T et al. 2019. \emph{PLoS One} 14:e0213414. doi:10.1371/journal.pone.0213414 (lu).
+\item Kato K et al. 2024. \emph{Open Vet J}. doi:10.5455/OVJ.2024.v14.i5.20 (lu).
+\item Lozano AJ et al. 2009. \emph{Vet Anaesth Analg} 36:220. doi:10.1111/j.1467-2995.2009.00451.x (résumé).
+\item Lopez LA et al. 2009. \emph{Am J Vet Res} 70:1339. doi:10.2460/ajvr.70.11.1339 (résumé).
+\item Madias NE, Bossert WH, Adrogué HJ 1984. \emph{J Appl Physiol} 56:1640. doi:10.1152/jappl.1984.56.6.1640 (résumé).
+\item Mazzaferro EM, Ford RB 2012. In \emph{Kirk \& Bistner's Handbook}. doi:10.1016/B978-1-4377-0798-4.00001-3 (lu, tableau 1-6).
+\item McNally EM et al. 2009. \emph{Am J Vet Res} 70:1333. doi:10.2460/ajvr.70.11.1333 (résumé).
+\item Menaut P et al. 2005. \emph{J Vet Cardiol} 7:75. doi:10.1016/j.jvc.2005.07.002 (résumé).
+\item Moran-Muñoz R et al. 2017. \emph{Can Vet J} 58:729, PMC5479674 (lu, via WebFetch).
+\item Mosing M et al. 2025. \emph{Front Vet Sci}. doi:10.3389/fvets.2025.1545683 (lu).
+\item Pascoe PJ et al. 2006. \emph{Vet Anaesth Analg} 33:97. doi:10.1111/j.1467-2995.2005.00236.x (résumé ; pourcentages cités par Acevedo-Arcique).
+\item Rastas, Zhao \& Johnson 2025. \emph{PLoS One} 20:e0317997. doi:10.1371/journal.pone.0317997 (lu).
+\item Redondo JI et al. 2012. \emph{Vet Rec} 171:374. doi:10.1136/vr.100476 (résumé).
+\item Sage et al. 2023. \emph{Vet Rec} 193:e2586. doi:10.1002/vetr.2586 (résumé).
+\item Seo D et al. 2025. \emph{J Vet Emerg Crit Care} 35:214. doi:10.1111/vec.13466 (lu).
+\item Thrasher TN, Shifflett C 2001. \emph{Am J Physiol} 280:R1642. doi:10.1152/ajpregu.2001.280.6.r1642 (résumé).
+\item van Bavel JJA et al. 2023. \emph{Int J Cardiol Heart Vasc} 44:101169. doi:10.1016/j.ijcha.2022.101169 (lu).
+\item Viitanen SJ et al. 2017. \emph{J Vet Intern Med}. doi:10.1111/jvim.14631 (lu).
+\item Young AA et al. 2022. \emph{J Vet Intern Med}. doi:10.1111/jvim.16434 (lu).
+\end{itemize}
+Autres sources citées (résumés) : Bailey 1987, Bigby 2017, Davis 2017, Ferasin 2010, Granot 1985, Kudo 2024, Lamb 2010, Loen 2022 (lu), Morales 1999, Muir 2003, Rögels 2021, Shen 1990, Silverstein 2005 (secondaire), Simões 2016, Smith 2017, Solano 2006, Souza 2025 (lu), Steagall 2006, Thrasher 1998, Turunen 2019, Ueyama 2009, Valverde 2004, Vatner 1974, Yokota 2019, Chae 2026, Ko 2024 (lu).
+\end{document}
