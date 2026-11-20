@@ -158,6 +158,14 @@ pub fn blocks_of(name: &str) -> &'static [Block] {
         "acid_ph0" | "acid_ees" => &[AcidBase, LeftHeart, RightHeart],
         "acid_rsys" => &[AcidBase, SystemicCirculation],
         "hypox_pvo2" | "hypox_ees" => &[Metabolism, LeftHeart, RightHeart],
+        "hypox_pao2" | "hypox_pao2_sat" | "hypox_n" | "hypox_symp" | "hypox_inotropy"
+        | "hypox_vaso" => &[
+            OxygenTransport,
+            Autonomic,
+            LeftHeart,
+            RightHeart,
+            SystemicCirculation,
+        ],
         "cpp_min" | "cpp_ees" => &[SystemicCirculation, LeftHeart, RightHeart],
         "k_weak" | "k_weak_vent" => &[Ventilation],
         "hr_arrest" => &[Autonomic],

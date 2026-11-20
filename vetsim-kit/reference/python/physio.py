@@ -415,6 +415,15 @@ def coupling_targets(p, res):
     return f_acid_c * f_hyp * f_cor, f_acid_r, f_acid_c, f_hyp, f_cor
 
 
+def hypoxemic_drive(p, pao2):
+    """Commande de la réponse à l'hypoxémie (miroir de engine::hypoxemic_drive)."""
+    span = p['hypox_pao2'] - p['hypox_pao2_sat']
+    if p['hypox_pao2'] <= 0.0 or span <= 0.0:
+        return 0.0
+    x = min(1.0, max(0.0, (p['hypox_pao2'] - pao2) / span))
+    return x ** p['hypox_n']
+
+
 def evaluate(p, n_beats=22):
     """Évalue le patient avec les couplages de décompensation (point fixe amorti).
 
@@ -427,16 +436,17 @@ def evaluate(p, n_beats=22):
     bw = p0['bw']
     co_ref = 3.29 * (bw / 20.0) ** 0.75
     f_vent = max(F_FLOOR, 1.0 - p0['k_weak_vent'] * max(0.0, p0['k_weak'] - p0['k']))
-    fc, fr = 1.0, 1.0
+    fc, fr, fh = 1.0, 1.0, 0.0
     last = None
     converged = False
     it = 0
     for it in range(DECOMP_MAX_ITER):
         q = dict(p0)
         q['vent_drive'] = p0['vent_drive'] * f_vent
-        q['ees_lv'] = p0['ees_lv'] * fc
-        q['ees_rv'] = p0['ees_rv'] * fc
-        q['r_sys'] = p0['r_sys'] * fr
+        q['s0'] = min(1.0, p0['s0'] + p0['hypox_symp'] * fh)       # réponse à l'hypoxémie
+        q['ees_lv'] = p0['ees_lv'] * fc * (1.0 + p0['hypox_inotropy'] * fh)
+        q['ees_rv'] = p0['ees_rv'] * fc * (1.0 + p0['hypox_inotropy'] * fh)
+        q['r_sys'] = p0['r_sys'] * fr * max(0.2, 1.0 - p0['hypox_vaso'] * fh)
         try:
             res = _evaluate_once(q, n_beats)
         except (ValueError, ZeroDivisionError):
@@ -451,11 +461,13 @@ def evaluate(p, n_beats=22):
             raise NonViable('oxygen_debt', res)       # VO2 > DO2 : aucun état aérobie possible
         last = res
         tc, tr, f_acid, f_hyp, f_cor = coupling_targets(p0, res)
-        if abs(tc - fc) < DECOMP_TOL and abs(tr - fr) < DECOMP_TOL:
+        th = hypoxemic_drive(p0, res['art']['pao2'])
+        if abs(tc - fc) < DECOMP_TOL and abs(tr - fr) < DECOMP_TOL and abs(th - fh) < DECOMP_TOL:
             converged = True
             break
         fc = 0.5 * fc + 0.5 * tc
         fr = 0.5 * fr + 0.5 * tr
+        fh = 0.5 * fh + 0.5 * th
     if not converged:
         raise NonViable('vicious_circle', last)
     mech = []
@@ -480,6 +492,8 @@ def evaluate(p, n_beats=22):
     if res['autonomic']['s'] >= 1.0:
         mech.append(dict(id='baroreflex_exhausted', value=res['autonomic']['s'], threshold=1.0, factor=1.0))
     res['decomp'] = dict(f_contract=fc, f_rsys=fr, f_vent=f_vent, iterations=it + 1)
+    if fh > 1e-3:
+        mech.append(dict(id='hypoxemic_drive', value=res['art']['pao2'], threshold=p0['hypox_pao2'], factor=fh))
     res['outcome'] = dict(state='decompensated' if mech else 'stable', mechanisms=mech)
     return res
 

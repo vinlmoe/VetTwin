@@ -52,6 +52,12 @@ def healthy_params(bw=20.0):
         acid_rsys=1.0,               # perte relative de résistance systémique par unité de pH sous acid_ph0
         hypox_pvo2=20.0,             # PvO2 (mmHg) sous laquelle l'hypoxie tissulaire déprime le myocarde
         hypox_ees=0.03,              # perte relative d'élastance par mmHg de PvO2 sous hypox_pvo2
+        hypox_pao2=50.0,             # réponse à l'hypoxémie (h) : PaO2 seuil (mmHg) ; calée le 20/11/2026
+        hypox_pao2_sat=15.0,         # PaO2 où h sature (h = 1)
+        hypox_n=3.0,                 # exposant de h
+        hypox_symp=6.0,                # hausse du tonus sympathique de base par unité de h
+        hypox_inotropy=3.0,            # hausse relative d'élastance par unité de h
+        hypox_vaso=0.9,                # baisse relative de résistance systémique par unité de h
         k_weak=2.5,                  # K+ (mmol/L) sous lequel les muscles respiratoires faiblissent
         k_weak_vent=0.4,             # perte relative de commande ventilatoire par mmol/L sous k_weak
         cpp_min=40.0,                # pression de perfusion coronaire PAD − PTDVG (mmHg) sous laquelle le myocarde s'ischémie

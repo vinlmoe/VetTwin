@@ -456,6 +456,16 @@
      }
     ]
    }
+  },
+  {
+   "param": "beta_block",
+   "op": "add",
+   "expr": {
+    "mul": [
+     0.9,
+     "DEBT"
+    ]
+   }
   }
  ]
 }
