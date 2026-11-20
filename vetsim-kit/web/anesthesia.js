@@ -27,6 +27,7 @@ const MS_FR = [['loc', 'Perte de conscience'], ['intubation', 'Intubation'], ['v
 const A = {
   list: null, session: null, key: null, hist: [], snap: null, waves: null, running: false, speed: 10, timer: null, last: null,
   mon: null, sound: false, audio: null, raf: 0, lastAlarm: 0,
+  steth: false, stethSite: 'apex', stethGain: null,
   syr: [], pumps: [], nextId: 1,
   machine: { o2: 2, circuit: 'circle', vap: null, pct: 0, vent: false, rr: 10, vt: 12 },
   prep: { agent: null, conc: '', vol: 10, pAgent: null, pConc: '', pVol: 50, pRate: 5 },
@@ -117,7 +118,7 @@ function advance(ctl, wallS, v) {
   const sim = wallS * A.speed, dt = A.speed > 10 ? 5 : 1, n = Math.max(1, Math.round(sim / dt));
   const wantWaves = !A.mon || A.mon.pending.length === 0;
   try {
-    const r = ctl.call('message', JSON.stringify({ op: 'anesthesia_step', options: { session: A.session, dt_s: dt, n, all: true, waves_s: wantWaves ? 6 : 0, seed: 1 } }));
+    const r = ctl.call('message', JSON.stringify({ op: 'anesthesia_step', options: { session: A.session, dt_s: dt, n, all: true, waves_s: wantWaves ? 6 : 0, seed: 1, pcg: wantWaves && A.steth ? { site: A.stethSite } : false } }));
     const t0 = A.snap ? A.snap.t_s : 0;
     for (const s of r.snapshots) A.hist.push(s);
     if (A.hist.length > 20000) A.hist.splice(0, A.hist.length - 20000);
@@ -159,7 +160,7 @@ function layout(ctl, inputs, key) {
   ${started ? `
   <div class="anesth-grid">
     <div class="monitor card" id="an-monitor">
-      <div class="mon-top"><div id="an-mon-head"></div><button id="an-sound" class="mon-sound">${A.sound ? '🔊 Son' : '🔇 Son coupé'}</button></div>
+      <div class="mon-top"><div id="an-mon-head"></div><div class="mon-btns"><button id="an-steth" class="mon-sound" title="Auscultation cardiaque en temps réel, synchronisée sur l'ECG">${A.steth ? '🩺 Stéthoscope' : '🩺 Stéthoscope coupé'}</button><select id="an-steth-site" class="mon-sound" title="Site d'auscultation"><option value="apex"${A.stethSite === 'apex' ? ' selected' : ''}>apex gauche</option><option value="base"${A.stethSite === 'base' ? ' selected' : ''}>base</option></select><button id="an-sound" class="mon-sound">${A.sound ? '🔊 Bips' : '🔇 Bips coupés'}</button></div></div>
       <div class="mon-waves"><canvas id="an-ecg"></canvas><canvas id="an-art"></canvas><canvas id="an-cap"></canvas></div>
       <div class="mon-vals" id="an-mon-vals"></div>
     </div>
@@ -218,8 +219,19 @@ function wire(v, ctl, inputs, key, ctx) {
     A.sound = !A.sound;
     if (A.sound && !A.audio) { try { A.audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { A.sound = false; } }
     if (A.audio && A.audio.state === 'suspended') A.audio.resume();
-    const b = document.getElementById('an-sound'); if (b) b.textContent = A.sound ? '🔊 Son' : '🔇 Son coupé';
+    const b = document.getElementById('an-sound'); if (b) b.textContent = A.sound ? '🔊 Bips' : '🔇 Bips coupés';
   });
+  // stéthoscope : le son du cœur arrive avec le prochain segment du moniteur (on le redemande)
+  const refreshWaves = () => { if (A.mon) A.mon.pending = []; if (A.session && !(A.snap && A.snap.dead)) advance(ctl, 0.0001, v); };
+  on('an-steth', () => {
+    A.steth = !A.steth;
+    if (A.steth && !A.audio) { try { A.audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { A.steth = false; } }
+    if (A.audio && A.audio.state === 'suspended') A.audio.resume();
+    const b = document.getElementById('an-steth'); if (b) b.textContent = A.steth ? '🩺 Stéthoscope' : '🩺 Stéthoscope coupé';
+    if (A.steth) refreshWaves();
+  });
+  const site = document.getElementById('an-steth-site');
+  if (site) site.onchange = () => { A.stethSite = site.value; if (A.steth) refreshWaves(); };
   wireStations(v, ctl, ev, rerender);
   if (!A.session || A.key !== key) return;
   const f = A.form;
@@ -253,7 +265,7 @@ function paint(v) {
   const big = (lab, val, unit, cls) => `<div class="mv ${cls}"><span>${lab}</span><b>${val}</b><i>${unit}</i></div>`;
   const head = document.getElementById('an-mon-head');
   if (head) head.innerHTML = `${s.dead ? `<div class="mon-dead">Décès : ${esc(DEATH_FR[s.dead] || s.dead)}</div>` : ''}
-    <div class="mon-alarms">${s.alarms.map((a) => `<span>${esc(ALARM_FR[a] || a)}</span>`).join('')}</div>`;
+    <div class="mon-alarms">${s.alarms.map((a) => `<span>${esc(ALARM_FR[a] || a)}</span>`).join('')}</div>${stethLine()}`;
   m.innerHTML = `
       ${big('FC', fmt(vi.hr), '/min', 'g')}
       ${big('PA', `${fmt(vi.sap)}/${fmt(vi.dap)}`, `(${fmt(vi.map)}) mmHg`, 'r')}
@@ -359,10 +371,13 @@ function feedMonitor(r) {
   const art = ecg.map((_, i) => (pr ? pr.ao[Math.min(pr.ao.length - 1, Math.floor(i / k))] : NaN));
   const pk = rPeaks(ecg, fs);
   let seg;
+  const snd = r.pcg ? decodeWav(r.pcg.wav_base64) : null, kp = snd ? r.pcg.fs / fs : 0;
   if (pk.length >= 2) {
     const a = pk[0], b = pk[pk.length - 1];
     seg = { ecg: ecg.slice(a, b), art: art.slice(a, b), peaks: pk.slice(0, -1).map((i) => i - a) };
-  } else seg = { ecg, art, peaks: pk };
+    if (snd) seg.pcg = snd.subarray(Math.round(a * kp), Math.round(b * kp));
+  } else { seg = { ecg, art, peaks: pk }; if (snd) seg.pcg = snd; }
+  if (snd) { seg.pcgFs = r.pcg.fs; seg.pcgInfo = { grade: r.pcg.grade, murmur: r.pcg.murmur, s3: r.pcg.s3, site: r.pcg.site }; }
   if (!A.mon) A.mon = { fs, ecg: [], art: [], peaks: [], base: 0, pos: 0, pending: [], last: null, t: performance.now() };
   A.mon.pending.push(seg);
   if (A.mon.pending.length > 2) A.mon.pending.shift();
@@ -373,9 +388,42 @@ function appendSeg(M) {
   if (!seg) return false;
   M.last = seg;
   const off = M.base + M.ecg.length;
+  playSegment(seg, Math.max(0, (off - (M.base + M.pos)) / M.fs));
   for (let i = 0; i < seg.ecg.length; i++) { M.ecg.push(seg.ecg[i]); M.art.push(seg.art[i]); }
   for (const p of seg.peaks) M.peaks.push(off + p);
   return seg.ecg.length > 0;
+}
+
+/** Ce qu'entend le stéthoscope (dernier segment reçu du moteur). */
+function stethLine() {
+  if (!A.steth) return '';
+  const seg = A.mon && A.mon.pending.concat(A.mon.last ? [A.mon.last] : []).find((x) => x.pcgInfo);
+  if (!seg) return '<div class="sub">Stéthoscope : en attente du prochain segment…</div>';
+  const i = seg.pcgInfo, where = i.site === 'apex' ? 'apex gauche' : 'base';
+  return `<div class="sub">Stéthoscope (${where}) : ${i.grade ? `souffle ${esc(i.murmur)}, grade ${i.grade}/6` : 'pas de souffle'}${i.s3 ? ', B3' : ''}</div>`;
+}
+
+/** WAV PCM 16 bits (base64) → échantillons. */
+function decodeWav(b64) {
+  const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  const view = new DataView(bytes.buffer), n = (bytes.length - 44) / 2, out = new Float32Array(n);
+  for (let i = 0; i < n; i++) out[i] = view.getInt16(44 + 2 * i, true) / 32767;
+  return out;
+}
+
+/** Joue le son d'un segment du moniteur dans `delay` s (fondus de 5 ms aux raccords). */
+function playSegment(seg, delay) {
+  const ac = A.audio;
+  if (!ac || !A.steth || !seg.pcg || !seg.pcg.length || (A.snap && A.snap.dead)) return;
+  if (!seg.buf) {
+    const n = seg.pcg.length, buf = ac.createBuffer(1, n, seg.pcgFs), d = buf.getChannelData(0), f = Math.min(n >> 1, Math.round(0.005 * seg.pcgFs));
+    d.set(seg.pcg);
+    for (let i = 0; i < f; i++) { const w = i / f; d[i] *= w; d[n - 1 - i] *= w; }
+    seg.buf = buf;
+  }
+  if (!A.stethGain) { A.stethGain = ac.createGain(); A.stethGain.gain.value = 0.9; A.stethGain.connect(ac.destination); }
+  const src = ac.createBufferSource();
+  src.buffer = seg.buf; src.connect(A.stethGain); src.start(ac.currentTime + delay);
 }
 
 function startMonitor() {

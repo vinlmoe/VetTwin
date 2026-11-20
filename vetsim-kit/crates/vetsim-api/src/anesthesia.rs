@@ -3,7 +3,9 @@
 //! - `anesthesia_list` : agents, halogénés et scénarios chargés ;
 //! - `anesthesia_start` `{patient, options: {seed, procedure}}` : nouvelle session sur le patient ;
 //! - `anesthesia_event` `{options: {session, event: {type, ...}}}` : action ;
-//! - `anesthesia_step` `{options: {session, dt_s, n, all}}` : avance de `n` pas de `dt_s` s ;
+//! - `anesthesia_step` `{options: {session, dt_s, n, all, waves_s, pcg}}` : avance de `n` pas de
+//!   `dt_s` s ; avec `waves_s`, courbes du moniteur sur l'état final ; avec `pcg` (`true` ou
+//!   `{"site": "base"|"apex", "fs": 4000}`), auscultation en temps réel sur les mêmes battements ;
 //! - `anesthesia_record` `{options: {session}}` : feuille d'anesthésie, journal et jalons.
 
 use super::{obj, opt_bool, opt_f64, opt_u64, ApiError, ApiResult, Engine};
@@ -311,6 +313,22 @@ impl Engine {
         let all = opt_bool(m, "all", false)?;
         let waves = opt_f64(m, "waves_s", 0.0)?;
         let seed = opt_u64(m, "seed", 0)?;
+        // auscultation demandée : configuration du module (clé « auscultation » de loadModules)
+        let pcg_opts = match m.get("pcg") {
+            None | Some(Json::Null) | Some(Json::Bool(false)) => None,
+            Some(Json::Bool(true)) => Some(Map::new()),
+            Some(Json::Object(o)) => Some(o.clone()),
+            Some(_) => return Err(ApiError::one("/pcg", "booléen ou objet attendu")),
+        };
+        let pcg_cfg = match pcg_opts {
+            Some(_) => Some(self.auscultation.clone().ok_or_else(|| {
+                ApiError::one(
+                    "/pcg",
+                    "configuration auscultation non chargée (clé « auscultation » de loadModules)",
+                )
+            })?),
+            None => None,
+        };
         let s = self.anesthesia_session(m)?;
         let mut out = Vec::new();
         let mut last_eval = None;
@@ -348,6 +366,38 @@ impl Engine {
                 res["ecg_fs"] = json!(250.0);
                 res["pressures"] =
                     super::beat_pressures(&ev, &sg.autonomic.beats, seed, dur, 125.0)?;
+                // Auscultation : même évaluation, même graine, même durée, donc mêmes battements
+                // que l'ECG du moniteur (patient_pcg / patient_signals).
+                if let (Some(o), Some(cfg)) = (&pcg_opts, &pcg_cfg) {
+                    use vetsim_core::dsp::{base64, wav_pcm16};
+                    use vetsim_core::pcg::{patient_pcg, PcgOptions};
+                    let site = match o.get("site") {
+                        None | Some(Json::Null) => None,
+                        Some(v) => Some(
+                            v.as_str()
+                                .ok_or_else(|| ApiError::one("/pcg/site", "chaîne attendue"))?
+                                .to_string(),
+                        ),
+                    };
+                    let fs = opt_f64(o, "fs", cfg.fs)?;
+                    if !(1000.0..=48000.0).contains(&fs) {
+                        return Err(ApiError::one("/pcg/fs", "fréquence entre 1000 et 48000 Hz"));
+                    }
+                    let opts = PcgOptions {
+                        fs: Some(fs),
+                        duration_s: Some(dur),
+                        resp_hz: None,
+                        site,
+                    };
+                    let r = patient_pcg(&ev, cfg, &opts, seed)?;
+                    let f = r.features;
+                    res["pcg"] = json!({
+                        "wav_base64": base64(&wav_pcm16(&r.samples, r.fs as u32)),
+                        "fs": r.fs, "beats": r.beats, "grade": f.grade,
+                        "murmur": f.murmur.label_fr(), "s3": f.s3,
+                        "site": opts.site.clone().unwrap_or_else(|| "base".into()),
+                    });
+                }
             }
         }
         Ok(res)
