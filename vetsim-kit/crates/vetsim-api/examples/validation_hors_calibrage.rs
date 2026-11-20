@@ -8,17 +8,18 @@ use vetsim_core::anesthesia::{
 };
 use vetsim_core::{DrugModule, Params, Patient, PatientModule};
 
+/// Racine du kit ; `VETSIM_ROOT` permet de rejouer avec une copie modifiée des modules.
+fn root() -> PathBuf {
+    std::env::var("VETSIM_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."))
+}
 fn read(rel: &str) -> String {
-    let p = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .join(rel);
+    let p = root().join(rel);
     std::fs::read_to_string(&p).unwrap_or_else(|e| panic!("{rel}: {e}"))
 }
 fn dir(rel: &str) -> Vec<String> {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .join(rel);
-    let mut v: Vec<_> = std::fs::read_dir(root)
+    let mut v: Vec<_> = std::fs::read_dir(root().join(rel))
         .unwrap()
         .map(|e| e.unwrap().path())
         .collect();
@@ -380,7 +381,7 @@ fn hypothermia() {
         s.apply(Event::Warming(warm)).unwrap();
         let t0 = s.step(1.0).unwrap().temp_c;
         let mut out = vec![format!("t0 {t0:.2}")];
-        for _ in 0..4 {
+        for _ in 0..6 {
             let sn = hold_mac(&mut s, "isoflurane", 1.3, 1800.0);
             out.push(format!("{:.0} min {:.2}", sn.t_s / 60.0, sn.temp_c));
         }
@@ -558,18 +559,128 @@ fn main() {
             let mut p = base();
             p.vol_shift -= d;
             let e = vetsim_core::evaluate(&p).unwrap();
-            for nb in [11, 80] {
+            for nb in [11, 22, 44, 80] {
                 let h = vetsim_core::hemo::simulate_hemo(&e.params, nb).unwrap();
                 let m = &h.summary;
                 println!(
-                    "convergence déficit {d} mL, {nb} battements : FC {:.1} PAM {:.1} DC {:.3} FC×VS {:.3} converged {}",
+                    "convergence déficit {d} mL, {nb} battements : FC {:.1} PAM {:.1} DC {:.3} FC×VS {:.3} converged {} dérive {:.2e}",
                     e.params.hr,
                     m.map,
                     m.co,
                     e.params.hr * m.sv / 1000.0,
-                    m.converged
+                    m.converged,
+                    m.map_drift
                 );
             }
+        }
+    }
+    if on("dexcri") {
+        // protocoles publiés : charge IV (µg/kg, 10 min) puis CRI (µg/kg/h) ; épargne et Cp à 60 et 90 min
+        for (load, rate, src) in [
+            (0.5, 0.5, "Pascoe 2006 : −18 %, 0,198 ng/mL"),
+            (3.0, 3.0, "Pascoe 2006 : −59 %, 1,903 ng/mL"),
+            (2.0, 2.0, "Acevedo-Arcique 2014 : −43,4 %"),
+        ] {
+            let mut s = session();
+            s.apply(Event::Bolus {
+                agent: "dexmedetomidine".into(),
+                mg_per_kg: load / 1000.0,
+                route: AdminRoute::Iv,
+                duration_s: Some(600.0),
+            })
+            .unwrap();
+            s.apply(Event::Cri {
+                agent: "dexmedetomidine".into(),
+                mg_per_kg_h: rate / 1000.0,
+            })
+            .unwrap();
+            let mut out = vec![];
+            let mut t = 0.0;
+            for m in [30.0, 60.0, 90.0] {
+                let sn = run(&mut s, (m - t) * 60.0, 30.0);
+                t = m;
+                let a = sn
+                    .agents
+                    .iter()
+                    .find(|x| x.id == "dexmedetomidine")
+                    .unwrap();
+                out.push(format!(
+                    "{m} min épargne {:.0} % Cp {:.3} ng/mL Ce {:.3}",
+                    100.0 * sn.depth.mac_reduction,
+                    a.cp * 1e3,
+                    a.ce * 1e3
+                ));
+            }
+            println!(
+                "dexcri {load} µg/kg + {rate} µg/kg/h ({src}) : {}",
+                out.join(" ; ")
+            );
+        }
+    }
+    if on("reveil2") {
+        // protocoles publiés : Rastas 2025 (iso FE 1,3 % ≈ 1,0 MAC, 2 h), Lopez 2009 (iso 2,0 % /
+        // sévo 3,2 % FE ≈ 1,5 MAC, 2 h) ; trace de la MAC cérébrale après fermeture
+        for (agent, m, dur) in [
+            ("isoflurane", 1.0, 120.0),
+            ("isoflurane", 1.54, 120.0),
+            ("sevoflurane", 1.45, 120.0),
+        ] {
+            let mut s = session();
+            anesthetized(&mut s, agent, m);
+            hold_mac(&mut s, agent, m, dur * 60.0);
+            s.apply(Event::Vaporizer {
+                agent: agent.into(),
+                pct: 0.0,
+            })
+            .unwrap();
+            s.apply(Event::FreshGas(4.0)).unwrap();
+            let t0 = s.time_s();
+            let (mut sw, mut head, mut st) = (None, None, None);
+            let mut trace = vec![];
+            for k in 0..1440 {
+                let sn = s.step(5.0).unwrap();
+                let tm = (sn.t_s - t0) / 60.0;
+                if k % 24 == 23 {
+                    trace.push(format!("{tm:.0}′ {:.2}", bmac(&sn, agent)));
+                }
+                if sw.is_none() && sn.reflexes.swallowing {
+                    sw = Some(tm);
+                    s.apply(Event::Extubate).unwrap();
+                }
+                if head.is_none() && sn.depth.awareness > 0.5 {
+                    head = Some(tm);
+                }
+                if st.is_none() && sn.depth.awareness > 0.8 {
+                    st = Some(tm);
+                    break;
+                }
+            }
+            println!(
+                "reveil2 {agent} {m} MAC {dur} min : extubation {sw:.1?}, tête {head:.1?}, sternal {st:.1?} min ; MAC cérébrale {}",
+                trace.join(", ")
+            );
+        }
+    }
+    if on("pao2") {
+        // Itami 2019 : iso 1,3–1,5 % (≈ 1,1 MAC), ventilation contrôlée, O2 ; Kato 2024 : sévo
+        // 1,3 MAC en ventilation spontanée, O2 > 95 %
+        for (agent, m, ctrl) in [("isoflurane", 1.1, true), ("sevoflurane", 1.3, false)] {
+            let mut s = session();
+            anesthetized(&mut s, agent, m);
+            if ctrl {
+                s.apply(Event::SetVentilation(Ventilation::Controlled {
+                    rr: 12.0,
+                    vt_ml_kg: 12.0,
+                }))
+                .unwrap();
+            }
+            let sn = hold_mac(&mut s, agent, m, 2400.0);
+            println!(
+                "pao2 {agent} {m} MAC {} : FiO2 {:.2} {}",
+                if ctrl { "contrôlée" } else { "spontanée" },
+                sn.fio2,
+                vit(&sn)
+            );
         }
     }
     if on("titration") {

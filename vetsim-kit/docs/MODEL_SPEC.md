@@ -15,7 +15,7 @@ Unités : pression mmHg, volume mL, temps s, débit mL/s (L/min en sortie), conc
 - **Capacitance veineuse** `ven_cap` (1 au repos) : multiplie `c_sv` dans la pression veineuse systémique, pas dans le volume initial (une veinodilatation redistribue le volume sans en ajouter).
 - Débits : mitrale `(Ppv−Plv)`, aortique `(Plv−Pao)`, tricuspide `(Psv−Prv)`, pulmonaire `(Prv−Ppa)`, systémique `(Pao−Psv)/r_sys`, pulmonaire `(Ppa−Ppv)/r_pul`.
 - Volumes initiaux : voir `_initial_volumes` (inclut `bvf` et `vol_shift`).
-- Intégration : 11 battements, `rtol=1e-6`, `atol=1e-6`, `max_step=0.004`; les indicateurs sont calculés sur le dernier battement (échantillonnage `dt=0.002`). `reg_fraction` = volume régurgité (parties négatives des débits mitral et aortique) / volume d'éjection total.
+- Intégration : 22 battements (11 avant le 20/11/2026 : dernier cycle non périodique en hypovolémie), doublés tant que la PAM dérive de plus de 0,5 % entre les deux derniers (`hemo::MAP_DRIFT_TOL`, au plus 176), `rtol=1e-6`, `atol=1e-6`, `max_step=0.004`; les indicateurs sont calculés sur le dernier battement (échantillonnage `dt=0.002`). `reg_fraction` = volume régurgité (parties négatives des débits mitral et aortique) / volume d'éjection total.
 - Sorties : `map, sap, dap, co (L/min), edv, esv, ef, sv, reg_fraction, la_mean, la_max, pap_mean, cvp, lv_edp, converged`.
 
 ### Oreillettes contractiles (structure, 17/11/2026)
@@ -55,7 +55,7 @@ d_t = clip(baro_gain·(map_set − MAP)/45, −1, 1)
   `SID + [H+] − HCO3 − A_alb − A_phos = 0`, avec `[H+] = 1000·10^(−pH)` (nmol/L→mmol/L selon le code), `HCO3 = 0.0307·PCO2·10^(pH−6.1)`,
   `A_alb = alb_gL·(0.28 + 0.469/(1 + 10^(7.77−pH)))` (canin, Constable & Stämpfli 2005), `A_phos = phos·(0.309·pH − 0.469)` (coefficient humain).
 - Ventilation : résoudre en PCO2 (brentq sur [5, 250]) `PCO2 = 0.863·VCO2/VA` avec
-  `VA = va0·bw·vent_drive·max(0.12, 1 + 0.08 (PCO2−37))·exp(−2.5 (pH−7.4))·(1 + 0.03·max(0, 70 − PaO2))`; 3 itérations externes sur PaO2.
+  `VA = va0·bw·vent_drive·max(0.12, 1 + 0.08 (PCO2−37))·exp(0.05 − 6.0 (pH−7.38))·(1 + 0.03·max(0, 70 − PaO2))` (gain au pH recalé le 20/11/2026 : compensation 0,74 mmHg/(mmol/L), Madias 1984) ; 3 itérations externes sur PaO2.
 - Oxygénation : `PAO2 = fio2·(pb−47) − PCO2/rq`; gradient `aa = aagrad + edema_k·max(0, la_mean − 18)`; `PaO2 = max(15, PAO2 − aa)`.
 - Hémoglobine : Hill `S = P^n/(P^n + P50^n)`, `P50 = p50·10^(0.37 (7.4 − pH))` (Bohr canin), `CaO2 = 1.34·hb·S + 0.003·PO2`.
 - Excès de base (van Slyke simplifié) : voir `base_excess`.

@@ -4,7 +4,7 @@ les imprime en JSON ; ils sont reportés à la main dans le fichier de coefficie
 Coefficients calés (\vp{tests/anesthesia_modules/coefficients.json}, générateurs \vp{gen_agents.py} et \vp{gen_inhalants.py}) :
 \begin{itemize}
 \item halogénés : vasodilatation $\max(0{,}1;\,1 - c\,M^p)$ et émoussement du baroréflexe $1 - b\,M$ sur trois cibles de Bernard (1990) ;
-commande ventilatoire $\max(0;\,1 - a\,M^n)$ sur la PaCO$_2$ de 46,2 mmHg à 1 MAC (Steffey 1993) et l'apnée à l'indice publié (Galloway 2004) ;
+commande ventilatoire $\max(0;\,1 - a\,M^n)$ sur la PaCO$_2$ de 46,2 mmHg à 1 MAC (Steffey 1993 ; réajustée le 20/11/2026 après le recalage de la compensation au pH) et l'apnée à l'indice publié (Galloway 2004) ;
 \item dexmédétomidine : petite grille bornée (\vp{examples/anesthesia_timing.rs}) sur vasoconstriction plasmatique, sympatholyse et tonus vagal ;
 la bissection automatique (\vp{--dex}) explore des résistances extrêmes très coûteuses ;
 \item acépromazine : veinodilatation ; propofol : vasodilatation et émoussement du baroréflexe portés par la concentration plasmatique
@@ -17,13 +17,13 @@ Tous les bolus IV de la calibration sont injectés en \SI{30}{s} (\vp{iv_push_s}
 Sortie du banc sur les modules livrés (chien sain de \SI{20}{kg}) :
 \VerbatimInput[fontsize=\scriptsize,breaklines=true,breakanywhere=true]{anesthesie_calibration.txt}
 
-\paragraph{Écarts résiduels.} (moteur après la fusion du 19/11/2026 : chien sain de \SI{20}{kg} à PAM 103, FC 87, DC 3,29)
+\paragraph{Écarts résiduels.} (moteur du 20/11/2026, régime hémodynamique périodique à 22 battements : chien sain de \SI{20}{kg} à PAM 102,6, FC 87, DC 3,27)
 \begin{itemize}
 \item Halogénés à 2 MAC : PAM $-54$\,\% contre $-38$\,\%, FC +12 à +17\,\% contre +54\,\%, DC $-9$\,\% contre $-17$\,\% ; le moteur ne peut pas associer,
 avec un baroréflexe émoussé, une FC élevée et un débit en baisse ; le compromis retenu privilégie la PAM à 1,2 MAC et le débit à 2 MAC.
-\item Acépromazine : PAM $-12$\,\% contre $-17$\,\% (veinodilatation à la borne du balayage).
-\item Propofol après acépromazine et méthadone : FC +54\,\% contre +62\,\% (PAM $-33$\,\% contre $-31$\,\%).
+\item Acépromazine : PAM $-14$\,\% contre $-17$\,\% (veinodilatation à la borne du balayage).
+\item Propofol après acépromazine et méthadone : FC +53\,\% contre +62\,\% (PAM $-33$\,\% contre $-31$\,\%).
 \item Dexmédétomidine : le bloc AV du 2\textsuperscript{e} degré décrit par Karna (2022) n'émerge pas dans le scénario de calage.
-\item Kétamine-midazolam : FC +18\,\% contre +75\,\% ; le baroréflexe compense la stimulation sympathique (plafond du balayage).
+\item Kétamine-midazolam : FC +19\,\% contre +75\,\% ; le baroréflexe compense la stimulation sympathique (plafond du balayage).
 \item Méthadone 0,5 mg/kg : épargne de 30\,\% à 2,5 h contre 35\,\%.
 \end{itemize}

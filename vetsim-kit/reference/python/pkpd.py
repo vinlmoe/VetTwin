@@ -166,7 +166,7 @@ def apply_drug_effects(p, conc, D, U, conc_e=None):
         q['gi_inhib'] = min(1.0, max(0.0, q['gi_inhib'] + 0.9 * e))   # CMM inhibé (Sarna 1985)
         q['sedation'] += 0.2 * e               # sédation légère du vigile
         t = tox_effect(TOX['opioide'][0], conc['opioide'])
-        q['vent_drive'] *= 1 - 0.8 * t         # toxique : plateau de PaCO2 ≈ 65 mmHg, sans apnée (Bailey 1987)
+        q['vent_drive'] *= 1 - 0.9 * t         # toxique : plateau de PaCO2 ≈ 65 mmHg, sans apnée (Bailey 1987) ; 0,8 → 0,9 le 20/11/2026 (compensation au pH recalée)
     if 'atropine' in conc:
         e = effect('atropine', ce('atropine'))            # blocage au site d'effet (ke0)
         q['vagal_block'] = min(1.0, q['vagal_block'] + e)

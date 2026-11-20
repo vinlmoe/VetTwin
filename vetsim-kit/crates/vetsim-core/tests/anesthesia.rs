@@ -202,9 +202,11 @@ fn isoflurane_depresses_blood_pressure_and_ventilation_dose_dependently() {
     let mut s = session();
     anesthetized(&mut s, "isoflurane", 1.6);
     let light = run(&mut s, 1500.0, 30.0);
+    // palier profond ≈ 1,5 MAC cérébrale (3 % ne donnait que 1,15 MAC : avec la compensation au pH
+    // recalée le 20/11/2026, la PaCO2 n'y monte que de 2,8 mmHg, conforme à la courbe de Steffey)
     s.apply(Event::Vaporizer {
         agent: "isoflurane".into(),
-        pct: 3.0,
+        pct: 4.0,
     })
     .unwrap();
     let deep = run(&mut s, 1500.0, 30.0);
@@ -215,7 +217,18 @@ fn isoflurane_depresses_blood_pressure_and_ventilation_dose_dependently() {
         map(&deep),
         map(&light)
     );
-    assert!(deep.paco2 > light.paco2 + 3.0);
+    assert!(
+        deep.paco2 > light.paco2 + 3.0,
+        "PaCO2 {} / {} ; Fe {} / {} ; MAC cérébrale {} / {} ; FR {} / {}",
+        deep.paco2,
+        light.paco2,
+        deep.inhalants[0].fe,
+        light.inhalants[0].fe,
+        deep.inhalants[0].brain_mac,
+        light.inhalants[0].brain_mac,
+        deep.rr,
+        light.rr
+    );
     assert!(deep.depth.delta > light.depth.delta);
 }
 

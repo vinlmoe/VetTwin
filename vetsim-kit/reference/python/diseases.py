@@ -116,7 +116,8 @@ class Hypoadrenocorticism(Disease):
                 ('k', 'add', 3.4 * s * z()),
                 ('bvf', 'mul', 1 - 0.22 * s * z()),
                 ('r_sys', 'mul', 1 - 0.25 * s),
-                ('glucose', 'add', -2.0 * s * (rng.random() < 0.5))]
+                ('glucose', 'add', -2.0 * s * (rng.random() < 0.5)),
+                ('xa', 'add', 8.0 * s)]                   # acidose (Chalifoux 2023, Hall 2023)
         return Case(self.name, s, mods, dict(stage=st))
 
 
@@ -132,7 +133,11 @@ class Pneumonia(Disease):
         mods = [('aagrad', 'add', 70.0 * s ** 1.3 * z()),
                 ('vco2', 'mul', 1 + 0.10 * s),
                 ('vo2', 'mul', 1 + 0.10 * s),
-                ('lact0', 'add', 0.6 * s)]
+                ('lact0', 'add', 0.6 * s),
+                # hyperventilation, tachycardie, compensation chlorée (Viitanen 2017, Young 2022)
+                ('vent_drive', 'mul', 1 + 5.0 * s),
+                ('hr', 'mul', 1 + 0.7 * s),
+                ('cl', 'add', 5.0 * s)]
         return Case(self.name, s, mods, dict(stage=st))
 
 

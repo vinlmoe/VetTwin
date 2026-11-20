@@ -271,7 +271,7 @@
   "k_hp_block": 10.0,
   "hp_k_slope": 0.5,
   "junct_rate": 47.0,
-  "vent_escape_rate": 42.0,
+  "vent_escape_rate": 27.0,
   "esc_k_gain": 0.1,
   "esc_sup_gain": 1.8,
   "esc_sup_tau": 60.0,

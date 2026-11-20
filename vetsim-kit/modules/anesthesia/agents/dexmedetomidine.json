@@ -83,8 +83,8 @@
   },
   "mac_reduction": {
    "max": 0.8,
-   "ec50_mg_L": 0.00069,
-   "hill": 1.0
+   "ec50_mg_L": 0.003,
+   "hill": 1.27
   },
   "antinociception": {
    "max": 0.4,
@@ -92,7 +92,7 @@
    "hill": 1.0
   },
   "evidence": "C",
-  "source": "Clairance et Vss : Dent 2019 (résumé). Vc/Vp : partage placeholder D (Vc + Vp = Vss). IM : ka 5,96 h⁻¹ calculé sur le Tmax de 20,5 min (Aarnes 2023, résumé) avec t½ 36 min ; F = 1 placeholder D. ke0 placeholder D (pic de sédation 12 min après IV, Alves 2024). Épargne de MAC : Emax ajusté (max 0,8 imposé, D) sur Pascoe 2015 (−18 % et −58 %) en supposant les concentrations de Pascoe 2006 (0,198 et 1,903 ng/mL) aux mêmes débits : hypothèse à vérifier sur le texte intégral. Sédation : EC50 de l'ordre des concentrations au pic de sédation (Kuusela 2000 : 5,5 ng/mL à 10 µg/kg) ; plafond 0,5 placeholder D (dose de propofol 5,2 → 2,9 mg/kg après 5 µg/kg IM, Canfrán 2016). Antinociception : placeholder D."
+  "source": "Clairance et Vss : Dent 2019 (résumé). Vc/Vp : partage placeholder D (Vc + Vp = Vss). IM : ka 5,96 h⁻¹ calculé sur le Tmax de 20,5 min (Aarnes 2023, résumé) avec t½ 36 min ; F = 1 placeholder D. ke0 placeholder D (pic de sédation 12 min après IV, Alves 2024). Épargne de MAC (recalée le 20/11/2026) : EC50 3,0 ng/mL et pente 1,27 (max 0,8 imposé, D), ajustées sur les protocoles de Pascoe 2006 (charge puis CRI de 0,5 et 3 µg/kg/h : −18 % et −59 %, cité par Acevedo-Arcique 2014, lu) aux concentrations que produit la PK du modèle à ces débits (1,1 et 6,7 ng/mL à 60 min). Les concentrations mesurées par Pascoe (0,198 et 1,903 ng/mL, résumé) sont 3 à 6 fois plus basses que celles du modèle : la PK (Dent 2019) n'est pas cohérente avec elles, écart non résolu (docs/VALIDATION_HORS_CALIBRAGE.tex). Hors échantillon : 2 µg/kg + 2 µg/kg/h, −43,4 % (Acevedo-Arcique 2014, lu). Sédation : EC50 de l'ordre des concentrations au pic de sédation (Kuusela 2000 : 5,5 ng/mL à 10 µg/kg) ; plafond 0,5 placeholder D (dose de propofol 5,2 → 2,9 mg/kg après 5 µg/kg IM, Canfrán 2016). Antinociception : placeholder D."
  },
  "refs": [
   "Dent BT et al. 2019, Am J Vet Res, doi:10.2460/ajvr.80.10.969 (résumé)",

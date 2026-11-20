@@ -101,10 +101,22 @@ pub struct ArterialGas {
     pub aa: f64,
 }
 
+/// Gain de la commande ventilatoire à l'acidémie : `exp(0,05 − PH_GAIN·(pH − 7,38))`, pivot au pH du
+/// chien sain (PaCO2 40,2 inchangée). Calé le 20/11/2026 sur la compensation respiratoire canine des
+/// désordres métaboliques : ΔPaCO2 = 0,74 mmHg par mmol/L de HCO3− (Madias 1984, J Appl Physiol
+/// 56:1640, résumé ; 0,7 dans la table de DiBartola 2005, lue dans Mazzaferro & Ford 2012). Avant :
+/// `exp(−2,5(pH − 7,4))`, pente 0,41 (docs/VALIDATION_HORS_CALIBRAGE.tex).
+pub const PH_GAIN: f64 = 6.0;
+
+/// Facteur de la commande ventilatoire dû au pH artériel.
+pub fn ph_drive(ph: f64) -> f64 {
+    math::exp(0.05 - PH_GAIN * (ph - 7.38))
+}
+
 /// Échanges gazeux : contrôle ventilatoire (PaCO2), oxygénation (PaO2), Bohr.
 ///
 /// PaCO2 résout `PCO2 = 0,863·VCO2/VA` sur [5, 250] mmHg avec
-/// `VA = va0·bw·drive·max(0,12, 1 + 0,08(PCO2 − 37))·exp(−2,5(pH − 7,4))·(1 + 0,03·max(0, 70 − PaO2))`
+/// `VA = va0·bw·drive·max(0,12, 1 + 0,08(PCO2 − 37))·ph_drive(pH)·(1 + 0,03·max(0, 70 − PaO2))`
 /// (stimulation par l'hypercapnie, l'acidémie et l'hypoxémie). 3 itérations externes sur PaO2,
 /// en partant de 90 mmHg. `PAO2 = FiO2(Pb − 47) − PCO2/QR` ; le gradient A-a augmente avec la
 /// POG au-delà de 18 mmHg (œdème). `P50 = p50·10^(0,37(7,4 − pH))` (Bohr canin, Cambier 2004).
@@ -122,7 +134,7 @@ pub fn gas_exchange(p: &Params, la_mean: f64, lactate: f64) -> Result<ArterialGa
                 let va = va0
                     * p.vent_drive
                     * f64::max(0.12, 1.0 + 0.08 * (pco2 - 37.0))
-                    * math::exp(-2.5 * (ph - 7.4))
+                    * ph_drive(ph)
                     * (1.0 + 0.03 * f64::max(0.0, 70.0 - pao2));
                 pco2 - 0.863 * vco2 / va.max(1e-3)
             }
