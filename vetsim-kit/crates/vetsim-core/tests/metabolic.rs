@@ -103,7 +103,9 @@ fn golden_gas_and_chemistry_with_reference_hemodynamics() {
             la_mean: exp["la_mean"].as_f64().unwrap(),
             cvp: exp["cvp"].as_f64().unwrap_or(4.7),
         };
-        let pt = patient(&c, bw, &diseases);
+        let mut pt = patient(&c, bw, &diseases);
+        // le DFG dépend du tonus sympathique retenu par l'évaluation (axe cardio-rénal)
+        pt.params.sympathetic = exp["s_tone"].as_f64().unwrap();
         let m = metabolic_state(&pt.params, &h).unwrap();
         for (k, got) in m.to_flat() {
             let e = exp[k].as_f64().unwrap();
@@ -163,6 +165,7 @@ fn metabolic_state_matches_python_reference_strictly() {
             "{bw} kg {:?} {} {}",
             diseases, case["overrides"], case["hemo_profile"]
         );
+        pt.params.sympathetic = case["sympathetic"].as_f64().unwrap_or(0.0);
         let m = metabolic_state(&pt.params, &h).unwrap();
         let exp = &case["expected"];
         for (k, got) in m.to_flat() {

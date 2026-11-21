@@ -262,7 +262,7 @@ const EDGES = [['patient', 'volume', '85 mL/kg × bvf'], ['volume', 'systemic_ci
   ['autonomic', 'systemic_circulation', 'PAM ⇄ r_sys, recrutement', 1], ['autonomic', 'right_heart', 'inotropie'], ['autonomic', 'left_heart', 'inotropie, FC'],
   ['systemic_circulation', 'right_heart', 'retour veineux'], ['right_heart', 'valves', 'tricuspide, pulmonaire', 1], ['valves', 'left_heart', 'mitrale, aortique', 1],
   ['right_heart', 'pulmonary_circulation', 'débit pulmonaire', 0, -0.22], ['pulmonary_circulation', 'left_heart', 'remplissage (POG)'],
-  ['left_heart', 'systemic_circulation', 'éjection aortique', 0, 0.16], ['systemic_circulation', 'kidney', 'PAM, DC → perfusion'],
+  ['left_heart', 'systemic_circulation', 'éjection aortique', 0, 0.16], ['systemic_circulation', 'kidney', 'PAM, DC → perfusion'], ['autonomic', 'kidney', 'SNS, RAAS → DFG (cardio-rénal)', 0, 0.18], ['oxygen_transport', 'systemic_circulation', 'anémie → viscosité, RVS', 0, -0.18],
   ['systemic_circulation', 'metabolism', 'DC → DO₂'], ['oxygen_transport', 'metabolism', 'CaO₂'], ['metabolism', 'acid_base', 'lactate', 0, 0.25],
   ['acid_base', 'ventilation', 'pH ⇄ PaCO₂', 1], ['ventilation', 'oxygen_transport', 'PaO₂', 0, -0.25], ['acid_base', 'oxygen_transport', 'pH (Bohr)'],
   ['pulmonary_circulation', 'ventilation', 'POG → œdème (A-a)'], ['ventilation', 'autonomic', 'respiration → RSA', 0, 0.12], ['autonomic', 'ecg', 'instants R', 0, -0.08],

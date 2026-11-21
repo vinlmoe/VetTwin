@@ -48,7 +48,8 @@ d_t = clip(baro_gain·(map_set − MAP)/45, −1, 1)
 - `do2 = co·1000·CaO2/100`; `vo2 = vo2_kg·bw`; `er = vo2/do2`.
 - `lactate = lact0 + 9/(1 + exp(−(er − 0.55)/0.06))`.
 - Perfusion rénale : `perf = max(0.25, min(clip((MAP−40)/35, 0, 1), clip((co/co_ref − 0.5)/0.5, 0, 1)))`, `co_ref = 3.29·(bw/20)^0.75` L/min.
-- `gfr_ratio = max(0.03, nephron_mass·perf)`; `creat = creat0/gfr_ratio`; `urea = urea0/gfr_ratio^0.8`; `gfr = gfr0·bw·gfr_ratio`; `hct = 3·hb`.
+- Axe cardio-rénal (20/11/2026) : `f_cong = max(0,3 ; 1 − renal_k_cong·max(0, PVC − renal_cvp_ref))`, `f_symp = max(0,3 ; 1 − renal_k_symp·max(0, s − renal_s_ref))` ; anémie : `r_sys ×= (hb/hb_ref)^anemia_visc` dans la boucle de décompensation.
+- `gfr_ratio = max(0.03, nephron_mass·perf·f_cong·f_symp)`; `creat = creat0/gfr_ratio`; `urea = urea0/gfr_ratio^0.8`; `gfr = gfr0·bw·gfr_ratio`; `hct = 3·hb`.
 
 ## 5. Gaz du sang et acide-base (`gas_exchange`, `stewart_ph`)
 - Stewart : `SID = Na + K − Cl − lactate − xa`; équilibre de charges résolu en pH (brentq sur [5.5, 10.5]) :

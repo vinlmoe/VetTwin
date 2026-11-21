@@ -382,6 +382,44 @@ Correction : coefficient de perte de 0,00585 à 0,0030. Résultats : $-4{,}6$\,\
 
 \textbf{Gaz du sang et FC sous traitement.} Avant/après traitement de l'œdème cardiogénique, aucune PaO$_2$ ou SpO$_2$ chiffrée n'a été trouvée. Le modèle à 20 kg en MMVD 1,0 passe de 25 à 71 mmHg sous furosémide 4 mg/kg q8h + pimobendane. La FC publiée en ICC traitée (132–144/min, Giorgi, TEST, Yin 2026, lus) est comparable à celle du modèle (133–160).
 
+\subsection{Axe cardio-rénal}
+\textbf{Constat.} Les deux organes ne communiquaient presque pas.
+\begin{itemize}
+\item Le DFG ne dépendait que de la PAM (en dessous de 75 mmHg) et du débit. En MMVD terminale, malgré une PVC de 10,6 mmHg et un tonus sympathique triplé, le DFG restait à 3,50 mL/min/kg.
+\item En MRC, le cœur ignorait l'anémie : à Ht 29\,\%, FC, PAM et débit étaient ceux du chien sain.
+\item En mode déterministe, la PAM de la MRC baissait au lieu de monter.
+\end{itemize}
+
+\textbf{Littérature} (lue sauf mention) :
+\begin{itemize}
+\item DFG en classe NYHA III–IV : 1,7 contre 3,1 mL/min/kg en classe I–II (Nicolle 2007, résumé).
+\item Chiens B2 non traités : DFG 2,8 mL/min/kg (Kaplan 2022).
+\item Créatinine 1,5 chez les chiens traités contre 1,0 mg/dL chez les non-traités ; 32\,\% contre 1\,\% de MRC (Martinelli 2016).
+\item Créatinine en stade C : $+47$\,\% par rapport au stade B2 (Adin 2020).
+\item Pression veineuse rénale portée à 15 puis 30 mmHg : DFG et débit rénal inchangés (Fiksen-Olsen 1991–1992, résumés).
+\item Hémodilution : débit cardiaque $+63$ à $+65$\,\% à Ht 20\,\% (Rooney 1993, résumé) ; à Hb 5 g/dL, IC $+53$\,\%, RVS $-53$\,\%, PAM $-26$\,\% (Champion 2011).
+\item Pression systolique en MRC : 157 et 154 mmHg en IRIS II et III, contre 129 chez le sain (Pelander 2017) ; 156 contre 138 (Sharkey 2009, résumé).
+\end{itemize}
+
+\textbf{Mécanismes ajoutés} (Rust, miroir Python ; liens dans le schéma de l'application web) :
+\begin{itemize}
+\item \textbf{Cœur $\to$ rein, voie neurohormonale.} DFG $\times\max(0{,}3;\ 1 - 1{,}4\,(s - 0{,}2))$, avec $s$ le tonus sympathique (substitut du SNS et du RAAS). Résultats sans diurétique : MMVD 0,5 : 3,23 mL/min/kg ; MMVD 0,8 : créatinine $+23$\,\% ; MMVD 1,0 : DFG 1,43. Avec le furosémide ($\approx +21$\,\%), on retrouve le $+47$\,\% d'Adin en stade C.
+\item \textbf{Cœur $\to$ rein, congestion veineuse.} Le terme existe (\vp{renal_k_cong}) mais reste à 0 : la littérature canine ne montre aucun effet jusqu'à 30 mmHg.
+\item \textbf{Rein $\to$ cœur, anémie.} RVS $\times(\mathrm{Hb}/15)^{1{,}0}$, car la viscosité baisse. Résultats : Ht 20\,\% $\to$ DC $+56$\,\% ; Ht 15\,\% $\to$ DC $+77$\,\%, RVS $-59$\,\%, PAM $-24$\,\%. Écart : la hausse du débit passe surtout par la FC ($+69$\,\%, contre $+24$\,\% chez Champion).
+\item \textbf{Rein $\to$ cœur, hypertension rénale.} Consigne du baroréflexe $+30\cdot s$ mmHg (MRC 1.2.0). Une simple hausse des RVS était annulée par le baroréflexe. Résultats : PAM 111 et 114 mmHg aux sévérités 0,5 et 0,8 ; PAS $+9$ à $+13$ mmHg. Encore sous Pelander ($+25$ mmHg). L'hypertension sévère aléatoire du module est conservée.
+\end{itemize}
+
+\textbf{Recalage de la MRC.} Le tonus sympathique monte désormais en MRC (anémie, hypertension), ce qui abaisse le DFG. Le coefficient néphronique passe de 2,4 à 2,0 pour garder les créatininémies par stade : 118, 243, 539 et 991 µmol/L aux sévérités 0,2, 0,5, 0,8 et 1,0, contre 121, 249, 512 et 828 avant. Seul le stade terminal monte.
+
+\textbf{Effet de bord.} La crise addisonienne, avec hypovolémie et sympathique élevé, voit sa créatinine passer de 116 à 265 µmol/L (sévérité 0,8). Les publications donnent des médianes de 1,4 à 1,7 mg/dL, soit 124 à 150 µmol/L, avec 75\,\% d'azotémie (Hall 2023, Chalifoux 2023). Le modèle est donc plutôt haut : \textbf{à surveiller}.
+
+\textbf{Non modélisé.}
+\begin{itemize}
+\item Expansion du volume plasmatique en IRIS III (Pelander : facteur 63,7 $\to$ 139,9 mL/kg, mesure à confirmer).
+\item Hypertrophie ventriculaire gauche.
+\item Troponine et NT-proBNP.
+\end{itemize}
+
 \section{Effet sur les références du projet}
 \begin{itemize}
 \item \textbf{Golden} (\vp{tests/golden/cases.json}), régénéré depuis le Python corrigé (\vp{make_golden.py}). 121 valeurs sur 1782 sortent de la tolérance de l'ancien golden : pneumonie (62), Addison (28), BAV 0,8 (21), MRC 0,8 (2, PaCO$_2$), et 8 cas où seule \vp{lv_edp} ou \vp{la_mean} bouge (MMVD 0,5 et 0,8, pimobendane, bêtabloquant, furosémide, chiens de 5 et 40 kg), sensibles au régime périodique. Rust contre nouveau golden : 1862/1862 valeurs conformes.

@@ -49,7 +49,9 @@ for bw, combo, over in PATIENTS:
         physio._hemo_with_rhythm = lambda q, v_eff, n_beats=22, h=hemo: (dict(h, hr_v=q['hr']), None, q['g_mr'])   # tout rythme : hémodynamique imposée (orifice inchangé)
         entry = dict(bw=float(bw), diseases=[[n, s] for n, s in combo], overrides=over, hemo_profile=label, hemo=hemo)
         try:
-            entry["expected"] = flat(physio._evaluate_once(dict(p0)))   # une passe, sans couplage de décompensation
+            r = physio._evaluate_once(dict(p0))   # une passe, sans couplage de décompensation
+            entry["expected"] = flat(r)
+            entry["sympathetic"] = r['p']['sympathetic']   # tonus retenu par le baroréflexe (axe cardio-rénal)
         except Exception as exc:
             entry['error'] = f'{type(exc).__name__}: {exc}'
         out['cases'].append(entry)

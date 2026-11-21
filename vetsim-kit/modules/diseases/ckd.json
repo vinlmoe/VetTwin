@@ -5,14 +5,14 @@
  ],
  "license": "CC-BY-4.0",
  "id": "ckd",
- "version": "1.0.0",
+ "version": "1.2.0",
  "name": {
   "fr": "Maladie rénale chronique (IRIS 1-4)",
   "en": "Chronic kidney disease (IRIS 1-4)"
  },
  "evidence": "B",
  "description": {
-  "fr": "Perte de néphrons exponentielle avec la sévérité (calée sur les bornes de créatininémie IRIS), acidose (xa), hyperphosphatémie, anémie, hypoalbuminémie, hyperkaliémie tardive, hypertension possible."
+  "fr": "Perte de néphrons exponentielle avec la sévérité (calée sur les bornes de créatininémie IRIS), acidose (xa), hyperphosphatémie, anémie, hypoalbuminémie, hyperkaliémie tardive, hypertension possible. Hypertension rénale (consigne du baroréflexe relevée de 30·s mmHg : PAS 154–157 en IRIS II–III contre 129, Pelander 2017 ; 156 contre 138, Sharkey 2009) ; coefficient néphronique recalé (2,4 → 2,0) avec l'axe cardio-rénal, mêmes créatininémies par stade (20/11/2026)."
  },
  "severity": {
   "stages": {
@@ -86,7 +86,7 @@
      {
       "exp": {
        "mul": [
-        -2.4,
+        -2.0,
         "s",
         "z_neph"
        ]
@@ -189,6 +189,16 @@
    }
   },
   {
+   "param": "map_set",
+   "op": "add",
+   "expr": {
+    "mul": [
+     30.0,
+     "s"
+    ]
+   }
+  },
+  {
    "param": "r_sys",
    "op": "mul",
    "expr": {
@@ -256,7 +266,9 @@
   }
  ],
  "refs": [
-  "IRIS staging of CKD in dogs and cats"
+  "IRIS staging of CKD in dogs and cats",
+  "Pelander L et al. 2017, J Vet Intern Med (PMC5435054, lu)",
+  "Sharkey LC et al. 2009, JAVMA 234:767 (résumé)"
  ],
  "presentation": {
   "difficulty": 1,

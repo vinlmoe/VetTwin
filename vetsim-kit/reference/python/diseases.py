@@ -90,12 +90,13 @@ class CKD(Disease):
         s, st = self.draw_severity(rng, severity, stage)
         z = lambda: _lnz(rng)
         hyper = rng.random() < (0.2 + 0.6 * s)
-        mods = [('nephron_mass', 'mul', max(0.05, float(np.exp(-2.4 * s * z())))),      # calé sur les bornes de créatininémie IRIS
+        mods = [('nephron_mass', 'mul', max(0.05, float(np.exp(-2.0 * s * z())))),      # calé sur les bornes de créatininémie IRIS (2,4 → 2,0 le 20/11/2026 : axe cardio-rénal)
                 ('xa', 'add', 6.0 * s ** 2 * z()),
                 ('phos', 'add', 1.6 * s ** 2 * z()),
                 ('hb', 'mul', 1 - 0.35 * s ** 1.5 * z()),
                 ('alb', 'mul', 1 - 0.10 * s),
-                ('k', 'add', 2.0 * max(0.0, (s - 0.85) / 0.15))]
+                ('k', 'add', 2.0 * max(0.0, (s - 0.85) / 0.15)),
+                ('map_set', 'add', 30.0 * s)]                   # hypertension rénale : consigne du baroréflexe relevée (Pelander 2017, Sharkey 2009)
         if hyper:
             mods.append(('r_sys', 'mul', 1 + 0.30 * s * z()))
         return Case(self.name, s, mods, dict(stage=st, hypertension=bool(hyper)))
