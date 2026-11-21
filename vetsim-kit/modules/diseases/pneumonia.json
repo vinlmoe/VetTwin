@@ -5,14 +5,14 @@
  ],
  "license": "CC-BY-4.0",
  "id": "pneumonia",
- "version": "1.1.0",
+ "version": "1.2.0",
  "name": {
   "fr": "Pneumonie",
   "en": "Pneumonia"
  },
  "evidence": "C",
  "description": {
-  "fr": "Altération des échanges (gradient alvéolo-artériel), léger hypermétabolisme, hyperventilation non hypoxique (récepteurs pulmonaires, inflammation) avec compensation rénale chlorée de l'alcalose respiratoire, tachycardie. Calée le 20/11/2026 sur Viitanen 2017 et Young 2022 (docs/VALIDATION_HORS_CALIBRAGE.tex)."
+  "fr": "Altération des échanges (gradient alvéolo-artériel), léger hypermétabolisme, hyperventilation non hypoxique (récepteurs pulmonaires, inflammation) avec compensation rénale chlorée de l'alcalose respiratoire, tachycardie. Calée le 20/11/2026 sur Viitanen 2017 et Young 2022 (docs/VALIDATION_HORS_CALIBRAGE.tex). Respiration rapide et superficielle : FR ×(1 + 1,1s) à ventilation alvéolaire donnée (FR 43/min à A-a 31, Viitanen 2017 ; 41–50, Young 2022 ; 21/11/2026)."
  },
  "severity": {
   "stages": {
@@ -135,6 +135,21 @@
     "mul": [
      5.0,
      "s"
+    ]
+   }
+  },
+  {
+   "param": "rr_mult",
+   "op": "mul",
+   "expr": {
+    "add": [
+     1,
+     {
+      "mul": [
+       1.1,
+       "s"
+      ]
+     }
     ]
    }
   }

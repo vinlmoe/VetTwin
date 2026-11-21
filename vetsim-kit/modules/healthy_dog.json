@@ -246,6 +246,7 @@
   "renal_k_symp": 1.4,
   "hb_ref": 15.0,
   "anemia_visc": 1.0,
+  "rr_mult": 1.0,
   "k_weak": 2.5,
   "k_weak_vent": 0.4,
   "cpp_min": 40.0,

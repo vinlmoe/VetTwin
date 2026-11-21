@@ -162,6 +162,7 @@ pub fn blocks_of(name: &str) -> &'static [Block] {
             &[Kidney, SystemicCirculation, Autonomic]
         }
         "hb_ref" | "anemia_visc" => &[OxygenTransport, SystemicCirculation],
+        "rr_mult" => &[Ventilation],
         "hypox_pao2" | "hypox_pao2_sat" | "hypox_n" | "hypox_symp" | "hypox_inotropy"
         | "hypox_vaso" => &[
             OxygenTransport,

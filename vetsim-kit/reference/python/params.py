@@ -64,6 +64,7 @@ def healthy_params(bw=20.0):
         renal_k_symp=1.4,            # perte relative de DFG par unité de tonus sympathique au-delà (Martinelli 2016, Adin 2020, Kaplan 2022, Nicolle 2007)
         hb_ref=15.0,                 # Hb de référence de la viscosité (g/dL)
         anemia_visc=1.0,             # exposant de viscosité : r_sys × (hb/hb_ref)^anemia_visc (Rooney 1993, Champion 2011)
+        rr_mult=1.0,                 # multiplicateur de FR (respiration rapide et superficielle)
         k_weak=2.5,                  # K+ (mmol/L) sous lequel les muscles respiratoires faiblissent
         k_weak_vent=0.4,             # perte relative de commande ventilatoire par mmol/L sous k_weak
         cpp_min=40.0,                # pression de perfusion coronaire PAD − PTDVG (mmHg) sous laquelle le myocarde s'ischémie

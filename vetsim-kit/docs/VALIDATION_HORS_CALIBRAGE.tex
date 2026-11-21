@@ -54,7 +54,7 @@ Hypothermie à 60/120/180 min & $-$1,4/$-$2,7/$-$4 °C & $-$2,0/$-$2,6/$-$2,8 & 
 Épargne de MAC, dex 0,5 et 3 µg/kg/h & 50 et 73 \% & 18 et 59 \% & 18 et 59 \% (Pascoe 2006, secondaire) & \corr\\
 Dex 2 µg/kg/h (hors échantillon) & 69 \% & 50 \% & 43,4 \% (Acevedo-Arcique, lu) & \corr\\
 Plateau de PaCO$_2$, opioïde massif & 57 (après la pente) & 65,5 & $\le$ 67 (Bailey 1987, résumé) & \corr\\
-Hémorragie (vigile et sous iso) & PAM trop basse & inchangé & PAM tenue jusqu'à 19 mL/kg (Thrasher, résumé) & \nc\\
+Hémorragie, vigile : PAM à 17 / 30 mL/kg & $-22$ / $-55$ mmHg & $-10$ / $-23$ & $-15$ (Shen) / $-35 \pm 10$ (Thrasher), résumés & \corr\\
 FC selon le poids (5 / 55 kg) & 124 / 68 & inchangé & écart 10,5 /min (Hezzell, résumé) & \nc\\
 Réveil après iso 1,54 MAC, 2 h & extubation 44 min & 39 min & station debout 26 (Lopez, résumé) & \nc\\
 FR en pneumonie & 24 & 28 & 41–61 (Young, Viitanen, lus) & \nc\\
@@ -418,6 +418,70 @@ Correction : coefficient de perte de 0,00585 à 0,0030. Résultats : $-4{,}6$\,\
 \item Expansion du volume plasmatique en IRIS III (Pelander : facteur 63,7 $\to$ 139,9 mL/kg, mesure à confirmer).
 \item Hypertrophie ventriculaire gauche.
 \item Troponine et NT-proBNP.
+\end{itemize}
+
+\section{Compléments du 21/11/2026}
+\subsection{Seuil d'œdème pulmonaire}
+Le gradient A-a s'ouvrait au-delà d'une POG de 18 mmHg, valeur écrite en dur dans \vp{gas.rs}. Les sources situent l'œdème au-delà d'environ 24 mmHg chez le chien (Guyton \& Lindsey 1959, cité par Yao \& Aoki 2025, citation secondaire lue ; écart déjà signalé dans \vp{VERIFICATION_LITTERATURE.md}).
+
+\textbf{Correction} : seuil à 24 mmHg, constante unique \vp{engine::LA_EDEMA} (miroir Python).
+
+\textbf{Résultats en MMVD} :
+\begin{itemize}
+\item sévérité 0,9 : POG 26,5 mmHg, PaO$_2$ 89 mmHg ;
+\item sévérité 1,0 : POG 38,1 mmHg, PaO$_2$ 46 mmHg, contre 25 avant.
+\end{itemize}
+
+\subsection{Fréquence respiratoire en pneumonie}
+\textbf{Constat} : la FR du moteur, $20\sqrt{V_A/V_{A0}}$, ne montait qu'à 28/min.
+
+\textbf{Correction} :
+\begin{itemize}
+\item multiplicateur \vp{rr_mult}, qui représente la respiration rapide et superficielle ;
+\item dans la pneumonie 1.2.0, $\times(1 + 1{,}1\,s)$.
+\end{itemize}
+
+\textbf{Résultats} : 42/min à $s$ = 0,53 (Viitanen : 43) et 49/min à $s$ = 0,72 (Young : 41–50). La PaCO$_2$ ne change pas.
+
+\subsection{Créatinine de la crise addisonienne}
+La hausse de créatinine apportée par l'axe cardio-rénal (section précédente) ne demande pas de correction.
+\begin{itemize}
+\item À sévérité 0,5 (forme modérée), la créatinine vaut 132 µmol/L, dans les médianes publiées : 1,4 à 1,7 mg/dL, soit 124 à 150 µmol/L (Hall 2023, lu).
+\item Seules les crises extrêmes montent plus haut : 265 µmol/L à 0,8 et 495 à 1,0.
+\end{itemize}
+
+\subsection{Hémorragie : compensations ajoutées}
+La session d'anesthésie ne compensait une hémorragie que par le baroréflexe : la PAM chutait dès les premiers mL/kg (section 4). Trois mécanismes sont ajoutés (\vp{anesthesia_model.json} 1.8.0).
+\begin{itemize}
+\item \textbf{Remplissage transcapillaire} vers 60\,\% du volume perdu, avec $\tau$ = 2,9 h. Ces deux valeurs reproduisent 30\,\% à 2 h (Joles 1989) et 56\,\% à 8 h (Miller \& Dale 1978).
+\item \textbf{Contraction splénique} : jusqu'à 6,8 mL/kg (8\,\% du volume sanguin, Guntheroth \& Mullins 1963), commandée par le tonus sympathique. Le sang splénique est concentré, ce qui fait monter l'hématocrite.
+\item \textbf{Vasopressine et angiotensine II} : RVS $\times(1 + 0{,}6\,x^4/(x^4 + 0{,}25^4))$, avec $x$ la fraction du volume perdue. La mi-hauteur suit la flambée de vasopressine entre 20 et 30 mL/kg (Wang 1988).
+\end{itemize}
+
+Résultats chez le chien conscient (retraits de 5\,\% toutes les 5 min) :
+\begin{itemize}
+\item 17 mL/kg : PAM $-10$ mmHg, contre $-22$ avant (Shen 1990 : $-15 \pm 3$ à 20 mL/kg) ;
+\item 25\,\% : DC $-41$\,\% (Francis 2004 : $-40$\,\%) ;
+\item 30 mL/kg : PAM $-23$ mmHg (Thrasher 1998 : $-35 \pm 10$).
+\end{itemize}
+
+Sous isoflurane 1,3 MAC, à 20\,\% : $-28$\,\% (Seo 2025 : $-24$\,\%).
+
+Sources : résumés, sauf Seo (lu).
+
+\textbf{Reste} :
+\begin{itemize}
+\item sous isoflurane, le décès survient vers 30 mL/kg, alors que les chiens de Cardillo 2024 tolèrent 40 $\pm$ 12 mL/kg ;
+\item il manque la phase sympatho-inhibitrice (bradycardie vers 30\,\%).
+\end{itemize}
+Test : \vp{hemorrhage_matches_literature}, avec un contrôle d'échec sans les trois compensations.
+
+\subsection{Banc de validation dans la CI}
+\vp{crates/vetsim-core/tests/litterature.rs} reprend les comparaisons de ce rapport sous forme de tests (\vp{cargo test}). Une régression du modèle fait donc échouer la CI.
+\begin{itemize}
+\item \textbf{21 vérifications stationnaires} et un test d'hémorragie, chacune avec sa fourchette publiée et sa source : chien sain, pente de compensation, MRC, pneumonie, Addison, BAV, FA, axe cardio-rénal, œdème, hypoxémie, anémie, cohérence du cycle.
+\item \textbf{Un scénario d'anesthésie} : PaO$_2$ sous O$_2$ et délai de l'arrêt en asphyxie.
+\item \textbf{Trois contrôles d'échec}. Sans l'axe cardio-rénal, sans la viscosité de l'anémie ou sans la réponse à l'hypoxémie, la vérification correspondante doit échouer, et elle échoue.
 \end{itemize}
 
 \section{Effet sur les références du projet}

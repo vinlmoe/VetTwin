@@ -176,7 +176,7 @@ conscience est partielle et $\nu > 0{,}4$.
 \dot V_f = \text{débit} - V_f/\tau_{crist},
 \]
 $a = \mathrm{clip}(L/\vp{loc_mac}, 0, 1)$, $v = \mathrm{clip}\bigl((T - T_{vc})/(T_0 - T_{vc}), 0, 1\bigr)$ : l'excès de pertes s'éteint à l'approche de $T_{vc}$ = \vp{vasoconstriction_c} (vasoconstriction thermorégulatrice, plateau de Redondo 2012) ; $g$ = 3,5 et réchauffement 3,5 °C/h (recalés le 20/11/2026). Hypotension : le moteur stationnaire conclut au choc irréversible sous \vp{map_arrest} ; la session ne retient le décès qu'après \vp{shock_tol_min} (60 min) cumulées sous ce seuil. Le volume intravasculaire de cristalloïde s'ajoute à \vp{vol_shift}, les pertes sanguines
-s'en retranchent ; $hb \leftarrow hb\cdot(VS - pertes)/(VS - pertes + V_f)$. VO$_2$ et VCO$_2$ suivent un Q$_{10}$ de 2 (effet JSON de $DT$).
+s'en retranchent (compensées par un remplissage transcapillaire vers 60\,\% de la perte, $\tau$ 2,9 h, une contraction splénique commandée par le sympathique, 6,8 mL/kg, et une vasoconstriction vasopressine--angiotensine qui monte au-delà de 25\,\% de perte ; 21/11/2026) ; $hb \leftarrow hb\cdot(VS - pertes)/(VS - pertes + V_f)$. VO$_2$ et VCO$_2$ suivent un Q$_{10}$ de 2 (effet JSON de $DT$).
 
 \section{Modules et schémas}
 \begin{tabularx}{\linewidth}{P{5.2cm}P{3.6cm}L}

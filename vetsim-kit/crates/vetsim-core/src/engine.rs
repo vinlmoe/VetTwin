@@ -530,8 +530,10 @@ pub const DECOMP_TOL: f64 = 1e-3;
 pub const F_FLOOR: f64 = 0.1;
 /// Extraction d'O2 au point d'inflexion du lactate.
 pub const ER_ANAEROBIC: f64 = 0.55;
-/// POG au-delà de laquelle le gradient A-a s'ouvre.
-pub const LA_EDEMA: f64 = 18.0;
+/// POG au-delà de laquelle le gradient A-a s'ouvre (œdème pulmonaire). 24 mmHg depuis le
+/// 21/11/2026 (18 avant) : œdème au-delà d'environ 24 mmHg chez le chien (Guyton & Lindsey 1959,
+/// cité par Yao & Aoki 2025) ; voir docs/VALIDATION_HORS_CALIBRAGE.tex.
+pub const LA_EDEMA: f64 = 24.0;
 /// PAM sous laquelle la perfusion rénale baisse (40 + 35).
 pub const MAP_RENAL: f64 = 75.0;
 

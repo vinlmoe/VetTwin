@@ -69,6 +69,15 @@
     "awareness_hill",
     "atelectasis_aa_mmhg",
     "vasoconstriction_c",
+    "refill_frac",
+    "refill_tau_h",
+    "spleen_ml_kg",
+    "spleen_tau_min",
+    "spleen_s_span",
+    "spleen_hct_ratio",
+    "pressor_gain",
+    "pressor_lost_frac",
+    "pressor_hill",
     "o2_debt_tau_min",
     "do2_crit_ml_kg_min",
     "blood_o2_store_frac"
@@ -1186,6 +1195,276 @@
      ]
     },
     "vasoconstriction_c": {
+     "oneOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "object",
+       "required": [
+        "value",
+        "evidence"
+       ],
+       "properties": {
+        "value": {
+         "type": "number"
+        },
+        "evidence": {
+         "enum": [
+          "A",
+          "B",
+          "C",
+          "D"
+         ]
+        },
+        "source": {
+         "type": "string"
+        }
+       }
+      }
+     ]
+    },
+    "refill_frac": {
+     "oneOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "object",
+       "required": [
+        "value",
+        "evidence"
+       ],
+       "properties": {
+        "value": {
+         "type": "number"
+        },
+        "evidence": {
+         "enum": [
+          "A",
+          "B",
+          "C",
+          "D"
+         ]
+        },
+        "source": {
+         "type": "string"
+        }
+       }
+      }
+     ]
+    },
+    "refill_tau_h": {
+     "oneOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "object",
+       "required": [
+        "value",
+        "evidence"
+       ],
+       "properties": {
+        "value": {
+         "type": "number"
+        },
+        "evidence": {
+         "enum": [
+          "A",
+          "B",
+          "C",
+          "D"
+         ]
+        },
+        "source": {
+         "type": "string"
+        }
+       }
+      }
+     ]
+    },
+    "spleen_ml_kg": {
+     "oneOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "object",
+       "required": [
+        "value",
+        "evidence"
+       ],
+       "properties": {
+        "value": {
+         "type": "number"
+        },
+        "evidence": {
+         "enum": [
+          "A",
+          "B",
+          "C",
+          "D"
+         ]
+        },
+        "source": {
+         "type": "string"
+        }
+       }
+      }
+     ]
+    },
+    "spleen_tau_min": {
+     "oneOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "object",
+       "required": [
+        "value",
+        "evidence"
+       ],
+       "properties": {
+        "value": {
+         "type": "number"
+        },
+        "evidence": {
+         "enum": [
+          "A",
+          "B",
+          "C",
+          "D"
+         ]
+        },
+        "source": {
+         "type": "string"
+        }
+       }
+      }
+     ]
+    },
+    "spleen_s_span": {
+     "oneOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "object",
+       "required": [
+        "value",
+        "evidence"
+       ],
+       "properties": {
+        "value": {
+         "type": "number"
+        },
+        "evidence": {
+         "enum": [
+          "A",
+          "B",
+          "C",
+          "D"
+         ]
+        },
+        "source": {
+         "type": "string"
+        }
+       }
+      }
+     ]
+    },
+    "spleen_hct_ratio": {
+     "oneOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "object",
+       "required": [
+        "value",
+        "evidence"
+       ],
+       "properties": {
+        "value": {
+         "type": "number"
+        },
+        "evidence": {
+         "enum": [
+          "A",
+          "B",
+          "C",
+          "D"
+         ]
+        },
+        "source": {
+         "type": "string"
+        }
+       }
+      }
+     ]
+    },
+    "pressor_gain": {
+     "oneOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "object",
+       "required": [
+        "value",
+        "evidence"
+       ],
+       "properties": {
+        "value": {
+         "type": "number"
+        },
+        "evidence": {
+         "enum": [
+          "A",
+          "B",
+          "C",
+          "D"
+         ]
+        },
+        "source": {
+         "type": "string"
+        }
+       }
+      }
+     ]
+    },
+    "pressor_lost_frac": {
+     "oneOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "object",
+       "required": [
+        "value",
+        "evidence"
+       ],
+       "properties": {
+        "value": {
+         "type": "number"
+        },
+        "evidence": {
+         "enum": [
+          "A",
+          "B",
+          "C",
+          "D"
+         ]
+        },
+        "source": {
+         "type": "string"
+        }
+       }
+      }
+     ]
+    },
+    "pressor_hill": {
      "oneOf": [
       {
        "type": "number"

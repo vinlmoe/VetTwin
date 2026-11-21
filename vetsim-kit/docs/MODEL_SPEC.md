@@ -57,7 +57,7 @@ d_t = clip(baro_gain·(map_set − MAP)/45, −1, 1)
   `A_alb = alb_gL·(0.28 + 0.469/(1 + 10^(7.77−pH)))` (canin, Constable & Stämpfli 2005), `A_phos = phos·(0.309·pH − 0.469)` (coefficient humain).
 - Ventilation : résoudre en PCO2 (brentq sur [5, 250]) `PCO2 = 0.863·VCO2/VA` avec
   `VA = va0·bw·vent_drive·max(0.12, 1 + 0.08 (PCO2−37))·exp(0.05 − 6.0 (pH−7.38))·(1 + 0.03·max(0, 70 − PaO2))` (gain au pH recalé le 20/11/2026 : compensation 0,74 mmHg/(mmol/L), Madias 1984) ; 3 itérations externes sur PaO2.
-- Oxygénation : `PAO2 = fio2·(pb−47) − PCO2/rq`; gradient `aa = aagrad + edema_k·max(0, la_mean − 18)`; `PaO2 = max(15, PAO2 − aa)`.
+- Oxygénation : `PAO2 = fio2·(pb−47) − PCO2/rq`; gradient `aa = aagrad + edema_k·max(0, la_mean − LA_EDEMA)` avec `LA_EDEMA` = 24 mmHg (18 avant le 21/11/2026, Guyton & Lindsey 1959); `PaO2 = max(15, PAO2 − aa)`.
 - Hémoglobine : Hill `S = P^n/(P^n + P50^n)`, `P50 = p50·10^(0.37 (7.4 − pH))` (Bohr canin), `CaO2 = 1.34·hb·S + 0.003·PO2`.
 - Excès de base (van Slyke simplifié) : voir `base_excess`.
 - Sang veineux mêlé : `CvO2 = CaO2 − vo2/(co·10)` ; `PvO2` par inversion de la courbe ; `PvCO2 = PaCO2 + 5.5·(125·bw/1000)/max(co, 0.2)` ; pH veineux par Stewart avec `PvCO2`.
