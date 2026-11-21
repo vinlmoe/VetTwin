@@ -486,28 +486,33 @@ Test : \vp{hemorrhage_matches_literature}, avec un contrôle d'échec sans les t
 \end{itemize}
 
 \section{Rein dynamique (21/11/2026)}
-Le rein était stationnaire : DFG en produit de facteurs, créatinine et urée à l'équilibre, sodium, eau et potassium sans bilan. Le module \vp{crates/vetsim-core/src/renal.rs}, avec ses constantes dans \vp{modules/renal/renal_model.json} (1.0.0), ajoute :
+Le rein était stationnaire : DFG en produit de facteurs, créatinine et urée à l'équilibre, sodium, eau et potassium sans bilan. Le module \vp{crates/vetsim-core/src/renal.rs}, avec ses constantes dans \vp{modules/renal/renal_model.json} (1.2.0), ajoute :
 \begin{itemize}
 \item le bilan du sodium, donc la variation du volume extracellulaire ($V$), iso-osmotique ; le plasma en reçoit la part $V_p/\mathrm{VEC}$ (hémo- et protéinoconcentration) ;
 \item le bilan du potassium en deux compartiments, extracellulaire et intracellulaire ;
-\item un indice d'activité du système rénine-angiotensine-aldostérone ($A$) ;
+\item l'aldostérone en deux composantes, portée par la rénine ($A$) et par la kaliémie ($A_K$) ;
 \item la cinétique de la créatinine et de l'urée.
 \end{itemize}
-Il ne sert que dans les évolutions temporelles, via le message \vp{renal_course} de l'API. L'état stationnaire (\vp{eval}, golden) est son point fixe, parce que les apports de Na et de K valent l'excrétion du patient de départ. Le test \vp{renal_fixed_point_is_the_steady_state} le vérifie.
+Il ne sert que dans les évolutions temporelles, via le message \vp{renal_course} de l'API. L'état stationnaire (\vp{eval}, golden) est son point fixe : les apports de Na et de K (ceux d'un chien sain de même poids) valent l'excrétion du patient de départ, dont les FE de base s'adaptent. Le test \vp{renal_fixed_point_is_the_steady_state} le vérifie.
 
 Équations ($b$ : état de départ, $E$ : effet du diurétique de l'anse issu de sa pharmacodynamie) :
 \[
-\mathrm{FE_{Na}} = \bigl(\mathrm{FE_{Na,0}} + f_\mathrm{anse}E\bigr)\,A^{-a_\mathrm{Na}}\Bigl(\tfrac{\mathrm{PAM}}{\mathrm{PAM}_b}\Bigr)^{n_p},\qquad
-\mathrm{FE_{K}} = \mathrm{FE_{K,0}}\Bigl(\tfrac{\mathrm{FE_{Na}}}{\mathrm{FE_{Na,0}}}\Bigr)^{k_\mathrm{flow}} A^{a_K}\Bigl(\tfrac{K}{K_b}\Bigr)^{k_\mathrm{self}},
+\mathrm{FE_{Na}} = \bigl(\mathrm{FE_{Na,b}} + f_\mathrm{anse}E\bigr)\,A^{-a_\mathrm{Na}}\Bigl(\tfrac{\mathrm{PAM}}{\mathrm{PAM}_b}\Bigr)^{n_p},
+\]
+\[
+U_K = \mathrm{DFG}\,\bigl(K_b\,\mathrm{FE_{K,b}} + \sigma\,(K - K_b)\bigr)\Bigl(\tfrac{\mathrm{FE_{Na}}}{\mathrm{FE_{Na,b}}}\Bigr)^{k_\mathrm{flow}} (A\,A_K)^{a_K},
 \]
 \[
 \frac{dV}{dt} = 1000\,\frac{\mathrm{Na_{in}} - \mathrm{DFG}\cdot\mathrm{Na}\cdot\mathrm{FE_{Na}}}{\mathrm{Na}},\qquad
-\frac{dA}{dt} = \frac{e^{g\,\max(0,-V)/\mathrm{VEC}}(1-\mathrm{IEC}) - A}{\tau_A},
+\frac{dA}{dt} = \frac{e^{g\,\max(0,-V)/\mathrm{VEC}}(1-\mathrm{IEC}) - A}{\tau_A},\qquad
+\frac{dA_K}{dt} = \frac{\frac{K - k_0}{K_b - k_0} - A_K}{\tau_A},
 \]
 \[
-\frac{dK_e}{dt} = K_\mathrm{in} - \mathrm{DFG}\cdot K\cdot\mathrm{FE_K} - J,\qquad
+\frac{dK_e}{dt} = K_\mathrm{in} + K_\mathrm{abs} - U_K - J,\qquad
 \frac{dK_i}{dt} = J = \frac{B\cdot \mathrm{bw}\cdot\Delta K - K_i}{\tau_{ic}},\qquad \Delta K = K_e/\mathrm{VEC}.
 \]
+$\mathrm{FE_{Na,b}}$ et $\mathrm{FE_{K,b}}$ : FE de base du patient (apport $/$ charge filtrée). $\sigma$ : réserve d'excrétion au-dessus ($\sigma_\uparrow$) ou au-dessous ($\sigma_\downarrow$ = 0,13, Young 1982) de la kaliémie de base, proportionnelle au DFG (Bourgoignie 1981). $A_K$ : composante kaliémique de l'aldostérone, nulle à $k_0$ = 3,29 mmol/L (Young 1984) ; elle ne sécrète que le K (« paradoxe de l'aldostérone »). $a_K$ = 0,7 (Young 1983). $K_\mathrm{abs}$ : absorption d'une charge orale de K. Tous ces chiffres canins sont tirés de résumés.
+
 La physiologie (\vp{evaluate}) est recalculée à chaque pas (0,25 h), mais seulement si un paramètre a bougé de plus de 0,2\,\% (K : 0,03 mmol/L). Une évaluation de MMVD coûte environ 200 ms.
 
 \subsection{Étape 1 : autorégulation de la filtration}
@@ -519,25 +524,29 @@ Correction : nouveau paramètre \vp{renal_co_auto} = 0,8. Le débit ne limite la
 Sources de base, accès lu : FE$_\mathrm{Na}$ 0,20\,\% et FE$_\mathrm{K}$ 9,47\,\% chez le chien sain (Troìa 2018).
 
 \begin{table}[h]\small
-\caption{Rein dynamique sous furosémide (modèle à \texttt{dt} 0,25 h ; chronique à 1 h).}
-\begin{tabularx}{\linewidth}{P{4.4cm}P{2.6cm}P{3.3cm}LP{1.3cm}}
+\caption{Rein dynamique : calage conjoint (8 paramètres, 8 cibles) et validations indépendantes (modèle à \texttt{dt} 0,25 h ; chronique à 1 h).}
+\begin{tabularx}{\linewidth}{P{4.6cm}P{2.4cm}P{3.3cm}LP{1.3cm}}
 \toprule
 Protocole & Modèle & Publié & Rôle & Statut\\
 \midrule
-Koh 2021, 2 mg/kg IV, 11,5 kg : diurèse 8 h & 24,65 mL/kg & 24,65 (lu) & calage & \ok\\
-Koh 2021 IV : $\Delta$K à 2 h / 8 h & $-0{,}52$ / $-0{,}33$ & $-0{,}51$ / $-0{,}33$ & calage & \ok\\
-Koh 2021, 2 mg/kg per os : diurèse 8 h & 36,4 & 30,9 (lu) & validation & \ok\ (+18\,\%)\\
-Koh 2021 per os : ordre des diurèses & PO $>$ IV & PO $>$ IV & validation & \ok\\
-Koh 2021 per os : $\Delta$K à 2 h / 8 h & $-0{,}82$ / $-0{,}51$ & $-0{,}54$ / $-0{,}46$ & validation & \ecart\ à 2 h\\
-Adin 2021, perfusion 5 h, 23,4 kg : créatinine à 24 h & $+31$\,\% & $+23{,}9 \pm 12{,}4$\,\% (lu) & validation (et choix de \vp{renal_co_auto}) & \ok\\
-Adin 2021 : moment de la hausse de créatinine & dès 5 h ($+24$\,\%) & seulement à 24 h & validation & \ecart\\
-Adin 2021 : K à 5 h et 24 h & $-1{,}1$ / $-0{,}5$ & pas de variation ($P$ = 0,4) & validation & \ecart\\
-Lantis 2011, 2 mg/kg PO q12h : aldostérone urinaire J5 & $\times 2{,}36$ & $\times 2{,}4$ (0,37 $\to$ 0,89 µg/g ; résumé) & calage & \ok\\
-Lantis 2011 : plateau de J5 à J10 & 2,36 $\to$ 2,43 & plateau dès J5 & validation & \ok\\
-Lantis 2011 (chien sain) : créatinine J5 & $+136$\,\% & non rapportée dans le résumé & — & \ecart\ probable\\
-Giorgi 2022, $\approx$ 4,1 mg/kg/j, MMVD 0,8 : créatinine J12 & $+90$\,\% & $+22$\,\% (lu) & validation & \ecart\\
-Giorgi 2022 : K à J12 & $-0{,}93$ & retour à la base (4,4) & validation & \ecart\\
-Wong 1977, 1 mg/kg/j IV, 7 j : $\Delta$K & $-0{,}20$ & $-0{,}39$ (accès moteur) & validation & \ecart\\
+Koh 2021, 2 mg/kg IV, 11,5 kg : diurèse 8 h & 22,5 mL/kg & 24,65 (lu) & calage & \ok\ ($-9$\,\%)\\
+Koh 2021 IV : $\Delta$K à 2 h / 8 h & $-0{,}51$ / $-0{,}33$ & $-0{,}51$ / $-0{,}33$ & calage & \ok\\
+Koh 2021 per os : diurèse 8 h ; $\Delta$K 8 h & 33,0 ; $-0{,}47$ & 30,9 ; $-0{,}46$ (lu) & calage & \ok\\
+Bourgoignie 1981, chien normal, 50 mEq de KCl : pic de K ; part excrétée en 5 h & $+1{,}06$ ; 64\,\% & $+0{,}9$ à $1{,}2$ ; 61–67\,\% (résumé) & calage & \ok\\
+Lantis 2011, 2 mg/kg PO q12h : aldostérone urinaire J5 & $\times 2{,}40$ & $\times 2{,}4$ (résumé) & calage & \ok\\
+\midrule
+Koh 2021 per os : ordre des diurèses ; $\Delta$K 2 h & PO $>$ IV ; $-0{,}78$ & PO $>$ IV ; $-0{,}54$ & validation & \ok\ ; \ecart\\
+Adin 2021, perfusion 5 h, 23,4 kg : créatinine à 24 h & $+24$\,\% & $+23{,}9 \pm 12{,}4$\,\% (lu) & validation (et choix de \vp{renal_co_auto}) & \ok\\
+Adin 2021 : créatinine à 5 h & $+20$\,\% & hausse seulement à 24 h & validation & \ecart\\
+Adin 2021 : K à 5 h / 24 h & $-0{,}92$ / $-0{,}24$ & pas de variation ($P$ = 0,4) & validation & \ecart\\
+Bourgoignie 1981, rein restant (DFG $\times 0{,}27$) : part excrétée en 5 h & 37,6\,\% & 30–37\,\% & validation & \ok\\
+Bourgoignie 1981, rein restant : pic de K & $+1{,}39$ & $+2{,}2$ à $2{,}5$ & validation & \ecart\\
+Young 1976 : la régulation du K s'appuie sur l'aldostérone & charge $\times 1{,}5$ sur 7 j : $+0{,}09$ & $+8$\,\% contre $+39$\,\% sans aldostérone (résumé) & validation qualitative & \ok\\
+Lantis 2011 : plateau de J5 à J10 & 2,40 $\to$ 2,75 & plateau dès J5 & validation & \ok\ (+15\,\%)\\
+Lantis 2011 (chien sain) : créatinine J5 & $+132$\,\% & non rapportée & — & \ecart\ probable\\
+Giorgi 2022, $\approx$ 4,1 mg/kg/j, MMVD 0,8 : créatinine J12 & $+78$\,\% & $+22$\,\% (lu) & validation & \ecart\\
+Giorgi 2022 : K à J12 & $-0{,}41$ & retour à la base (4,4) & validation & \ecart\\
+Wong 1977, 1 mg/kg/j IV, 7 j : $\Delta$K & $-0{,}06$ & $-0{,}39$ (accès moteur) & validation & \ecart\\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -550,7 +559,7 @@ Wong 1977, 1 mg/kg/j IV, 7 j : $\Delta$K & $-0{,}20$ & $-0{,}39$ (accès moteur)
 \end{itemize}
 La MMVD est inchangée, donc les calages stationnaires de Giorgi et d'Adin 2020 aussi. Rust contre le nouveau golden : 1862/1862 valeurs conformes. Les fixtures Python M1 à M4 et \vp{calibration_run_python.json} ont été régénérées.
 
-\textbf{Domaine validé : l'aigu} (une administration, 24 h au plus). En prises répétées sur plusieurs jours, la déplétion sodée est surestimée : VEC $-77$ mL/kg à J5 chez le chien sain, $-116$ mL/kg à J12 dans la MMVD. Chaque dose fait perdre environ 2,6 mmol/kg de Na, alors que les apports n'en couvrent qu'environ 1,5 par jour. Le modèle ne rétablit le bilan qu'en effondrant le DFG. Quatre pistes ont été essayées, sans résultat :
+\textbf{Domaine validé : l'aigu} (une administration, 24 h au plus). En prises répétées sur plusieurs jours, la déplétion sodée est surestimée : VEC $-76$ mL/kg à J5 chez le chien sain, $-114$ mL/kg à J12 dans la MMVD. Chaque dose fait perdre environ 2,6 mmol/kg de Na, alors que les apports n'en couvrent qu'environ 1,5 par jour. Le modèle ne rétablit le bilan qu'en effondrant le DFG. Quatre pistes ont été essayées, sans résultat :
 \begin{itemize}
 \item effet de l'aldostérone sur la réabsorption ($a_\mathrm{Na}$ = 2) : Koh n'est plus ajustable, car l'aldostérone monte en quelques heures et freine déjà la diurèse aiguë ;
 \item adaptation tubulaire lente (« braking » structurel, $\tau$ = 24 h) : sans effet mesurable ;
@@ -562,11 +571,11 @@ Pour le chronique, la voie stationnaire du diurétique (\vp{pkpd::timecourse}, $
 \subsection{MRC : apports fixes, néphron adapté (remarque de l'utilisateur)}
 L'utilisateur a relevé qu'en MRC l'urine n'a pas la natrémie du plasma, que la fuite sodée est faible et que le potassium pose problème. La première version faisait une erreur plus profonde. Elle fixait les apports de Na et de K à l'excrétion du patient avec les FE du chien sain, si bien que l'apport « alimentaire » suivait le DFG (10\,\% de la normale au stade 4).
 
-Correction (\vp{renal_model.json} 1.1.0) :
+Correction (\vp{renal_model.json} 1.1.0, puis 1.2.0 pour le K) :
 \begin{itemize}
 \item les apports sont ceux d'un chien sain de même poids, quel que soit le stade ;
 \item les FE de base du patient valent apport $/$ charge filtrée et croissent donc comme $1/\text{ratio}_\text{DFG}$ ;
-\item la capacité de sécrétion du K devient un paramètre (\vp{fe_k_max} 1,5, placeholder D) ;
+\item un plafond de sécurité de la FE$_\mathrm{K}$ (\vp{fe_k_max} 1,5, placeholder D, non atteint dans les scénarios validés) ;
 \item deux leviers alimentaires : \vp{na_intake_factor} (régime rénal pauvre en sel) et \vp{k_intake_factor} (anorexie, supplémentation) ;
 \item les sorties incluent la natriurie et la kaliurie (mmol/L).
 \end{itemize}
@@ -579,17 +588,36 @@ Résultats (20 kg, sans médicament) :
 
 Sous furosémide 2 mg/kg IV, à 8 h :
 \begin{itemize}
-\item VEC : $-20{,}5$ mL/kg chez le chien sain, $-10{,}6$ au stade 2, $-5{,}8$ au stade 3, $-2{,}9$ au stade 4 ;
-\item $\Delta$K : $-0{,}40$, $-0{,}28$, $-0{,}18$, $-0{,}08$.
+\item VEC : $-17{,}9$ mL/kg chez le chien sain, $-8{,}9$ au stade 2, $-4{,}8$ au stade 3, $-2{,}3$ au stade 4 ;
+\item $\Delta$K : $-0{,}39$, $-0{,}31$, $-0{,}19$, $-0{,}08$.
 \end{itemize}
 La fuite sodée suit la charge filtrée, et l'effet du furosémide, piloté par son excrétion urinaire, baisse aussi.
 
-\textbf{Potassium : limite.} Avec des apports fixes, l'adaptation du néphron restant est presque parfaite dans le modèle. Sur 7 jours, pour 1,5 fois plus de K dans la ration, la kaliémie monte de $+0{,}59$ mmol/L chez le chien sain comme aux stades 2 et 3. Elle ne monte de $+0{,}71$ qu'au stade 4, où la FE$_\mathrm{K}$ atteint le plafond. Avec une inhibition RAAS de 50\,\% et 1,2 fois plus de K, on obtient $+0{,}67$ (sain) contre $+0{,}83$ (stade 4). Deux limites :
+\textbf{Potassium : réserve proportionnelle au DFG (1.2.0).} Dans la 1.1.0, l'adaptation du néphron restant était parfaite : pour 1,5 fois plus de K dans la ration, la kaliémie montait autant chez le chien sain qu'aux stades 2 et 3. Une recherche dédiée a apporté les données canines suivantes (résumés, sauf mention) :
 \begin{itemize}
-\item la vulnérabilité de la MRC au K (hyperkaliémie au moins une fois chez 47\,\% de 152 chiens sous régime rénal, Segev 2010, résumé) n'apparaît que faiblement ;
-\item le chien sain réagit trop à une charge en K, faute de rétrocontrôle K $\to$ aldostérone.
+\item \textbf{Bourgoignie 1981} : chiens à rein restant (DFG 57 $\to$ 16 mL/min), kaliémie à jeun et excrétion de K normales. Après 50 mEq de KCl, la kaliémie monte de $+2{,}2$ à $2{,}5$ (contre $+0{,}9$ à $1{,}2$) et 30–37\,\% de la charge est excrétée en 5 h (contre 61–67\,\%). L'excrétion rapportée au DFG suit une pente commune en fonction de la kaliémie : la \emph{réserve} d'excrétion suit le DFG, l'état de base est adapté.
+\item \textbf{Schultze 1971} : excrétion par néphron $\times 6$ à J7 après réduction néphronique, indépendante des minéralocorticoïdes.
+\item \textbf{Young 1982, 1983, 1984} : excrétion de K selon la kaliémie à aldostérone fixée (pente forte au-dessus de la normale, faible en dessous) ; aldostérone linéaire en K, nulle à 3,29 mmol/L ; effet de l'aldostérone $\propto A^{0{,}7}$.
+\item \textbf{Young 1976} : kaliémie $+8$\,\% avec l'aldostérone, $+39$\,\% sans, pour de grandes variations d'apport.
+\item \textbf{King 2017} (lu) : pas de hausse du K sous bénazépril en MRC (49 chiens, jusqu'à 2 ans). \textbf{Segev 2010} : hyperkaliémie chez 47\,\% de 152 chiens en MRC ; K 6,5 sous régime rénal, 5,1 après un régime appauvri en K.
 \end{itemize}
-Les deux restent à modéliser sur des données canines (capacité maximale de sécrétion, réponse de l'aldostérone à une charge en K). Test : \vp{renal_ckd_adapts_fractional_excretion}.
+
+Le modèle a été restructuré en conséquence (équations ci-dessus) : réserve $\sigma\cdot\mathrm{DFG}\cdot(K - K_b)$, composante kaliémique de l'aldostérone limitée à la sécrétion de K, charge orale de K. Une première version faisait agir l'aldostérone stimulée par le K sur le sodium. La baisse de K sous furosémide effondrait alors l'aldostérone, et la créatinine d'Adin montait de $+134$\,\%. Le « paradoxe de l'aldostérone » justifie la séparation : la même hormone retient le Na quand elle est portée par l'angiotensine II et ne fait que sécréter le K quand elle est portée par l'hyperkaliémie.
+
+Résultats sur 7 jours, sans médicament :
+\begin{itemize}
+\item 1,5 fois plus de K dans la ration : $\Delta$K $+0{,}09$ (sain), $+0{,}18$ (stade 2), $+0{,}26$ (stade 3), $+0{,}34$ (stade 4) ;
+\item inhibition RAAS de 50\,\% et 1,2 fois plus de K : $+0{,}09$ contre $+0{,}37$ au stade 4.
+\end{itemize}
+La vulnérabilité au K croît désormais avec le stade.
+
+Limites :
+\begin{itemize}
+\item le pic de K du rein restant reste sous-estimé ($+1{,}39$ contre $+2{,}2$ à $2{,}5$), car le tampon cellulaire est le même qu'au chien normal ;
+\item l'hyperkaliémie spontanée de la MRC avancée vient du module stationnaire (K jusqu'à 6,1 au-delà de $s$ = 0,85), pas du rein dynamique ;
+\item la valeur calée de $\sigma_\uparrow$ (1,6) est inférieure à celle tirée directement de Young 1982 et de Bourgoignie ($\approx$ 3).
+\end{itemize}
+Tests : \vp{renal_ckd_adapts_fractional_excretion}, \vp{renal_potassium_load_scales_with_gfr} (avec un contrôle d'échec sans réserve).
 
 \textbf{IEC et spironolactone.} Aucun module médicament n'est ajouté. Chez le chien sain, le bénazépril abaisse l'activité de l'ECA d'environ 90\,\% (22,1 $\to$ 2,5 U/L) sans changer la diurèse, le freinage ni l'aldostérone pendant une perfusion de furosémide (Adin 2021, lu). Les fortes doses d'énalapril ou de bénazépril n'empêchent pas non plus la hausse de l'aldostérone (Lantis 2015, résumé de recherche). Traduire l'inhibition de l'ECA en baisse de $A$ contredirait donc ces deux sources. Le levier \vp{ace_inhibition} (0–1) de l'API agit directement sur $A$ ; ce n'est pas un médicament.
 
@@ -597,17 +625,17 @@ Placeholders (evidence D) :
 \begin{itemize}
 \item diurèse de base 1 mL/kg/h (aucune collecte primaire de 24 h trouvée) ;
 \item urine excédentaire iso-natrique (150 mmol/L) ;
-\item $a_\mathrm{Na}$ = $a_K$ = 1, $k_\mathrm{self}$ = 2, $n_p$ = 2, $\tau_A$ = 2 h, plancher de diurèse 0,3.
+\item $n_p$ = 2, $\tau_A$ = 2 h, plancher de diurèse 0,3, \vp{fe_k_max} 1,5.
 \end{itemize}
 
 Tests :
 \begin{itemize}
 \item \vp{renal_matches_literature} : Koh IV, Koh per os et Adin ;
-\item deux contrôles d'échec : sans autorégulation, la créatinine d'Adin sort de la fourchette ; sans tampon intracellulaire, le $\Delta$K à 8 h aussi ;
+\item trois contrôles d'échec : sans autorégulation, la créatinine d'Adin sort de la fourchette ; sans tampon intracellulaire, le $\Delta$K à 2 h aussi ; sans composante kaliémique de l'aldostérone, le $\Delta$K à 8 h aussi ;
 \item \vp{renal_course_round_trip} (API).
 \end{itemize}
 
-Sonde de calage reproductible : \vp{cargo run --release -p vetsim-core --example renal_probe} (scénarios Koh, Adin, Lantis, Wong, Giorgi ; surcharges \vp{clé=valeur}).
+Sonde de calage reproductible : \vp{cargo run --release -p vetsim-core --example renal_probe} (scénarios Koh, Adin, charge de K, MRC, Lantis, Wong, Giorgi ; surcharges \vp{clé=valeur}).
 
 \section{Effet sur les références du projet}
 \begin{itemize}
@@ -669,6 +697,11 @@ Sonde de calage reproductible : \vp{cargo run --release -p vetsim-core --example
 \item Koh SK et al. 2021. \emph{BMC Vet Res} 17:295. doi:10.1186/s12917-021-02998-4, PMC8420016 (lu).
 \item Lantis AC et al. 2011. \emph{Am J Vet Res} (résumé).
 \item Troìa R et al. 2018 (FE urinaires du chien sain, lu).
+\item Bourgoignie JJ et al. 1981. \emph{Kidney Int} 20:482. doi:10.1038/ki.1981.165 (résumé) ; 1985, \emph{Miner Electrolyte Metab} 11:150 (résumé).
+\item King JN et al. 2017. \emph{J Vet Intern Med} 31:1113. doi:10.1111/jvim.14726, PMC5508345 (lu).
+\item Schultze RG et al. 1971. \emph{J Clin Invest} 50:1061. doi:10.1172/JCI106577 (résumé).
+\item Segev G et al. 2010. \emph{J Vet Intern Med} 24:546. doi:10.1111/j.1939-1676.2010.0488.x (résumé).
+\item Young DB et al. 1976, \emph{Am J Physiol} 231:945 ; 1982, 242:F599 ; 1983, 244:F28 ; 1984, 247:E328 (résumés).
 \item Young AA et al. 2022. \emph{J Vet Intern Med}. doi:10.1111/jvim.16434 (lu).
 \end{itemize}
 Autres sources citées (résumés) : Bailey 1987, Bigby 2017, Davis 2017, Ferasin 2010, Granot 1985, Kudo 2024, Lamb 2010, Loen 2022 (lu), Morales 1999, Muir 2003, Rögels 2021, Shen 1990, Silverstein 2005 (secondaire), Simões 2016, Smith 2017, Solano 2006, Souza 2025 (lu), Steagall 2006, Thrasher 1998, Turunen 2019, Ueyama 2009, Valverde 2004, Vatner 1974, Yokota 2019, Chae 2026, Ko 2024 (lu).

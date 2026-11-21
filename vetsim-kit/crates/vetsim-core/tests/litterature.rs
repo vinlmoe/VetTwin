@@ -506,6 +506,17 @@ fn renal_run(
     t_end: f64,
     tweak: impl Fn(&mut vetsim_core::renal::RenalModel, &mut Params),
 ) -> vetsim_core::renal::RenalCourse {
+    renal_run_k(bw, doses, &[], t_end, tweak)
+}
+
+/// Comme [`renal_run`], avec des charges orales de K `(t_h, mmol/kg)`.
+fn renal_run_k(
+    bw: f64,
+    doses: &[(f64, f64, vetsim_core::Route)],
+    k_loads: &[(f64, f64)],
+    t_end: f64,
+    tweak: impl Fn(&mut vetsim_core::renal::RenalModel, &mut Params),
+) -> vetsim_core::renal::RenalCourse {
     use vetsim_core::renal::{renal_course, RenalModel, RenalOptions};
     let c = catalog();
     let mut model = RenalModel::from_json(&read("modules/renal/renal_model.json"), "r").unwrap();
@@ -522,6 +533,7 @@ fn renal_run(
         .collect();
     let opt = RenalOptions {
         t_end_h: t_end,
+        k_loads: k_loads.to_vec(),
         ..RenalOptions::default()
     };
     renal_course(&model, &p, &c.drugs, &ds, &opt).unwrap()
@@ -605,7 +617,8 @@ fn renal_ckd_adapts_fractional_excretion() {
 #[test]
 fn renal_matches_literature() {
     use vetsim_core::Route::{Iv, Po};
-    // calage : Koh 2021, 2 mg/kg IV, beagles 10–13 kg (lu)
+    // calage (avec Koh per os, Bourgoignie 1981 chien normal et Lantis 2011) : Koh 2021,
+    // 2 mg/kg IV, beagles 10–13 kg (lu)
     let iv = renal_run(11.5, &[(0.0, 2.0, Iv)], 8.0, |_, _| {});
     let (k0, u8) = (iv.points[0].k, at(&iv, 8.0).urine_cum_ml_kg);
     let (dk2, dk8) = (at(&iv, 2.0).k - k0, at(&iv, 8.0).k - k0);
@@ -613,7 +626,7 @@ fn renal_matches_literature() {
     assert!((22.0..=27.5).contains(&u8), "diurèse 8 h {u8:.1} (24,65)");
     assert!((-0.6..=-0.42).contains(&dk2), "ΔK 2 h {dk2:.2} (−0,51)");
     assert!((-0.4..=-0.26).contains(&dk8), "ΔK 8 h {dk8:.2} (−0,33)");
-    // validation : Koh 2021 per os (mêmes chiens) — diurèse supérieure à l'IV, ΔK à 8 h
+    // calage : Koh 2021 per os (mêmes chiens), diurèse et ΔK à 8 h ; ordre IV < PO
     let po = renal_run(11.5, &[(0.0, 2.0, Po)], 8.0, |_, _| {});
     let (pu8, pdk8) = (
         at(&po, 8.0).urine_cum_ml_kg,
@@ -635,11 +648,68 @@ fn renal_matches_literature() {
     let ad0 = renal_run(23.4, &adin_doses(), 24.0, |_, p| p.renal_co_auto = 1.0);
     let cr0 = 100.0 * (at(&ad0, 24.0).creat / ad0.points[0].creat - 1.0);
     assert!(cr0 > 36.3, "sans autorégulation : {cr0:+.0} %");
-    // contrôle d'échec : sans tampon intracellulaire, la kaliémie ne remonte pas après le nadir
+    // contrôle d'échec : sans tampon intracellulaire, le nadir de K est bien trop profond
     let nb = renal_run(11.5, &[(0.0, 2.0, Iv)], 8.0, |m, _| m.k_buffer_l_kg = 0.0);
-    let nb8 = at(&nb, 8.0).k - nb.points[0].k;
+    let nb2 = at(&nb, 2.0).k - nb.points[0].k;
     assert!(
-        !(-0.4..=-0.26).contains(&nb8),
-        "sans tampon : ΔK 8 h {nb8:.2}"
+        !(-0.6..=-0.42).contains(&nb2),
+        "sans tampon : ΔK 2 h {nb2:.2}"
     );
+    // contrôle d'échec : sans composante kaliémique de l'aldostérone (Young 1984), la kaliémie
+    // ne remonte pas à 8 h
+    let na = renal_run(11.5, &[(0.0, 2.0, Iv)], 8.0, |m, _| m.aldo_k0 = -1000.0);
+    let na8 = at(&na, 8.0).k - na.points[0].k;
+    assert!(
+        !(-0.4..=-0.26).contains(&na8),
+        "sans rétrocontrôle K → aldostérone : ΔK 8 h {na8:.2}"
+    );
+}
+
+/// Charge orale de K (Bourgoignie 1981, 50 mEq de KCl par sonde ; résumé). Chien normal
+/// (DFG 57 mL/min) : pic de K +0,9 à 1,2 mEq/L, 61–67 % de la charge excrétée en 5 h (calage).
+/// Rein restant (DFG 16 mL/min, rapport 0,28) : pic +2,2 à 2,5, 30–37 % (validation de la
+/// réserve d'excrétion proportionnelle au DFG).
+#[test]
+fn renal_potassium_load_scales_with_gfr() {
+    // poids non rapporté : 17 kg (≈ 57 mL/min à 3,4 mL/min/kg) ; 50 mEq = 2,94 mmol/kg
+    let load = [(0.0, 2.94)];
+    let summary = |s: f64, tweak: &dyn Fn(&mut vetsim_core::renal::RenalModel)| {
+        let ckd = ckd_params(s);
+        let c = renal_run_k(17.0, &[], &load, 5.0, |m, p| {
+            ckd(m, p);
+            tweak(m);
+        });
+        let k0 = c.points[0].k;
+        let peak = c.points.iter().map(|p| p.k - k0).fold(f64::MIN, f64::max);
+        // fraction de la charge excrétée, nette de la kaliurèse de base
+        let base = c.points[0].uk_mmol_kg_h * 5.0;
+        let frac = (at(&c, 5.0).uk_cum_mmol_kg - base) / 2.94;
+        let gfr = c.points[0].eval.as_ref().unwrap().metabolic.chem.gfr;
+        (peak, frac, gfr)
+    };
+    let (pn, fn_, gn) = summary(0.0, &|_| {});
+    let (pr, fr, gr) = summary(0.55, &|_| {});
+    eprintln!(
+        "normal : pic {pn:+.2}, {:.0} % ; rein restant (DFG ×{:.2}) : pic {pr:+.2}, {:.0} %",
+        100.0 * fn_,
+        gr / gn,
+        100.0 * fr
+    );
+    assert!(
+        (0.24..=0.32).contains(&(gr / gn)),
+        "rapport de DFG {}",
+        gr / gn
+    );
+    assert!((0.85..=1.25).contains(&pn), "pic normal {pn:.2}");
+    assert!((0.55..=0.72).contains(&fn_), "fraction normale {fn_:.2}");
+    // validation : la fraction excrétée suit le DFG
+    assert!(
+        (0.25..=0.40).contains(&fr),
+        "fraction MRC {fr:.2} (30–37 %)"
+    );
+    assert!(pr > 1.2 * pn, "pic MRC {pr:.2} ≤ 1,2 × pic normal {pn:.2}");
+    // contrôle d'échec : sans réserve d'excrétion au-dessus de la base, la charge n'est
+    // presque pas excrétée en 5 h
+    let (_, f0, _) = summary(0.0, &|m| m.k_sigma_up = 0.0);
+    assert!(f0 < 0.55, "sans réserve : {f0:.2}");
 }

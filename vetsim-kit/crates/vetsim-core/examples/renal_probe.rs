@@ -75,7 +75,11 @@ fn main() {
             ace_inhibition: env("ACE", 0.0),
             na_intake_factor: env("NA_DIET", 1.0),
             k_intake_factor: env("K_DIET", 1.0),
-            k_loads: if env("KLOAD", 0.0) > 0.0 { vec![(0.0, env("KLOAD", 0.0))] } else { vec![] },
+            k_loads: if env("KLOAD", 0.0) > 0.0 {
+                vec![(0.0, env("KLOAD", 0.0))]
+            } else {
+                vec![]
+            },
         };
         let tt = std::time::Instant::now();
         let c = renal_course(&model, &pt.params, &drugs, &doses, &opt).unwrap();
@@ -139,7 +143,14 @@ fn main() {
         let grid: Vec<f64> = (0..=20).map(|i| 0.25 * i as f64).collect();
         for s in [0.0, env("KLOAD_S", 0.55)] {
             let d = if s > 0.0 { Some((&ckd, s)) } else { None };
-            run(&format!("Charge de K, MRC {s}"), 17.0, d, vec![], 5.0, &grid);
+            run(
+                &format!("Charge de K, MRC {s}"),
+                17.0,
+                d,
+                vec![],
+                5.0,
+                &grid,
+            );
         }
     }
     if want("ckd") {
@@ -162,8 +173,17 @@ fn main() {
         }
     }
     if want("lantis") {
-        let q12: Vec<Dose> = (0..20).map(|i| dose(12.0 * i as f64, 2.0, Route::Po)).collect();
-        run("Lantis 2 mg/kg PO q12h 10 j (25 kg)", 25.0, None, q12, 240.0, &[0.0, 120.0, 240.0]);
+        let q12: Vec<Dose> = (0..20)
+            .map(|i| dose(12.0 * i as f64, 2.0, Route::Po))
+            .collect();
+        run(
+            "Lantis 2 mg/kg PO q12h 10 j (25 kg)",
+            25.0,
+            None,
+            q12,
+            240.0,
+            &[0.0, 120.0, 240.0],
+        );
     }
     if want("chronic") {
         let q12: Vec<Dose> = (0..20)

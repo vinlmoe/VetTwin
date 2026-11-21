@@ -79,8 +79,8 @@ d_t = clip(baro_gain·(map_set − MAP)/45, −1, 1)
 ## 6 ter. Rein dynamique (`renal.rs`, 21/11/2026 ; pas de port Python)
 - Évolution temporelle seulement (API `renal_course`) ; point fixe = état stationnaire. Apports Na et K = ceux d'un chien sain de même poids (`gfr0·bw·Na·fe_na0`), indépendants de la maladie ; FE de base du patient = apport/charge filtrée (×1/ratio_DFG en MRC) ; leviers `na_intake_factor`, `k_intake_factor`. `FE_K ≤ fe_k_max`.
 - `FE_Na = (FE_Na,b + fe_loop·E)·A^(−a_na)·(PAM/PAM_b)^n_p` ; `dV/dt = 1000·(Na_in − DFG·Na·FE_Na)/Na` (VEC, iso-osmotique) ; plasma `Vp/VEC·V` → `vol_shift`, `hb`, `alb`.
-- `FE_K = min(fe_k_max, FE_K,b·(FE_Na/FE_Na,b)^k_flow·A^a_k·(K/K_b)^k_self)` ; K extra/intracellulaire : `dKe/dt = K_in − UK − J`, `J = (B·bw·ΔK − Ki)/τ_ic`.
-- RAAS : `dA/dt = (exp(g·max(0, −V)/VEC)·(1 − IEC) − A)/τ_A`. Créatinine et urée : `dC/dt = (DFG/V_d)(C_ss − C)`.
+- `UK = DFG·(K_b·FE_K,b + σ·(K − K_b))·(FE_Na/FE_Na,b)^k_flow·(A·A_K)^a_k` (≤ DFG·K·fe_k_max) : réserve d'excrétion proportionnelle au DFG (σ_up au-dessus, σ_down en dessous de K_b) ; K extra/intracellulaire : `dKe/dt = K_in + K_abs − UK − J`, `J = (B·bw·ΔK − Ki)/τ_ic` ; charges orales de K (`k_loads`, absorption τ_abs).
+- Aldostérone en deux composantes (« paradoxe de l'aldostérone ») : `A` (rénine) : `dA/dt = (exp(g·max(0, −V)/VEC)·(1 − IEC) − A)/τ_A`, agit sur Na (`A^−a_na`) et K ; `A_K` (kaliémie) : `dA_K/dt = ((K − k0)/(K_b − k0) − A_K)/τ_A` (k0 = 3,29, Young 1984), agit sur K seulement. Créatinine et urée : `dC/dt = (DFG/V_d)(C_ss − C)`.
 - Médicaments : effets directs avec `D = U = 0` (termes calés du diurétique stationnaire neutres) ; `E` du diurétique de l'anse sur la natriurèse.
 - Physiologie recalculée à chaque pas `dt_h` (0,25 h) si un paramètre a bougé de plus de 0,2 % (K : 0,03 mmol/L).
 - Domaine validé : aigu (une administration, ≤ 24 h). Prises répétées : déplétion sodée surestimée (docs/VALIDATION_HORS_CALIBRAGE.tex) ; le chronique reste à la voie stationnaire `D`/`U`.

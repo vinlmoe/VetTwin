@@ -28,24 +28,24 @@
    "note": "volume extracellulaire usuel du chien (manuels de physiologie) ; non vérifié sur source primaire"
   },
   "k_buffer_L_kg": {
-   "value": 1.57,
+   "value": 1.26,
    "evidence": "C",
-   "note": "calé avec k_flow (Koh 2021) ; bien en dessous de la règle humaine (≈ 4,5 L/kg, Sterns 1981)"
+   "note": "calage conjoint sur Koh 2021 IV (diurèse 8 h, ΔK 2 h et 8 h) et per os (diurèse 8 h, ΔK 8 h), Bourgoignie 1981 chien normal (charge de 50 mEq de KCl : pic +1,05, 64 % excrétés en 5 h ; résumé) et Lantis 2011 (aldostérone ×2,4 à J5 ; résumé) ; bien en dessous de la règle humaine (≈ 4,5 L/kg, Sterns 1981)"
   },
   "k_ic_tau_h": {
-   "value": 1.76,
+   "value": 1.54,
    "evidence": "C",
-   "note": "calé avec k_flow (Koh 2021)"
+   "note": "calage conjoint sur Koh 2021 IV (diurèse 8 h, ΔK 2 h et 8 h) et per os (diurèse 8 h, ΔK 8 h), Bourgoignie 1981 chien normal (charge de 50 mEq de KCl : pic +1,05, 64 % excrétés en 5 h ; résumé) et Lantis 2011 (aldostérone ×2,4 à J5 ; résumé)"
   },
   "fe_loop_max": {
-   "value": 0.0422,
+   "value": 0.0682,
    "evidence": "C",
-   "note": "calé sur Koh 2021 (diurèse de 8 h, 2 mg/kg IV : 24,65 mL/kg)"
+   "note": "calage conjoint sur Koh 2021 IV (diurèse 8 h, ΔK 2 h et 8 h) et per os (diurèse 8 h, ΔK 8 h), Bourgoignie 1981 chien normal (charge de 50 mEq de KCl : pic +1,05, 64 % excrétés en 5 h ; résumé) et Lantis 2011 (aldostérone ×2,4 à J5 ; résumé)"
   },
   "k_flow": {
-   "value": 0.715,
+   "value": 0.726,
    "evidence": "C",
-   "note": "calé sur Koh 2021 (ΔK IV −0,51 à 2 h, −0,33 à 8 h)"
+   "note": "calage conjoint sur Koh 2021 IV (diurèse 8 h, ΔK 2 h et 8 h) et per os (diurèse 8 h, ΔK 8 h), Bourgoignie 1981 chien normal (charge de 50 mEq de KCl : pic +1,05, 64 % excrétés en 5 h ; résumé) et Lantis 2011 (aldostérone ×2,4 à J5 ; résumé)"
   },
   "n_pressure": {
    "value": 2.0,
@@ -58,14 +58,14 @@
    "note": "placeholder"
   },
   "aldo_g_vol": {
-   "value": 2.9,
+   "value": 3.85,
    "evidence": "C",
-   "note": "calé sur Lantis 2011 (UAldo:C 0,37 → 0,89 µg/g à J5 sous 2 mg/kg PO q12h ; résumé) : A(J5) = 2,4"
+   "note": "calage conjoint sur Koh 2021 IV (diurèse 8 h, ΔK 2 h et 8 h) et per os (diurèse 8 h, ΔK 8 h), Bourgoignie 1981 chien normal (charge de 50 mEq de KCl : pic +1,05, 64 % excrétés en 5 h ; résumé) et Lantis 2011 (aldostérone ×2,4 à J5 ; résumé)"
   },
   "aldo_a_na": {
-   "value": 0.879,
-   "evidence": "D",
-   "note": "placeholder"
+   "value": 0.612,
+   "evidence": "C",
+   "note": "calage conjoint sur Koh 2021 IV (diurèse 8 h, ΔK 2 h et 8 h) et per os (diurèse 8 h, ΔK 8 h), Bourgoignie 1981 chien normal (charge de 50 mEq de KCl : pic +1,05, 64 % excrétés en 5 h ; résumé) et Lantis 2011 (aldostérone ×2,4 à J5 ; résumé) (effet de la composante rénine sur la réabsorption sodée)"
   },
   "aldo_a_k": {
    "value": 0.7,
@@ -88,9 +88,9 @@
    "note": "placeholder de sécurité (capacité maximale) ; n'est pas atteint dans les scénarios validés"
   },
   "k_sigma_up": {
-   "value": 2.62,
+   "value": 1.6,
    "evidence": "C",
-   "note": "Young 1982 (chiens surrénalectomisés, aldostérone fixée 50 µg/j : 260 mEq/j par mEq/L au-dessus de la kaliémie normale, soit ≈ 3 rapporté à un DFG de ≈ 60 mL/min ; résumé) ; concordant avec Bourgoignie 1981 (charge de 50 mEq de KCl : ≈ 2,7 ; résumé)"
+   "note": "calage conjoint sur Koh 2021 IV (diurèse 8 h, ΔK 2 h et 8 h) et per os (diurèse 8 h, ΔK 8 h), Bourgoignie 1981 chien normal (charge de 50 mEq de KCl : pic +1,05, 64 % excrétés en 5 h ; résumé) et Lantis 2011 (aldostérone ×2,4 à J5 ; résumé) ; valeur calée 1,6, inférieure à ≈ 3 tiré de Young 1982 (aldostérone fixée) et de la pente brute de Bourgoignie"
   },
   "k_sigma_down": {
    "value": 0.13,
@@ -103,9 +103,9 @@
    "note": "Young 1984 : aldostérone = 5,04·K − 16,56, nulle à K 3,29 (6 chiens ; résumé)"
   },
   "k_abs_tau_h": {
-   "value": 1.58,
-   "evidence": "D",
-   "note": "placeholder : absorption d'une charge orale de KCl"
+   "value": 1.98,
+   "evidence": "C",
+   "note": "calage conjoint sur Koh 2021 IV (diurèse 8 h, ΔK 2 h et 8 h) et per os (diurèse 8 h, ΔK 8 h), Bourgoignie 1981 chien normal (charge de 50 mEq de KCl : pic +1,05, 64 % excrétés en 5 h ; résumé) et Lantis 2011 (aldostérone ×2,4 à J5 ; résumé) (absorption de la charge orale de KCl)"
   }
  },
  "refs": [

@@ -23,16 +23,15 @@
 - Placeholders (evidence D), ajoutés le 17/11/2026 : termes toxiques des médicaments (`pd.toxicity` : EC50 toxique = 10 × EC50 thérapeutique, Hill 3, amplitudes) et paramètres de décompensation de `healthy_dog.json` (`acid_ph0` 7,20, `acid_ees` 1,5, `acid_rsys` 1,0, `hypox_pvo2` 20 mmHg, `hypox_ees` 0,03, `k_weak` 2,5 mmol/L, `k_weak_vent` 0,4, `cpp_min` 40 mmHg, `cpp_ees` 0,02, `hr_arrest` 20 /min, `co_arrest_frac` 0,15). Aucune source : ordres de grandeur pédagogiques. Voir `docs/PROPOSITION_TOXICITE.md`.
 - Usage pédagogique uniquement.
 
-## Rein dynamique (`modules/renal/renal_model.json` 1.1.0, 21/11/2026)
+## Rein dynamique (`modules/renal/renal_model.json` 1.2.0, 21/11/2026)
 
 - FE_Na 0,20 % et FE_K 9,47 % du chien sain : Troìa 2018 (lu), evidence B.
-- `fe_loop_max` 0,0796, `k_flow` 0,647, `k_ic_tau_h` 2,57 h, `k_buffer_L_kg` 1,24 : calés sur Koh 2021 (2 mg/kg IV ; diurèse 8 h 24,65 mL/kg, ΔK −0,51 à 2 h et −0,33 à 8 h ; lu), evidence C.
-- `aldo_g_vol` 2,77 : calé sur Lantis 2011 (UAldo:C ×2,4 à J5 ; résumé), evidence C.
 - `ecf_L_kg` 0,25 : valeur de manuel, evidence C, non vérifiée sur source primaire.
-- Placeholders D : diurèse de base 1 mL/kg/h, urine excédentaire iso-natrique, `aldo_a_na`, `aldo_a_k`, `k_self`, `n_pressure`, `aldo_tau_h`, `urine_floor_frac`.
+- Placeholders D : diurèse de base 1 mL/kg/h, urine excédentaire iso-natrique, `n_pressure`, `aldo_tau_h`, `urine_floor_frac`.
 - Patient : `renal_co_auto` 0,8 (autorégulation du DFG vis-à-vis du débit), choisi par balayage sur Adin 2021 (créatinine +23,9 ± 12,4 % à 24 h après perfusion de furosémide ; lu) ; forme d'après la constriction cave chez le chien (DFG conservé, fraction de filtration accrue ; résumés de recherche), evidence C.
 - Domaine validé : aigu. Écarts en chronique (Lantis, Giorgi, Wong) : `docs/VALIDATION_HORS_CALIBRAGE.tex`.
 - 1.1.0 : apports alimentaires fixes (chien sain de même poids), FE de base adaptées en MRC (×8 au stade 4 ; cohérent avec « ×10 au stade IV » et Selin 2025, résumés de recherche) ; `fe_k_max` 1,5 (placeholder D). Limite : vulnérabilité au K de la MRC faible dans le modèle, pas de rétrocontrôle K → aldostérone.
+- 1.2.0 (K) : réserve d'excrétion ∝ DFG (Bourgoignie 1981, résumé : rein restant, 30–37 % contre 61–67 % d'une charge de KCl excrétés en 5 h) ; `k_sigma_down` 0,13 (Young 1982, résumé) ; aldostérone kaliémique nulle à 3,29 mmol/L (Young 1984, résumé), effet `A^0,7` (Young 1983, résumé), limité au K (paradoxe de l'aldostérone). Calage conjoint de `fe_loop_max` 0,0682, `k_flow` 0,726, `k_ic_tau_h` 1,54, `k_buffer_L_kg` 1,26, `k_sigma_up` 1,60, `k_abs_tau_h` 1,98, `aldo_a_na` 0,612, `aldo_g_vol` 3,85 sur Koh 2021 (IV et per os), Bourgoignie 1981 (chien normal) et Lantis 2011 ; validations : Adin 2021 (créatinine +24 %), rein restant de Bourgoignie (37,6 % excrétés ; pic de K sous-estimé), Lantis (plateau). Evidence C.
 - IEC : pas de module ; Adin 2021 (lu) et Lantis 2015 (résumé de recherche) montrent qu'une baisse de l'activité de l'ECA ne réduit pas l'aldostérone chez le chien.
 
 ## Conduction (`reference/python/rhythm.py`, 17/11/2026)
