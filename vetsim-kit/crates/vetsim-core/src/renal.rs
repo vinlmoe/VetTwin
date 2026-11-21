@@ -41,9 +41,9 @@
 //!
 //! **Domaine validé : furosémide, une prise ou des prises répétées, ≤ 12 jours.** Calé sur
 //! Koh 2021 (IV et per os), Bourgoignie 1981 (chien normal), Pelligand 2020 (10 jours),
-//! Adin 2021 (créatinine à 24 h) et Lantis 2011 ; validé sur le profil de créatinine d'Adin,
+//! Adin 2021 (créatinine à 24 h) et Lantis 2011 (texte intégral) ; validé sur le profil de créatinine d'Adin,
 //! Giorgi 2022 (créatinine à J12) et le rein restant de Bourgoignie (part excrétée). Écarts
-//! documentés : aldostérone de Lantis (×1,9 contre ×2,4), natriurèse et ΔK à 2 h de Koh per
+//! documentés : aldostérone de Lantis à J10 (×2,0 contre ×2,6), natriurèse et ΔK à 2 h de Koh per
 //! os, K de Giorgi à J12, pic de K du rein restant, ΔK de Wong.
 //!
 //! La physiologie (`evaluate`) est recalculée à chaque pas `dt_h` avec l'état rénal courant ;

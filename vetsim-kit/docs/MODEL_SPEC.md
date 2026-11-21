@@ -83,7 +83,7 @@ d_t = clip(baro_gain·(map_set − MAP)/45, −1, 1)
 - Aldostérone en deux composantes (« paradoxe de l'aldostérone ») : `A` (rénine) : `dA/dt = (exp(g·max(0, −V)/VEC)·(1 + g_md·E)·(1 − IEC) − A)/τ_A` (déplétion et macula densa), agit sur Na avec latence (`A_n`, `dA_n/dt = (A − A_n)/τ_n`, `A_n^−a_na`) et sur K ; `A_K` (kaliémie) : `dA_K/dt = ((K − k0)/(K_b − k0) − A_K)/τ_A` (k0 = 3,29, Young 1984), agit sur K seulement. Créatinine et urée : `dC/dt = (DFG/V_d)(C_ss − C)`.
 - Médicaments : effets directs avec `D = U = 0` (termes calés du diurétique stationnaire neutres) ; `E` du diurétique de l'anse sur la natriurèse.
 - Physiologie recalculée à chaque pas `dt_h` (0,25 h) si un paramètre a bougé de plus de 0,2 % (K : 0,03 mmol/L).
-- Domaine validé (1.3.1) : furosémide, prise unique ou répétée, ≤ 12 j, sans levier alimentaire, charge de K ni IEC (calage Koh, Bourgoignie, Pelligand 2020, Adin 2021 ; validation Giorgi 2022, profil de créatinine d'Adin, rein restant). Écarts : docs/VALIDATION_HORS_CALIBRAGE.tex.
+- Domaine validé (1.3.2) : furosémide, prise unique ou répétée, ≤ 12 j, sans levier alimentaire, charge de K ni IEC (calage Koh, Bourgoignie, Pelligand 2020, Adin 2021 ; validation Giorgi 2022, profil de créatinine d'Adin, rein restant). Écarts : docs/VALIDATION_HORS_CALIBRAGE.tex.
 
 ## 6 bis. Décompensation et viabilité (`physio.evaluate`, `physio._evaluate_once`)
 - `_evaluate_once` = l'ancienne évaluation (baroréflexe, hémodynamique, aval). `evaluate` l'enveloppe d'un point fixe amorti sur deux facteurs, `fc` (élastances VG et VD) et `fr` (`r_sys`) :
