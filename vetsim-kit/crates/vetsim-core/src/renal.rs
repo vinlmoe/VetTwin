@@ -84,6 +84,10 @@ pub struct RenalModel {
     pub aldo_na_tau_h: f64,
     /// Libération directe de rénine par blocage du NKCC2 de la macula densa (gain sur E).
     pub aldo_g_md: f64,
+    /// Part de la FE_Na insensible à l'aldostérone (capacité distale limitée) : l'effet
+    /// `f(A) = f_min + (1 − f_min)·A^(−a_na/(1 − f_min))` sature à `f_min`, avec la même pente
+    /// que `A^(−a_na)` à l'état de base.
+    pub aldo_na_floor: f64,
     /// Fraction excrétée du potassium de base.
     pub fe_k0: f64,
     /// Diurèse de base (mL/kg/h).
@@ -131,7 +135,7 @@ pub struct RenalModel {
 }
 
 /// Clés de `values`, dans l'ordre des champs.
-pub const RENAL_KEYS: [&str; 28] = [
+pub const RENAL_KEYS: [&str; 29] = [
     "na_intake_mmol_kg_d",
     "fe_k0",
     "urine0_mL_kg_h",
@@ -160,6 +164,7 @@ pub const RENAL_KEYS: [&str; 28] = [
     "gfr_g_vol",
     "aldo_na_tau_h",
     "aldo_g_md",
+    "aldo_na_floor",
 ];
 
 impl RenalModel {
@@ -193,6 +198,7 @@ impl RenalModel {
             gfr_g_vol: g(25),
             aldo_na_tau_h: g(26),
             aldo_g_md: g(27),
+            aldo_na_floor: g(28),
             fe_k0: g(1),
             urine0_ml_kg_h: g(2),
             ecf_l_kg: g(3),
@@ -225,6 +231,7 @@ impl RenalModel {
             (25, out.gfr_g_vol >= 0.0),
             (26, out.aldo_na_tau_h > 0.0),
             (27, out.aldo_g_md >= 0.0),
+            (28, (0.0..0.95).contains(&out.aldo_na_floor)),
             (1, out.fe_k0 > 0.0 && out.fe_k0 < 1.0),
             (2, out.urine0_ml_kg_h > 0.0),
             (3, out.ecf_l_kg > 0.0),
@@ -564,7 +571,9 @@ pub fn renal_course(
         let p_fac = crate::math::pow((map / map_b).max(0.1), model.n_pressure);
         let fluxes = |e: f64, a: f64, an: f64, ak: f64, k: f64, brake: f64, wash: f64| {
             let fe_na = ((fe_na_b + model.fe_loop_max * e * (1.0 - model.brake_frac * brake))
-                * crate::math::pow(an, -model.aldo_a_na)
+                * (model.aldo_na_floor
+                    + (1.0 - model.aldo_na_floor)
+                        * crate::math::pow(an, -model.aldo_a_na / (1.0 - model.aldo_na_floor)))
                 * p_fac)
                 .min(0.5);
             let una = gfr * na * fe_na;
@@ -640,7 +649,7 @@ pub fn renal_course(
             ki += h * jflux;
             a += h * (a_target(v, e) - a) / model.aldo_tau_h;
             an += (a - an) * (1.0 - crate::math::exp(-h / model.aldo_na_tau_h)); // mise à jour exacte (stable)
-            // freinage tubulaire : s'installe pendant l'exposition, s'efface lentement
+                                                                                 // freinage tubulaire : s'installe pendant l'exposition, s'efface lentement
             let tau_b = if e > brake {
                 model.brake_on_tau_h
             } else {

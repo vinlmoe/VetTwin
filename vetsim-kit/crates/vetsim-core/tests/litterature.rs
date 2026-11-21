@@ -652,6 +652,13 @@ fn renal_matches_literature() {
     assert!((22.0..=27.5).contains(&u8), "diurèse 8 h {u8:.1} (24,65)");
     assert!((-0.6..=-0.42).contains(&dk2), "ΔK 2 h {dk2:.2} (−0,51)");
     assert!((-0.4..=-0.26).contains(&dk8), "ΔK 8 h {dk8:.2} (−0,33)");
+    let na8 = at(&iv, 8.0).una_cum_mmol_kg;
+    assert!((2.6..=3.5).contains(&na8), "natriurèse 8 h {na8:.2} (3,06)");
+    // contrôle d'échec : avec une action natriférique instantanée de l'aldostérone, la
+    // natriurèse aiguë s'effondre
+    let inst = renal_run(11.5, &[(0.0, 2.0, Iv)], 8.0, |m, _| m.aldo_na_tau_h = 0.02);
+    let ni8 = at(&inst, 8.0).una_cum_mmol_kg;
+    assert!(ni8 < 2.6, "action instantanée : natriurèse 8 h {ni8:.2}");
     // calage : Koh 2021 per os (mêmes chiens), diurèse et ΔK à 8 h ; ordre IV < PO
     let po = renal_run(11.5, &[(0.0, 2.0, Po)], 8.0, |_, _| {});
     let (pu8, pdk8) = (
@@ -750,7 +757,7 @@ fn renal_potassium_load_scales_with_gfr() {
 /// Furosémide en chronique (Pelligand 2020, beagles sains de 10,6 kg, per os en deux prises
 /// par jour pendant 10 jours ; lu) : calage du freinage tubulaire et de la perte du pouvoir
 /// de concentration.
-/// - natriurèse du 1er jour à 8 mg/kg/j : 5,30 mmol/kg (base 1,51) ;
+/// - natriurèse du 1er jour à 8 mg/kg/j : 5,30 mmol/kg (base 1,51), freinée par le RAAS ;
 /// - retour à l'équilibre sodé dès le 3e jour ;
 /// - diurèse du 9e jour : 34,4 et 100,3 mL/kg/j à 2 et 8 mg/kg/j (eau libre).
 #[test]
@@ -782,11 +789,12 @@ fn renal_chronic_furosemide_pelligand() {
         (75.0..=125.0).contains(&u9_8),
         "diurèse J9 {u9_8:.1} (100,3)"
     );
-    // contrôle d'échec : sans freinage tubulaire, la fuite sodée persiste
-    let (b1, b3, _) = course(8.0, &|m| m.brake_frac = 0.0);
+    // contrôle d'échec : sans libération de rénine par la macula densa (freinage par le
+    // RAAS, Adin 2021), la fuite sodée du 1er jour déborde
+    let (b1, _, _) = course(8.0, &|m| m.aldo_g_md = 0.0);
     assert!(
-        !(4.24..=6.36).contains(&b1) && !(1.06..=1.96).contains(&b3),
-        "sans freinage : J1 {b1:.2}, J3 {b3:.2}"
+        !(4.24..=6.36).contains(&b1),
+        "sans rénine de la macula densa : J1 {b1:.2}"
     );
     // contrôle d'échec : sans perte du pouvoir de concentration, pas de polyurie chronique
     let (_, _, w9) = course(8.0, &|m| m.water_max_ml_kg_h = 0.0);

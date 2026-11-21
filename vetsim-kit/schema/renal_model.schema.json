@@ -60,7 +60,8 @@
     "water_tau_h",
     "gfr_g_vol",
     "aldo_na_tau_h",
-    "aldo_g_md"
+    "aldo_g_md",
+    "aldo_na_floor"
    ],
    "additionalProperties": false,
    "properties": {
@@ -713,6 +714,30 @@
      "additionalProperties": false
     },
     "aldo_g_md": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "aldo_na_floor": {
      "type": "object",
      "required": [
       "value",
