@@ -1,16 +1,16 @@
 {
  "schema_version": "1.0.0",
  "id": "renal_model",
- "version": "1.2.0",
+ "version": "1.3.0",
  "name": {
   "fr": "Rein dynamique"
  },
  "evidence": "C",
  "values": {
-  "na_diet_mg_100kcal": {
-   "value": 112.0,
+  "na_intake_mmol_kg_d": {
+   "value": 1.51,
    "evidence": "B",
-   "note": "régime d'entretien de l'étude Adin 2021 (112 mg de Na/100 kcal ; lu). La FE_Na de base qui en découle (≈ 0,36 % à 20 kg) est dans l'étendue de Troìa 2018 (0,02–1,11 %, médiane 0,20 % ; lu)"
+   "note": "natriurèse de base de beagles sains : 16 mEq/j pour 10,6 kg (Pelligand 2020, lu) ; FE_Na qui en découle ≈ 0,21 % à 20 kg, conforme à Troìa 2018 (médiane 0,20 % ; lu)"
   },
   "fe_k0": {
    "value": 0.0947,
@@ -18,9 +18,9 @@
    "note": "Troìa 2018 : FE_K 9,47 ± 3,68 % ; lu ; fixe l'apport potassique de référence"
   },
   "urine0_mL_kg_h": {
-   "value": 1.0,
-   "evidence": "D",
-   "note": "24 mL/kg/j, dans l'estimation non primaire de 20–40 mL/kg/j (Osborne, dvm360) ; aucune collecte primaire de 24 h trouvée"
+   "value": 0.83,
+   "evidence": "B",
+   "note": "diurèse de base : 210 mL/j pour 10,6 kg (Pelligand 2020, lu)"
   },
   "ecf_L_kg": {
    "value": 0.25,
@@ -107,10 +107,25 @@
    "evidence": "C",
    "note": "calage conjoint sur Koh 2021 IV (diurèse 8 h, ΔK 2 h et 8 h) et per os (diurèse 8 h, ΔK 8 h), Bourgoignie 1981 chien normal (charge de 50 mEq de KCl : pic +1,05, 64 % excrétés en 5 h ; résumé) et Lantis 2011 (aldostérone ×2,4 à J5 ; résumé) (absorption de la charge orale de KCl)"
   },
-  "mer_factor": {
-   "value": 1.6,
+  "brake_frac": {
+   "value": 0.5,
    "evidence": "C",
-   "note": "besoin d'entretien d'un chien adulte ≈ 1,6 × 70·bw^0,75 kcal/j (valeur de manuel, NRC 2006 ; non vérifiée sur source primaire)"
+   "note": "calé sur Pelligand 2020 (natriurèse revenue près de la base dès J2–J3 sous dose répétée ; lu)"
+  },
+  "brake_on_tau_h": {
+   "value": 3.0,
+   "evidence": "C",
+   "note": "calé (freinage dès la 2e heure de perfusion, Adin 2021 ; Pelligand 2020)"
+  },
+  "brake_off_tau_h": {
+   "value": 48.0,
+   "evidence": "C",
+   "note": "calé sur Pelligand 2020"
+  },
+  "water_max_mL_kg_h": {
+   "value": 1.0,
+   "evidence": "C",
+   "note": "calé sur Pelligand 2020 (diurèse à J9 : 365, 867, 1063 mL/j à 2, 5, 8 mg/kg/j contre 210 ; natriurèse revenue à la base : la polyurie chronique est de l'eau libre)"
   }
  },
  "refs": [
@@ -124,7 +139,9 @@
   "Young DB, Paulsen AW 1983, Am J Physiol 244:F28 (résumé)",
   "Young DB et al. 1984, Am J Physiol 247:E328 (résumé)",
   "Bourgoignie JJ et al. 1981, Kidney Int 20:482 (résumé)",
-  "Bourgoignie JJ et al. 1985, Miner Electrolyte Metab 11:150 (résumé)"
+  "Bourgoignie JJ et al. 1985, Miner Electrolyte Metab 11:150 (résumé)",
+  "Pelligand L et al. 2020, Front Vet Sci 7:151 (PMC7199743, lu)",
+  "Loughran KA et al. 2020, J Vet Intern Med 34:2253 (PMC7694836, lu)"
  ],
  "notes": "Domaine validé : aigu (≤ 24 h). Prises répétées sur plusieurs jours : déplétion sodée surestimée (docs/VALIDATION_HORS_CALIBRAGE.tex)."
 }

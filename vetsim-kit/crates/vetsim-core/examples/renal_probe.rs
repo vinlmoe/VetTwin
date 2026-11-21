@@ -98,8 +98,8 @@ fn main() {
                 .unwrap();
             let ev = p.eval.as_ref().unwrap();
             println!(
-                "t {:6.2} h  UK cum {:5.2} mmol/kg  urine cum {:6.2} mL/kg  UNa {:4.0} mmol/L  K {:.2} ΔK {:+.2}  ΔECF {:+6.1} mL/kg  A {:.2}  creat {:5.1} ({:+.0} %)  FE_Na {:.4}  FE_K {:.3}  E {:.2}  PAM {:5.1}  FC {:5.1}  DFG {:5.2}",
-                p.t_h, p.uk_cum_mmol_kg, p.urine_cum_ml_kg, p.una_mmol_l, p.k, p.k - p0.k, p.d_ecf_ml_kg, p.aldo, p.creat,
+                "t {:6.2} h  UK cum {:5.2} mmol/kg  UNa cum {:6.2} mmol/kg  B {:.2}  urine cum {:6.2} mL/kg  UNa {:4.0} mmol/L  K {:.2} ΔK {:+.2}  ΔECF {:+6.1} mL/kg  A {:.2}  creat {:5.1} ({:+.0} %)  FE_Na {:.4}  FE_K {:.3}  E {:.2}  PAM {:5.1}  FC {:5.1}  DFG {:5.2}",
+                p.t_h, p.uk_cum_mmol_kg, p.una_cum_mmol_kg, p.brake, p.urine_cum_ml_kg, p.una_mmol_l, p.k, p.k - p0.k, p.d_ecf_ml_kg, p.aldo, p.creat,
                 100.0 * (p.creat / p0.creat - 1.0), p.fe_na, p.fe_k, p.e_loop,
                 ev.hemo.summary.map, ev.params.hr, ev.metabolic.chem.gfr / bw
             );
@@ -170,6 +170,14 @@ fn main() {
                 env("TEND", 24.0),
                 &[0.0, 2.0, 8.0, 24.0, 72.0, 168.0],
             );
+        }
+    }
+    if want("pelligand") {
+        // Pelligand 2020 : beagles sains de 10,6 kg, furosémide per os en deux prises par jour,
+        // 1, 2, 5 ou 8 mg/kg/j pendant 10 jours (lu)
+        for daily in [1.0, 2.0, 5.0, 8.0] {
+            let d: Vec<Dose> = (0..20).map(|i| dose(12.0 * i as f64, daily / 2.0, Route::Po)).collect();
+            run(&format!("Pelligand {daily} mg/kg/j"), 10.6, None, d, 216.0, &[0.0, 24.0, 48.0, 72.0, 192.0, 216.0]);
         }
     }
     if want("lantis") {

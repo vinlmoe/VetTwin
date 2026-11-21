@@ -33,7 +33,7 @@
   "values": {
    "type": "object",
    "required": [
-    "na_diet_mg_100kcal",
+    "na_intake_mmol_kg_d",
     "fe_k0",
     "urine0_mL_kg_h",
     "ecf_L_kg",
@@ -53,7 +53,10 @@
     "k_sigma_down",
     "aldo_k0",
     "k_abs_tau_h",
-    "mer_factor"
+    "brake_frac",
+    "brake_on_tau_h",
+    "brake_off_tau_h",
+    "water_max_mL_kg_h"
    ],
    "additionalProperties": false,
    "properties": {
@@ -513,7 +516,7 @@
      },
      "additionalProperties": false
     },
-    "na_diet_mg_100kcal": {
+    "na_intake_mmol_kg_d": {
      "type": "object",
      "required": [
       "value",
@@ -537,7 +540,79 @@
      },
      "additionalProperties": false
     },
-    "mer_factor": {
+    "brake_frac": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "brake_on_tau_h": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "brake_off_tau_h": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "water_max_mL_kg_h": {
      "type": "object",
      "required": [
       "value",
