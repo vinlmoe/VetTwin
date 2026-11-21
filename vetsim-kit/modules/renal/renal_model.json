@@ -131,6 +131,11 @@
    "value": 10.2,
    "evidence": "C",
    "note": "à caler sur Pelligand 2020 (polyurie installée en quelques jours)"
+  },
+  "gfr_g_vol": {
+   "value": 1.2,
+   "evidence": "C",
+   "note": "prototype : choisi sur Adin 2021 (créatinine inchangée pendant la perfusion, +23,9 % à 24 h ; résumé + texte lu) ; à confirmer"
   }
  },
  "refs": [

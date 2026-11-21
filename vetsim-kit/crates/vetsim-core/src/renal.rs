@@ -67,6 +67,9 @@ pub struct RenalModel {
     /// Constante de temps de la perte du pouvoir de concentration (h) : la diurèse d'eau libre
     /// suit l'exposition moyenne au diurétique, pas l'effet instantané.
     pub water_tau_h: f64,
+    /// Baisse du DFG par déplétion du VEC hors exposition au diurétique (rétrocontrôle
+    /// tubulo-glomérulaire rétabli, angiotensine II) ; le blocage de la macula densa la lève.
+    pub gfr_g_vol: f64,
     /// Fraction excrétée du potassium de base.
     pub fe_k0: f64,
     /// Diurèse de base (mL/kg/h).
@@ -114,7 +117,7 @@ pub struct RenalModel {
 }
 
 /// Clés de `values`, dans l'ordre des champs.
-pub const RENAL_KEYS: [&str; 25] = [
+pub const RENAL_KEYS: [&str; 26] = [
     "na_intake_mmol_kg_d",
     "fe_k0",
     "urine0_mL_kg_h",
@@ -140,6 +143,7 @@ pub const RENAL_KEYS: [&str; 25] = [
     "brake_off_tau_h",
     "water_max_mL_kg_h",
     "water_tau_h",
+    "gfr_g_vol",
 ];
 
 impl RenalModel {
@@ -170,6 +174,7 @@ impl RenalModel {
             brake_off_tau_h: g(22),
             water_max_ml_kg_h: g(23),
             water_tau_h: g(24),
+            gfr_g_vol: g(25),
             fe_k0: g(1),
             urine0_ml_kg_h: g(2),
             ecf_l_kg: g(3),
@@ -199,6 +204,7 @@ impl RenalModel {
             (22, out.brake_off_tau_h > 0.0),
             (23, out.water_max_ml_kg_h >= 0.0),
             (24, out.water_tau_h > 0.0),
+            (25, out.gfr_g_vol >= 0.0),
             (1, out.fe_k0 > 0.0 && out.fe_k0 < 1.0),
             (2, out.urine0_ml_kg_h > 0.0),
             (3, out.ecf_l_kg > 0.0),
@@ -516,14 +522,24 @@ pub fn renal_course(
             }
         }
         let ev = &last.as_ref().expect("évalué").1;
-        let gfr = ev.metabolic.chem.gfr * 0.06;
+        let e_now = e_at(t);
+        // DFG : préservé pendant l'exposition (macula densa aveugle), réduit ensuite si le VEC
+        // reste déplété
+        // (l'écart du DFG stationnaire à la base s'efface à proportion de E)
+        let e_md = e_now.min(1.0);
+        let gfr_ev = ev.metabolic.chem.gfr * 0.06;
+        let tgf = crate::math::pow(gfr_b / gfr_ev.max(1e-9), e_md)
+            * crate::math::exp(-model.gfr_g_vol * f64::max(0.0, -v) / ecf_ml * (1.0 - e_md));
+        let gfr = gfr_ev * tgf;
         let map = ev.hemo.summary.map;
         let k_pl = p.k;
         let k_drug_free = p.k - dk; // kaliémie hors écart rénal (maladie, médicaments)
         let p_fac = crate::math::pow((map / map_b).max(0.1), model.n_pressure);
         let fluxes = |e: f64, a: f64, ak: f64, k: f64, brake: f64, wash: f64| {
-            let fe_na = ((fe_na_b + model.fe_loop_max * e * (1.0 - model.brake_frac * brake)) * crate::math::pow(a, -model.aldo_a_na) * p_fac)
-                    .min(0.5);
+            let fe_na = ((fe_na_b + model.fe_loop_max * e * (1.0 - model.brake_frac * brake))
+                * crate::math::pow(a, -model.aldo_a_na)
+                * p_fac)
+                .min(0.5);
             let una = gfr * na * fe_na;
             // part de base (adaptée aux apports) + réserve proportionnelle au DFG
             let sigma = if k >= k0 {
@@ -544,7 +560,6 @@ pub fn renal_course(
                 .max(model.urine_floor_frac * u0);
             (fe_na, una, fe_k, uk, urine)
         };
-        let e_now = e_at(t);
         let (fe_na, una, fe_k, uk, urine) = fluxes(e_now, a, ak, k_pl, brake, wash);
         points.push(RenalPoint {
             t_h: t,
@@ -573,7 +588,7 @@ pub fn renal_course(
             break;
         }
         // sous-pas explicites, physiologie figée
-        let (c_ss, u_ss) = (ev.metabolic.chem.creat, ev.metabolic.chem.urea);
+        let (c_ss, u_ss) = (ev.metabolic.chem.creat / tgf, ev.metabolic.chem.urea / tgf);
         let kc = gfr / (base.creat_vd * bw);
         let ku = gfr / (base.urea_vd * bw);
         for j in 0..n_sub {

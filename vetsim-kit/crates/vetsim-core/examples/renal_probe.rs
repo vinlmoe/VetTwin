@@ -176,8 +176,17 @@ fn main() {
         // Pelligand 2020 : beagles sains de 10,6 kg, furosémide per os en deux prises par jour,
         // 1, 2, 5 ou 8 mg/kg/j pendant 10 jours (lu)
         for daily in [1.0, 2.0, 5.0, 8.0] {
-            let d: Vec<Dose> = (0..20).map(|i| dose(12.0 * i as f64, daily / 2.0, Route::Po)).collect();
-            run(&format!("Pelligand {daily} mg/kg/j"), 10.6, None, d, 216.0, &[0.0, 24.0, 48.0, 72.0, 192.0, 216.0]);
+            let d: Vec<Dose> = (0..20)
+                .map(|i| dose(12.0 * i as f64, daily / 2.0, Route::Po))
+                .collect();
+            run(
+                &format!("Pelligand {daily} mg/kg/j"),
+                10.6,
+                None,
+                d,
+                216.0,
+                &[0.0, 24.0, 48.0, 72.0, 192.0, 216.0],
+            );
         }
     }
     if want("lantis") {

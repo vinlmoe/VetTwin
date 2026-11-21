@@ -57,7 +57,8 @@
     "brake_on_tau_h",
     "brake_off_tau_h",
     "water_max_mL_kg_h",
-    "water_tau_h"
+    "water_tau_h",
+    "gfr_g_vol"
    ],
    "additionalProperties": false,
    "properties": {
@@ -638,6 +639,30 @@
      "additionalProperties": false
     },
     "water_tau_h": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "gfr_g_vol": {
      "type": "object",
      "required": [
       "value",
