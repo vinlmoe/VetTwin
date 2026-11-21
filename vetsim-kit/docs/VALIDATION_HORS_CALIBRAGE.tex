@@ -7,6 +7,7 @@
 \usepackage{booktabs,array,tabularx,longtable}
 \usepackage{xcolor}
 \usepackage[hidelinks]{hyperref}
+\usepackage{amsmath}
 \usepackage{siunitx}
 \sisetup{locale=FR,detect-all}
 \setlength{\parskip}{0.4em}
@@ -484,6 +485,98 @@ Test : \vp{hemorrhage_matches_literature}, avec un contrôle d'échec sans les t
 \item \textbf{Trois contrôles d'échec}. Sans l'axe cardio-rénal, sans la viscosité de l'anémie ou sans la réponse à l'hypoxémie, la vérification correspondante doit échouer, et elle échoue.
 \end{itemize}
 
+\section{Rein dynamique (21/11/2026)}
+Le rein était stationnaire : DFG en produit de facteurs, créatinine et urée à l'équilibre, sodium, eau et potassium sans bilan. Le module \vp{crates/vetsim-core/src/renal.rs}, avec ses constantes dans \vp{modules/renal/renal_model.json} (1.0.0), ajoute :
+\begin{itemize}
+\item le bilan du sodium, donc la variation du volume extracellulaire ($V$), iso-osmotique ; le plasma en reçoit la part $V_p/\mathrm{VEC}$ (hémo- et protéinoconcentration) ;
+\item le bilan du potassium en deux compartiments, extracellulaire et intracellulaire ;
+\item un indice d'activité du système rénine-angiotensine-aldostérone ($A$) ;
+\item la cinétique de la créatinine et de l'urée.
+\end{itemize}
+Il ne sert que dans les évolutions temporelles, via le message \vp{renal_course} de l'API. L'état stationnaire (\vp{eval}, golden) est son point fixe, parce que les apports de Na et de K valent l'excrétion du patient de départ. Le test \vp{renal_fixed_point_is_the_steady_state} le vérifie.
+
+Équations ($b$ : état de départ, $E$ : effet du diurétique de l'anse issu de sa pharmacodynamie) :
+\[
+\mathrm{FE_{Na}} = \bigl(\mathrm{FE_{Na,0}} + f_\mathrm{anse}E\bigr)\,A^{-a_\mathrm{Na}}\Bigl(\tfrac{\mathrm{PAM}}{\mathrm{PAM}_b}\Bigr)^{n_p},\qquad
+\mathrm{FE_{K}} = \mathrm{FE_{K,0}}\Bigl(\tfrac{\mathrm{FE_{Na}}}{\mathrm{FE_{Na,0}}}\Bigr)^{k_\mathrm{flow}} A^{a_K}\Bigl(\tfrac{K}{K_b}\Bigr)^{k_\mathrm{self}},
+\]
+\[
+\frac{dV}{dt} = 1000\,\frac{\mathrm{Na_{in}} - \mathrm{DFG}\cdot\mathrm{Na}\cdot\mathrm{FE_{Na}}}{\mathrm{Na}},\qquad
+\frac{dA}{dt} = \frac{e^{g\,\max(0,-V)/\mathrm{VEC}}(1-\mathrm{IEC}) - A}{\tau_A},
+\]
+\[
+\frac{dK_e}{dt} = K_\mathrm{in} - \mathrm{DFG}\cdot K\cdot\mathrm{FE_K} - J,\qquad
+\frac{dK_i}{dt} = J = \frac{B\cdot \mathrm{bw}\cdot\Delta K - K_i}{\tau_{ic}},\qquad \Delta K = K_e/\mathrm{VEC}.
+\]
+La physiologie (\vp{evaluate}) est recalculée à chaque pas (0,25 h), mais seulement si un paramètre a bougé de plus de 0,2\,\% (K : 0,03 mmol/L). Une évaluation de MMVD coûte environ 200 ms.
+
+\subsection{Étape 1 : autorégulation de la filtration}
+Le premier calage a montré un défaut du rein \emph{stationnaire}. Une perte de 165 mL chez un chien de 23 kg (8\,\% du volume sanguin) abaissait le DFG de 35\,\%. Le facteur de débit (rampe de 0,5 à 1,0 fois le débit de référence) en portait la moitié, sans aucune autorégulation. Après une perfusion de furosémide, la créatinine montait de 60\,\% à 24 h, alors qu'Adin 2021 mesure $+23{,}9 \pm 12{,}4$\,\% (lu). Chez le chien en constriction cave, le DFG est conservé malgré la baisse du débit, avec une fraction de filtration accrue (résumés de recherche, plusieurs études des années 1960 à 1980).
+
+Correction : nouveau paramètre \vp{renal_co_auto} = 0,8. Le débit ne limite la filtration qu'au-dessous de 0,8 fois le débit de référence ; à 1,0, on retrouve la rampe historique. La valeur a été choisie par balayage (1,0 / 0,8 / 0,7) sur la créatinine d'Adin à 24 h (evidence C). La MMVD n'est pas touchée : son DFG ne dépend que du facteur sympathique, et son débit reste au-dessus de la référence.
+
+\subsection{Calage et validation}
+Sources de base, accès lu : FE$_\mathrm{Na}$ 0,20\,\% et FE$_\mathrm{K}$ 9,47\,\% chez le chien sain (Troìa 2018).
+
+\begin{table}[h]\small
+\caption{Rein dynamique sous furosémide (modèle à \texttt{dt} 0,25 h ; chronique à 1 h).}
+\begin{tabularx}{\linewidth}{P{4.4cm}P{2.6cm}P{3.3cm}LP{1.3cm}}
+\toprule
+Protocole & Modèle & Publié & Rôle & Statut\\
+\midrule
+Koh 2021, 2 mg/kg IV, 11,5 kg : diurèse 8 h & 24,65 mL/kg & 24,65 (lu) & calage & \ok\\
+Koh 2021 IV : $\Delta$K à 2 h / 8 h & $-0{,}52$ / $-0{,}33$ & $-0{,}51$ / $-0{,}33$ & calage & \ok\\
+Koh 2021, 2 mg/kg per os : diurèse 8 h & 36,4 & 30,9 (lu) & validation & \ok\ (+18\,\%)\\
+Koh 2021 per os : ordre des diurèses & PO $>$ IV & PO $>$ IV & validation & \ok\\
+Koh 2021 per os : $\Delta$K à 2 h / 8 h & $-0{,}82$ / $-0{,}51$ & $-0{,}54$ / $-0{,}46$ & validation & \ecart\ à 2 h\\
+Adin 2021, perfusion 5 h, 23,4 kg : créatinine à 24 h & $+31$\,\% & $+23{,}9 \pm 12{,}4$\,\% (lu) & validation (et choix de \vp{renal_co_auto}) & \ok\\
+Adin 2021 : moment de la hausse de créatinine & dès 5 h ($+24$\,\%) & seulement à 24 h & validation & \ecart\\
+Adin 2021 : K à 5 h et 24 h & $-1{,}1$ / $-0{,}5$ & pas de variation ($P$ = 0,4) & validation & \ecart\\
+Lantis 2011, 2 mg/kg PO q12h : aldostérone urinaire J5 & $\times 2{,}36$ & $\times 2{,}4$ (0,37 $\to$ 0,89 µg/g ; résumé) & calage & \ok\\
+Lantis 2011 : plateau de J5 à J10 & 2,36 $\to$ 2,43 & plateau dès J5 & validation & \ok\\
+Lantis 2011 (chien sain) : créatinine J5 & $+136$\,\% & non rapportée dans le résumé & — & \ecart\ probable\\
+Giorgi 2022, $\approx$ 4,1 mg/kg/j, MMVD 0,8 : créatinine J12 & $+90$\,\% & $+22$\,\% (lu) & validation & \ecart\\
+Giorgi 2022 : K à J12 & $-0{,}93$ & retour à la base (4,4) & validation & \ecart\\
+Wong 1977, 1 mg/kg/j IV, 7 j : $\Delta$K & $-0{,}20$ & $-0{,}39$ (accès moteur) & validation & \ecart\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Effet de \vp{renal_co_auto} sur l'état stationnaire.} Le golden a été régénéré depuis le Python, qui reçoit le même paramètre. 41 valeurs sur 1862 sortent de la tolérance de l'ancien golden, toutes des créatinines, urées et DFG d'états à bas débit (Addison, FA, BAV, maladie du sinus, bêtabloquant, opioïde, furosémide $D$/$U$). Exemples :
+\begin{itemize}
+\item BAV 0,8 (débit à 62\,\% de la référence) : créatinine 668 $\to$ 258 µmol/L ;
+\item Addison 0,8 : 265 $\to$ 171 µmol/L, soit 1,9 mg/dL (Hall 2023 : médiane 1,7 mg/dL, lu) ;
+\item furosémide $D$ = 150 mL : 190 $\to$ 125 µmol/L.
+\end{itemize}
+La MMVD est inchangée, donc les calages stationnaires de Giorgi et d'Adin 2020 aussi. Rust contre le nouveau golden : 1862/1862 valeurs conformes. Les fixtures Python M1 à M4 et \vp{calibration_run_python.json} ont été régénérées.
+
+\textbf{Domaine validé : l'aigu} (une administration, 24 h au plus). En prises répétées sur plusieurs jours, la déplétion sodée est surestimée : VEC $-77$ mL/kg à J5 chez le chien sain, $-116$ mL/kg à J12 dans la MMVD. Chaque dose fait perdre environ 2,6 mmol/kg de Na, alors que les apports n'en couvrent qu'environ 1,5 par jour. Le modèle ne rétablit le bilan qu'en effondrant le DFG. Quatre pistes ont été essayées, sans résultat :
+\begin{itemize}
+\item effet de l'aldostérone sur la réabsorption ($a_\mathrm{Na}$ = 2) : Koh n'est plus ajustable, car l'aldostérone monte en quelques heures et freine déjà la diurèse aiguë ;
+\item adaptation tubulaire lente (« braking » structurel, $\tau$ = 24 h) : sans effet mesurable ;
+\item urine excédentaire moins concentrée en Na (120 puis 75 mmol/L) : accord moins bon avec Koh (perte de K à 2 h trop forte) ;
+\item gain RAAS plus élevé : il contredit Lantis.
+\end{itemize}
+Pour le chronique, la voie stationnaire du diurétique (\vp{pkpd::timecourse}, $D$/$U$, adaptation $\varphi$ = 0,98, calée sur TEST, Adin 2020 et Giorgi) reste la référence. L'API renvoie \vp{validated} = false et un avertissement hors du domaine validé.
+
+\textbf{IEC et spironolactone.} Aucun module médicament n'est ajouté. Chez le chien sain, le bénazépril abaisse l'activité de l'ECA d'environ 90\,\% (22,1 $\to$ 2,5 U/L) sans changer la diurèse, le freinage ni l'aldostérone pendant une perfusion de furosémide (Adin 2021, lu). Les fortes doses d'énalapril ou de bénazépril n'empêchent pas non plus la hausse de l'aldostérone (Lantis 2015, résumé de recherche). Traduire l'inhibition de l'ECA en baisse de $A$ contredirait donc ces deux sources. Le levier \vp{ace_inhibition} (0–1) de l'API agit directement sur $A$ ; ce n'est pas un médicament.
+
+Placeholders (evidence D) :
+\begin{itemize}
+\item diurèse de base 1 mL/kg/h (aucune collecte primaire de 24 h trouvée) ;
+\item urine excédentaire iso-natrique (150 mmol/L) ;
+\item $a_\mathrm{Na}$ = $a_K$ = 1, $k_\mathrm{self}$ = 2, $n_p$ = 2, $\tau_A$ = 2 h, plancher de diurèse 0,3.
+\end{itemize}
+
+Tests :
+\begin{itemize}
+\item \vp{renal_matches_literature} : Koh IV, Koh per os et Adin ;
+\item deux contrôles d'échec : sans autorégulation, la créatinine d'Adin sort de la fourchette ; sans tampon intracellulaire, le $\Delta$K à 8 h aussi ;
+\item \vp{renal_course_round_trip} (API).
+\end{itemize}
+
+Sonde de calage reproductible : \vp{cargo run --release -p vetsim-core --example renal_probe} (scénarios Koh, Adin, Lantis, Wong, Giorgi ; surcharges \vp{clé=valeur}).
+
 \section{Effet sur les références du projet}
 \begin{itemize}
 \item \textbf{Golden} (\vp{tests/golden/cases.json}), régénéré depuis le Python corrigé (\vp{make_golden.py}). 121 valeurs sur 1782 sortent de la tolérance de l'ancien golden : pneumonie (62), Addison (28), BAV 0,8 (21), MRC 0,8 (2, PaCO$_2$), et 8 cas où seule \vp{lv_edp} ou \vp{la_mean} bouge (MMVD 0,5 et 0,8, pimobendane, bêtabloquant, furosémide, chiens de 5 et 40 kg), sensibles au régime périodique. Rust contre nouveau golden : 1862/1862 valeurs conformes.
@@ -540,6 +633,10 @@ Test : \vp{hemorrhage_matches_literature}, avec un contrôle d'échec sans les t
 \item Thrasher TN, Shifflett C 2001. \emph{Am J Physiol} 280:R1642. doi:10.1152/ajpregu.2001.280.6.r1642 (résumé).
 \item van Bavel JJA et al. 2023. \emph{Int J Cardiol Heart Vasc} 44:101169. doi:10.1016/j.ijcha.2022.101169 (lu).
 \item Viitanen SJ et al. 2017. \emph{J Vet Intern Med}. doi:10.1111/jvim.14631 (lu).
+\item Adin D, Atkins C, Wallace G, Klein A 2021. \emph{J Vet Intern Med} 35:1245. doi:10.1111/jvim.16097, PMC8163123 (lu).
+\item Koh SK et al. 2021. \emph{BMC Vet Res} 17:295. doi:10.1186/s12917-021-02998-4, PMC8420016 (lu).
+\item Lantis AC et al. 2011. \emph{Am J Vet Res} (résumé).
+\item Troìa R et al. 2018 (FE urinaires du chien sain, lu).
 \item Young AA et al. 2022. \emph{J Vet Intern Med}. doi:10.1111/jvim.16434 (lu).
 \end{itemize}
 Autres sources citées (résumés) : Bailey 1987, Bigby 2017, Davis 2017, Ferasin 2010, Granot 1985, Kudo 2024, Lamb 2010, Loen 2022 (lu), Morales 1999, Muir 2003, Rögels 2021, Shen 1990, Silverstein 2005 (secondaire), Simões 2016, Smith 2017, Solano 2006, Souza 2025 (lu), Steagall 2006, Thrasher 1998, Turunen 2019, Ueyama 2009, Valverde 2004, Vatner 1974, Yokota 2019, Chae 2026, Ko 2024 (lu).

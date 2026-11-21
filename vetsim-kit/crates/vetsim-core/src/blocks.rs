@@ -158,7 +158,7 @@ pub fn blocks_of(name: &str) -> &'static [Block] {
         "acid_ph0" | "acid_ees" => &[AcidBase, LeftHeart, RightHeart],
         "acid_rsys" => &[AcidBase, SystemicCirculation],
         "hypox_pvo2" | "hypox_ees" => &[Metabolism, LeftHeart, RightHeart],
-        "renal_cvp_ref" | "renal_k_cong" | "renal_s_ref" | "renal_k_symp" => {
+        "renal_cvp_ref" | "renal_k_cong" | "renal_s_ref" | "renal_k_symp" | "renal_co_auto" => {
             &[Kidney, SystemicCirculation, Autonomic]
         }
         "hb_ref" | "anemia_visc" => &[OxygenTransport, SystemicCirculation],

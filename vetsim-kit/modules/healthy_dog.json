@@ -244,6 +244,7 @@
   "renal_k_cong": 0.0,
   "renal_s_ref": 0.2,
   "renal_k_symp": 1.4,
+  "renal_co_auto": 0.8,
   "hb_ref": 15.0,
   "anemia_visc": 1.0,
   "rr_mult": 1.0,

@@ -243,6 +243,10 @@ define_params! {
     renal_s_ref,
     /// Perte relative de DFG par unité de tonus sympathique au-delà de `renal_s_ref`.
     renal_k_symp,
+    /// Autorégulation du DFG vis-à-vis du débit (21/11/2026) : fraction du débit de référence
+    /// au-dessus de laquelle le débit cardiaque ne limite plus la filtration (1,0 : pas
+    /// d'autorégulation, rampe 0,5–1,0 historique).
+    renal_co_auto,
     /// Hémoglobine de référence (g/dL) de la viscosité sanguine.
     hb_ref,
     /// Exposant de la viscosité : `r_sys ×= (hb/hb_ref)^anemia_visc` (anémie → vasodilatation, débit ↑).
@@ -400,6 +404,6 @@ mod tests {
             assert_eq!(p.get(n), Some(v));
         }
         assert_eq!(p.get("nope"), None);
-        assert_eq!(Params::NAMES.len(), 155); // + rr_mult (21/11/2026) ; + 6 axe cardio-rénal (20/11/2026) ; + 6 réponse à l'hypoxémie (20/11/2026) ; 73 + 11 décompensation + 6 oreillettes/systole + 3 force-intervalle + 22 conduction + 7 corrections du 18/11/2026 (creat_vd, urea_vd, map_arrest, av_symp, ven_cap, mr_k, mr_vref) + 3 échappements (esc_overdrive → esc_sup_gain, esc_sup_tau, esc_a_s, esc_a_v) + 5 chronologie (act_gamma, tr_frac, emd_v, emd_a, pa_ia) + 12 périphérie (temp_c … excitation)
+        assert_eq!(Params::NAMES.len(), 156); // + renal_co_auto (21/11/2026) ; + rr_mult (21/11/2026) ; + 6 axe cardio-rénal (20/11/2026) ; + 6 réponse à l'hypoxémie (20/11/2026) ; 73 + 11 décompensation + 6 oreillettes/systole + 3 force-intervalle + 22 conduction + 7 corrections du 18/11/2026 (creat_vd, urea_vd, map_arrest, av_symp, ven_cap, mr_k, mr_vref) + 3 échappements (esc_overdrive → esc_sup_gain, esc_sup_tau, esc_a_s, esc_a_v) + 5 chronologie (act_gamma, tr_frac, emd_v, emd_a, pa_ia) + 12 périphérie (temp_c … excitation)
     }
 }

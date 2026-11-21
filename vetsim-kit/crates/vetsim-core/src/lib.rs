@@ -26,6 +26,7 @@ pub mod patient;
 pub mod pcg;
 pub mod periph;
 pub mod pkpd;
+pub mod renal;
 pub mod rhythm;
 pub mod rng;
 pub mod roots;

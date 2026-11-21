@@ -368,7 +368,7 @@ def _evaluate_once(p, n_beats=22):
     phv, hco3v = stewart_ph(p, pvco2, lact)
     # --- rein
     co_ref = 3.29 * (bw / 20.0) ** 0.75
-    perf = float(min(np.clip((h['map'] - 40.0) / 35.0, 0, 1), np.clip((h['co'] / co_ref - 0.5) / 0.5, 0, 1)))
+    perf = float(min(np.clip((h['map'] - 40.0) / 35.0, 0, 1), np.clip((h['co'] / co_ref - (p['renal_co_auto'] - 0.5)) / 0.5, 0, 1)))
     perf = max(perf, 0.25)        # plateau de l'azotémie prérénale (au-delà : IRA, non modélisée)
     # axe cardio-rénal (miroir de engine::metabolic_state) : congestion (PVC) et vasoconstriction rénale
     f_cong = max(0.3, 1.0 - p['renal_k_cong'] * max(0.0, h['cvp'] - p['renal_cvp_ref']))

@@ -1,0 +1,100 @@
+{
+ "schema_version": "1.0.0",
+ "id": "renal_model",
+ "version": "1.0.0",
+ "name": {
+  "fr": "Rein dynamique"
+ },
+ "evidence": "C",
+ "values": {
+  "fe_na0": {
+   "value": 0.002,
+   "evidence": "B",
+   "note": "Troìa 2018, chiens sains n = 81 : FE_Na 0,20 % (0,02–1,11) ; lu"
+  },
+  "fe_k0": {
+   "value": 0.0947,
+   "evidence": "B",
+   "note": "Troìa 2018 : FE_K 9,47 ± 3,68 % ; lu"
+  },
+  "urine0_mL_kg_h": {
+   "value": 1.0,
+   "evidence": "D",
+   "note": "24 mL/kg/j, dans l'estimation non primaire de 20–40 mL/kg/j (Osborne, dvm360) ; aucune collecte primaire de 24 h trouvée"
+  },
+  "ecf_L_kg": {
+   "value": 0.25,
+   "evidence": "C",
+   "note": "volume extracellulaire usuel du chien (manuels de physiologie) ; non vérifié sur source primaire"
+  },
+  "k_buffer_L_kg": {
+   "value": 1.24,
+   "evidence": "C",
+   "note": "calé avec k_flow (Koh 2021) ; bien en dessous de la règle humaine (≈ 4,5 L/kg, Sterns 1981)"
+  },
+  "k_ic_tau_h": {
+   "value": 2.57,
+   "evidence": "C",
+   "note": "calé avec k_flow (Koh 2021)"
+  },
+  "fe_loop_max": {
+   "value": 0.0796,
+   "evidence": "C",
+   "note": "calé sur Koh 2021 (diurèse de 8 h, 2 mg/kg IV : 24,65 mL/kg)"
+  },
+  "k_flow": {
+   "value": 0.647,
+   "evidence": "C",
+   "note": "calé sur Koh 2021 (ΔK IV −0,51 à 2 h, −0,33 à 8 h)"
+  },
+  "n_pressure": {
+   "value": 2.0,
+   "evidence": "D",
+   "note": "placeholder : natriurèse de pression"
+  },
+  "aldo_tau_h": {
+   "value": 2.0,
+   "evidence": "D",
+   "note": "placeholder"
+  },
+  "aldo_g_vol": {
+   "value": 2.77,
+   "evidence": "C",
+   "note": "calé sur Lantis 2011 (UAldo:C 0,37 → 0,89 µg/g à J5 sous 2 mg/kg PO q12h ; résumé) : A(J5) = 2,4"
+  },
+  "aldo_a_na": {
+   "value": 1.0,
+   "evidence": "D",
+   "note": "placeholder"
+  },
+  "aldo_a_k": {
+   "value": 1.0,
+   "evidence": "D",
+   "note": "placeholder"
+  },
+  "urine_floor_frac": {
+   "value": 0.3,
+   "evidence": "D",
+   "note": "placeholder : diurèse minimale en rétention"
+  },
+  "k_self": {
+   "value": 2.0,
+   "evidence": "D",
+   "note": "placeholder : frein de l'hypokaliémie sur la sécrétion distale"
+  },
+  "urine_na_mmol_L": {
+   "value": 150.0,
+   "evidence": "D",
+   "note": "hypothèse d'une urine excédentaire iso-natrique ; aucune natriurie canine sous furosémide trouvée (essais à 120 et 75 : moins bon accord avec Koh)"
+  }
+ },
+ "refs": [
+  "Troìa R et al. 2018 (FE urinaires du chien sain, lu)",
+  "Koh SK et al. 2021, BMC Vet Res 17:295 (PMC8420016, lu)",
+  "Adin D et al. 2021, J Vet Intern Med 35:1245 (PMC8163123, lu)",
+  "Lantis AC et al. 2011, Am J Vet Res (résumé)",
+  "Wong KC et al. 1977, Can Anaesth Soc J (accès moteur)",
+  "Sterns RH et al. 1981, Medicine 60:339 (homme)"
+ ],
+ "notes": "Domaine validé : aigu (≤ 24 h). Prises répétées sur plusieurs jours : déplétion sodée surestimée (docs/VALIDATION_HORS_CALIBRAGE.tex)."
+}

@@ -47,7 +47,7 @@ d_t = clip(baro_gain·(map_set − MAP)/45, −1, 1)
 ## 4. Perfusion, lactate, rénal
 - `do2 = co·1000·CaO2/100`; `vo2 = vo2_kg·bw`; `er = vo2/do2`.
 - `lactate = lact0 + 9/(1 + exp(−(er − 0.55)/0.06))`.
-- Perfusion rénale : `perf = max(0.25, min(clip((MAP−40)/35, 0, 1), clip((co/co_ref − 0.5)/0.5, 0, 1)))`, `co_ref = 3.29·(bw/20)^0.75` L/min.
+- Perfusion rénale : `perf = max(0.25, min(clip((MAP−40)/35, 0, 1), clip((co/co_ref − (renal_co_auto − 0.5))/0.5, 0, 1)))`, `co_ref = 3.29·(bw/20)^0.75` L/min. Autorégulation vis-à-vis du débit (21/11/2026) : `renal_co_auto` 0,8, le débit ne limite la filtration qu'au-dessous de 0,8·co_ref (1,0 redonne la rampe historique 0,5–1,0).
 - Axe cardio-rénal (20/11/2026) : `f_cong = max(0,3 ; 1 − renal_k_cong·max(0, PVC − renal_cvp_ref))`, `f_symp = max(0,3 ; 1 − renal_k_symp·max(0, s − renal_s_ref))` ; anémie : `r_sys ×= (hb/hb_ref)^anemia_visc` dans la boucle de décompensation.
 - `gfr_ratio = max(0.03, nephron_mass·perf·f_cong·f_symp)`; `creat = creat0/gfr_ratio`; `urea = urea0/gfr_ratio^0.8`; `gfr = gfr0·bw·gfr_ratio`; `hct = 3·hb`.
 
@@ -75,6 +75,15 @@ d_t = clip(baro_gain·(map_set − MAP)/45, −1, 1)
 - Pimobendane 1.1.0 : `pr ×(1 − 0,25 E)` et `av_erp ×(1 − 0,25 E)` (PQ −11,8 % à 0,15 mg/kg IV, Pichayapaiboon 2021).
 - Opioïde 1.2.0 : en plus de ce qui précède, `t_set −= 2,0 E`, `pupil_ew += E`, `gi_inhib += 0,9 E`, `sedation += 0,2 E`.
 - **Créatinine et urée en évolution temporelle** (`kinetics.rs`, API `timecourse` et `state` avec `doses`/`at_h`) : compartiment unique `V·dC/dt = P − DFG(t)·C`, soit `dC/dt = (DFG/V)(C_ss − C)`, départ à l'équilibre du patient sans médicament ; `V = creat_vd·bw` (0,539 L/kg, Collignon 2012) et `urea_vd·bw` (0,66 L/kg, Bowsher 1985). L'état stationnaire (CLI `eval`, golden) reste `C_ss = C0/ratio_DFG`. Non porté en Python.
+
+## 6 ter. Rein dynamique (`renal.rs`, 21/11/2026 ; pas de port Python)
+- Évolution temporelle seulement (API `renal_course`) ; point fixe = état stationnaire (apports Na et K = excrétion de départ).
+- `FE_Na = (fe_na0 + fe_loop·E)·A^(−a_na)·(PAM/PAM_b)^n_p` ; `dV/dt = 1000·(Na_in − DFG·Na·FE_Na)/Na` (VEC, iso-osmotique) ; plasma `Vp/VEC·V` → `vol_shift`, `hb`, `alb`.
+- `FE_K = fe_k0·(FE_Na/fe_na0)^k_flow·A^a_k·(K/K_b)^k_self` ; K extra/intracellulaire : `dKe/dt = K_in − UK − J`, `J = (B·bw·ΔK − Ki)/τ_ic`.
+- RAAS : `dA/dt = (exp(g·max(0, −V)/VEC)·(1 − IEC) − A)/τ_A`. Créatinine et urée : `dC/dt = (DFG/V_d)(C_ss − C)`.
+- Médicaments : effets directs avec `D = U = 0` (termes calés du diurétique stationnaire neutres) ; `E` du diurétique de l'anse sur la natriurèse.
+- Physiologie recalculée à chaque pas `dt_h` (0,25 h) si un paramètre a bougé de plus de 0,2 % (K : 0,03 mmol/L).
+- Domaine validé : aigu (une administration, ≤ 24 h). Prises répétées : déplétion sodée surestimée (docs/VALIDATION_HORS_CALIBRAGE.tex) ; le chronique reste à la voie stationnaire `D`/`U`.
 
 ## 6 bis. Décompensation et viabilité (`physio.evaluate`, `physio._evaluate_once`)
 - `_evaluate_once` = l'ancienne évaluation (baroréflexe, hémodynamique, aval). `evaluate` l'enveloppe d'un point fixe amorti sur deux facteurs, `fc` (élastances VG et VD) et `fr` (`r_sys`) :

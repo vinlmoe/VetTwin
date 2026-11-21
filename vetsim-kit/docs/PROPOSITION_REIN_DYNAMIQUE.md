@@ -1,6 +1,18 @@
 # Proposition : rein dynamique (21/11/2026)
 
-**Statut : proposition, rien n'est implémenté.** À valider avant tout développement, car elle touche la référence normative.
+**Statut (21/11/2026) : implémenté en partie** (`crates/vetsim-core/src/renal.rs`, `modules/renal/renal_model.json`, message API `renal_course`). Bilan et écarts : `docs/VALIDATION_HORS_CALIBRAGE.tex`, section « Rein dynamique ».
+
+| Étape | État |
+|---|---|
+| 1. Filtration et autorégulation | Autorégulation vis-à-vis du débit ajoutée au rein stationnaire (`renal_co_auto`) ; le DFG reste celui du moteur |
+| 2. Sodium et eau | Bilan du Na et VEC iso-osmotique ; pas d'osmolalité, de vasopressine ni de natrémie de dilution |
+| 3. Potassium | Deux compartiments, sécrétion distale portée par le débit distal, l'aldostérone et la kaliémie |
+| 4. RAAS | Indice unique d'activité, piloté par la déplétion du VEC ; pas de rénine ni d'angiotensine séparées |
+| 5. Diurétiques et IEC | Furosémide par sa pharmacodynamie existante ; pas de module IEC ni spironolactone (données canines contraires, voir le rapport) |
+
+Domaine validé : l'aigu (une administration, ≤ 24 h). En prises répétées, la déplétion sodée est surestimée ; la voie stationnaire `D`/`U` reste la référence pour le chronique.
+
+Proposition initiale ci-dessous.
 
 ## Pourquoi
 

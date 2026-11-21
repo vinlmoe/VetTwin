@@ -23,6 +23,17 @@
 - Placeholders (evidence D), ajoutés le 17/11/2026 : termes toxiques des médicaments (`pd.toxicity` : EC50 toxique = 10 × EC50 thérapeutique, Hill 3, amplitudes) et paramètres de décompensation de `healthy_dog.json` (`acid_ph0` 7,20, `acid_ees` 1,5, `acid_rsys` 1,0, `hypox_pvo2` 20 mmHg, `hypox_ees` 0,03, `k_weak` 2,5 mmol/L, `k_weak_vent` 0,4, `cpp_min` 40 mmHg, `cpp_ees` 0,02, `hr_arrest` 20 /min, `co_arrest_frac` 0,15). Aucune source : ordres de grandeur pédagogiques. Voir `docs/PROPOSITION_TOXICITE.md`.
 - Usage pédagogique uniquement.
 
+## Rein dynamique (`modules/renal/renal_model.json` 1.0.0, 21/11/2026)
+
+- FE_Na 0,20 % et FE_K 9,47 % du chien sain : Troìa 2018 (lu), evidence B.
+- `fe_loop_max` 0,0796, `k_flow` 0,647, `k_ic_tau_h` 2,57 h, `k_buffer_L_kg` 1,24 : calés sur Koh 2021 (2 mg/kg IV ; diurèse 8 h 24,65 mL/kg, ΔK −0,51 à 2 h et −0,33 à 8 h ; lu), evidence C.
+- `aldo_g_vol` 2,77 : calé sur Lantis 2011 (UAldo:C ×2,4 à J5 ; résumé), evidence C.
+- `ecf_L_kg` 0,25 : valeur de manuel, evidence C, non vérifiée sur source primaire.
+- Placeholders D : diurèse de base 1 mL/kg/h, urine excédentaire iso-natrique, `aldo_a_na`, `aldo_a_k`, `k_self`, `n_pressure`, `aldo_tau_h`, `urine_floor_frac`.
+- Patient : `renal_co_auto` 0,8 (autorégulation du DFG vis-à-vis du débit), choisi par balayage sur Adin 2021 (créatinine +23,9 ± 12,4 % à 24 h après perfusion de furosémide ; lu) ; forme d'après la constriction cave chez le chien (DFG conservé, fraction de filtration accrue ; résumés de recherche), evidence C.
+- Domaine validé : aigu. Écarts en chronique (Lantis, Giorgi, Wong) : `docs/VALIDATION_HORS_CALIBRAGE.tex`.
+- IEC : pas de module ; Adin 2021 (lu) et Lantis 2015 (résumé de recherche) montrent qu'une baisse de l'activité de l'ECA ne réduit pas l'aldostérone chez le chien.
+
 ## Conduction (`reference/python/rhythm.py`, 17/11/2026)
 - Calés : `av_erp` 0,15 s et `av_conceal` 0,75 sur la FA canine (FC Holter médiane 129,7 [116,8–156,0], CVRR 0,309 [0,247–0,442], n = 50 ; 10.3389/fcvm.2026.1890025) sous la contrainte de conduction 1:1 jusqu'à ~225/min (FC max Holter des chiens sains 204 ± 25 ; 10.1371/journal.pone.0319886). Modèle : 129,6 /min, CVRR 0,291.
 - Sourcés : `vent_escape_rate` 27 /min, fréquence **intrinsèque** recalée le 20/11/2026 pour que le bloc AV complet en boucle fermée (baroréflexe et gain sympathique `esc_a_s` actifs) donne 42,2 /min, la fréquence d'échappement observée (42 ± 11, n = 97 ; 10.1111/jvim.12512 ; 43–47 /min chez le chien conscient, van Bavel 2023, PMC9826816, lu). Avant : 42 posé comme valeur intrinsèque, d'où 57 /min observés (docs/VALIDATION_HORS_CALIBRAGE.tex) ; `k_atrial_standstill` 8,5 mmol/L (arrêt atrial 8,5–10 avec conduction sino-ventriculaire, Hariman 1983, résumé) ; `k_hp_block` 10 (élargissement du QRS au-delà de 10,1, Tag & Day 2008, vu par moteur seulement).

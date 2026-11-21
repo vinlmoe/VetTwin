@@ -159,7 +159,9 @@ pub fn metabolic_state(p: &Params, h: &HemoInputs) -> Result<MetabolicState, Err
     // --- rein
     let co_ref = 3.29 * math::pow(bw / 20.0, 0.75);
     let by_map = ((h.map - 40.0) / 35.0).clamp(0.0, 1.0);
-    let by_co = ((h.co / co_ref - 0.5) / 0.5).clamp(0.0, 1.0);
+    // autorégulation : le débit ne limite la filtration que sous `renal_co_auto`·débit de
+    // référence (rampe de largeur 0,5 ; 1,0 redonne la rampe historique 0,5–1,0)
+    let by_co = ((h.co / co_ref - (p.renal_co_auto - 0.5)) / 0.5).clamp(0.0, 1.0);
     let perf = by_map.min(by_co).max(0.25);
     // axe cardio-rénal : congestion veineuse rénale (PVC) et vasoconstriction rénale
     // neurohormonale (tonus sympathique, RAAS) abaissent le DFG à PAM et débit conservés

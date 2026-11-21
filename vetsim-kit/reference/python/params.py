@@ -61,6 +61,7 @@ def healthy_params(bw=20.0):
         renal_cvp_ref=15.0,          # axe cardio-rénal : PVC de référence (mmHg) ; congestion sans effet mesurable jusqu'à 30 mmHg (Fiksen-Olsen 1991)
         renal_k_cong=0.0,            # perte relative de DFG par mmHg de PVC au-delà
         renal_s_ref=0.2,             # tonus sympathique de référence
+        renal_co_auto=0.8,           # autorégulation du DFG vis-à-vis du débit (21/11/2026 ; calé sur Adin 2021 via le rein dynamique Rust)
         renal_k_symp=1.4,            # perte relative de DFG par unité de tonus sympathique au-delà (Martinelli 2016, Adin 2020, Kaplan 2022, Nicolle 2007)
         hb_ref=15.0,                 # Hb de référence de la viscosité (g/dL)
         anemia_visc=1.0,             # exposant de viscosité : r_sys × (hb/hb_ref)^anemia_visc (Rooney 1993, Champion 2011)

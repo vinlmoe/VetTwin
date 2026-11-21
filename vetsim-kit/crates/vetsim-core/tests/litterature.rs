@@ -495,3 +495,104 @@ fn hemorrhage_matches_literature() {
         "sans compensation, baisse à 17 mL/kg {d20_0:.1} mmHg"
     );
 }
+
+// ------------------------------------------------------------------ rein dynamique (renal.rs)
+
+/// Évolution rénale d'un chien sain de `bw` kg après les doses de furosémide `doses`
+/// (`(t_h, mg/kg, voie)`) ; `tweak` modifie les constantes ou les paramètres du patient.
+fn renal_run(
+    bw: f64,
+    doses: &[(f64, f64, vetsim_core::Route)],
+    t_end: f64,
+    tweak: impl Fn(&mut vetsim_core::renal::RenalModel, &mut Params),
+) -> vetsim_core::renal::RenalCourse {
+    use vetsim_core::renal::{renal_course, RenalModel, RenalOptions};
+    let c = catalog();
+    let mut model = RenalModel::from_json(&read("modules/renal/renal_model.json"), "r").unwrap();
+    let mut p = Patient::healthy(&c.patient, bw).unwrap().params;
+    tweak(&mut model, &mut p);
+    let ds: Vec<vetsim_core::Dose> = doses
+        .iter()
+        .map(|&(t_h, mg_per_kg, route)| vetsim_core::Dose {
+            t_h,
+            drug: "furosemide".into(),
+            mg_per_kg,
+            route,
+        })
+        .collect();
+    let opt = RenalOptions {
+        t_end_h: t_end,
+        ..RenalOptions::default()
+    };
+    renal_course(&model, &p, &c.drugs, &ds, &opt).unwrap()
+}
+
+fn at(c: &vetsim_core::renal::RenalCourse, t: f64) -> &vetsim_core::renal::RenalPoint {
+    c.points
+        .iter()
+        .min_by(|a, b| (a.t_h - t).abs().total_cmp(&(b.t_h - t).abs()))
+        .unwrap()
+}
+
+/// Adin 2021 : 0,66 mg/kg IV puis 0,66 mg/kg/h pendant 5 h (perfusion en bolus de 6 min).
+fn adin_doses() -> Vec<(f64, f64, vetsim_core::Route)> {
+    let mut d = vec![(0.0, 0.66, vetsim_core::Route::Iv)];
+    d.extend((0..50).map(|i| (0.05 + 0.1 * i as f64, 0.066, vetsim_core::Route::Iv)));
+    d
+}
+
+/// Sans médicament, le rein dynamique reste sur l'état stationnaire (point fixe).
+#[test]
+fn renal_fixed_point_is_the_steady_state() {
+    let c = renal_run(20.0, &[], 24.0, |_, _| {});
+    let p0 = &c.points[0];
+    for p in &c.points {
+        assert!(p.d_ecf_ml_kg.abs() < 1e-9 && (p.k - p0.k).abs() < 1e-9);
+        assert!((p.creat - p0.creat).abs() < 1e-6 && (p.aldo - 1.0).abs() < 1e-9);
+        assert!((p.urine_ml_kg_h - 1.0).abs() < 1e-9);
+    }
+    assert!(c.n_evals <= 2, "{} évaluations", c.n_evals);
+}
+
+/// Furosémide en aigu : calage (Koh 2021, IV) et validation (Koh 2021 per os, Adin 2021).
+#[test]
+fn renal_matches_literature() {
+    use vetsim_core::Route::{Iv, Po};
+    // calage : Koh 2021, 2 mg/kg IV, beagles 10–13 kg (lu)
+    let iv = renal_run(11.5, &[(0.0, 2.0, Iv)], 8.0, |_, _| {});
+    let (k0, u8) = (iv.points[0].k, at(&iv, 8.0).urine_cum_ml_kg);
+    let (dk2, dk8) = (at(&iv, 2.0).k - k0, at(&iv, 8.0).k - k0);
+    eprintln!("Koh IV : diurèse 8 h {u8:.1} mL/kg, ΔK 2 h {dk2:+.2}, 8 h {dk8:+.2}");
+    assert!((22.0..=27.5).contains(&u8), "diurèse 8 h {u8:.1} (24,65)");
+    assert!((-0.6..=-0.42).contains(&dk2), "ΔK 2 h {dk2:.2} (−0,51)");
+    assert!((-0.4..=-0.26).contains(&dk8), "ΔK 8 h {dk8:.2} (−0,33)");
+    // validation : Koh 2021 per os (mêmes chiens) — diurèse supérieure à l'IV, ΔK à 8 h
+    let po = renal_run(11.5, &[(0.0, 2.0, Po)], 8.0, |_, _| {});
+    let (pu8, pdk8) = (
+        at(&po, 8.0).urine_cum_ml_kg,
+        at(&po, 8.0).k - po.points[0].k,
+    );
+    eprintln!("Koh PO : diurèse 8 h {pu8:.1} mL/kg, ΔK 8 h {pdk8:+.2}");
+    assert!(pu8 > u8, "ordre IV < PO de Koh 2021 non reproduit");
+    assert!((23.0..=40.0).contains(&pu8), "diurèse PO {pu8:.1} (30,9)");
+    assert!(
+        (-0.6..=-0.35).contains(&pdk8),
+        "ΔK PO 8 h {pdk8:.2} (−0,46)"
+    );
+    // validation : Adin 2021, créatinine +23,9 % (ET 12,4) à 24 h (lu)
+    let ad = renal_run(23.4, &adin_doses(), 24.0, |_, _| {});
+    let cr = 100.0 * (at(&ad, 24.0).creat / ad.points[0].creat - 1.0);
+    eprintln!("Adin : créatinine à 24 h {cr:+.0} %");
+    assert!((11.5..=36.3).contains(&cr), "créatinine 24 h {cr:+.0} %");
+    // contrôle d'échec : sans autorégulation du DFG vis-à-vis du débit, l'azotémie déborde
+    let ad0 = renal_run(23.4, &adin_doses(), 24.0, |_, p| p.renal_co_auto = 1.0);
+    let cr0 = 100.0 * (at(&ad0, 24.0).creat / ad0.points[0].creat - 1.0);
+    assert!(cr0 > 36.3, "sans autorégulation : {cr0:+.0} %");
+    // contrôle d'échec : sans tampon intracellulaire, la kaliémie ne remonte pas après le nadir
+    let nb = renal_run(11.5, &[(0.0, 2.0, Iv)], 8.0, |m, _| m.k_buffer_l_kg = 0.0);
+    let nb8 = at(&nb, 8.0).k - nb.points[0].k;
+    assert!(
+        !(-0.4..=-0.26).contains(&nb8),
+        "sans tampon : ΔK 8 h {nb8:.2}"
+    );
+}
