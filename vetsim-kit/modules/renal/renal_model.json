@@ -126,6 +126,11 @@
    "value": 1.0,
    "evidence": "C",
    "note": "calé sur Pelligand 2020 (diurèse à J9 : 365, 867, 1063 mL/j à 2, 5, 8 mg/kg/j contre 210 ; natriurèse revenue à la base : la polyurie chronique est de l'eau libre)"
+  },
+  "water_tau_h": {
+   "value": 24.0,
+   "evidence": "C",
+   "note": "à caler sur Pelligand 2020 (polyurie installée en quelques jours)"
   }
  },
  "refs": [

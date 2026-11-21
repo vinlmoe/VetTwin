@@ -570,13 +570,16 @@ fn ckd_params(s: f64) -> impl Fn(&mut vetsim_core::renal::RenalModel, &mut Param
 /// en MRC.
 #[test]
 fn renal_fixed_point_is_the_steady_state() {
+    let model =
+        vetsim_core::renal::RenalModel::from_json(&read("modules/renal/renal_model.json"), "r")
+            .unwrap();
     for s in [0.0, 0.85] {
         let c = renal_run(20.0, &[], 24.0, ckd_params(s));
         let p0 = &c.points[0];
         for p in &c.points {
             assert!(p.d_ecf_ml_kg.abs() < 1e-9 && (p.k - p0.k).abs() < 1e-9);
             assert!((p.creat - p0.creat).abs() < 1e-6 && (p.aldo - 1.0).abs() < 1e-9);
-            assert!((p.urine_ml_kg_h - 1.0).abs() < 1e-9);
+            assert!((p.urine_ml_kg_h - model.urine0_ml_kg_h).abs() < 1e-9);
         }
         assert!(c.n_evals <= 2, "{} évaluations", c.n_evals);
     }

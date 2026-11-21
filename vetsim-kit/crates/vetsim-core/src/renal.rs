@@ -64,6 +64,9 @@ pub struct RenalModel {
     /// Diurèse d'eau libre à effet maximal du diurétique (mL/kg/h ; perte du gradient
     /// médullaire, compensée par la boisson).
     pub water_max_ml_kg_h: f64,
+    /// Constante de temps de la perte du pouvoir de concentration (h) : la diurèse d'eau libre
+    /// suit l'exposition moyenne au diurétique, pas l'effet instantané.
+    pub water_tau_h: f64,
     /// Fraction excrétée du potassium de base.
     pub fe_k0: f64,
     /// Diurèse de base (mL/kg/h).
@@ -111,7 +114,7 @@ pub struct RenalModel {
 }
 
 /// Clés de `values`, dans l'ordre des champs.
-pub const RENAL_KEYS: [&str; 24] = [
+pub const RENAL_KEYS: [&str; 25] = [
     "na_intake_mmol_kg_d",
     "fe_k0",
     "urine0_mL_kg_h",
@@ -136,6 +139,7 @@ pub const RENAL_KEYS: [&str; 24] = [
     "brake_on_tau_h",
     "brake_off_tau_h",
     "water_max_mL_kg_h",
+    "water_tau_h",
 ];
 
 impl RenalModel {
@@ -165,6 +169,7 @@ impl RenalModel {
             brake_on_tau_h: g(21),
             brake_off_tau_h: g(22),
             water_max_ml_kg_h: g(23),
+            water_tau_h: g(24),
             fe_k0: g(1),
             urine0_ml_kg_h: g(2),
             ecf_l_kg: g(3),
@@ -193,6 +198,7 @@ impl RenalModel {
             (21, out.brake_on_tau_h > 0.0),
             (22, out.brake_off_tau_h > 0.0),
             (23, out.water_max_ml_kg_h >= 0.0),
+            (24, out.water_tau_h > 0.0),
             (1, out.fe_k0 > 0.0 && out.fe_k0 < 1.0),
             (2, out.urine0_ml_kg_h > 0.0),
             (3, out.ecf_l_kg > 0.0),
@@ -457,6 +463,7 @@ pub fn renal_course(
     let (mut creat, mut urea) = (ev0.metabolic.chem.creat, ev0.metabolic.chem.urea);
     let mut cum = 0.0f64;
     let mut brake = 0.0f64; // freinage tubulaire (0–1)
+    let mut wash = 0.0f64; // perte du pouvoir de concentration (0–1)
     let mut cum_na = 0.0f64; // natriurèse cumulée (mmol)
     let mut ak = 1.0f64; // composante kaliémique de l'aldostérone
     let mut cum_k = 0.0f64; // kaliurèse cumulée (mmol)
@@ -514,7 +521,7 @@ pub fn renal_course(
         let k_pl = p.k;
         let k_drug_free = p.k - dk; // kaliémie hors écart rénal (maladie, médicaments)
         let p_fac = crate::math::pow((map / map_b).max(0.1), model.n_pressure);
-        let fluxes = |e: f64, a: f64, ak: f64, k: f64, brake: f64| {
+        let fluxes = |e: f64, a: f64, ak: f64, k: f64, brake: f64, wash: f64| {
             let fe_na = ((fe_na_b + model.fe_loop_max * e * (1.0 - model.brake_frac * brake)) * crate::math::pow(a, -model.aldo_a_na) * p_fac)
                     .min(0.5);
             let una = gfr * na * fe_na;
@@ -533,12 +540,12 @@ pub fn renal_course(
             let fe_k = uk / (gfr * k).max(1e-12);
             let urine = (u0
                 + 1000.0 * (una - na_ref) / model.urine_na_mmol_l
-                + model.water_max_ml_kg_h * e * bw)
+                + model.water_max_ml_kg_h * wash * bw)
                 .max(model.urine_floor_frac * u0);
             (fe_na, una, fe_k, uk, urine)
         };
         let e_now = e_at(t);
-        let (fe_na, una, fe_k, uk, urine) = fluxes(e_now, a, ak, k_pl, brake);
+        let (fe_na, una, fe_k, uk, urine) = fluxes(e_now, a, ak, k_pl, brake, wash);
         points.push(RenalPoint {
             t_h: t,
             d_ecf_ml_kg: v / bw,
@@ -574,7 +581,7 @@ pub fn renal_course(
             let e = e_at(ts);
             let dk = ke / (ecf_ml / 1000.0);
             let k_now = (k_drug_free + dk).max(0.5);
-            let (_, una, _, uk, urine) = fluxes(e, a, ak, k_now, brake);
+            let (_, una, _, uk, urine) = fluxes(e, a, ak, k_now, brake, wash);
             // charges orales de K : dépôt digestif, absorption d'ordre 1
             for &(tl, mmol_kg) in &opt.k_loads {
                 if tl >= ts - 1e-9 && tl < ts + h - 1e-9 {
@@ -595,6 +602,7 @@ pub fn renal_course(
                 model.brake_off_tau_h
             };
             brake += h * (e - brake) / tau_b;
+            wash += h * (e - wash) / model.water_tau_h;
             ak += h * (ak_target(k_now) - ak) / model.aldo_tau_h;
             cum += h * urine;
             cum_na += h * una;
