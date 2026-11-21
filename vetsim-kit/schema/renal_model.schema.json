@@ -33,7 +33,7 @@
   "values": {
    "type": "object",
    "required": [
-    "fe_na0",
+    "na_diet_mg_100kcal",
     "fe_k0",
     "urine0_mL_kg_h",
     "ecf_L_kg",
@@ -52,34 +52,11 @@
     "k_sigma_up",
     "k_sigma_down",
     "aldo_k0",
-    "k_abs_tau_h"
+    "k_abs_tau_h",
+    "mer_factor"
    ],
    "additionalProperties": false,
    "properties": {
-    "fe_na0": {
-     "type": "object",
-     "required": [
-      "value",
-      "evidence"
-     ],
-     "properties": {
-      "value": {
-       "type": "number"
-      },
-      "evidence": {
-       "enum": [
-        "A",
-        "B",
-        "C",
-        "D"
-       ]
-      },
-      "note": {
-       "type": "string"
-      }
-     },
-     "additionalProperties": false
-    },
     "fe_k0": {
      "type": "object",
      "required": [
@@ -513,6 +490,54 @@
      "additionalProperties": false
     },
     "k_abs_tau_h": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "na_diet_mg_100kcal": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "mer_factor": {
      "type": "object",
      "required": [
       "value",

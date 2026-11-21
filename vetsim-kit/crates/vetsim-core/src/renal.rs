@@ -53,8 +53,10 @@ use serde_json::{Map, Value as Json};
 pub struct RenalModel {
     /// Version.
     pub version: String,
-    /// Fraction excrétée du sodium de base.
-    pub fe_na0: f64,
+    /// Sodium du régime (mg pour 100 kcal).
+    pub na_diet_mg_100kcal: f64,
+    /// Besoin énergétique d'entretien rapporté au besoin de repos `70·bw^0,75` kcal/j.
+    pub mer_factor: f64,
     /// Fraction excrétée du potassium de base.
     pub fe_k0: f64,
     /// Diurèse de base (mL/kg/h).
@@ -67,7 +69,7 @@ pub struct RenalModel {
     pub k_ic_tau_h: f64,
     /// Hausse de la fraction excrétée du sodium à effet maximal du diurétique de l'anse.
     pub fe_loop_max: f64,
-    /// Exposant du débit distal (indice `FE_Na/fe_na0`) sur la fraction excrétée du K.
+    /// Exposant du débit distal (indice `FE_Na/FE_Na,b`) sur la fraction excrétée du K.
     pub k_flow: f64,
     /// Exposant de la natriurèse de pression.
     pub n_pressure: f64,
@@ -102,8 +104,8 @@ pub struct RenalModel {
 }
 
 /// Clés de `values`, dans l'ordre des champs.
-pub const RENAL_KEYS: [&str; 20] = [
-    "fe_na0",
+pub const RENAL_KEYS: [&str; 21] = [
+    "na_diet_mg_100kcal",
     "fe_k0",
     "urine0_mL_kg_h",
     "ecf_L_kg",
@@ -123,6 +125,7 @@ pub const RENAL_KEYS: [&str; 20] = [
     "k_sigma_down",
     "aldo_k0",
     "k_abs_tau_h",
+    "mer_factor",
 ];
 
 impl RenalModel {
@@ -147,7 +150,8 @@ impl RenalModel {
         let g = |i: usize| x[i].expect("contrôlé");
         let out = Self {
             version,
-            fe_na0: g(0),
+            na_diet_mg_100kcal: g(0),
+            mer_factor: g(20),
             fe_k0: g(1),
             urine0_ml_kg_h: g(2),
             ecf_l_kg: g(3),
@@ -171,7 +175,8 @@ impl RenalModel {
             refs,
         };
         for (i, ok) in [
-            (0, out.fe_na0 > 0.0 && out.fe_na0 < 1.0),
+            (0, out.na_diet_mg_100kcal > 0.0),
+            (20, out.mer_factor > 0.0),
             (1, out.fe_k0 > 0.0 && out.fe_k0 < 1.0),
             (2, out.urine0_ml_kg_h > 0.0),
             (3, out.ecf_l_kg > 0.0),
@@ -379,11 +384,13 @@ pub fn renal_course(
     let k0 = base.k;
     let gfr_b = ev0.metabolic.chem.gfr * 0.06; // L/h
     let map_b = ev0.hemo.summary.map;
-    // Apports alimentaires : ceux d'un chien sain de même poids (DFG de référence `gfr0`,
-    // natrémie et kaliémie du patient), indépendants de la maladie. Le néphron restant s'y
-    // adapte : FE de base du patient = apport / charge filtrée (×1/ratio_DFG en MRC).
+    // Apports alimentaires, indépendants de la maladie : Na du régime (mg/100 kcal × besoin
+    // d'entretien `mer_factor·70·bw^0,75` kcal/j, 23 mg/mmol) ; K d'un chien sain de même poids
+    // (DFG de référence `gfr0`, FE_K de base `fe_k0`). Le néphron restant s'y adapte : FE de
+    // base du patient = apport / charge filtrée (×1/ratio_DFG en MRC).
     let gfr_ref = base.gfr0 * bw * 0.06; // L/h
-    let na_ref = gfr_ref * na * model.fe_na0; // mmol/h
+    let mer_kcal_d = model.mer_factor * 70.0 * crate::math::pow(bw, 0.75);
+    let na_ref = model.na_diet_mg_100kcal * mer_kcal_d / 100.0 / 23.0 / 24.0; // mmol/h
     let k_ref = gfr_ref * k0 * model.fe_k0;
     let fe_na_b = na_ref / (gfr_b * na);
     let fe_k_b = k_ref / (gfr_b * k0);

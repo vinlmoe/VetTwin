@@ -7,10 +7,10 @@
  },
  "evidence": "C",
  "values": {
-  "fe_na0": {
-   "value": 0.002,
+  "na_diet_mg_100kcal": {
+   "value": 112.0,
    "evidence": "B",
-   "note": "Troìa 2018, chiens sains n = 81 : FE_Na 0,20 % (0,02–1,11) ; lu ; fixe l'apport sodé de référence (chien sain de même poids)"
+   "note": "régime d'entretien de l'étude Adin 2021 (112 mg de Na/100 kcal ; lu). La FE_Na de base qui en découle (≈ 0,36 % à 20 kg) est dans l'étendue de Troìa 2018 (0,02–1,11 %, médiane 0,20 % ; lu)"
   },
   "fe_k0": {
    "value": 0.0947,
@@ -106,6 +106,11 @@
    "value": 1.98,
    "evidence": "C",
    "note": "calage conjoint sur Koh 2021 IV (diurèse 8 h, ΔK 2 h et 8 h) et per os (diurèse 8 h, ΔK 8 h), Bourgoignie 1981 chien normal (charge de 50 mEq de KCl : pic +1,05, 64 % excrétés en 5 h ; résumé) et Lantis 2011 (aldostérone ×2,4 à J5 ; résumé) (absorption de la charge orale de KCl)"
+  },
+  "mer_factor": {
+   "value": 1.6,
+   "evidence": "C",
+   "note": "besoin d'entretien d'un chien adulte ≈ 1,6 × 70·bw^0,75 kcal/j (valeur de manuel, NRC 2006 ; non vérifiée sur source primaire)"
   }
  },
  "refs": [
