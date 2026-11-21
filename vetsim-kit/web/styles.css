@@ -168,6 +168,8 @@ table.record { font-size: 12px; } ul.log { max-height: 220px; overflow-y: auto; 
 .mon-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
 .mon-sound { background: transparent; color: #e8eef2; border-color: #5b6b77; }
 .mon-sound:hover { background: #1d2a31; }
+.mon-btns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+select.mon-sound option { color: #111; }
 
 /* postes de l'onglet Anesthésie */
 .anesth-stations { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 12px; }

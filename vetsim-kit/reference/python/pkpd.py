@@ -42,7 +42,8 @@ F_PLASMA = 0.3        # fraction du volume urinaire prélevée sur le volume san
 TAU_REFILL = 4.0      # h, retour du volume (apport hydrique, transfert interstitiel)
 TAU_ELECT = 200.0     # h, oubli de la diurèse effective (Koh 2021 : pas de récupération à jeun sur 8 h)
 TAU_ADAPT, PHI_ADAPT = 12.0, 0.9808   # adaptation (aldostérone, apport, FE_K) : U_eff = U − φ·W ; Adin 2020, TEST 2017
-A_K, A_CL, A_NA = 0.00585, 0.00225, 0.00032   # pertes proportionnelles : X ← X·exp(−a·U_eff) (par mL/kg)
+A_K, A_CL, A_NA = 0.0030, 0.00225, 0.00032   # pertes proportionnelles : X ← X·exp(−a·U_eff) (par mL/kg) ; A_K 0,00585 → 0,0030 le 20/11/2026 (Adin 2020, TEST 2017, Giorgi 2022)
+K_GFR_D = 3.4                    # perte relative de DFG par fraction du volume sanguin retirée (Giorgi 2022 : créatinine +22 % à 4 mg/kg/j)
 
 
 def _k(d, p):
@@ -191,4 +192,6 @@ def apply_drug_effects(p, conc, D, U, conc_e=None):
         q['k'] *= np.exp(-A_K * U)        # pertes proportionnelles à la concentration : jamais négatives
         q['cl'] *= np.exp(-A_CL * U)
         q['na'] *= np.exp(-A_NA * U)
+        # azotémie prérénale : la contraction volémique abaisse le DFG (créatinine +22 % à 4 mg/kg/j, Giorgi 2022)
+        q['nephron_mass'] *= max(0.5, 1.0 - K_GFR_D * D / vb)
     return q

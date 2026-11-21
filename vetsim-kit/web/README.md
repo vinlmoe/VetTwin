@@ -11,7 +11,7 @@ Prérequis : Rust avec la cible `wasm32-unknown-unknown` et `cargo install wasm-
 
 ## Contenu
 - `index.html`, `styles.css`, `app.js` : interface (onglets Patient, Respiration, Schéma du modèle, Auscultation, Cœur animé, Traitement PK/PD, Anesthésie), en JavaScript sans dépendance ni outil de construction.
-- `anesthesia.js` : onglet Anesthésie (session en temps réel : moniteur, actions, signes cliniques, feuille d'anesthésie ; `docs/ANESTHESIE.tex`).
+- `anesthesia.js` : onglet Anesthésie (session en temps réel : moniteur, stéthoscope synchronisé sur l'ECG (apex ou base), actions, signes cliniques, feuille d'anesthésie ; `docs/ANESTHESIE.tex`).
 - `engine.js` : pilote du moteur, équivalent du contrôleur Kotlin de `kmp-demo`.
 - `heart.js` : cœur animé, entièrement piloté par le moteur (API `heart`).
   - Mécanique : contraction des quatre cavités (volumes) et parois épaissies selon l'activation mécanique ; les valves s'ouvrent ou fuient selon les débits du modèle.

@@ -301,6 +301,125 @@ Résultats : $-2{,}0$, $-2{,}6$ et $-2{,}8$ °C. Avec ces pertes plus fortes, le
 \item \textbf{Atipamézole} : la sédation est levée en 7,8 min, mais la FC ne revient pas à 80 \% de la base en 20 min. Même constat chez Turunen 2019 (résumé) et Ko 2024 (lu).
 \end{itemize}
 
+\section{Compléments du 20/11/2026 (après la première fusion)}
+\subsection{Réponse cardiaque à l'hypoxémie}
+\textbf{Constat.} En abaissant la FiO$_2$, le modèle restait au repos (FC 87, PAM 103, DC 3,27) jusqu'à une PaO$_2$ de 24 mmHg (SaO$_2$ 32\,\%), puis concluait au décès (dette d'O$_2$) sans transition. Il n'avait ni chémoréflexe ni réponse sympathique à l'hypoxie. La contractilité ne baissait qu'une fois la PvO$_2$ sous 20 mmHg.
+
+\textbf{Littérature} (chien conscient, respiration spontanée ; résumés sauf mention) :
+\begin{itemize}
+\item à PaO$_2$ 36 mmHg : FC $+11$/min, DC $+0{,}36$ L/min, PAM et RVS inchangées (Krebs 1999) ;
+\item à PaO$_2$ 28 : FC $+50$\,\%, DC $+48$\,\%, RVS $-30$\,\%, PAM $+10$\,\%, dP/dt $+60$\,\% ; la réponse persiste après dénervation sinoaortique (Krasney \& Koehler 1977) ;
+\item sous anesthésie avec ventilation isocapnique, PaO$_2$ 30 : FC $+12$ à $+28$\,\%, PAM inchangée (Hubloue 2004, lu) ;
+\item hypoxie sévère : excès de lactate vers une PvO$_2$ de 20 (Cain 1965) ; Ees divisée par deux au-delà d'une SaO$_2$ de 64\,\% (Walley 1988) ;
+\item asphyxie : tachycardie et hypertension, puis bradycardie, hypotension et perte du pouls à 11,4 $\pm$ 2,4 min (DeBehnke 1995).
+\end{itemize}
+
+\textbf{Correction} (moteur, \vp{engine::hypoxemic_drive}, miroir Python). Une commande $h = \mathrm{clip}\bigl((50 - \mathrm{PaO_2})/(50 - 15), 0, 1\bigr)^3$, intégrée à la boucle de décompensation, agit sur trois leviers :
+\begin{itemize}
+\item tonus sympathique de base \vp{s0} $+6h$ ;
+\item élastance $\times(1 + 3h)$ ;
+\item résistances systémiques $\times(1 - 0{,}9h)$, plancher 0,2.
+\end{itemize}
+Nouveaux paramètres \vp{hypox_*} de \vp{healthy_dog.json}. Le mécanisme apparaît dans \vp{outcome} sous le nom \vp{hypoxemic_drive}.
+
+\begin{center}\small
+\begin{tabular}{lrrrrrr}
+\toprule
+FiO$_2$ & PaO$_2$ & SaO$_2$ & FC & PAM & DC & Lactate\\
+\midrule
+0,21 & 99 & 96 & 87 & 103 & 3,27 & 1,2\\
+0,13 & 46 & 76 & 87 & 103 & 3,28 & 1,2\\
+0,115 & 36 & 64 & 95 & 104 & 3,56 & 1,3\\
+0,10 & 27 & 43 & 118 & 101 & 4,38 & 1,3\\
+0,09 & 20 & 27 & 172 & 74 & 5,06 & 1,9\\
+0,08 & \multicolumn{6}{l}{décès (dette d'O$_2$)}\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Comparaison.} Aux PaO$_2$ de l'étude :
+\begin{itemize}
+\item 36 mmHg : FC $+11$\,\%, DC $+9$\,\%, PAM $+2$\,\%, contre $+13$\,\%, $+11$\,\% et 0 (Krebs) ;
+\item 28 mmHg : FC $+30$\,\%, DC $+29$\,\%, RVS $-22$\,\%, PAM $+1$\,\%, contre $+50$, $+48$, $-30$ et $+10$\,\% (Krasney). La réponse est trop faible, car le baroréflexe la freine.
+\end{itemize}
+Krebs (40 min) et Krasney (10 min) ne s'accordent pas entièrement. Une pente plus raide pour atteindre Krasney faisait exploser la FC sous 22 mmHg.
+
+\textbf{Asphyxie} (session, isoflurane 1,3 MAC, apnée sous O$_2$, scénario \vp{asphyxie}) :
+\begin{itemize}
+\item la PAM monte de 76 à 92 mmHg pendant la phase hypercapnique ;
+\item après la désaturation (5,5 min), FC et PAM baissent progressivement (FC 105 $\to$ 73, PAM 92 $\to$ 61) ;
+\item arrêt hypoxique à 10,5 min.
+\end{itemize}
+Il a fallu une seconde correction. La dette d'O$_2$ abaissait la FC intrinsèque, mais le sympathique compensait et la FC remontait de 86 à 132/min avant l'arrêt. Un myocarde hypoxique ne répond plus aux catécholamines : la dette bloque désormais la réponse sympathique (\vp{beta_block} $+0{,}9\cdot$DEBT, \vp{hypoxia_effects}).
+
+\textbf{Reste} :
+\begin{itemize}
+\item pas de tachycardie franche au moment de la désaturation, car la dette d'O$_2$ s'accumule aussitôt ;
+\item léger rebond de FC (73 $\to$ 78) dans la dernière minute ;
+\item la bradycardie chémoréflexe primaire décrite à ventilation fixée (Kontos 1965) n'est pas modélisée.
+\end{itemize}
+
+\subsection{MMVD traitée (furosémide, pimobendane)}
+Régimes oraux de 7 à 84 jours (simulateur de traitement du Python secondaire ; le Rust concorde sur les cas du golden).
+
+\textbf{Potassium.} Il baissait deux fois trop :
+\begin{itemize}
+\item modèle avant : $-9$\,\% à J84 et $-18$\,\% à J1 à 4 mg/kg/j ;
+\item publié : 4,50 en stade C (3,5 mg/kg/j) contre 4,70 en B2, soit $-4$\,\% (Adin 2020, lu) ; 4,60 $\to$ 4,50 à J84 sous 2,78 mg/kg/j (TEST, lu) ; 4,4 $\to$ 4,0 au pic puis 4,4 vers J12 (Giorgi 2022, lu).
+\end{itemize}
+Correction : coefficient de perte de 0,00585 à 0,0030. Résultats : $-4{,}6$\,\% à J84 et $-9{,}5$\,\% à J1, contre $-4$ (Adin) et $-9$\,\% (Giorgi).
+
+\textbf{Créatinine.} Elle restait à 75 µmol/L sous furosémide : le DFG ne dépendait que de la PAM et du débit.
+\begin{itemize}
+\item publié : $+22$\,\% (0,9 $\to$ 1,1 mg/dL) après environ 12 jours à 4,1 mg/kg/j (Giorgi 2022, lu) ; BUN 20 $\to$ 25 ;
+\item correction : la contraction volémique abaisse le DFG, \vp{nephron_mass} $\times\max(0{,}5,\ 1 - 3{,}4\,D/V_b)$ (furosémide 1.4.0, miroir Python) ;
+\item résultats : $+16$, $+21$ et $+27$\,\% à 2,8, 4 et 8 mg/kg/j.
+\end{itemize}
+
+\textbf{Reste.} En stade C, Adin trouve une créatinine $+47$\,\% plus élevée qu'en B2, et Nicolle 2007 (résumé) un DFG de 1,7 contre 3,1 mL/min/kg en classe NYHA III–IV. Cette part d'origine cardiaque (syndrome cardiorénal) n'est pas modélisée.
+
+\textbf{Pimobendane} : conforme sans correction. EPIC (lu) : FC inchangée à J35, fraction de raccourcissement $+2$ points. Le modèle donne DC $+0{,}4$ L/min sans hausse de FC.
+
+\textbf{Gaz du sang et FC sous traitement.} Avant/après traitement de l'œdème cardiogénique, aucune PaO$_2$ ou SpO$_2$ chiffrée n'a été trouvée. Le modèle à 20 kg en MMVD 1,0 passe de 25 à 71 mmHg sous furosémide 4 mg/kg q8h + pimobendane. La FC publiée en ICC traitée (132–144/min, Giorgi, TEST, Yin 2026, lus) est comparable à celle du modèle (133–160).
+
+\subsection{Axe cardio-rénal}
+\textbf{Constat.} Les deux organes ne communiquaient presque pas.
+\begin{itemize}
+\item Le DFG ne dépendait que de la PAM (en dessous de 75 mmHg) et du débit. En MMVD terminale, malgré une PVC de 10,6 mmHg et un tonus sympathique triplé, le DFG restait à 3,50 mL/min/kg.
+\item En MRC, le cœur ignorait l'anémie : à Ht 29\,\%, FC, PAM et débit étaient ceux du chien sain.
+\item En mode déterministe, la PAM de la MRC baissait au lieu de monter.
+\end{itemize}
+
+\textbf{Littérature} (lue sauf mention) :
+\begin{itemize}
+\item DFG en classe NYHA III–IV : 1,7 contre 3,1 mL/min/kg en classe I–II (Nicolle 2007, résumé).
+\item Chiens B2 non traités : DFG 2,8 mL/min/kg (Kaplan 2022).
+\item Créatinine 1,5 chez les chiens traités contre 1,0 mg/dL chez les non-traités ; 32\,\% contre 1\,\% de MRC (Martinelli 2016).
+\item Créatinine en stade C : $+47$\,\% par rapport au stade B2 (Adin 2020).
+\item Pression veineuse rénale portée à 15 puis 30 mmHg : DFG et débit rénal inchangés (Fiksen-Olsen 1991–1992, résumés).
+\item Hémodilution : débit cardiaque $+63$ à $+65$\,\% à Ht 20\,\% (Rooney 1993, résumé) ; à Hb 5 g/dL, IC $+53$\,\%, RVS $-53$\,\%, PAM $-26$\,\% (Champion 2011).
+\item Pression systolique en MRC : 157 et 154 mmHg en IRIS II et III, contre 129 chez le sain (Pelander 2017) ; 156 contre 138 (Sharkey 2009, résumé).
+\end{itemize}
+
+\textbf{Mécanismes ajoutés} (Rust, miroir Python ; liens dans le schéma de l'application web) :
+\begin{itemize}
+\item \textbf{Cœur $\to$ rein, voie neurohormonale.} DFG $\times\max(0{,}3;\ 1 - 1{,}4\,(s - 0{,}2))$, avec $s$ le tonus sympathique (substitut du SNS et du RAAS). Résultats sans diurétique : MMVD 0,5 : 3,23 mL/min/kg ; MMVD 0,8 : créatinine $+23$\,\% ; MMVD 1,0 : DFG 1,43. Avec le furosémide ($\approx +21$\,\%), on retrouve le $+47$\,\% d'Adin en stade C.
+\item \textbf{Cœur $\to$ rein, congestion veineuse.} Le terme existe (\vp{renal_k_cong}) mais reste à 0 : la littérature canine ne montre aucun effet jusqu'à 30 mmHg.
+\item \textbf{Rein $\to$ cœur, anémie.} RVS $\times(\mathrm{Hb}/15)^{1{,}0}$, car la viscosité baisse. Résultats : Ht 20\,\% $\to$ DC $+56$\,\% ; Ht 15\,\% $\to$ DC $+77$\,\%, RVS $-59$\,\%, PAM $-24$\,\%. Écart : la hausse du débit passe surtout par la FC ($+69$\,\%, contre $+24$\,\% chez Champion).
+\item \textbf{Rein $\to$ cœur, hypertension rénale.} Consigne du baroréflexe $+30\cdot s$ mmHg (MRC 1.2.0). Une simple hausse des RVS était annulée par le baroréflexe. Résultats : PAM 111 et 114 mmHg aux sévérités 0,5 et 0,8 ; PAS $+9$ à $+13$ mmHg. Encore sous Pelander ($+25$ mmHg). L'hypertension sévère aléatoire du module est conservée.
+\end{itemize}
+
+\textbf{Recalage de la MRC.} Le tonus sympathique monte désormais en MRC (anémie, hypertension), ce qui abaisse le DFG. Le coefficient néphronique passe de 2,4 à 2,0 pour garder les créatininémies par stade : 118, 243, 539 et 991 µmol/L aux sévérités 0,2, 0,5, 0,8 et 1,0, contre 121, 249, 512 et 828 avant. Seul le stade terminal monte.
+
+\textbf{Effet de bord.} La crise addisonienne, avec hypovolémie et sympathique élevé, voit sa créatinine passer de 116 à 265 µmol/L (sévérité 0,8). Les publications donnent des médianes de 1,4 à 1,7 mg/dL, soit 124 à 150 µmol/L, avec 75\,\% d'azotémie (Hall 2023, Chalifoux 2023). Le modèle est donc plutôt haut : \textbf{à surveiller}.
+
+\textbf{Non modélisé.}
+\begin{itemize}
+\item Expansion du volume plasmatique en IRIS III (Pelander : facteur 63,7 $\to$ 139,9 mL/kg, mesure à confirmer).
+\item Hypertrophie ventriculaire gauche.
+\item Troponine et NT-proBNP.
+\end{itemize}
+
 \section{Effet sur les références du projet}
 \begin{itemize}
 \item \textbf{Golden} (\vp{tests/golden/cases.json}), régénéré depuis le Python corrigé (\vp{make_golden.py}). 121 valeurs sur 1782 sortent de la tolérance de l'ancien golden : pneumonie (62), Addison (28), BAV 0,8 (21), MRC 0,8 (2, PaCO$_2$), et 8 cas où seule \vp{lv_edp} ou \vp{la_mean} bouge (MMVD 0,5 et 0,8, pimobendane, bêtabloquant, furosémide, chiens de 5 et 40 kg), sensibles au régime périodique. Rust contre nouveau golden : 1862/1862 valeurs conformes.

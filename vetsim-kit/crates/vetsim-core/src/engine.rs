@@ -18,6 +18,8 @@ pub struct HemoInputs {
     pub map: f64,
     /// Pression moyenne de l'OG / veine pulmonaire (mmHg).
     pub la_mean: f64,
+    /// Pression veineuse centrale (mmHg) : congestion veineuse rénale.
+    pub cvp: f64,
 }
 
 /// Sang veineux mêlé.
@@ -159,7 +161,11 @@ pub fn metabolic_state(p: &Params, h: &HemoInputs) -> Result<MetabolicState, Err
     let by_map = ((h.map - 40.0) / 35.0).clamp(0.0, 1.0);
     let by_co = ((h.co / co_ref - 0.5) / 0.5).clamp(0.0, 1.0);
     let perf = by_map.min(by_co).max(0.25);
-    let gfr_ratio = (p.nephron_mass * perf).max(0.03);
+    // axe cardio-rénal : congestion veineuse rénale (PVC) et vasoconstriction rénale
+    // neurohormonale (tonus sympathique, RAAS) abaissent le DFG à PAM et débit conservés
+    let f_cong = (1.0 - p.renal_k_cong * f64::max(0.0, h.cvp - p.renal_cvp_ref)).max(0.3);
+    let f_symp = (1.0 - p.renal_k_symp * f64::max(0.0, p.sympathetic - p.renal_s_ref)).max(0.3);
+    let gfr_ratio = (p.nephron_mass * perf * f_cong * f_symp).max(0.03);
     let chem = Chemistry {
         na: p.na,
         k: p.k,
@@ -479,6 +485,7 @@ fn evaluate_once(base: &Params) -> Result<Evaluation, Error> {
             co: hs.co,
             map: hs.map,
             la_mean: hs.la_mean,
+            cvp: hs.cvp,
         },
     )?;
     let autonomic = Autonomic {
@@ -528,6 +535,21 @@ pub const LA_EDEMA: f64 = 18.0;
 /// PAM sous laquelle la perfusion rénale baisse (40 + 35).
 pub const MAP_RENAL: f64 = 75.0;
 
+/// Commande de la réponse à l'hypoxémie,
+/// `h = clip((hypox_pao2 − PaO2)/(hypox_pao2 − hypox_pao2_sat), 0, 1)^hypox_n` : tachycardie,
+/// inotropisme et vasodilatation du chien conscient en hypoxie aiguë (Krasney & Koehler 1977 ;
+/// Krebs 1999 ; présentes aussi après dénervation sinoaortique, donc pas seulement chémoréflexes).
+/// Saturée sous `hypox_pao2_sat` : au-delà, la dépression hypoxique (PvO2) l'emporte. Calée le
+/// 20/11/2026 (docs/VALIDATION_HORS_CALIBRAGE.tex).
+pub fn hypoxemic_drive(p: &Params, pao2: f64) -> f64 {
+    let span = p.hypox_pao2 - p.hypox_pao2_sat;
+    if p.hypox_pao2 <= 0.0 || span <= 0.0 {
+        return 0.0;
+    }
+    let x = ((p.hypox_pao2 - pao2) / span).clamp(0.0, 1.0);
+    math::pow(x, p.hypox_n)
+}
+
 /// Facteurs cibles (contractilité, résistance, acidémie, hypoxie, coronaire) d'une passe.
 fn coupling_targets(p: &Params, e: &Evaluation) -> (f64, f64, f64, f64, f64) {
     let ph = e.metabolic.art.ph;
@@ -571,14 +593,20 @@ pub fn evaluate(p0: &Params) -> Result<Evaluation, Error> {
         F_FLOOR,
         1.0 - p0.k_weak_vent * f64::max(0.0, p0.k_weak - p0.k),
     );
-    let (mut fc, mut fr) = (1.0, 1.0);
+    let (mut fc, mut fr, mut fh) = (1.0, 1.0, 0.0);
     let mut last: Option<Evaluation> = None;
     for it in 0..DECOMP_MAX_ITER {
         let mut q = p0.clone();
         q.vent_drive = p0.vent_drive * f_vent;
-        q.ees_lv = p0.ees_lv * fc;
-        q.ees_rv = p0.ees_rv * fc;
-        q.r_sys = p0.r_sys * fr;
+        // réponse à l'hypoxémie (commande fh) : sympathique de base, inotropisme, vasodilatation
+        q.s0 = (p0.s0 + p0.hypox_symp * fh).min(1.0);
+        q.ees_lv = p0.ees_lv * fc * (1.0 + p0.hypox_inotropy * fh);
+        q.ees_rv = p0.ees_rv * fc * (1.0 + p0.hypox_inotropy * fh);
+        q.r_sys = p0.r_sys * fr * (1.0 - p0.hypox_vaso * fh).max(0.2);
+        // rein → cœur : l'anémie (MRC) abaisse la viscosité, donc les résistances systémiques
+        if p0.anemia_visc != 0.0 && p0.hb_ref > 0.0 {
+            q.r_sys *= math::pow(p0.hb / p0.hb_ref, p0.anemia_visc);
+        }
         let e = match evaluate_once(&q) {
             Ok(e) => e,
             Err(err) if is_physiological_failure(&err) => {
@@ -607,12 +635,27 @@ pub fn evaluate(p0: &Params) -> Result<Evaluation, Error> {
             });
         }
         let (tc, tr, f_acid, f_hyp, f_cor) = coupling_targets(p0, &e);
-        if (tc - fc).abs() < DECOMP_TOL && (tr - fr).abs() < DECOMP_TOL {
-            return Ok(finish(p0, e, fc, fr, f_vent, it + 1, f_acid, f_hyp, f_cor));
+        let th = hypoxemic_drive(p0, e.metabolic.art.pao2);
+        if (tc - fc).abs() < DECOMP_TOL
+            && (tr - fr).abs() < DECOMP_TOL
+            && (th - fh).abs() < DECOMP_TOL
+        {
+            let mut e = finish(p0, e, fc, fr, f_vent, it + 1, f_acid, f_hyp, f_cor);
+            if fh > 1e-3 {
+                e.outcome.decompensated = true;
+                e.outcome.mechanisms.push(Mechanism {
+                    id: "hypoxemic_drive",
+                    value: e.metabolic.art.pao2,
+                    threshold: p0.hypox_pao2,
+                    factor: fh,
+                });
+            }
+            return Ok(e);
         }
         last = Some(e);
         fc = 0.5 * fc + 0.5 * tc;
         fr = 0.5 * fr + 0.5 * tr;
+        fh = 0.5 * fh + 0.5 * th;
     }
     Err(Error::NonViable {
         cause: "vicious_circle",

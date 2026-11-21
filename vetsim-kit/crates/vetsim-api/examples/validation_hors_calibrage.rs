@@ -683,6 +683,43 @@ fn main() {
             );
         }
     }
+    if on("asphyxie") {
+        // apnée totale chez le chien intubé sous isoflurane 1,3 MAC, après 10 min de ventilation
+        // contrôlée en O2 : FC, PAM, SaO2 toutes les 30 s (DeBehnke 1995 : tachycardie, hypertension,
+        // puis bradycardie, hypotension ; perte du pouls à 11,4 ± 2,4 min)
+        let mut s = session();
+        anesthetized(&mut s, "isoflurane", 1.3);
+        s.apply(Event::SetVentilation(Ventilation::Controlled {
+            rr: 12.0,
+            vt_ml_kg: 12.0,
+        }))
+        .unwrap();
+        hold_mac(&mut s, "isoflurane", 1.3, 600.0);
+        s.apply(Event::SetVentilation(Ventilation::Controlled {
+            rr: 0.0,
+            vt_ml_kg: 0.0,
+        }))
+        .unwrap();
+        for k in 0..40 {
+            let sn = run(&mut s, 30.0, 5.0);
+            match sn.eval.as_ref() {
+                Some(e) => println!(
+                    "asphyxie {:.1} min : FC {:.0} PAM {:.0} DC {:.2} SaO2 {:.0} PaO2 {:.0} PaCO2 {:.0}",
+                    0.5 * (k + 1) as f64,
+                    e.params.hr,
+                    e.hemo.summary.map,
+                    e.hemo.summary.co,
+                    e.metabolic.art.sao2,
+                    e.metabolic.art.pao2,
+                    sn.paco2
+                ),
+                None => {
+                    println!("asphyxie {:.1} min : décès {:?}", 0.5 * (k + 1) as f64, sn.dead);
+                    break;
+                }
+            }
+        }
+    }
     if on("titration") {
         for (a, m) in [("sevoflurane", 1.3), ("isoflurane", 2.0)] {
             let mut s = session();

@@ -222,6 +222,31 @@ define_params! {
     hypox_pvo2,
     /// Perte relative d'élastance par mmHg de PvO2 sous `hypox_pvo2`.
     hypox_ees,
+    /// PaO2 (mmHg) sous laquelle l'hypoxémie active la réponse sympathique (commande h).
+    hypox_pao2,
+    /// PaO2 (mmHg) où la commande hypoxique sature (h = 1).
+    hypox_pao2_sat,
+    /// Exposant de la commande `h = clip((hypox_pao2 − PaO2)/(hypox_pao2 − hypox_pao2_sat), 0, 1)^n`.
+    hypox_n,
+    /// Hausse du tonus sympathique de base par unité de `h` (FC).
+    hypox_symp,
+    /// Hausse relative d'élastance (VG, VD) par unité de `h` (inotropisme).
+    hypox_inotropy,
+    /// Baisse relative de résistance systémique par unité de `h` (vasodilatation hypoxique).
+    hypox_vaso,
+    // --- axe cardio-rénal (20/11/2026) ---
+    /// PVC (mmHg) au-delà de laquelle la congestion veineuse rénale abaisse le DFG.
+    renal_cvp_ref,
+    /// Perte relative de DFG par mmHg de PVC au-delà de `renal_cvp_ref` (congestion).
+    renal_k_cong,
+    /// Tonus sympathique au-delà duquel la vasoconstriction rénale (SNS, RAAS) abaisse le DFG.
+    renal_s_ref,
+    /// Perte relative de DFG par unité de tonus sympathique au-delà de `renal_s_ref`.
+    renal_k_symp,
+    /// Hémoglobine de référence (g/dL) de la viscosité sanguine.
+    hb_ref,
+    /// Exposant de la viscosité : `r_sys ×= (hb/hb_ref)^anemia_visc` (anémie → vasodilatation, débit ↑).
+    anemia_visc,
     /// K+ (mmol/L) sous lequel les muscles respiratoires faiblissent.
     k_weak,
     /// Perte relative de commande ventilatoire par mmol/L sous `k_weak`.
@@ -372,6 +397,6 @@ mod tests {
             assert_eq!(p.get(n), Some(v));
         }
         assert_eq!(p.get("nope"), None);
-        assert_eq!(Params::NAMES.len(), 142); // 73 + 11 décompensation + 6 oreillettes/systole + 3 force-intervalle + 22 conduction + 7 corrections du 18/11/2026 (creat_vd, urea_vd, map_arrest, av_symp, ven_cap, mr_k, mr_vref) + 3 échappements (esc_overdrive → esc_sup_gain, esc_sup_tau, esc_a_s, esc_a_v) + 5 chronologie (act_gamma, tr_frac, emd_v, emd_a, pa_ia) + 12 périphérie (temp_c … excitation)
+        assert_eq!(Params::NAMES.len(), 154); // + 6 axe cardio-rénal (20/11/2026) ; + 6 réponse à l'hypoxémie (20/11/2026) ; 73 + 11 décompensation + 6 oreillettes/systole + 3 force-intervalle + 22 conduction + 7 corrections du 18/11/2026 (creat_vd, urea_vd, map_arrest, av_symp, ven_cap, mr_k, mr_vref) + 3 échappements (esc_overdrive → esc_sup_gain, esc_sup_tau, esc_a_s, esc_a_v) + 5 chronologie (act_gamma, tr_frac, emd_v, emd_a, pa_ia) + 12 périphérie (temp_c … excitation)
     }
 }

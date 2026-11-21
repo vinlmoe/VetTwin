@@ -235,6 +235,7 @@ Messages JSON (\vp{vetsim-api}, donc UniFFI et WebAssembly) :
 {"op": "anesthesia_event",  "options": {"session": "a2", "event": {"type": "bolus", "agent": "propofol",
                                         "mg_per_kg": 4, "route": "iv"}}}
 {"op": "anesthesia_step",   "options": {"session": "a2", "dt_s": 5, "n": 12, "all": true, "waves_s": 4}}
+{"op": "anesthesia_step",   "options": {"session": "a2", "waves_s": 6, "seed": 1, "pcg": {"site": "apex"}}}
 {"op": "anesthesia_record", "options": {"session": "a2"}}
 \end{Verbatim}
 Événements : \vp{bolus} (\vp{duration_s} optionnelle), \vp{cri}, \vp{vaporizer}, \vp{fresh_gas}, \vp{circuit}, \vp{intubate}, \vp{extubate}, \vp{ventilation},
@@ -244,6 +245,15 @@ Messages JSON (\vp{vetsim-api}, donc UniFFI et WebAssembly) :
 L'onglet « Anesthésie » de l'application web (\vp{web/anesthesia.js}) affiche un moniteur (ECG D~II et pression artérielle simulés
 par le moteur, capnogramme schématique, valeurs, alarmes), les signes cliniques, trois tendances, les actions et la feuille d'anesthésie ;
 vitesse ×1, ×10 ou ×60.
+
+\textbf{Auscultation en temps réel} (20/11/2026). Avec l'option \vp{pcg} (\vp{true}, ou un objet avec \vp{site} : \vp{base} ou \vp{apex}, et \vp{fs}),
+\vp{anesthesia_step} renvoie avec les courbes un son cardiaque (\vp{pcg.wav_base64}, \vp{fs}, instants des battements, grade et type de souffle)
+synthétisé par le module auscultation (\vp{pcg::patient_pcg}) sur l'évaluation courante de la session, avec la même graine et la même durée
+que l'ECG : mêmes battements (test d'API \vp{anesthesia_step_streams_heart_sounds...} : chaque battement du son a une onde R à moins
+de 0,12 s ; avec une autre graine, le test échoue). Sans configuration \vp{auscultation} chargée, la demande est refusée. Dans l'onglet,
+le bouton « Stéthoscope » (site apex gauche ou base) découpe le son aux mêmes ondes R que l'ECG et le joue quand le segment passe sous la
+tête de lecture du moniteur (temps réel, quelle que soit la vitesse de simulation, fondus de 5 ms aux raccords) ; il entend donc les effets
+des agents, de la profondeur, de la volémie et de la maladie du patient tels que le moteur les calcule.
 
 \section{Limites connues}
 \begin{itemize}
