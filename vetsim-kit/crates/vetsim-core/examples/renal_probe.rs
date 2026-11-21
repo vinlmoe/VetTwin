@@ -97,11 +97,19 @@ fn main() {
                 .min_by(|a, b| (a.t_h - t).abs().total_cmp(&(b.t_h - t).abs()))
                 .unwrap();
             let ev = p.eval.as_ref().unwrap();
+            // aldostérone moyenne des 24 h précédentes (aldostérone urinaire)
+            let win: Vec<f64> = c
+                .points
+                .iter()
+                .filter(|q| q.t_h > p.t_h - 24.0 && q.t_h <= p.t_h)
+                .map(|q| q.aldo)
+                .collect();
+            let am = win.iter().sum::<f64>() / win.len().max(1) as f64;
             println!(
-                "t {:6.2} h  UK cum {:5.2} mmol/kg  UNa cum {:6.2} mmol/kg  B {:.2}  urine cum {:6.2} mL/kg  UNa {:4.0} mmol/L  K {:.2} ΔK {:+.2}  ΔECF {:+6.1} mL/kg  A {:.2}  creat {:5.1} ({:+.0} %)  FE_Na {:.4}  FE_K {:.3}  E {:.2}  PAM {:5.1}  FC {:5.1}  DFG {:5.2}",
+                "t {:6.2} h  UK cum {:5.2} mmol/kg  UNa cum {:6.2} mmol/kg  B {:.2}  urine cum {:6.2} mL/kg  UNa {:4.0} mmol/L  K {:.2} ΔK {:+.3}  ΔECF {:+6.1} mL/kg  A {:.2}  creat {:5.1} ({:+.1} %)  FE_Na {:.4}  FE_K {:.3}  E {:.2}  PAM {:5.1}  FC {:5.1}  DFG {:5.2}  Am24 {:.3}  Ar {:.2}",
                 p.t_h, p.uk_cum_mmol_kg, p.una_cum_mmol_kg, p.brake, p.urine_cum_ml_kg, p.una_mmol_l, p.k, p.k - p0.k, p.d_ecf_ml_kg, p.aldo, p.creat,
                 100.0 * (p.creat / p0.creat - 1.0), p.fe_na, p.fe_k, p.e_loop,
-                ev.hemo.summary.map, ev.params.hr, ev.metabolic.chem.gfr / bw
+                ev.hemo.summary.map, ev.params.hr, p.gfr / bw, am, p.aldo_renin
             );
         }
     };
@@ -175,7 +183,11 @@ fn main() {
     if want("pelligand") {
         // Pelligand 2020 : beagles sains de 10,6 kg, furosémide per os en deux prises par jour,
         // 1, 2, 5 ou 8 mg/kg/j pendant 10 jours (lu)
+        let pd = env("PDOSE", 0.0);
         for daily in [1.0, 2.0, 5.0, 8.0] {
+            if pd > 0.0 && daily != pd {
+                continue;
+            }
             let d: Vec<Dose> = (0..20)
                 .map(|i| dose(12.0 * i as f64, daily / 2.0, Route::Po))
                 .collect();

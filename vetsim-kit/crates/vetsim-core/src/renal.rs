@@ -31,7 +31,8 @@
 //! - potassium extracellulaire `Ke` et intracellulaire `Ki` (écarts, mmol) :
 //!   `dKe/dt = K_in − UK − J`, `dKi/dt = J`, `J = (B·bw·ΔK − Ki)/τ_ic`, `ΔK = Ke/VEC` ;
 //! - aldostérone en deux composantes (« paradoxe de l'aldostérone ») : `A` (rénine,
-//!   `A_t = exp(g_vol·max(0, −V)/VEC)·(1 − IEC)`) retient le Na et sécrète le K ; `A_K`
+//!   `A_t = exp(g_vol·max(0, −V)/VEC)·(1 + g_md·E)·(1 − IEC)` : déplétion et macula densa)
+//!   retient le Na (action génomique retardée, `τ_na`) et sécrète le K ; `A_K`
 //!   (kaliémie, `A_K,t = (K − k0)/(K_b − k0)`, Young 1984) ne sécrète que le K ; même `τ_A` ;
 //!   la sortie `aldo` vaut `A·A_K` ;
 //! - charges orales de K : dépôt digestif absorbé avec `τ_abs` ;
@@ -78,6 +79,11 @@ pub struct RenalModel {
     /// Baisse du DFG par déplétion du VEC hors exposition au diurétique (rétrocontrôle
     /// tubulo-glomérulaire rétabli, angiotensine II) ; le blocage de la macula densa la lève.
     pub gfr_g_vol: f64,
+    /// Latence de l'action natriférique (génomique) de l'aldostérone (h) : la réabsorption
+    /// sodée suit `A` avec ce retard.
+    pub aldo_na_tau_h: f64,
+    /// Libération directe de rénine par blocage du NKCC2 de la macula densa (gain sur E).
+    pub aldo_g_md: f64,
     /// Fraction excrétée du potassium de base.
     pub fe_k0: f64,
     /// Diurèse de base (mL/kg/h).
@@ -125,7 +131,7 @@ pub struct RenalModel {
 }
 
 /// Clés de `values`, dans l'ordre des champs.
-pub const RENAL_KEYS: [&str; 26] = [
+pub const RENAL_KEYS: [&str; 28] = [
     "na_intake_mmol_kg_d",
     "fe_k0",
     "urine0_mL_kg_h",
@@ -152,6 +158,8 @@ pub const RENAL_KEYS: [&str; 26] = [
     "water_max_mL_kg_h",
     "water_tau_h",
     "gfr_g_vol",
+    "aldo_na_tau_h",
+    "aldo_g_md",
 ];
 
 impl RenalModel {
@@ -183,6 +191,8 @@ impl RenalModel {
             water_max_ml_kg_h: g(23),
             water_tau_h: g(24),
             gfr_g_vol: g(25),
+            aldo_na_tau_h: g(26),
+            aldo_g_md: g(27),
             fe_k0: g(1),
             urine0_ml_kg_h: g(2),
             ecf_l_kg: g(3),
@@ -213,6 +223,8 @@ impl RenalModel {
             (23, out.water_max_ml_kg_h >= 0.0),
             (24, out.water_tau_h > 0.0),
             (25, out.gfr_g_vol >= 0.0),
+            (26, out.aldo_na_tau_h > 0.0),
+            (27, out.aldo_g_md >= 0.0),
             (1, out.fe_k0 > 0.0 && out.fe_k0 < 1.0),
             (2, out.urine0_ml_kg_h > 0.0),
             (3, out.ecf_l_kg > 0.0),
@@ -297,6 +309,8 @@ pub struct RenalPoint {
     pub d_k_ic_mmol_kg: f64,
     /// Activité RAAS (1 : départ).
     pub aldo: f64,
+    /// Composante rénine de l'aldostérone `A` (relative).
+    pub aldo_renin: f64,
     /// Créatinine cinétique (µmol/L, unité du moteur).
     pub creat: f64,
     /// Urée cinétique (unité du moteur).
@@ -482,6 +496,7 @@ pub fn renal_course(
     let mut wash = 0.0f64; // perte du pouvoir de concentration (0–1)
     let mut cum_na = 0.0f64; // natriurèse cumulée (mmol)
     let mut ak = 1.0f64; // composante kaliémique de l'aldostérone
+    let mut an = 1.0f64; // action natriférique de A (retardée)
     let mut cum_k = 0.0f64; // kaliurèse cumulée (mmol)
     let mut gut_k = 0.0f64; // K oral non encore absorbé (mmol)
     let mut points = Vec::with_capacity(n_steps + 1);
@@ -493,8 +508,10 @@ pub fn renal_course(
     let k_span = (k0 - model.aldo_k0).max(0.1);
     // deux composantes (« paradoxe de l'aldostérone ») : A, portée par la rénine (déplétion du
     // VEC), retient le Na et sécrète le K ; A_K, portée par la kaliémie, ne sécrète que le K
-    let a_target = |v: f64| -> f64 {
-        crate::math::exp(model.aldo_g_vol * f64::max(0.0, -v) / ecf_ml) * (1.0 - opt.ace_inhibition)
+    let a_target = |v: f64, e: f64| -> f64 {
+        crate::math::exp(model.aldo_g_vol * f64::max(0.0, -v) / ecf_ml)
+            * (1.0 + model.aldo_g_md * e)
+            * (1.0 - opt.ace_inhibition)
     };
     let ak_target = |k: f64| -> f64 { ((k - model.aldo_k0) / k_span).max(0.05) };
     for step in 0..=n_steps {
@@ -545,9 +562,9 @@ pub fn renal_course(
         let k_pl = p.k;
         let k_drug_free = p.k - dk; // kaliémie hors écart rénal (maladie, médicaments)
         let p_fac = crate::math::pow((map / map_b).max(0.1), model.n_pressure);
-        let fluxes = |e: f64, a: f64, ak: f64, k: f64, brake: f64, wash: f64| {
+        let fluxes = |e: f64, a: f64, an: f64, ak: f64, k: f64, brake: f64, wash: f64| {
             let fe_na = ((fe_na_b + model.fe_loop_max * e * (1.0 - model.brake_frac * brake))
-                * crate::math::pow(a, -model.aldo_a_na)
+                * crate::math::pow(an, -model.aldo_a_na)
                 * p_fac)
                 .min(0.5);
             let una = gfr * na * fe_na;
@@ -570,7 +587,7 @@ pub fn renal_course(
                 .max(model.urine_floor_frac * u0);
             (fe_na, una, fe_k, uk, urine)
         };
-        let (fe_na, una, fe_k, uk, urine) = fluxes(e_now, a, ak, k_pl, brake, wash);
+        let (fe_na, una, fe_k, uk, urine) = fluxes(e_now, a, an, ak, k_pl, brake, wash);
         points.push(RenalPoint {
             t_h: t,
             d_ecf_ml_kg: v / bw,
@@ -578,6 +595,7 @@ pub fn renal_course(
             k: k_pl,
             d_k_ic_mmol_kg: ki / bw,
             aldo: a * ak,
+            aldo_renin: a,
             creat,
             urea,
             urine_ml_kg_h: urine / bw,
@@ -607,7 +625,7 @@ pub fn renal_course(
             let e = e_at(ts);
             let dk = ke / (ecf_ml / 1000.0);
             let k_now = (k_drug_free + dk).max(0.5);
-            let (_, una, _, uk, urine) = fluxes(e, a, ak, k_now, brake, wash);
+            let (_, una, _, uk, urine) = fluxes(e, a, an, ak, k_now, brake, wash);
             // charges orales de K : dépôt digestif, absorption d'ordre 1
             for &(tl, mmol_kg) in &opt.k_loads {
                 if tl >= ts - 1e-9 && tl < ts + h - 1e-9 {
@@ -620,7 +638,8 @@ pub fn renal_course(
             v += h * 1000.0 * (na_in - una) / na;
             ke += h * (k_in + absorb - uk - jflux);
             ki += h * jflux;
-            a += h * (a_target(v) - a) / model.aldo_tau_h;
+            a += h * (a_target(v, e) - a) / model.aldo_tau_h;
+            an += (a - an) * (1.0 - crate::math::exp(-h / model.aldo_na_tau_h)); // mise à jour exacte (stable)
             // freinage tubulaire : s'installe pendant l'exposition, s'efface lentement
             let tau_b = if e > brake {
                 model.brake_on_tau_h

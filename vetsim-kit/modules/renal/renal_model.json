@@ -136,6 +136,16 @@
    "value": 1.1,
    "evidence": "C",
    "note": "calé sur Adin 2021 (créatinine inchangée pendant la perfusion, +23,9 % à 24 h ; résumé et texte lu) : le blocage du NKCC2 de la macula densa préserve le DFG pendant l'exposition ; ensuite, rétrocontrôle tubulo-glomérulaire et angiotensine II l'abaissent si le VEC reste déplété"
+  },
+  "aldo_na_tau_h": {
+   "value": 0.01,
+   "evidence": "D",
+   "note": "à caler"
+  },
+  "aldo_g_md": {
+   "value": 0.0,
+   "evidence": "D",
+   "note": "à caler"
   }
  },
  "refs": [
