@@ -1,7 +1,7 @@
 {
  "schema_version": "1.0.0",
  "id": "renal_model",
- "version": "1.0.0",
+ "version": "1.1.0",
  "name": {
   "fr": "Rein dynamique"
  },
@@ -10,12 +10,12 @@
   "fe_na0": {
    "value": 0.002,
    "evidence": "B",
-   "note": "Troìa 2018, chiens sains n = 81 : FE_Na 0,20 % (0,02–1,11) ; lu"
+   "note": "Troìa 2018, chiens sains n = 81 : FE_Na 0,20 % (0,02–1,11) ; lu ; fixe l'apport sodé de référence (chien sain de même poids)"
   },
   "fe_k0": {
    "value": 0.0947,
    "evidence": "B",
-   "note": "Troìa 2018 : FE_K 9,47 ± 3,68 % ; lu"
+   "note": "Troìa 2018 : FE_K 9,47 ± 3,68 % ; lu ; fixe l'apport potassique de référence"
   },
   "urine0_mL_kg_h": {
    "value": 1.0,
@@ -86,6 +86,11 @@
    "value": 150.0,
    "evidence": "D",
    "note": "hypothèse d'une urine excédentaire iso-natrique ; aucune natriurie canine sous furosémide trouvée (essais à 120 et 75 : moins bon accord avec Koh)"
+  },
+  "fe_k_max": {
+   "value": 1.5,
+   "evidence": "D",
+   "note": "placeholder : capacité de sécrétion du K ; FE_K > 100 % possible en MRC avancée (aucune valeur canine lue)"
   }
  },
  "refs": [

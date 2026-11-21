@@ -77,9 +77,9 @@ d_t = clip(baro_gain·(map_set − MAP)/45, −1, 1)
 - **Créatinine et urée en évolution temporelle** (`kinetics.rs`, API `timecourse` et `state` avec `doses`/`at_h`) : compartiment unique `V·dC/dt = P − DFG(t)·C`, soit `dC/dt = (DFG/V)(C_ss − C)`, départ à l'équilibre du patient sans médicament ; `V = creat_vd·bw` (0,539 L/kg, Collignon 2012) et `urea_vd·bw` (0,66 L/kg, Bowsher 1985). L'état stationnaire (CLI `eval`, golden) reste `C_ss = C0/ratio_DFG`. Non porté en Python.
 
 ## 6 ter. Rein dynamique (`renal.rs`, 21/11/2026 ; pas de port Python)
-- Évolution temporelle seulement (API `renal_course`) ; point fixe = état stationnaire (apports Na et K = excrétion de départ).
-- `FE_Na = (fe_na0 + fe_loop·E)·A^(−a_na)·(PAM/PAM_b)^n_p` ; `dV/dt = 1000·(Na_in − DFG·Na·FE_Na)/Na` (VEC, iso-osmotique) ; plasma `Vp/VEC·V` → `vol_shift`, `hb`, `alb`.
-- `FE_K = fe_k0·(FE_Na/fe_na0)^k_flow·A^a_k·(K/K_b)^k_self` ; K extra/intracellulaire : `dKe/dt = K_in − UK − J`, `J = (B·bw·ΔK − Ki)/τ_ic`.
+- Évolution temporelle seulement (API `renal_course`) ; point fixe = état stationnaire. Apports Na et K = ceux d'un chien sain de même poids (`gfr0·bw·Na·fe_na0`), indépendants de la maladie ; FE de base du patient = apport/charge filtrée (×1/ratio_DFG en MRC) ; leviers `na_intake_factor`, `k_intake_factor`. `FE_K ≤ fe_k_max`.
+- `FE_Na = (FE_Na,b + fe_loop·E)·A^(−a_na)·(PAM/PAM_b)^n_p` ; `dV/dt = 1000·(Na_in − DFG·Na·FE_Na)/Na` (VEC, iso-osmotique) ; plasma `Vp/VEC·V` → `vol_shift`, `hb`, `alb`.
+- `FE_K = min(fe_k_max, FE_K,b·(FE_Na/FE_Na,b)^k_flow·A^a_k·(K/K_b)^k_self)` ; K extra/intracellulaire : `dKe/dt = K_in − UK − J`, `J = (B·bw·ΔK − Ki)/τ_ic`.
 - RAAS : `dA/dt = (exp(g·max(0, −V)/VEC)·(1 − IEC) − A)/τ_A`. Créatinine et urée : `dC/dt = (DFG/V_d)(C_ss − C)`.
 - Médicaments : effets directs avec `D = U = 0` (termes calés du diurétique stationnaire neutres) ; `E` du diurétique de l'anse sur la natriurèse.
 - Physiologie recalculée à chaque pas `dt_h` (0,25 h) si un paramètre a bougé de plus de 0,2 % (K : 0,03 mmol/L).

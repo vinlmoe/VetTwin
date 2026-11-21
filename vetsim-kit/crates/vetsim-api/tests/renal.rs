@@ -45,6 +45,9 @@ fn renal_course_round_trip() {
     assert!(out["death_t_h"].is_null());
     assert_eq!(out["validated"], true);
     assert!(out["warning"].is_null());
+    // natriurie de base bien inférieure à la natrémie (apport alimentaire / diurèse)
+    let una = out["una_mmol_L"].as_array().unwrap();
+    assert!(una[4].as_f64().unwrap() < 100.0, "{una:?}");
     // sans module rénal : erreur lisible
     let mut e2 = Engine::new();
     let b2 = json!({ "patient": load("modules/healthy_dog.json"), "diseases": [], "drugs": [] });

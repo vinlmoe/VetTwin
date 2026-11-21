@@ -6,17 +6,19 @@
 //! axe cardio-rénal) reste la filtration. Ce module y ajoute ce qui était absent : la
 //! réabsorption fractionnelle du sodium et du potassium, et donc les bilans. Il ne vit que dans
 //! les évolutions temporelles. L'état stationnaire (`evaluate`, CLI `eval`, golden) est son
-//! point fixe : les apports de Na et de K sont fixés à l'excrétion du patient de départ.
+//! point fixe. Les apports de Na et de K sont ceux de l'alimentation d'un chien sain de même
+//! poids, quelle que soit la maladie : en MRC, le néphron restant excrète la même charge, et
+//! les FE de base du patient (`FE_b = apport/charge filtrée`) croissent comme 1/ratio_DFG.
 //!
 //! Équations (temps en h, débits en mmol/h ou mL/h ; `b` : état de départ) :
 //!
-//! - `FE_Na = (fe_na0 + fe_loop·E)·A^(−a_na)·(PAM/PAM_b)^n_p` ; `E` : effet du diurétique de
+//! - `FE_Na = (FE_Na,b + fe_loop·E)·A^(−a_na)·(PAM/PAM_b)^n_p` ; `E` : effet du diurétique de
 //!   l'anse (pharmacodynamie du module médicament) ; `UNa = DFG·Na·FE_Na` ;
 //! - `dV/dt = 1000·(Na_in − UNa)/Na` : variation du volume extracellulaire, iso-osmotique
 //!   (la natrémie reste celle du patient, l'eau libre est supposée compensée par la boisson) ;
 //!   diurèse `u0 + 1000·(UNa − Na_in)/Na_u` (`Na_u` : natriurie de l'urine excédentaire) ;
 //!   le plasma en reçoit la part `Vp/VEC` (→ `vol_shift`, hémo- et protéinoconcentration) ;
-//! - `FE_K = fe_k0·(FE_Na/fe_na0)^k_flow·A^a_k·(K/K_b)^k_self` (sécrétion distale portée par
+//! - `FE_K = min(fe_k_max, FE_K,b·(FE_Na/FE_Na,b)^k_flow·A^a_k·(K/K_b)^k_self)` (sécrétion distale portée par
 //!   le débit distal et l'aldostérone, freinée par l'hypokaliémie) ; `UK = DFG·K·FE_K` ;
 //! - potassium extracellulaire `Ke` et intracellulaire `Ki` (écarts, mmol) :
 //!   `dKe/dt = K_in − UK − J`, `dKi/dt = J`, `J = (B·bw·ΔK − Ki)/τ_ic`, `ΔK = Ke/VEC` ;
@@ -77,6 +79,8 @@ pub struct RenalModel {
     /// Concentration en Na de l'urine excédentaire (mmol/L) : l'excès de diurèse vaut
     /// `1000·(UNa − Na_in)/Na_u` ; l'eau libre perdue est supposée bue.
     pub urine_na_mmol_l: f64,
+    /// Fraction excrétée maximale du K (capacité de sécrétion distale).
+    pub fe_k_max: f64,
     /// Plancher de la diurèse (fraction de la diurèse de base).
     pub urine_floor_frac: f64,
     /// Niveau de preuve global.
@@ -86,7 +90,7 @@ pub struct RenalModel {
 }
 
 /// Clés de `values`, dans l'ordre des champs.
-pub const RENAL_KEYS: [&str; 16] = [
+pub const RENAL_KEYS: [&str; 17] = [
     "fe_na0",
     "fe_k0",
     "urine0_mL_kg_h",
@@ -103,6 +107,7 @@ pub const RENAL_KEYS: [&str; 16] = [
     "urine_floor_frac",
     "k_self",
     "urine_na_mmol_L",
+    "fe_k_max",
 ];
 
 impl RenalModel {
@@ -143,6 +148,7 @@ impl RenalModel {
             urine_floor_frac: g(13),
             k_self: g(14),
             urine_na_mmol_l: g(15),
+            fe_k_max: g(16),
             evidence,
             refs,
         };
@@ -157,6 +163,7 @@ impl RenalModel {
             (9, out.aldo_tau_h > 0.0),
             (13, (0.0..=1.0).contains(&out.urine_floor_frac)),
             (15, out.urine_na_mmol_l > 0.0),
+            (16, out.fe_k_max > 0.0),
         ] {
             if !ok {
                 c.err(child("/values", RENAL_KEYS[i]), "valeur hors domaine");
@@ -189,8 +196,13 @@ pub struct RenalOptions {
     pub t_end_h: f64,
     /// Pas de recalcul de la physiologie (h).
     pub dt_h: f64,
-    /// Inhibition de l'enzyme de conversion (0–1) : `A_t ×= 1 − IEC`.
+    /// Inhibition du RAAS (0–1) : `A_t ×= 1 − IEC` (levier pédagogique, pas un médicament).
     pub ace_inhibition: f64,
+    /// Apport alimentaire de Na rapporté à l'apport de référence (1 : point fixe ; régime
+    /// rénal pauvre en sel < 1).
+    pub na_intake_factor: f64,
+    /// Apport de K rapporté à l'apport de référence (anorexie < 1, supplémentation > 1).
+    pub k_intake_factor: f64,
 }
 
 impl Default for RenalOptions {
@@ -199,6 +211,8 @@ impl Default for RenalOptions {
             t_end_h: 24.0,
             dt_h: 0.25,
             ace_inhibition: 0.0,
+            na_intake_factor: 1.0,
+            k_intake_factor: 1.0,
         }
     }
 }
@@ -228,6 +242,10 @@ pub struct RenalPoint {
     pub urine_cum_ml_kg: f64,
     /// Natriurèse instantanée (mmol/kg/h).
     pub una_mmol_kg_h: f64,
+    /// Natriurie (mmol/L d'urine).
+    pub una_mmol_l: f64,
+    /// Kaliurie (mmol/L d'urine).
+    pub uk_mmol_l: f64,
     /// Kaliurèse instantanée (mmol/kg/h).
     pub uk_mmol_kg_h: f64,
     /// Fraction excrétée du sodium.
@@ -315,6 +333,14 @@ pub fn renal_course(
             opt.ace_inhibition
         )));
     }
+    for (name, x) in [
+        ("na_intake_factor", opt.na_intake_factor),
+        ("k_intake_factor", opt.k_intake_factor),
+    ] {
+        if !(x.is_finite() && (0.0..=5.0).contains(&x)) {
+            return Err(Error::InvalidInput(format!("{name} {x} hors de 0–5")));
+        }
+    }
     let n_steps = (opt.t_end_h / opt.dt_h).round() as usize;
     if n_steps > 20_000 {
         return Err(Error::InvalidInput(format!(
@@ -327,8 +353,16 @@ pub fn renal_course(
     let k0 = base.k;
     let gfr_b = ev0.metabolic.chem.gfr * 0.06; // L/h
     let map_b = ev0.hemo.summary.map;
-    let na_in = gfr_b * na * model.fe_na0; // mmol/h
-    let k_in = gfr_b * k0 * model.fe_k0;
+    // Apports alimentaires : ceux d'un chien sain de même poids (DFG de référence `gfr0`,
+    // natrémie et kaliémie du patient), indépendants de la maladie. Le néphron restant s'y
+    // adapte : FE de base du patient = apport / charge filtrée (×1/ratio_DFG en MRC).
+    let gfr_ref = base.gfr0 * bw * 0.06; // L/h
+    let na_ref = gfr_ref * na * model.fe_na0; // mmol/h
+    let k_ref = gfr_ref * k0 * model.fe_k0;
+    let fe_na_b = na_ref / (gfr_b * na);
+    let fe_k_b = k_ref / (gfr_b * k0);
+    let na_in = na_ref * opt.na_intake_factor;
+    let k_in = k_ref * opt.k_intake_factor;
     let ecf_ml = model.ecf_l_kg * bw * 1000.0;
     let vb = VB_ML_KG * base.bvf * bw;
     let vp = vb * (1.0 - 3.0 * base.hb / 100.0);
@@ -417,18 +451,17 @@ pub fn renal_course(
         let k_pl = p.k;
         let p_fac = crate::math::pow((map / map_b).max(0.1), model.n_pressure);
         let fluxes = |e: f64, a: f64| {
-            let fe_na = ((model.fe_na0 + model.fe_loop_max * e)
-                * crate::math::pow(a, -model.aldo_a_na)
-                * p_fac)
-                .min(0.5);
+            let fe_na =
+                ((fe_na_b + model.fe_loop_max * e) * crate::math::pow(a, -model.aldo_a_na) * p_fac)
+                    .min(0.5);
             let una = gfr * na * fe_na;
-            let fe_k = (model.fe_k0
-                * crate::math::pow(fe_na / model.fe_na0, model.k_flow)
+            let fe_k = (fe_k_b
+                * crate::math::pow(fe_na / fe_na_b, model.k_flow)
                 * crate::math::pow(a, model.aldo_a_k)
                 * crate::math::pow((k_pl / k0).max(0.1), model.k_self))
-            .min(3.0);
+            .min(model.fe_k_max);
             let uk = gfr * k_pl * fe_k;
-            let urine = (u0 + 1000.0 * (una - na_in) / model.urine_na_mmol_l)
+            let urine = (u0 + 1000.0 * (una - na_ref) / model.urine_na_mmol_l)
                 .max(model.urine_floor_frac * u0);
             (fe_na, una, fe_k, uk, urine)
         };
@@ -446,6 +479,8 @@ pub fn renal_course(
             urine_ml_kg_h: urine / bw,
             urine_cum_ml_kg: cum / bw,
             una_mmol_kg_h: una / bw,
+            una_mmol_l: 1000.0 * una / urine,
+            uk_mmol_l: 1000.0 * uk / urine,
             uk_mmol_kg_h: uk / bw,
             fe_na,
             fe_k,

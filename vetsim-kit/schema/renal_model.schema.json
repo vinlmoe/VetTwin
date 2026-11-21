@@ -48,7 +48,8 @@
     "aldo_a_k",
     "urine_floor_frac",
     "k_self",
-    "urine_na_mmol_L"
+    "urine_na_mmol_L",
+    "fe_k_max"
    ],
    "additionalProperties": false,
    "properties": {
@@ -413,6 +414,30 @@
      "additionalProperties": false
     },
     "urine_na_mmol_L": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "fe_k_max": {
      "type": "object",
      "required": [
       "value",

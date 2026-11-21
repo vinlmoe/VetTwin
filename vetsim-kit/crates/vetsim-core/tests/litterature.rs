@@ -541,17 +541,64 @@ fn adin_doses() -> Vec<(f64, f64, vetsim_core::Route)> {
     d
 }
 
-/// Sans médicament, le rein dynamique reste sur l'état stationnaire (point fixe).
+/// Chien de 20 kg en MRC de sévérité `s` (0 : sain).
+fn ckd_params(s: f64) -> impl Fn(&mut vetsim_core::renal::RenalModel, &mut Params) {
+    move |_, p| {
+        if s > 0.0 {
+            let c = catalog();
+            let mut pt = Patient::healthy(&c.patient, p.bw).unwrap();
+            pt.add_disease(c.disease("ckd").unwrap(), s, &mut NoNoise)
+                .unwrap();
+            *p = pt.params;
+        }
+    }
+}
+
+/// Sans médicament, le rein dynamique reste sur l'état stationnaire (point fixe), y compris
+/// en MRC.
 #[test]
 fn renal_fixed_point_is_the_steady_state() {
-    let c = renal_run(20.0, &[], 24.0, |_, _| {});
-    let p0 = &c.points[0];
-    for p in &c.points {
-        assert!(p.d_ecf_ml_kg.abs() < 1e-9 && (p.k - p0.k).abs() < 1e-9);
-        assert!((p.creat - p0.creat).abs() < 1e-6 && (p.aldo - 1.0).abs() < 1e-9);
-        assert!((p.urine_ml_kg_h - 1.0).abs() < 1e-9);
+    for s in [0.0, 0.85] {
+        let c = renal_run(20.0, &[], 24.0, ckd_params(s));
+        let p0 = &c.points[0];
+        for p in &c.points {
+            assert!(p.d_ecf_ml_kg.abs() < 1e-9 && (p.k - p0.k).abs() < 1e-9);
+            assert!((p.creat - p0.creat).abs() < 1e-6 && (p.aldo - 1.0).abs() < 1e-9);
+            assert!((p.urine_ml_kg_h - 1.0).abs() < 1e-9);
+        }
+        assert!(c.n_evals <= 2, "{} évaluations", c.n_evals);
     }
-    assert!(c.n_evals <= 2, "{} évaluations", c.n_evals);
+}
+
+/// MRC : l'apport alimentaire ne dépend pas du DFG, le néphron restant s'adapte.
+/// - FE de base croissantes avec le stade (×10 environ au stade IV, étude de 20 chiens ;
+///   « dépendent de la créatinine », Selin 2025 : résumés de recherche) ;
+/// - urine de base bien moins concentrée en Na que le plasma ;
+/// - fuite sodée sous furosémide plus faible que chez le chien sain.
+#[test]
+fn renal_ckd_adapts_fractional_excretion() {
+    let run = |s: f64, doses: &[(f64, f64, vetsim_core::Route)]| {
+        renal_run(20.0, doses, 8.0, ckd_params(s))
+    };
+    let (h, k4) = (run(0.0, &[]), run(0.85, &[]));
+    let (fh, f4) = (&h.points[0], &k4.points[0]);
+    let gfr =
+        |c: &vetsim_core::renal::RenalCourse| c.points[0].eval.as_ref().unwrap().metabolic.chem.gfr;
+    let ratio_fe = f4.fe_na / fh.fe_na;
+    eprintln!(
+        "FE_Na {:.4} → {:.4} (×{ratio_fe:.1}), FE_K {:.3} → {:.3}, DFG {:.0} → {:.0} mL/min, UNa {:.0} mmol/L",
+        fh.fe_na, f4.fe_na, fh.fe_k, f4.fe_k, gfr(&h), gfr(&k4), fh.una_mmol_l
+    );
+    assert!((5.0..=15.0).contains(&ratio_fe), "FE_Na ×{ratio_fe:.1}");
+    assert!((f4.fe_k / fh.fe_k - ratio_fe).abs() < 0.5);
+    assert!(fh.una_mmol_l < 100.0 && (f4.una_mmol_l - fh.una_mmol_l).abs() < 1.0);
+    let iv = [(0.0, 2.0, vetsim_core::Route::Iv)];
+    let (dh, d4) = (run(0.0, &iv), run(0.85, &iv));
+    let (vh, v4) = (
+        dh.points.last().unwrap().d_ecf_ml_kg,
+        d4.points.last().unwrap().d_ecf_ml_kg,
+    );
+    assert!(v4 > 0.3 * vh, "VEC à 8 h : sain {vh:.1}, MRC {v4:.1} mL/kg");
 }
 
 /// Furosémide en aigu : calage (Koh 2021, IV) et validation (Koh 2021 per os, Adin 2021).

@@ -679,7 +679,8 @@ impl Engine {
     }
 
     /// Rein dynamique (`vetsim_core::renal`) : `{"doses": [...] (optionnel), "t_end_h": 24,
-    /// "dt_h": 0.25, "ace_inhibition": 0, "every_h": 1}` → séries aux instants multiples de
+    /// "dt_h": 0.25, "ace_inhibition": 0, "na_intake_factor": 1, "k_intake_factor": 1,
+    /// "every_h": 1}` → séries aux instants multiples de
     /// `every_h` : bilans (ΔVEC, Δplasma, K, K intracellulaire), activité RAAS, diurèse,
     /// natriurèse, kaliurèse, FE_Na, FE_K, créatinine et urée cinétiques, et l'état
     /// physiologique (PAM, FC, débit, DFG, Ht). Décès absorbant (`death_t_h`, `cause`).
@@ -700,6 +701,8 @@ impl Engine {
                 t_end_h: opt_f64(m, "t_end_h", 24.0)?,
                 dt_h: opt_f64(m, "dt_h", 0.25)?,
                 ace_inhibition: opt_f64(m, "ace_inhibition", 0.0)?,
+                na_intake_factor: opt_f64(m, "na_intake_factor", 1.0)?,
+                k_intake_factor: opt_f64(m, "k_intake_factor", 1.0)?,
             };
             if opt.t_end_h > 24.0 * 60.0 {
                 return Err(ApiError::one("/t_end_h", "au plus 60 jours"));
@@ -713,7 +716,11 @@ impl Engine {
             let rc =
                 vetsim_core::renal::renal_course(&model, &s.patient.params, &c.drugs, &ds, &opt)?;
             // domaine validé : une administration au plus, horizon ≤ 24 h (vetsim_core::renal)
-            let validated = ds.len() <= 1 && opt.t_end_h <= 24.0;
+            let validated = ds.len() <= 1
+                && opt.t_end_h <= 24.0
+                && opt.ace_inhibition == 0.0
+                && opt.na_intake_factor == 1.0
+                && opt.k_intake_factor == 1.0;
             let stride = ((every / opt.dt_h).round() as usize).max(1);
             let pts: Vec<_> = rc
                 .points
@@ -745,6 +752,8 @@ impl Engine {
                 "urine_cum_mL_kg": col(&|p| p.urine_cum_ml_kg),
                 "una_mmol_kg_h": col(&|p| p.una_mmol_kg_h),
                 "uk_mmol_kg_h": col(&|p| p.uk_mmol_kg_h),
+                "una_mmol_L": col(&|p| p.una_mmol_l),
+                "uk_mmol_L": col(&|p| p.uk_mmol_l),
                 "fe_na": col(&|p| p.fe_na),
                 "fe_k": col(&|p| p.fe_k),
                 "e_loop": col(&|p| p.e_loop),
@@ -759,7 +768,7 @@ impl Engine {
                 "model_version": model.version,
                 "validated": validated,
                 "warning": (!validated).then_some(
-                    "hors du domaine validé (une administration, ≤ 24 h) : en prises répétées, \
+                    "hors du domaine validé (une administration, ≤ 24 h, sans levier alimentaire ni IEC) : en prises répétées, \
                      la déplétion sodée et la hausse de créatinine sont surestimées"),
                 "note": "rein dynamique (bilans Na, K, RAAS) ; usage pédagogique uniquement",
             }))

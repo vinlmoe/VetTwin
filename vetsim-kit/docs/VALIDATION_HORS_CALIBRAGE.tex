@@ -559,6 +559,38 @@ La MMVD est inchangée, donc les calages stationnaires de Giorgi et d'Adin 2020 
 \end{itemize}
 Pour le chronique, la voie stationnaire du diurétique (\vp{pkpd::timecourse}, $D$/$U$, adaptation $\varphi$ = 0,98, calée sur TEST, Adin 2020 et Giorgi) reste la référence. L'API renvoie \vp{validated} = false et un avertissement hors du domaine validé.
 
+\subsection{MRC : apports fixes, néphron adapté (remarque de l'utilisateur)}
+L'utilisateur a relevé qu'en MRC l'urine n'a pas la natrémie du plasma, que la fuite sodée est faible et que le potassium pose problème. La première version faisait une erreur plus profonde. Elle fixait les apports de Na et de K à l'excrétion du patient avec les FE du chien sain, si bien que l'apport « alimentaire » suivait le DFG (10\,\% de la normale au stade 4).
+
+Correction (\vp{renal_model.json} 1.1.0) :
+\begin{itemize}
+\item les apports sont ceux d'un chien sain de même poids, quel que soit le stade ;
+\item les FE de base du patient valent apport $/$ charge filtrée et croissent donc comme $1/\text{ratio}_\text{DFG}$ ;
+\item la capacité de sécrétion du K devient un paramètre (\vp{fe_k_max} 1,5, placeholder D) ;
+\item deux leviers alimentaires : \vp{na_intake_factor} (régime rénal pauvre en sel) et \vp{k_intake_factor} (anorexie, supplémentation) ;
+\item les sorties incluent la natriurie et la kaliurie (mmol/L).
+\end{itemize}
+
+Résultats (20 kg, sans médicament) :
+\begin{itemize}
+\item stade 4 ($s$ = 0,85) : FE$_\mathrm{Na}$ 0,20 $\to$ 1,66\,\% ($\times 8{,}3$), FE$_\mathrm{K}$ 9,5 $\to$ 79\,\%, pour un DFG de 70 $\to$ 8 mL/min. C'est cohérent avec des FE « environ dix fois plus élevées au stade IV » (étude de 20 chiens) et des FE qui « dépendent de la créatinine » (Selin 2025). Accès : résumés de recherche ; les textes intégraux (vin.com, pub.epsilon.slu.se) étaient bloqués par le réseau de la session.
+\item natriurie de base 63 mmol/L à tous les stades (apport / diurèse), loin des 150 du plasma.
+\end{itemize}
+
+Sous furosémide 2 mg/kg IV, à 8 h :
+\begin{itemize}
+\item VEC : $-20{,}5$ mL/kg chez le chien sain, $-10{,}6$ au stade 2, $-5{,}8$ au stade 3, $-2{,}9$ au stade 4 ;
+\item $\Delta$K : $-0{,}40$, $-0{,}28$, $-0{,}18$, $-0{,}08$.
+\end{itemize}
+La fuite sodée suit la charge filtrée, et l'effet du furosémide, piloté par son excrétion urinaire, baisse aussi.
+
+\textbf{Potassium : limite.} Avec des apports fixes, l'adaptation du néphron restant est presque parfaite dans le modèle. Sur 7 jours, pour 1,5 fois plus de K dans la ration, la kaliémie monte de $+0{,}59$ mmol/L chez le chien sain comme aux stades 2 et 3. Elle ne monte de $+0{,}71$ qu'au stade 4, où la FE$_\mathrm{K}$ atteint le plafond. Avec une inhibition RAAS de 50\,\% et 1,2 fois plus de K, on obtient $+0{,}67$ (sain) contre $+0{,}83$ (stade 4). Deux limites :
+\begin{itemize}
+\item la vulnérabilité de la MRC au K (hyperkaliémie au moins une fois chez 47\,\% de 152 chiens sous régime rénal, Segev 2010, résumé) n'apparaît que faiblement ;
+\item le chien sain réagit trop à une charge en K, faute de rétrocontrôle K $\to$ aldostérone.
+\end{itemize}
+Les deux restent à modéliser sur des données canines (capacité maximale de sécrétion, réponse de l'aldostérone à une charge en K). Test : \vp{renal_ckd_adapts_fractional_excretion}.
+
 \textbf{IEC et spironolactone.} Aucun module médicament n'est ajouté. Chez le chien sain, le bénazépril abaisse l'activité de l'ECA d'environ 90\,\% (22,1 $\to$ 2,5 U/L) sans changer la diurèse, le freinage ni l'aldostérone pendant une perfusion de furosémide (Adin 2021, lu). Les fortes doses d'énalapril ou de bénazépril n'empêchent pas non plus la hausse de l'aldostérone (Lantis 2015, résumé de recherche). Traduire l'inhibition de l'ECA en baisse de $A$ contredirait donc ces deux sources. Le levier \vp{ace_inhibition} (0–1) de l'API agit directement sur $A$ ; ce n'est pas un médicament.
 
 Placeholders (evidence D) :

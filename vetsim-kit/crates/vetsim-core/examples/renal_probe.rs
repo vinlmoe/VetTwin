@@ -5,7 +5,8 @@
 //! Les clés surchargent les constantes de `modules/renal/renal_model.json` ; `p.<nom>=valeur`
 //! surcharge un paramètre du patient (ex. `p.renal_co_auto=1.0`). Variables d'environnement :
 //! `ONLY=koh|adin|chronic` (sous-ensemble des scénarios), `DT` (pas en h des scénarios de
-//! plus de 30 h ; 0,25 par défaut), `VETSIM_ROOT` (racine du kit).
+//! plus de 30 h ; 0,25 par défaut), `ACE`, `NA_DIET`, `K_DIET` (leviers de `RenalOptions`),
+//! `NODOSE`, `TEND` (scénario MRC), `VETSIM_ROOT` (racine du kit).
 use std::path::PathBuf;
 use vetsim_core::renal::{renal_course, RenalModel, RenalOptions};
 use vetsim_core::{DiseaseModule, Dose, DrugModule, NoNoise, Patient, PatientModule, Route};
@@ -26,6 +27,13 @@ fn dose(t_h: f64, mg_per_kg: f64, route: Route) -> Dose {
     }
 }
 
+fn env(name: &str, default: f64) -> f64 {
+    std::env::var(name)
+        .ok()
+        .and_then(|x| x.parse().ok())
+        .unwrap_or(default)
+}
+
 fn main() {
     let mut j: serde_json::Value =
         serde_json::from_str(&read("modules/renal/renal_model.json")).unwrap();
@@ -42,6 +50,7 @@ fn main() {
     let pm = PatientModule::from_json(&read("modules/healthy_dog.json"), "p").unwrap();
     let furo = DrugModule::from_json(&read("modules/drugs/furosemide.json"), "f").unwrap();
     let mmvd = DiseaseModule::from_json(&read("modules/diseases/mmvd.json"), "m").unwrap();
+    let ckd = DiseaseModule::from_json(&read("modules/diseases/ckd.json"), "c").unwrap();
     let drugs = vec![furo];
     let dt_long: f64 = std::env::var("DT")
         .ok()
@@ -49,7 +58,7 @@ fn main() {
         .unwrap_or(0.25);
     let run = |label: &str,
                bw: f64,
-               mmvd_s: Option<f64>,
+               dis: Option<(&DiseaseModule, f64)>,
                doses: Vec<Dose>,
                t_end: f64,
                show: &[f64]| {
@@ -57,13 +66,15 @@ fn main() {
         for (k, v) in &pover {
             *pt.params.get_mut(k).expect("paramètre inconnu") = *v;
         }
-        if let Some(s) = mmvd_s {
-            pt.add_disease(&mmvd, s, &mut NoNoise).unwrap();
+        if let Some((d, s)) = dis {
+            pt.add_disease(d, s, &mut NoNoise).unwrap();
         }
         let opt = RenalOptions {
             t_end_h: t_end,
             dt_h: if t_end > 30.0 { dt_long } else { 0.25 },
-            ace_inhibition: 0.0,
+            ace_inhibition: env("ACE", 0.0),
+            na_intake_factor: env("NA_DIET", 1.0),
+            k_intake_factor: env("K_DIET", 1.0),
         };
         let tt = std::time::Instant::now();
         let c = renal_course(&model, &pt.params, &drugs, &doses, &opt).unwrap();
@@ -82,8 +93,8 @@ fn main() {
                 .unwrap();
             let ev = p.eval.as_ref().unwrap();
             println!(
-                "t {:6.1} h  urine cum {:6.2} mL/kg  ΔK {:+.2}  ΔECF {:+6.1} mL/kg  A {:.2}  creat {:5.1} ({:+.0} %)  FE_Na {:.4}  FE_K {:.3}  E {:.2}  PAM {:5.1}  FC {:5.1}  DFG {:5.2}",
-                p.t_h, p.urine_cum_ml_kg, p.k - p0.k, p.d_ecf_ml_kg, p.aldo, p.creat,
+                "t {:6.1} h  urine cum {:6.2} mL/kg  UNa {:4.0} mmol/L  K {:.2} ΔK {:+.2}  ΔECF {:+6.1} mL/kg  A {:.2}  creat {:5.1} ({:+.0} %)  FE_Na {:.4}  FE_K {:.3}  E {:.2}  PAM {:5.1}  FC {:5.1}  DFG {:5.2}",
+                p.t_h, p.urine_cum_ml_kg, p.una_mmol_l, p.k, p.k - p0.k, p.d_ecf_ml_kg, p.aldo, p.creat,
                 100.0 * (p.creat / p0.creat - 1.0), p.fe_na, p.fe_k, p.e_loop,
                 ev.hemo.summary.map, ev.params.hr, ev.metabolic.chem.gfr / bw
             );
@@ -121,6 +132,25 @@ fn main() {
             &[0.0, 5.0, 24.0],
         );
     }
+    if want("ckd") {
+        for s in [0.0, 0.375, 0.625, 0.85] {
+            let lab = format!("MRC {s} : furosémide 2 mg/kg IV (20 kg)");
+            let d = if s > 0.0 { Some((&ckd, s)) } else { None };
+            let doses = if env("NODOSE", 0.0) > 0.0 {
+                vec![]
+            } else {
+                vec![dose(0.0, 2.0, Route::Iv)]
+            };
+            run(
+                &lab,
+                20.0,
+                d,
+                doses,
+                env("TEND", 24.0),
+                &[0.0, 2.0, 8.0, 24.0, 72.0, 168.0],
+            );
+        }
+    }
     if want("chronic") {
         let q12: Vec<Dose> = (0..20)
             .map(|i| dose(12.0 * i as f64, 2.0, Route::Po))
@@ -150,7 +180,7 @@ fn main() {
         run(
             "Giorgi ≈ 4,1 mg/kg/j PO, MMVD 0,8 (20 kg)",
             20.0,
-            Some(0.8),
+            Some((&mmvd, 0.8)),
             giorgi,
             288.0,
             &[0.0, 24.0, 288.0],
