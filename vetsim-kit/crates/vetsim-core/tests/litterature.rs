@@ -509,12 +509,34 @@ fn renal_run(
     renal_run_k(bw, doses, &[], t_end, tweak)
 }
 
+/// Comme [`renal_run`], au pas `dt_h` (scénarios de plusieurs jours).
+fn renal_run_dt(
+    bw: f64,
+    doses: &[(f64, f64, vetsim_core::Route)],
+    t_end: f64,
+    dt_h: f64,
+    tweak: impl Fn(&mut vetsim_core::renal::RenalModel, &mut Params),
+) -> vetsim_core::renal::RenalCourse {
+    renal_run_full(bw, doses, &[], t_end, dt_h, tweak)
+}
+
 /// Comme [`renal_run`], avec des charges orales de K `(t_h, mmol/kg)`.
 fn renal_run_k(
     bw: f64,
     doses: &[(f64, f64, vetsim_core::Route)],
     k_loads: &[(f64, f64)],
     t_end: f64,
+    tweak: impl Fn(&mut vetsim_core::renal::RenalModel, &mut Params),
+) -> vetsim_core::renal::RenalCourse {
+    renal_run_full(bw, doses, k_loads, t_end, 0.25, tweak)
+}
+
+fn renal_run_full(
+    bw: f64,
+    doses: &[(f64, f64, vetsim_core::Route)],
+    k_loads: &[(f64, f64)],
+    t_end: f64,
+    dt_h: f64,
     tweak: impl Fn(&mut vetsim_core::renal::RenalModel, &mut Params),
 ) -> vetsim_core::renal::RenalCourse {
     use vetsim_core::renal::{renal_course, RenalModel, RenalOptions};
@@ -533,6 +555,7 @@ fn renal_run_k(
         .collect();
     let opt = RenalOptions {
         t_end_h: t_end,
+        dt_h,
         k_loads: k_loads.to_vec(),
         ..RenalOptions::default()
     };
@@ -647,6 +670,13 @@ fn renal_matches_literature() {
     let cr = 100.0 * (at(&ad, 24.0).creat / ad.points[0].creat - 1.0);
     eprintln!("Adin : créatinine à 24 h {cr:+.0} %");
     assert!((11.5..=36.3).contains(&cr), "créatinine 24 h {cr:+.0} %");
+    // validation : créatinine inchangée pendant la perfusion (Adin 2021, résumé)
+    let cr5 = 100.0 * (at(&ad, 5.0).creat / ad.points[0].creat - 1.0);
+    assert!(cr5.abs() < 5.0, "créatinine 5 h {cr5:+.1} %");
+    // contrôle d'échec : sans baisse du DFG après l'exposition, la créatinine ne monte pas
+    let adg = renal_run(23.4, &adin_doses(), 24.0, |m, _| m.gfr_g_vol = 0.0);
+    let crg = 100.0 * (at(&adg, 24.0).creat / adg.points[0].creat - 1.0);
+    assert!(crg < 11.5, "sans rétrocontrôle du DFG : {crg:+.0} %");
     // contrôle d'échec : sans autorégulation du DFG vis-à-vis du débit, l'azotémie déborde
     let ad0 = renal_run(23.4, &adin_doses(), 24.0, |_, p| p.renal_co_auto = 1.0);
     let cr0 = 100.0 * (at(&ad0, 24.0).creat / ad0.points[0].creat - 1.0);
@@ -715,4 +745,50 @@ fn renal_potassium_load_scales_with_gfr() {
     // presque pas excrétée en 5 h
     let (_, f0, _) = summary(0.0, &|m| m.k_sigma_up = 0.0);
     assert!(f0 < 0.55, "sans réserve : {f0:.2}");
+}
+
+/// Furosémide en chronique (Pelligand 2020, beagles sains de 10,6 kg, per os en deux prises
+/// par jour pendant 10 jours ; lu) : calage du freinage tubulaire et de la perte du pouvoir
+/// de concentration.
+/// - natriurèse du 1er jour à 8 mg/kg/j : 5,30 mmol/kg (base 1,51) ;
+/// - retour à l'équilibre sodé dès le 3e jour ;
+/// - diurèse du 9e jour : 34,4 et 100,3 mL/kg/j à 2 et 8 mg/kg/j (eau libre).
+#[test]
+fn renal_chronic_furosemide_pelligand() {
+    use vetsim_core::Route::Po;
+    let course = |daily: f64, tweak: &dyn Fn(&mut vetsim_core::renal::RenalModel)| {
+        let d: Vec<_> = (0..18)
+            .map(|i| (12.0 * i as f64, daily / 2.0, Po))
+            .collect();
+        let c = renal_run_dt(10.6, &d, 216.0, 1.0, |m, _| tweak(m));
+        let na = |a: f64, b: f64| at(&c, b).una_cum_mmol_kg - at(&c, a).una_cum_mmol_kg;
+        let u9 = at(&c, 216.0).urine_cum_ml_kg - at(&c, 192.0).urine_cum_ml_kg;
+        (na(0.0, 24.0), na(48.0, 72.0), u9)
+    };
+    let (d1_8, d3_8, u9_8) = course(8.0, &|_| {});
+    let (_, d3_2, u9_2) = course(2.0, &|_| {});
+    eprintln!(
+        "Pelligand : natriurèse J1 {d1_8:.2}, J3 {d3_2:.2} / {d3_8:.2} mmol/kg ; diurèse J9 {u9_2:.1} / {u9_8:.1} mL/kg"
+    );
+    assert!(
+        (4.24..=6.36).contains(&d1_8),
+        "natriurèse J1 {d1_8:.2} (5,30)"
+    );
+    for d3 in [d3_2, d3_8] {
+        assert!((1.06..=1.96).contains(&d3), "natriurèse J3 {d3:.2} (1,51)");
+    }
+    assert!((27.5..=43.0).contains(&u9_2), "diurèse J9 {u9_2:.1} (34,4)");
+    assert!(
+        (75.0..=125.0).contains(&u9_8),
+        "diurèse J9 {u9_8:.1} (100,3)"
+    );
+    // contrôle d'échec : sans freinage tubulaire, la fuite sodée persiste
+    let (b1, b3, _) = course(8.0, &|m| m.brake_frac = 0.0);
+    assert!(
+        !(4.24..=6.36).contains(&b1) && !(1.06..=1.96).contains(&b3),
+        "sans freinage : J1 {b1:.2}, J3 {b3:.2}"
+    );
+    // contrôle d'échec : sans perte du pouvoir de concentration, pas de polyurie chronique
+    let (_, _, w9) = course(8.0, &|m| m.water_max_ml_kg_h = 0.0);
+    assert!(w9 < 75.0, "sans eau libre : diurèse J9 {w9:.1}");
 }

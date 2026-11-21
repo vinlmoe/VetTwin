@@ -30,22 +30,22 @@
   "k_buffer_L_kg": {
    "value": 1.31,
    "evidence": "C",
-   "note": "calage conjoint sur Koh 2021 IV (diurèse 8 h, ΔK 2 h et 8 h) et per os (diurèse 8 h, ΔK 8 h), Bourgoignie 1981 chien normal (charge de 50 mEq de KCl : pic +1,05, 64 % excrétés en 5 h ; résumé) et Lantis 2011 (aldostérone ×2,4 à J5 ; résumé) ; bien en dessous de la règle humaine (≈ 4,5 L/kg, Sterns 1981)"
+   "note": "recalé (1.3.0, à la marge) sur Koh 2021 IV et per os (diurèse, natriurèse 8 h, ΔK 2 h et 8 h) et Bourgoignie 1981 (chien normal), les constantes chroniques fixées"
   },
   "k_ic_tau_h": {
    "value": 1.46,
    "evidence": "C",
-   "note": "calage conjoint sur Koh 2021 IV (diurèse 8 h, ΔK 2 h et 8 h) et per os (diurèse 8 h, ΔK 8 h), Bourgoignie 1981 chien normal (charge de 50 mEq de KCl : pic +1,05, 64 % excrétés en 5 h ; résumé) et Lantis 2011 (aldostérone ×2,4 à J5 ; résumé)"
+   "note": "recalé (1.3.0, à la marge) sur Koh 2021 IV et per os (diurèse, natriurèse 8 h, ΔK 2 h et 8 h) et Bourgoignie 1981 (chien normal), les constantes chroniques fixées"
   },
   "fe_loop_max": {
    "value": 0.0694,
    "evidence": "C",
-   "note": "calage conjoint sur Koh 2021 IV (diurèse 8 h, ΔK 2 h et 8 h) et per os (diurèse 8 h, ΔK 8 h), Bourgoignie 1981 chien normal (charge de 50 mEq de KCl : pic +1,05, 64 % excrétés en 5 h ; résumé) et Lantis 2011 (aldostérone ×2,4 à J5 ; résumé)"
+   "note": "recalé (1.3.0, à la marge) sur Koh 2021 IV et per os (diurèse, natriurèse 8 h, ΔK 2 h et 8 h) et Bourgoignie 1981 (chien normal), les constantes chroniques fixées"
   },
   "k_flow": {
    "value": 0.723,
    "evidence": "C",
-   "note": "calage conjoint sur Koh 2021 IV (diurèse 8 h, ΔK 2 h et 8 h) et per os (diurèse 8 h, ΔK 8 h), Bourgoignie 1981 chien normal (charge de 50 mEq de KCl : pic +1,05, 64 % excrétés en 5 h ; résumé) et Lantis 2011 (aldostérone ×2,4 à J5 ; résumé)"
+   "note": "recalé (1.3.0, à la marge) sur Koh 2021 IV et per os (diurèse, natriurèse 8 h, ΔK 2 h et 8 h) et Bourgoignie 1981 (chien normal), les constantes chroniques fixées"
   },
   "n_pressure": {
    "value": 2.0,
@@ -65,7 +65,7 @@
   "aldo_a_na": {
    "value": 1.95,
    "evidence": "C",
-   "note": "calage conjoint sur Koh 2021 IV (diurèse 8 h, ΔK 2 h et 8 h) et per os (diurèse 8 h, ΔK 8 h), Bourgoignie 1981 chien normal (charge de 50 mEq de KCl : pic +1,05, 64 % excrétés en 5 h ; résumé) et Lantis 2011 (aldostérone ×2,4 à J5 ; résumé) (effet de la composante rénine sur la réabsorption sodée)"
+   "note": "calé sur Pelligand 2020 (natriurèse J1 et retour à l'équilibre à J3) avec Koh 2021 IV ; valeur à la borne haute du calage (2) ; en conséquence l'aldostérone de Lantis plafonne à ×1,55 (écart documenté)"
   },
   "aldo_a_k": {
    "value": 0.7,
@@ -105,17 +105,17 @@
   "k_abs_tau_h": {
    "value": 1.95,
    "evidence": "C",
-   "note": "calage conjoint sur Koh 2021 IV (diurèse 8 h, ΔK 2 h et 8 h) et per os (diurèse 8 h, ΔK 8 h), Bourgoignie 1981 chien normal (charge de 50 mEq de KCl : pic +1,05, 64 % excrétés en 5 h ; résumé) et Lantis 2011 (aldostérone ×2,4 à J5 ; résumé) (absorption de la charge orale de KCl)"
+   "note": "recalé (1.3.0, à la marge) sur Koh 2021 IV et per os (diurèse, natriurèse 8 h, ΔK 2 h et 8 h) et Bourgoignie 1981 (chien normal), les constantes chroniques fixées"
   },
   "brake_frac": {
    "value": 0.948,
    "evidence": "C",
-   "note": "calé sur Pelligand 2020 (natriurèse revenue près de la base dès J2–J3 sous dose répétée ; lu)"
+   "note": "calé sur Pelligand 2020 (natriurèse J1 5,30 mmol/kg à 8 mg/kg/j, revenue près de la base dès J2–J3)"
   },
   "brake_on_tau_h": {
    "value": 4.58,
    "evidence": "C",
-   "note": "calé (freinage dès la 2e heure de perfusion, Adin 2021 ; Pelligand 2020)"
+   "note": "calé sur Pelligand 2020 (natriurèse J1, J3) avec Koh 2021 IV"
   },
   "brake_off_tau_h": {
    "value": 141.5,
@@ -125,17 +125,17 @@
   "water_max_mL_kg_h": {
    "value": 9.79,
    "evidence": "C",
-   "note": "calé sur Pelligand 2020 (diurèse à J9 : 365, 867, 1063 mL/j à 2, 5, 8 mg/kg/j contre 210 ; natriurèse revenue à la base : la polyurie chronique est de l'eau libre)"
+   "note": "calé sur Pelligand 2020 (diurèse à J9 : 20, 34, 82, 100 mL/kg/j à 1, 2, 5, 8 mg/kg/j ; natriurèse revenue à la base : la polyurie chronique est de l'eau libre)"
   },
   "water_tau_h": {
    "value": 10.2,
    "evidence": "C",
-   "note": "à caler sur Pelligand 2020 (polyurie installée en quelques jours)"
+   "note": "calé sur Pelligand 2020 (diurèse J9 aux quatre doses) ; la polyurie suit l'exposition moyenne, pas l'effet instantané"
   },
   "gfr_g_vol": {
-   "value": 1.2,
+   "value": 1.1,
    "evidence": "C",
-   "note": "prototype : choisi sur Adin 2021 (créatinine inchangée pendant la perfusion, +23,9 % à 24 h ; résumé + texte lu) ; à confirmer"
+   "note": "calé sur Adin 2021 (créatinine inchangée pendant la perfusion, +23,9 % à 24 h ; résumé et texte lu) : le blocage du NKCC2 de la macula densa préserve le DFG pendant l'exposition ; ensuite, rétrocontrôle tubulo-glomérulaire et angiotensine II l'abaissent si le VEC reste déplété"
   }
  },
  "refs": [

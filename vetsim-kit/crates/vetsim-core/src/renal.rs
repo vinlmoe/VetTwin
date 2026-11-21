@@ -12,12 +12,18 @@
 //!
 //! Équations (temps en h, débits en mmol/h ou mL/h ; `b` : état de départ) :
 //!
-//! - `FE_Na = (FE_Na,b + fe_loop·E)·A^(−a_na)·(PAM/PAM_b)^n_p` ; `E` : effet du diurétique de
-//!   l'anse (pharmacodynamie du module médicament) ; `UNa = DFG·Na·FE_Na` ;
+//! - `FE_Na = (FE_Na,b + fe_loop·E·(1 − φ·B))·A^(−a_na)·(PAM/PAM_b)^n_p` ; `E` : effet du
+//!   diurétique de l'anse (pharmacodynamie du module médicament) ; `B` : freinage tubulaire,
+//!   qui s'installe pendant l'exposition (`τ_on`) et s'efface lentement (`τ_off`) ;
+//!   `UNa = DFG·Na·FE_Na` ;
+//! - DFG effectif `DFG_ss·(DFG_b/DFG_ss)^E·exp(−g_gfr·max(0, −V)/VEC·(1 − E))` : pendant
+//!   l'exposition, le blocage du NKCC2 de la macula densa préserve le DFG ; ensuite, le
+//!   rétrocontrôle tubulo-glomérulaire rétabli l'abaisse si le VEC reste déplété ;
 //! - `dV/dt = 1000·(Na_in − UNa)/Na` : variation du volume extracellulaire, iso-osmotique
 //!   (la natrémie reste celle du patient, l'eau libre est supposée compensée par la boisson) ;
-//!   diurèse `u0 + 1000·(UNa − Na_in)/Na_u` (`Na_u` : natriurie de l'urine excédentaire) ;
-//!   le plasma en reçoit la part `Vp/VEC` (→ `vol_shift`, hémo- et protéinoconcentration) ;
+//!   diurèse `u0 + 1000·(UNa − Na_in)/Na_u + w_max·W·bw`, `W` suivant `E` avec `τ_w` (perte
+//!   du pouvoir de concentration : polyurie chronique d'eau libre) ; le plasma reçoit la part
+//!   `Vp/VEC` du volume (→ `vol_shift`, hémo- et protéinoconcentration) ;
 //! - `UK = min(DFG·K·fe_k_max, DFG·(K_b·FE_K,b + σ·(K − K_b))·(FE_Na/FE_Na,b)^k_flow·(A·A_K)^a_k)` :
 //!   part de base adaptée aux apports, plus une réserve proportionnelle au DFG (σ_up au-dessus
 //!   de K_b, σ_down en dessous ; Bourgoignie 1981, Young 1982) ; sécrétion distale portée par
@@ -29,13 +35,15 @@
 //!   (kaliémie, `A_K,t = (K − k0)/(K_b − k0)`, Young 1984) ne sécrète que le K ; même `τ_A` ;
 //!   la sortie `aldo` vaut `A·A_K` ;
 //! - charges orales de K : dépôt digestif absorbé avec `τ_abs` ;
-//! - créatinine et urée : `dC/dt = (DFG/V_d)·(C_ss − C)` (comme `kinetics::lagged_marker`).
+//! - créatinine et urée : `dC/dt = (DFG/V_d)·(C_ss − C)` (comme `kinetics::lagged_marker`),
+//!   `C_ss` rapporté au DFG effectif.
 //!
-//! **Domaine validé : l'aigu (une administration, ≤ 24 h).** Calé sur Koh 2021 (2 mg/kg IV),
-//! validé sur Koh 2021 per os et Adin 2021 (perfusion de 5 h, créatinine à 24 h). En prises
-//! répétées sur plusieurs jours, la déplétion sodée est surestimée (l'adaptation chronique du
-//! néphron n'est pas représentée) : pour le chronique, la voie stationnaire du diurétique
-//! (`pkpd::timecourse`, `D`/`U`, adaptation φ) reste la référence.
+//! **Domaine validé : furosémide, une prise ou des prises répétées, ≤ 12 jours.** Calé sur
+//! Koh 2021 (IV et per os), Bourgoignie 1981 (chien normal), Pelligand 2020 (10 jours) et
+//! Adin 2021 (créatinine à 24 h) ; validé sur le profil de créatinine d'Adin, Giorgi 2022
+//! (créatinine et K à J12) et le rein restant de Bourgoignie (part excrétée). Écarts
+//! documentés : aldostérone de Lantis, natriurèse aiguë de Koh, ΔK à 2 h per os, pic de K du
+//! rein restant, ΔK de Wong.
 //!
 //! La physiologie (`evaluate`) est recalculée à chaque pas `dt_h` avec l'état rénal courant ;
 //! entre deux pas, les équations rénales sont intégrées par sous-pas explicites à physiologie
@@ -307,6 +315,8 @@ pub struct RenalPoint {
     pub una_cum_mmol_kg: f64,
     /// Freinage tubulaire (0–1).
     pub brake: f64,
+    /// DFG effectif (mL/min) : DFG stationnaire corrigé du rétrocontrôle tubulo-glomérulaire.
+    pub gfr: f64,
     /// Kaliurèse cumulée depuis 0 (mmol/kg).
     pub uk_cum_mmol_kg: f64,
     /// Kaliurèse instantanée (mmol/kg/h).
@@ -579,6 +589,7 @@ pub fn renal_course(
             uk_cum_mmol_kg: cum_k / bw,
             una_cum_mmol_kg: cum_na / bw,
             brake,
+            gfr: gfr / 0.06,
             fe_na,
             fe_k,
             e_loop: e_now,

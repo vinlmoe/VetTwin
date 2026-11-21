@@ -4,8 +4,8 @@
 //!
 //! Les clés surchargent les constantes de `modules/renal/renal_model.json` ; `p.<nom>=valeur`
 //! surcharge un paramètre du patient (ex. `p.renal_co_auto=1.0`). Variables d'environnement :
-//! `ONLY=koh|adin|chronic` (sous-ensemble des scénarios), `DT` (pas en h des scénarios de
-//! plus de 30 h ; 0,25 par défaut), `ACE`, `NA_DIET`, `K_DIET` (leviers de `RenalOptions`),
+//! `ONLY=koh|adin|kload|ckd|pelligand|lantis|chronic` (sous-ensemble des scénarios), `DT` (pas en h des scénarios de
+//! plus de 30 h ; 0,25 par défaut), `ACE`, `NA_DIET`, `K_DIET`, `KLOAD`, `KLOAD_S` (leviers de `RenalOptions`),
 //! `NODOSE`, `TEND` (scénario MRC), `VETSIM_ROOT` (racine du kit).
 use std::path::PathBuf;
 use vetsim_core::renal::{renal_course, RenalModel, RenalOptions};

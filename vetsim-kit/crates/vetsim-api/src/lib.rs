@@ -733,9 +733,9 @@ impl Engine {
             let c = e.catalog()?;
             let rc =
                 vetsim_core::renal::renal_course(&model, &s.patient.params, &c.drugs, &ds, &opt)?;
-            // domaine validé : une administration au plus, horizon ≤ 24 h (vetsim_core::renal)
-            let validated = ds.len() <= 1
-                && opt.t_end_h <= 24.0
+            // domaine validé : furosémide, horizon ≤ 12 j, sans levier (vetsim_core::renal)
+            let validated = ds.iter().all(|d| d.drug == "furosemide")
+                && opt.t_end_h <= 288.0
                 && opt.ace_inhibition == 0.0
                 && opt.na_intake_factor == 1.0
                 && opt.k_intake_factor == 1.0
@@ -781,15 +781,14 @@ impl Engine {
                 "hr": ev(&|e| e.params.hr),
                 "co": ev(&|e| e.hemo.summary.co),
                 "cvp": ev(&|e| e.hemo.summary.cvp),
-                "gfr": ev(&|e| e.metabolic.chem.gfr),
+                "gfr": col(&|p| p.gfr),
                 "hct": ev(&|e| e.metabolic.chem.hct),
                 "death_t_h": rc.death.map(|d| d.0),
                 "cause": rc.death.map(|d| d.1),
                 "model_version": model.version,
                 "validated": validated,
                 "warning": (!validated).then_some(
-                    "hors du domaine validé (une administration, ≤ 24 h, sans levier alimentaire ni IEC) : en prises répétées, \
-                     la déplétion sodée et la hausse de créatinine sont surestimées"),
+                    "hors du domaine validé (furosémide seul, ≤ 12 j, sans levier alimentaire, charge de K ni IEC)"),
                 "note": "rein dynamique (bilans Na, K, RAAS) ; usage pédagogique uniquement",
             }))
         })
