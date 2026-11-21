@@ -18,11 +18,15 @@
 //!   (la natrémie reste celle du patient, l'eau libre est supposée compensée par la boisson) ;
 //!   diurèse `u0 + 1000·(UNa − Na_in)/Na_u` (`Na_u` : natriurie de l'urine excédentaire) ;
 //!   le plasma en reçoit la part `Vp/VEC` (→ `vol_shift`, hémo- et protéinoconcentration) ;
-//! - `FE_K = min(fe_k_max, FE_K,b·(FE_Na/FE_Na,b)^k_flow·A^a_k·(K/K_b)^k_self)` (sécrétion distale portée par
-//!   le débit distal et l'aldostérone, freinée par l'hypokaliémie) ; `UK = DFG·K·FE_K` ;
+//! - `UK = min(DFG·K·fe_k_max, DFG·(K_b·FE_K,b + σ·(K − K_b))·(FE_Na/FE_Na,b)^k_flow·A^a_k)` :
+//!   part de base adaptée aux apports, plus une réserve proportionnelle au DFG (σ_up au-dessus
+//!   de K_b, σ_down en dessous ; Bourgoignie 1981, Young 1982) ; sécrétion distale portée par
+//!   le débit distal et l'aldostérone ;
 //! - potassium extracellulaire `Ke` et intracellulaire `Ki` (écarts, mmol) :
 //!   `dKe/dt = K_in − UK − J`, `dKi/dt = J`, `J = (B·bw·ΔK − Ki)/τ_ic`, `ΔK = Ke/VEC` ;
-//! - RAAS : `dA/dt = (A_t − A)/τ_A`, `A_t = exp(g_vol·max(0, −V)/VEC)·(1 − IEC)` ;
+//! - RAAS : `dA/dt = (A_t − A)/τ_A`,
+//!   `A_t = exp(g_vol·max(0, −V)/VEC)·(1 − IEC)·(K − k0)/(K_b − k0)` (Young 1984) ;
+//! - charges orales de K : dépôt digestif absorbé avec `τ_abs` ;
 //! - créatinine et urée : `dC/dt = (DFG/V_d)·(C_ss − C)` (comme `kinetics::lagged_marker`).
 //!
 //! **Domaine validé : l'aigu (une administration, ≤ 24 h).** Calé sur Koh 2021 (2 mg/kg IV),
@@ -73,9 +77,15 @@ pub struct RenalModel {
     pub aldo_a_na: f64,
     /// Exposant de l'activité RAAS sur la fraction excrétée du K (`A^a_k`).
     pub aldo_a_k: f64,
-    /// Exposant de la kaliémie sur la fraction excrétée du K (`(K/K_b)^k_self`) : la
-    /// sécrétion distale chute en hypokaliémie.
-    pub k_self: f64,
+    /// Pente de l'excrétion de K au-dessus de la kaliémie de base, rapportée au DFG
+    /// (`UK += σ_up·DFG·(K − K_b)`, sans dimension) : la réserve d'excrétion suit le DFG.
+    pub k_sigma_up: f64,
+    /// Même pente sous la kaliémie de base (`σ_down`).
+    pub k_sigma_down: f64,
+    /// Kaliémie à aldostérone nulle (mmol/L) : `A_t ∝ (K − k0)/(K_b − k0)`.
+    pub aldo_k0: f64,
+    /// Constante d'absorption d'une charge orale de K (h).
+    pub k_abs_tau_h: f64,
     /// Concentration en Na de l'urine excédentaire (mmol/L) : l'excès de diurèse vaut
     /// `1000·(UNa − Na_in)/Na_u` ; l'eau libre perdue est supposée bue.
     pub urine_na_mmol_l: f64,
@@ -90,7 +100,7 @@ pub struct RenalModel {
 }
 
 /// Clés de `values`, dans l'ordre des champs.
-pub const RENAL_KEYS: [&str; 17] = [
+pub const RENAL_KEYS: [&str; 20] = [
     "fe_na0",
     "fe_k0",
     "urine0_mL_kg_h",
@@ -105,9 +115,12 @@ pub const RENAL_KEYS: [&str; 17] = [
     "aldo_a_na",
     "aldo_a_k",
     "urine_floor_frac",
-    "k_self",
+    "k_sigma_up",
     "urine_na_mmol_L",
     "fe_k_max",
+    "k_sigma_down",
+    "aldo_k0",
+    "k_abs_tau_h",
 ];
 
 impl RenalModel {
@@ -146,9 +159,12 @@ impl RenalModel {
             aldo_a_na: g(11),
             aldo_a_k: g(12),
             urine_floor_frac: g(13),
-            k_self: g(14),
+            k_sigma_up: g(14),
             urine_na_mmol_l: g(15),
             fe_k_max: g(16),
+            k_sigma_down: g(17),
+            aldo_k0: g(18),
+            k_abs_tau_h: g(19),
             evidence,
             refs,
         };
@@ -164,6 +180,9 @@ impl RenalModel {
             (13, (0.0..=1.0).contains(&out.urine_floor_frac)),
             (15, out.urine_na_mmol_l > 0.0),
             (16, out.fe_k_max > 0.0),
+            (14, out.k_sigma_up >= 0.0),
+            (17, out.k_sigma_down >= 0.0),
+            (19, out.k_abs_tau_h > 0.0),
         ] {
             if !ok {
                 c.err(child("/values", RENAL_KEYS[i]), "valeur hors domaine");
@@ -203,6 +222,8 @@ pub struct RenalOptions {
     pub na_intake_factor: f64,
     /// Apport de K rapporté à l'apport de référence (anorexie < 1, supplémentation > 1).
     pub k_intake_factor: f64,
+    /// Charges orales de K : `(instant h, mmol/kg)` (ex. KCl par sonde).
+    pub k_loads: Vec<(f64, f64)>,
 }
 
 impl Default for RenalOptions {
@@ -213,6 +234,7 @@ impl Default for RenalOptions {
             ace_inhibition: 0.0,
             na_intake_factor: 1.0,
             k_intake_factor: 1.0,
+            k_loads: Vec::new(),
         }
     }
 }
@@ -246,6 +268,8 @@ pub struct RenalPoint {
     pub una_mmol_l: f64,
     /// Kaliurie (mmol/L d'urine).
     pub uk_mmol_l: f64,
+    /// Kaliurèse cumulée depuis 0 (mmol/kg).
+    pub uk_cum_mmol_kg: f64,
     /// Kaliurèse instantanée (mmol/kg/h).
     pub uk_mmol_kg_h: f64,
     /// Fraction excrétée du sodium.
@@ -404,12 +428,19 @@ pub fn renal_course(
     let (mut v, mut ke, mut ki, mut a) = (0.0f64, 0.0f64, 0.0f64, 1.0f64);
     let (mut creat, mut urea) = (ev0.metabolic.chem.creat, ev0.metabolic.chem.urea);
     let mut cum = 0.0f64;
+    let mut cum_k = 0.0f64; // kaliurèse cumulée (mmol)
+    let mut gut_k = 0.0f64; // K oral non encore absorbé (mmol)
     let mut points = Vec::with_capacity(n_steps + 1);
     let mut death = None;
     let mut last: Option<(Params, Evaluation)> = None;
     let mut n_evals = 0usize;
-    let a_target = |v: f64| -> f64 {
-        crate::math::exp(model.aldo_g_vol * f64::max(0.0, -v) / ecf_ml) * (1.0 - opt.ace_inhibition)
+    // RAAS : déplétion du VEC (rénine) et kaliémie (stimulation directe de la surrénale,
+    // aldostérone ∝ K − k0)
+    let k_span = (k0 - model.aldo_k0).max(0.1);
+    let a_target = |v: f64, k: f64| -> f64 {
+        crate::math::exp(model.aldo_g_vol * f64::max(0.0, -v) / ecf_ml)
+            * (1.0 - opt.ace_inhibition)
+            * ((k - model.aldo_k0) / k_span).max(0.05)
     };
     for step in 0..=n_steps {
         let t = step as f64 * opt.dt_h;
@@ -449,24 +480,32 @@ pub fn renal_course(
         let gfr = ev.metabolic.chem.gfr * 0.06;
         let map = ev.hemo.summary.map;
         let k_pl = p.k;
+        let k_drug_free = p.k - dk; // kaliémie hors écart rénal (maladie, médicaments)
         let p_fac = crate::math::pow((map / map_b).max(0.1), model.n_pressure);
-        let fluxes = |e: f64, a: f64| {
+        let fluxes = |e: f64, a: f64, k: f64| {
             let fe_na =
                 ((fe_na_b + model.fe_loop_max * e) * crate::math::pow(a, -model.aldo_a_na) * p_fac)
                     .min(0.5);
             let una = gfr * na * fe_na;
-            let fe_k = (fe_k_b
+            // part de base (adaptée aux apports) + réserve proportionnelle au DFG
+            let sigma = if k >= k0 {
+                model.k_sigma_up
+            } else {
+                model.k_sigma_down
+            };
+            let drive = (k0 * fe_k_b + sigma * (k - k0)).max(0.0);
+            let uk = (gfr
+                * drive
                 * crate::math::pow(fe_na / fe_na_b, model.k_flow)
-                * crate::math::pow(a, model.aldo_a_k)
-                * crate::math::pow((k_pl / k0).max(0.1), model.k_self))
-            .min(model.fe_k_max);
-            let uk = gfr * k_pl * fe_k;
+                * crate::math::pow(a, model.aldo_a_k))
+            .min(gfr * k * model.fe_k_max);
+            let fe_k = uk / (gfr * k).max(1e-12);
             let urine = (u0 + 1000.0 * (una - na_ref) / model.urine_na_mmol_l)
                 .max(model.urine_floor_frac * u0);
             (fe_na, una, fe_k, uk, urine)
         };
         let e_now = e_at(t);
-        let (fe_na, una, fe_k, uk, urine) = fluxes(e_now, a);
+        let (fe_na, una, fe_k, uk, urine) = fluxes(e_now, a, k_pl);
         points.push(RenalPoint {
             t_h: t,
             d_ecf_ml_kg: v / bw,
@@ -482,6 +521,7 @@ pub fn renal_course(
             una_mmol_l: 1000.0 * una / urine,
             uk_mmol_l: 1000.0 * uk / urine,
             uk_mmol_kg_h: uk / bw,
+            uk_cum_mmol_kg: cum_k / bw,
             fe_na,
             fe_k,
             e_loop: e_now,
@@ -497,14 +537,24 @@ pub fn renal_course(
         for j in 0..n_sub {
             let ts = t + j as f64 * h;
             let e = e_at(ts);
-            let (_, una, _, uk, urine) = fluxes(e, a);
             let dk = ke / (ecf_ml / 1000.0);
+            let k_now = (k_drug_free + dk).max(0.5);
+            let (_, una, _, uk, urine) = fluxes(e, a, k_now);
+            // charges orales de K : dépôt digestif, absorption d'ordre 1
+            for &(tl, mmol_kg) in &opt.k_loads {
+                if tl >= ts - 1e-9 && tl < ts + h - 1e-9 {
+                    gut_k += mmol_kg * bw;
+                }
+            }
+            let absorb = gut_k / model.k_abs_tau_h;
+            gut_k -= h * absorb;
             let jflux = (model.k_buffer_l_kg * bw * dk - ki) / model.k_ic_tau_h;
             v += h * 1000.0 * (na_in - una) / na;
-            ke += h * (k_in - uk - jflux);
+            ke += h * (k_in + absorb - uk - jflux);
             ki += h * jflux;
-            a += h * (a_target(v) - a) / model.aldo_tau_h;
+            a += h * (a_target(v, k_now) - a) / model.aldo_tau_h;
             cum += h * urine;
+            cum_k += h * uk;
         }
         creat = c_ss + (creat - c_ss) * crate::math::exp(-kc * opt.dt_h);
         urea = u_ss + (urea - u_ss) * crate::math::exp(-ku * opt.dt_h);

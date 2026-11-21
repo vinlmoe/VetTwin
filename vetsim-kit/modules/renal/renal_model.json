@@ -1,7 +1,7 @@
 {
  "schema_version": "1.0.0",
  "id": "renal_model",
- "version": "1.1.0",
+ "version": "1.2.0",
  "name": {
   "fr": "Rein dynamique"
  },
@@ -68,19 +68,14 @@
    "note": "placeholder"
   },
   "aldo_a_k": {
-   "value": 1.0,
-   "evidence": "D",
-   "note": "placeholder"
+   "value": 0.7,
+   "evidence": "C",
+   "note": "Young 1983 : aldostérone ×12,5 (20 → 250 µg/j) multiplie l'excrétion de K par 4 à 8 à kaliémie 4,0–4,4 ; ln 6/ln 12,5 ≈ 0,7 (résumé)"
   },
   "urine_floor_frac": {
    "value": 0.3,
    "evidence": "D",
    "note": "placeholder : diurèse minimale en rétention"
-  },
-  "k_self": {
-   "value": 2.0,
-   "evidence": "D",
-   "note": "placeholder : frein de l'hypokaliémie sur la sécrétion distale"
   },
   "urine_na_mmol_L": {
    "value": 150.0,
@@ -90,7 +85,27 @@
   "fe_k_max": {
    "value": 1.5,
    "evidence": "D",
-   "note": "placeholder : capacité de sécrétion du K ; FE_K > 100 % possible en MRC avancée (aucune valeur canine lue)"
+   "note": "placeholder de sécurité (capacité maximale) ; n'est pas atteint dans les scénarios validés"
+  },
+  "k_sigma_up": {
+   "value": 3.0,
+   "evidence": "C",
+   "note": "Young 1982 (chiens surrénalectomisés, aldostérone fixée 50 µg/j : 260 mEq/j par mEq/L au-dessus de la kaliémie normale, soit ≈ 3 rapporté à un DFG de ≈ 60 mL/min ; résumé) ; concordant avec Bourgoignie 1981 (charge de 50 mEq de KCl : ≈ 2,7 ; résumé)"
+  },
+  "k_sigma_down": {
+   "value": 0.13,
+   "evidence": "C",
+   "note": "Young 1982 : 11 mEq/j par mEq/L sous la kaliémie normale (résumé)"
+  },
+  "aldo_k0": {
+   "value": 3.29,
+   "evidence": "C",
+   "note": "Young 1984 : aldostérone = 5,04·K − 16,56, nulle à K 3,29 (6 chiens ; résumé)"
+  },
+  "k_abs_tau_h": {
+   "value": 0.5,
+   "evidence": "D",
+   "note": "placeholder : absorption d'une charge orale de KCl"
   }
  },
  "refs": [
@@ -99,7 +114,12 @@
   "Adin D et al. 2021, J Vet Intern Med 35:1245 (PMC8163123, lu)",
   "Lantis AC et al. 2011, Am J Vet Res (résumé)",
   "Wong KC et al. 1977, Can Anaesth Soc J (accès moteur)",
-  "Sterns RH et al. 1981, Medicine 60:339 (homme)"
+  "Sterns RH et al. 1981, Medicine 60:339 (homme)",
+  "Young DB 1982, Am J Physiol 242:F599 (résumé)",
+  "Young DB, Paulsen AW 1983, Am J Physiol 244:F28 (résumé)",
+  "Young DB et al. 1984, Am J Physiol 247:E328 (résumé)",
+  "Bourgoignie JJ et al. 1981, Kidney Int 20:482 (résumé)",
+  "Bourgoignie JJ et al. 1985, Miner Electrolyte Metab 11:150 (résumé)"
  ],
  "notes": "Domaine validé : aigu (≤ 24 h). Prises répétées sur plusieurs jours : déplétion sodée surestimée (docs/VALIDATION_HORS_CALIBRAGE.tex)."
 }

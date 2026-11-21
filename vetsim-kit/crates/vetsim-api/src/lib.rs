@@ -680,6 +680,7 @@ impl Engine {
 
     /// Rein dynamique (`vetsim_core::renal`) : `{"doses": [...] (optionnel), "t_end_h": 24,
     /// "dt_h": 0.25, "ace_inhibition": 0, "na_intake_factor": 1, "k_intake_factor": 1,
+    /// "k_loads": [{"t_h": 0, "mmol_per_kg": 2.5}],
     /// "every_h": 1}` → séries aux instants multiples de
     /// `every_h` : bilans (ΔVEC, Δplasma, K, K intracellulaire), activité RAAS, diurèse,
     /// natriurèse, kaliurèse, FE_Na, FE_K, créatinine et urée cinétiques, et l'état
@@ -703,6 +704,23 @@ impl Engine {
                 ace_inhibition: opt_f64(m, "ace_inhibition", 0.0)?,
                 na_intake_factor: opt_f64(m, "na_intake_factor", 1.0)?,
                 k_intake_factor: opt_f64(m, "k_intake_factor", 1.0)?,
+                k_loads: match m.get("k_loads") {
+                    None => Vec::new(),
+                    Some(Json::Array(a)) => a
+                        .iter()
+                        .enumerate()
+                        .map(|(i, x)| {
+                            let o = obj(x, &format!("/k_loads/{i}"))?;
+                            let g = |k: &str| {
+                                o.get(k).and_then(Json::as_f64).ok_or_else(|| {
+                                    ApiError::one(format!("/k_loads/{i}/{k}"), "nombre attendu")
+                                })
+                            };
+                            Ok((g("t_h")?, g("mmol_per_kg")?))
+                        })
+                        .collect::<Result<_, ApiError>>()?,
+                    Some(_) => return Err(ApiError::one("/k_loads", "tableau attendu")),
+                },
             };
             if opt.t_end_h > 24.0 * 60.0 {
                 return Err(ApiError::one("/t_end_h", "au plus 60 jours"));
@@ -720,7 +738,8 @@ impl Engine {
                 && opt.t_end_h <= 24.0
                 && opt.ace_inhibition == 0.0
                 && opt.na_intake_factor == 1.0
-                && opt.k_intake_factor == 1.0;
+                && opt.k_intake_factor == 1.0
+                && opt.k_loads.is_empty();
             let stride = ((every / opt.dt_h).round() as usize).max(1);
             let pts: Vec<_> = rc
                 .points
@@ -754,6 +773,7 @@ impl Engine {
                 "uk_mmol_kg_h": col(&|p| p.uk_mmol_kg_h),
                 "una_mmol_L": col(&|p| p.una_mmol_l),
                 "uk_mmol_L": col(&|p| p.uk_mmol_l),
+                "uk_cum_mmol_kg": col(&|p| p.uk_cum_mmol_kg),
                 "fe_na": col(&|p| p.fe_na),
                 "fe_k": col(&|p| p.fe_k),
                 "e_loop": col(&|p| p.e_loop),

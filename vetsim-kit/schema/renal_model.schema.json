@@ -47,9 +47,12 @@
     "aldo_a_na",
     "aldo_a_k",
     "urine_floor_frac",
-    "k_self",
     "urine_na_mmol_L",
-    "fe_k_max"
+    "fe_k_max",
+    "k_sigma_up",
+    "k_sigma_down",
+    "aldo_k0",
+    "k_abs_tau_h"
    ],
    "additionalProperties": false,
    "properties": {
@@ -389,30 +392,6 @@
      },
      "additionalProperties": false
     },
-    "k_self": {
-     "type": "object",
-     "required": [
-      "value",
-      "evidence"
-     ],
-     "properties": {
-      "value": {
-       "type": "number"
-      },
-      "evidence": {
-       "enum": [
-        "A",
-        "B",
-        "C",
-        "D"
-       ]
-      },
-      "note": {
-       "type": "string"
-      }
-     },
-     "additionalProperties": false
-    },
     "urine_na_mmol_L": {
      "type": "object",
      "required": [
@@ -438,6 +417,102 @@
      "additionalProperties": false
     },
     "fe_k_max": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "k_sigma_up": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "k_sigma_down": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "aldo_k0": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "k_abs_tau_h": {
      "type": "object",
      "required": [
       "value",
