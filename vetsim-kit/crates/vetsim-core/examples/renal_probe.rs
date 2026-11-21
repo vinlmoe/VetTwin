@@ -105,11 +105,19 @@ fn main() {
                 .map(|q| q.aldo)
                 .collect();
             let am = win.iter().sum::<f64>() / win.len().max(1) as f64;
+            // aldostérone moyenne des 3 h précédentes (urine d'un prélèvement ponctuel)
+            let w3: Vec<f64> = c
+                .points
+                .iter()
+                .filter(|q| q.t_h > p.t_h - 3.0 && q.t_h <= p.t_h)
+                .map(|q| q.aldo)
+                .collect();
+            let a3 = w3.iter().sum::<f64>() / w3.len().max(1) as f64;
             println!(
-                "t {:6.2} h  UK cum {:5.2} mmol/kg  UNa cum {:6.2} mmol/kg  B {:.2}  urine cum {:6.2} mL/kg  UNa {:4.0} mmol/L  K {:.2} ΔK {:+.3}  ΔECF {:+6.1} mL/kg  A {:.2}  creat {:5.1} ({:+.1} %)  FE_Na {:.4}  FE_K {:.3}  E {:.2}  PAM {:5.1}  FC {:5.1}  DFG {:5.2}  Am24 {:.3}  Ar {:.2}",
+                "t {:6.2} h  UK cum {:5.2} mmol/kg  UNa cum {:6.2} mmol/kg  B {:.2}  urine cum {:6.2} mL/kg  UNa {:4.0} mmol/L  K {:.2} ΔK {:+.3}  ΔECF {:+6.1} mL/kg  A {:.2}  creat {:5.1} ({:+.1} %)  FE_Na {:.4}  FE_K {:.3}  E {:.2}  PAM {:5.1}  FC {:5.1}  DFG {:5.2}  Am24 {:.3}  Ar {:.2}  A3 {:.3}",
                 p.t_h, p.uk_cum_mmol_kg, p.una_cum_mmol_kg, p.brake, p.urine_cum_ml_kg, p.una_mmol_l, p.k, p.k - p0.k, p.d_ecf_ml_kg, p.aldo, p.creat,
                 100.0 * (p.creat / p0.creat - 1.0), p.fe_na, p.fe_k, p.e_loop,
-                ev.hemo.summary.map, ev.params.hr, p.gfr / bw, am, p.aldo_renin
+                ev.hemo.summary.map, ev.params.hr, p.gfr / bw, am, p.aldo_renin, a3
             );
         }
     };
@@ -202,16 +210,18 @@ fn main() {
         }
     }
     if want("lantis") {
+        // Lantis 2011 (lu) : chiens de 30 kg (groupe furosémide), prises à 7 h et 19 h ;
+        // urine prélevée 2–3 h et 8–10 h après la prise du matin à J5 et J10
         let q12: Vec<Dose> = (0..20)
             .map(|i| dose(12.0 * i as f64, 2.0, Route::Po))
             .collect();
         run(
-            "Lantis 2 mg/kg PO q12h 10 j (25 kg)",
-            25.0,
+            "Lantis 2 mg/kg PO q12h 10 j (30 kg)",
+            30.0,
             None,
             q12,
             240.0,
-            &[0.0, 120.0, 240.0],
+            &[0.0, 98.5, 105.0, 120.0, 218.5, 225.0, 240.0],
         );
     }
     if want("chronic") {
