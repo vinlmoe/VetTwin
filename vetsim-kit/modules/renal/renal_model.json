@@ -28,22 +28,22 @@
    "note": "volume extracellulaire usuel du chien (manuels de physiologie) ; non vérifié sur source primaire"
   },
   "k_buffer_L_kg": {
-   "value": 1.24,
+   "value": 1.57,
    "evidence": "C",
    "note": "calé avec k_flow (Koh 2021) ; bien en dessous de la règle humaine (≈ 4,5 L/kg, Sterns 1981)"
   },
   "k_ic_tau_h": {
-   "value": 2.57,
+   "value": 1.76,
    "evidence": "C",
    "note": "calé avec k_flow (Koh 2021)"
   },
   "fe_loop_max": {
-   "value": 0.0796,
+   "value": 0.0422,
    "evidence": "C",
    "note": "calé sur Koh 2021 (diurèse de 8 h, 2 mg/kg IV : 24,65 mL/kg)"
   },
   "k_flow": {
-   "value": 0.647,
+   "value": 0.715,
    "evidence": "C",
    "note": "calé sur Koh 2021 (ΔK IV −0,51 à 2 h, −0,33 à 8 h)"
   },
@@ -58,12 +58,12 @@
    "note": "placeholder"
   },
   "aldo_g_vol": {
-   "value": 2.77,
+   "value": 2.9,
    "evidence": "C",
    "note": "calé sur Lantis 2011 (UAldo:C 0,37 → 0,89 µg/g à J5 sous 2 mg/kg PO q12h ; résumé) : A(J5) = 2,4"
   },
   "aldo_a_na": {
-   "value": 1.0,
+   "value": 0.879,
    "evidence": "D",
    "note": "placeholder"
   },
@@ -88,7 +88,7 @@
    "note": "placeholder de sécurité (capacité maximale) ; n'est pas atteint dans les scénarios validés"
   },
   "k_sigma_up": {
-   "value": 3.0,
+   "value": 2.62,
    "evidence": "C",
    "note": "Young 1982 (chiens surrénalectomisés, aldostérone fixée 50 µg/j : 260 mEq/j par mEq/L au-dessus de la kaliémie normale, soit ≈ 3 rapporté à un DFG de ≈ 60 mL/min ; résumé) ; concordant avec Bourgoignie 1981 (charge de 50 mEq de KCl : ≈ 2,7 ; résumé)"
   },
@@ -103,7 +103,7 @@
    "note": "Young 1984 : aldostérone = 5,04·K − 16,56, nulle à K 3,29 (6 chiens ; résumé)"
   },
   "k_abs_tau_h": {
-   "value": 0.5,
+   "value": 1.58,
    "evidence": "D",
    "note": "placeholder : absorption d'une charge orale de KCl"
   }
