@@ -28,22 +28,22 @@
    "note": "volume extracellulaire usuel du chien (manuels de physiologie) ; non vérifié sur source primaire"
   },
   "k_buffer_L_kg": {
-   "value": 1.26,
+   "value": 1.31,
    "evidence": "C",
    "note": "calage conjoint sur Koh 2021 IV (diurèse 8 h, ΔK 2 h et 8 h) et per os (diurèse 8 h, ΔK 8 h), Bourgoignie 1981 chien normal (charge de 50 mEq de KCl : pic +1,05, 64 % excrétés en 5 h ; résumé) et Lantis 2011 (aldostérone ×2,4 à J5 ; résumé) ; bien en dessous de la règle humaine (≈ 4,5 L/kg, Sterns 1981)"
   },
   "k_ic_tau_h": {
-   "value": 1.54,
+   "value": 1.46,
    "evidence": "C",
    "note": "calage conjoint sur Koh 2021 IV (diurèse 8 h, ΔK 2 h et 8 h) et per os (diurèse 8 h, ΔK 8 h), Bourgoignie 1981 chien normal (charge de 50 mEq de KCl : pic +1,05, 64 % excrétés en 5 h ; résumé) et Lantis 2011 (aldostérone ×2,4 à J5 ; résumé)"
   },
   "fe_loop_max": {
-   "value": 0.0682,
+   "value": 0.0694,
    "evidence": "C",
    "note": "calage conjoint sur Koh 2021 IV (diurèse 8 h, ΔK 2 h et 8 h) et per os (diurèse 8 h, ΔK 8 h), Bourgoignie 1981 chien normal (charge de 50 mEq de KCl : pic +1,05, 64 % excrétés en 5 h ; résumé) et Lantis 2011 (aldostérone ×2,4 à J5 ; résumé)"
   },
   "k_flow": {
-   "value": 0.726,
+   "value": 0.723,
    "evidence": "C",
    "note": "calage conjoint sur Koh 2021 IV (diurèse 8 h, ΔK 2 h et 8 h) et per os (diurèse 8 h, ΔK 8 h), Bourgoignie 1981 chien normal (charge de 50 mEq de KCl : pic +1,05, 64 % excrétés en 5 h ; résumé) et Lantis 2011 (aldostérone ×2,4 à J5 ; résumé)"
   },
@@ -103,7 +103,7 @@
    "note": "Young 1984 : aldostérone = 5,04·K − 16,56, nulle à K 3,29 (6 chiens ; résumé)"
   },
   "k_abs_tau_h": {
-   "value": 1.98,
+   "value": 1.95,
    "evidence": "C",
    "note": "calage conjoint sur Koh 2021 IV (diurèse 8 h, ΔK 2 h et 8 h) et per os (diurèse 8 h, ΔK 8 h), Bourgoignie 1981 chien normal (charge de 50 mEq de KCl : pic +1,05, 64 % excrétés en 5 h ; résumé) et Lantis 2011 (aldostérone ×2,4 à J5 ; résumé) (absorption de la charge orale de KCl)"
   },
