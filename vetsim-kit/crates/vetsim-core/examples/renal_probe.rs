@@ -154,14 +154,14 @@ fn main() {
         );
     }
     if want("kload") {
-        // Bourgoignie 1981 : 50 mEq de KCl par sonde, DFG 57 (normal) contre 16 mL/min (rein
-        // restant) ; poids non rapporté (≈ 17 kg pour 57 mL/min à 3,4 mL/min/kg)
-        let grid: Vec<f64> = (0..=20).map(|i| 0.25 * i as f64).collect();
+        // Bourgoignie 1981 (lu) : 50 mEq de KCl par sonde à jeun, chiennes de 14 à 18 kg, DFG 57
+        // (normal) contre 16 mL/min (rein restant) ; prélèvements à 0,5 h puis toutes les heures
+        let grid: Vec<f64> = (0..=10).map(|i| 0.5 * i as f64).collect();
         for s in [0.0, env("KLOAD_S", 0.55)] {
             let d = if s > 0.0 { Some((&ckd, s)) } else { None };
             run(
                 &format!("Charge de K, MRC {s}"),
-                17.0,
+                16.0,
                 d,
                 vec![],
                 5.0,
@@ -222,6 +222,20 @@ fn main() {
             q12,
             240.0,
             &[0.0, 98.5, 105.0, 120.0, 218.5, 225.0, 240.0],
+        );
+    }
+    if want("hori") {
+        // Hori 2007 (lu) : 8 chiens de 12,6 kg, 2 mg/kg per os toutes les 12 h pendant 14 jours
+        let q12: Vec<Dose> = (0..28)
+            .map(|i| dose(12.0 * i as f64, 2.0, Route::Po))
+            .collect();
+        run(
+            "Hori 2 mg/kg PO q12h 14 j (12,6 kg)",
+            12.6,
+            None,
+            q12,
+            336.0,
+            &[0.0, 24.0, 312.0, 336.0],
         );
     }
     if want("chronic") {

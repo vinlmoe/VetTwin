@@ -35,7 +35,7 @@
 //!   retient le Na (action génomique retardée, `τ_na`) et sécrète le K ; `A_K`
 //!   (kaliémie, `A_K,t = (K − k0)/(K_b − k0)`, Young 1984) ne sécrète que le K ; même `τ_A` ;
 //!   la sortie `aldo` vaut `A·A_K` ;
-//! - charges orales de K : dépôt digestif absorbé avec `τ_abs` ;
+//! - charges orales de K : estomac puis intestin, chacun avec `τ_abs` (latence d'absorption) ;
 //! - créatinine et urée : `dC/dt = (DFG/V_d)·(C_ss − C)` (comme `kinetics::lagged_marker`),
 //!   `C_ss` rapporté au DFG effectif.
 //!
@@ -115,7 +115,7 @@ pub struct RenalModel {
     pub k_sigma_down: f64,
     /// Kaliémie à aldostérone nulle (mmol/L) : `A_t ∝ (K − k0)/(K_b − k0)`.
     pub aldo_k0: f64,
-    /// Constante d'absorption d'une charge orale de K (h).
+    /// Constante de temps de chacune des deux étapes d'absorption d'une charge orale de K (h).
     pub k_abs_tau_h: f64,
     /// Concentration en Na de l'urine excédentaire (mmol/L) : l'excès de diurèse vaut
     /// `1000·(UNa − Na_in)/Na_u` ; l'eau libre perdue est supposée bue.
@@ -498,7 +498,8 @@ pub fn renal_course(
     let mut ak = 1.0f64; // composante kaliémique de l'aldostérone
     let mut an = 1.0f64; // action natriférique de A (retardée)
     let mut cum_k = 0.0f64; // kaliurèse cumulée (mmol)
-    let mut gut_k = 0.0f64; // K oral non encore absorbé (mmol)
+    let mut gut_k = 0.0f64; // K oral dans l'estomac (mmol)
+    let mut gut_k2 = 0.0f64; // K oral dans l'intestin, en cours d'absorption (mmol)
     let mut points = Vec::with_capacity(n_steps + 1);
     let mut death = None;
     let mut last: Option<(Params, Evaluation)> = None;
@@ -632,8 +633,12 @@ pub fn renal_course(
                     gut_k += mmol_kg * bw;
                 }
             }
-            let absorb = gut_k / model.k_abs_tau_h;
-            gut_k -= h * absorb;
+            // deux étapes (vidange gastrique puis absorption intestinale), même constante de
+            // temps : latence d'environ 1 h (Bourgoignie 1981)
+            let empty = gut_k / model.k_abs_tau_h;
+            let absorb = gut_k2 / model.k_abs_tau_h;
+            gut_k -= h * empty;
+            gut_k2 += h * (empty - absorb);
             let jflux = (model.k_buffer_l_kg * bw * dk - ki) / model.k_ic_tau_h;
             v += h * 1000.0 * (na_in - una) / na;
             ke += h * (k_in + absorb - uk - jflux);
