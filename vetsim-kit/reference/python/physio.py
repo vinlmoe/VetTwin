@@ -226,14 +226,14 @@ def gas_exchange(p, hemo, lactate_fn):
         ph, hco3 = stewart_ph(p, pco2, p['_lact'])
         va = 0.863 * vco2 / pco2
         pAO2 = p['fio2'] * (p['pb'] - 47.0) - pco2 / p['rq']
-        aa = p['aagrad'] + p['edema_k'] * max(0.0, hemo['la_mean'] - 18.0)
+        aa = p['aagrad'] + p['edema_k'] * max(0.0, hemo['la_mean'] - LA_EDEMA)
         paO2 = max(pAO2 - aa, 15.0)
     p50 = p['p50'] * 10 ** (0.37 * (7.4 - ph))   # Bohr canin : dlogP50/dpH = -0.370 (Cambier 2004)
     sao2 = hb_o2_sat(paO2, p50, p['hill_n'])
     cao2 = o2_content(paO2, p['hb'], p50, p['hill_n'])
     return dict(pco2=pco2, ph=ph, hco3=hco3, be=base_excess(ph, hco3, p['hb']),
                 pao2=paO2, sao2=100 * sao2, cao2=cao2, va=va, p50=p50,
-                rr=20.0 * (va / va0) ** 0.5, aa=aa)
+                rr=20.0 * (va / va0) ** 0.5 * p['rr_mult'], aa=aa)
 
 
 # ------------------------------------------------------------------ orchestration
@@ -368,7 +368,7 @@ def _evaluate_once(p, n_beats=22):
     phv, hco3v = stewart_ph(p, pvco2, lact)
     # --- rein
     co_ref = 3.29 * (bw / 20.0) ** 0.75
-    perf = float(min(np.clip((h['map'] - 40.0) / 35.0, 0, 1), np.clip((h['co'] / co_ref - 0.5) / 0.5, 0, 1)))
+    perf = float(min(np.clip((h['map'] - 40.0) / 35.0, 0, 1), np.clip((h['co'] / co_ref - (p['renal_co_auto'] - 0.5)) / 0.5, 0, 1)))
     perf = max(perf, 0.25)        # plateau de l'azotémie prérénale (au-delà : IRA, non modélisée)
     # axe cardio-rénal (miroir de engine::metabolic_state) : congestion (PVC) et vasoconstriction rénale
     f_cong = max(0.3, 1.0 - p['renal_k_cong'] * max(0.0, h['cvp'] - p['renal_cvp_ref']))
@@ -394,7 +394,7 @@ DECOMP_MAX_ITER = 30      # passes au plus avant de conclure à une spirale non 
 DECOMP_TOL = 1e-3         # convergence des facteurs de couplage
 F_FLOOR = 0.1             # plancher des facteurs (au-delà : effondrement par les critères d'arrêt)
 ER_ANAEROBIC = 0.55       # extraction d'O2 au point d'inflexion du lactate (voir _evaluate_once)
-LA_EDEMA = 18.0           # POG au-delà de laquelle le gradient A-a s'ouvre (gas_exchange)
+LA_EDEMA = 24.0           # POG au-delà de laquelle le gradient A-a s'ouvre (gas_exchange) ; 18 → 24 le 21/11/2026 (Guyton & Lindsey 1959)
 MAP_RENAL = 75.0          # PAM sous laquelle la perfusion rénale baisse (40 + 35, _evaluate_once)
 
 

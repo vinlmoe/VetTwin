@@ -47,7 +47,7 @@ d_t = clip(baro_gain·(map_set − MAP)/45, −1, 1)
 ## 4. Perfusion, lactate, rénal
 - `do2 = co·1000·CaO2/100`; `vo2 = vo2_kg·bw`; `er = vo2/do2`.
 - `lactate = lact0 + 9/(1 + exp(−(er − 0.55)/0.06))`.
-- Perfusion rénale : `perf = max(0.25, min(clip((MAP−40)/35, 0, 1), clip((co/co_ref − 0.5)/0.5, 0, 1)))`, `co_ref = 3.29·(bw/20)^0.75` L/min.
+- Perfusion rénale : `perf = max(0.25, min(clip((MAP−40)/35, 0, 1), clip((co/co_ref − (renal_co_auto − 0.5))/0.5, 0, 1)))`, `co_ref = 3.29·(bw/20)^0.75` L/min. Autorégulation vis-à-vis du débit (21/11/2026) : `renal_co_auto` 0,8, le débit ne limite la filtration qu'au-dessous de 0,8·co_ref (1,0 redonne la rampe historique 0,5–1,0).
 - Axe cardio-rénal (20/11/2026) : `f_cong = max(0,3 ; 1 − renal_k_cong·max(0, PVC − renal_cvp_ref))`, `f_symp = max(0,3 ; 1 − renal_k_symp·max(0, s − renal_s_ref))` ; anémie : `r_sys ×= (hb/hb_ref)^anemia_visc` dans la boucle de décompensation.
 - `gfr_ratio = max(0.03, nephron_mass·perf·f_cong·f_symp)`; `creat = creat0/gfr_ratio`; `urea = urea0/gfr_ratio^0.8`; `gfr = gfr0·bw·gfr_ratio`; `hct = 3·hb`.
 
@@ -57,7 +57,7 @@ d_t = clip(baro_gain·(map_set − MAP)/45, −1, 1)
   `A_alb = alb_gL·(0.28 + 0.469/(1 + 10^(7.77−pH)))` (canin, Constable & Stämpfli 2005), `A_phos = phos·(0.309·pH − 0.469)` (coefficient humain).
 - Ventilation : résoudre en PCO2 (brentq sur [5, 250]) `PCO2 = 0.863·VCO2/VA` avec
   `VA = va0·bw·vent_drive·max(0.12, 1 + 0.08 (PCO2−37))·exp(0.05 − 6.0 (pH−7.38))·(1 + 0.03·max(0, 70 − PaO2))` (gain au pH recalé le 20/11/2026 : compensation 0,74 mmHg/(mmol/L), Madias 1984) ; 3 itérations externes sur PaO2.
-- Oxygénation : `PAO2 = fio2·(pb−47) − PCO2/rq`; gradient `aa = aagrad + edema_k·max(0, la_mean − 18)`; `PaO2 = max(15, PAO2 − aa)`.
+- Oxygénation : `PAO2 = fio2·(pb−47) − PCO2/rq`; gradient `aa = aagrad + edema_k·max(0, la_mean − LA_EDEMA)` avec `LA_EDEMA` = 24 mmHg (18 avant le 21/11/2026, Guyton & Lindsey 1959); `PaO2 = max(15, PAO2 − aa)`.
 - Hémoglobine : Hill `S = P^n/(P^n + P50^n)`, `P50 = p50·10^(0.37 (7.4 − pH))` (Bohr canin), `CaO2 = 1.34·hb·S + 0.003·PO2`.
 - Excès de base (van Slyke simplifié) : voir `base_excess`.
 - Sang veineux mêlé : `CvO2 = CaO2 − vo2/(co·10)` ; `PvO2` par inversion de la courbe ; `PvCO2 = PaCO2 + 5.5·(125·bw/1000)/max(co, 0.2)` ; pH veineux par Stewart avec `PvCO2`.
@@ -75,6 +75,15 @@ d_t = clip(baro_gain·(map_set − MAP)/45, −1, 1)
 - Pimobendane 1.1.0 : `pr ×(1 − 0,25 E)` et `av_erp ×(1 − 0,25 E)` (PQ −11,8 % à 0,15 mg/kg IV, Pichayapaiboon 2021).
 - Opioïde 1.2.0 : en plus de ce qui précède, `t_set −= 2,0 E`, `pupil_ew += E`, `gi_inhib += 0,9 E`, `sedation += 0,2 E`.
 - **Créatinine et urée en évolution temporelle** (`kinetics.rs`, API `timecourse` et `state` avec `doses`/`at_h`) : compartiment unique `V·dC/dt = P − DFG(t)·C`, soit `dC/dt = (DFG/V)(C_ss − C)`, départ à l'équilibre du patient sans médicament ; `V = creat_vd·bw` (0,539 L/kg, Collignon 2012) et `urea_vd·bw` (0,66 L/kg, Bowsher 1985). L'état stationnaire (CLI `eval`, golden) reste `C_ss = C0/ratio_DFG`. Non porté en Python.
+
+## 6 ter. Rein dynamique (`renal.rs`, 21/11/2026 ; pas de port Python)
+- Évolution temporelle seulement (API `renal_course`) ; point fixe = état stationnaire. Apports Na et K = ceux d'un chien sain de même poids (`gfr0·bw·Na·fe_na0`), indépendants de la maladie ; FE de base du patient = apport/charge filtrée (×1/ratio_DFG en MRC) ; leviers `na_intake_factor`, `k_intake_factor`. `FE_K ≤ fe_k_max`.
+- `FE_Na = (FE_Na,b + fe_loop·E·(1 − φ·B))·A^(−a_na)·(PAM/PAM_b)^n_p` ; freinage `dB/dt = (E − B)/τ` (τ_on si E > B, sinon τ_off) ; DFG effectif `DFG_ss·(DFG_b/DFG_ss)^E·exp(−g_gfr·max(0, −V)/VEC·(1 − E))` (macula densa aveugle pendant l'exposition, rétrocontrôle tubulo-glomérulaire ensuite ; `C_ss` rapporté au DFG effectif) ; diurèse `u0 + 1000·(UNa − Na_in)/Na_u + w_max·W·bw`, `dW/dt = (E − W)/τ_w` (eau libre) ; `dV/dt = 1000·(Na_in − DFG·Na·FE_Na)/Na` (VEC, iso-osmotique) ; plasma `Vp/VEC·V` → `vol_shift`, `hb`, `alb`.
+- `UK = DFG·(K_b·FE_K,b + σ·(K − K_b))·(FE_Na/FE_Na,b)^k_flow·(A·A_K)^a_k` (≤ DFG·K·fe_k_max) : réserve d'excrétion proportionnelle au DFG (σ_up au-dessus, σ_down en dessous de K_b) ; K extra/intracellulaire : `dKe/dt = K_in + K_abs − UK − J`, `J = (B·bw·ΔK − Ki)/τ_ic` ; charges orales de K (`k_loads`, absorption en deux étapes de constante τ_abs).
+- Aldostérone en deux composantes (« paradoxe de l'aldostérone ») : `A` (rénine) : `dA/dt = (exp(g·max(0, −V)/VEC)·(1 + g_md·E)·(1 − IEC) − A)/τ_A` (déplétion et macula densa), agit sur Na avec latence (`A_n`, `dA_n/dt = (A − A_n)/τ_n`, `A_n^−a_na`) et sur K ; `A_K` (kaliémie) : `dA_K/dt = ((K − k0)/(K_b − k0) − A_K)/τ_A` (k0 = 3,29, Young 1984), agit sur K seulement. Créatinine et urée : `dC/dt = (DFG/V_d)(C_ss − C)`.
+- Médicaments : effets directs avec `D = U = 0` (termes calés du diurétique stationnaire neutres) ; `E` du diurétique de l'anse sur la natriurèse.
+- Physiologie recalculée à chaque pas `dt_h` (0,25 h) si un paramètre a bougé de plus de 0,2 % (K : 0,03 mmol/L).
+- Domaine validé (1.4.0) : furosémide, prise unique ou répétée, ≤ 14 j, sans levier alimentaire, charge de K ni IEC (calage Koh, Bourgoignie, Pelligand 2020, Adin 2021 ; validation Giorgi 2022, profil de créatinine d'Adin, rein restant). Écarts : docs/VALIDATION_HORS_CALIBRAGE.tex.
 
 ## 6 bis. Décompensation et viabilité (`physio.evaluate`, `physio._evaluate_once`)
 - `_evaluate_once` = l'ancienne évaluation (baroréflexe, hémodynamique, aval). `evaluate` l'enveloppe d'un point fixe amorti sur deux facteurs, `fc` (élastances VG et VD) et `fr` (`r_sys`) :

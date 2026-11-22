@@ -115,6 +115,7 @@ pub struct Engine {
     next_id: u64,
     anesthesia: Option<anesthesia::AnesthesiaCatalog>,
     anesthesia_sessions: BTreeMap<String, vetsim_core::anesthesia::Session>,
+    renal: Option<vetsim_core::renal::RenalModel>,
 }
 
 fn load_issues(prefix: &str, e: LoadError) -> Vec<(String, String)> {
@@ -217,9 +218,21 @@ impl Engine {
             None | Some(Json::Null) => None,
             Some(a) => anesthesia::load(a, &mut errors),
         };
+        // Rein dynamique (optionnel).
+        let renal = match m.get("renal") {
+            None | Some(Json::Null) => None,
+            Some(a) => match vetsim_core::renal::RenalModel::from_json(&a.to_string(), "renal") {
+                Ok(c) => Some(c),
+                Err(e) => {
+                    errors.extend(load_issues("/renal", e));
+                    None
+                }
+            },
+        };
         if !errors.is_empty() {
             return Err(ApiError(errors));
         }
+        self.renal = renal;
         self.auscultation = auscultation;
         self.variation = variation;
         self.anesthesia = anesthesia;
@@ -229,7 +242,8 @@ impl Engine {
         let counts = json!({ "diseases": catalog.diseases.len(), "drugs": catalog.drugs.len(),
                              "auscultation": self.auscultation.is_some(),
                              "variation": self.variation.is_some(),
-                             "anesthesia": self.anesthesia.is_some() });
+                             "anesthesia": self.anesthesia.is_some(),
+                             "renal": self.renal.is_some() });
         self.catalog = Some(catalog);
         self.patients.clear();
         Ok(json!({ "ok": true, "loaded": counts }))
@@ -661,6 +675,122 @@ impl Engine {
                 out["states"] = Json::Array(states);
             }
             Ok(out)
+        })
+    }
+
+    /// Rein dynamique (`vetsim_core::renal`) : `{"doses": [...] (optionnel), "t_end_h": 24,
+    /// "dt_h": 0.25, "ace_inhibition": 0, "na_intake_factor": 1, "k_intake_factor": 1,
+    /// "k_loads": [{"t_h": 0, "mmol_per_kg": 2.5}],
+    /// "every_h": 1}` → séries aux instants multiples de
+    /// `every_h` : bilans (ΔVEC, Δplasma, K, K intracellulaire), activité RAAS, diurèse,
+    /// natriurèse, kaliurèse, FE_Na, FE_K, créatinine et urée cinétiques, et l'état
+    /// physiologique (PAM, FC, débit, DFG, Ht). Décès absorbant (`death_t_h`, `cause`).
+    pub fn renal_course(&mut self, patient_id: &str, options: &str) -> String {
+        self.respond(|e| {
+            let o = parse(options, "options")?;
+            let m = obj(&o, "")?;
+            let model = e
+                .renal
+                .clone()
+                .ok_or_else(|| ApiError::one("", "module « renal » non chargé (loadModules)"))?;
+            let ds = if m.contains_key("doses") {
+                parse_doses(m)?
+            } else {
+                Vec::new()
+            };
+            let opt = vetsim_core::renal::RenalOptions {
+                t_end_h: opt_f64(m, "t_end_h", 24.0)?,
+                dt_h: opt_f64(m, "dt_h", 0.25)?,
+                ace_inhibition: opt_f64(m, "ace_inhibition", 0.0)?,
+                na_intake_factor: opt_f64(m, "na_intake_factor", 1.0)?,
+                k_intake_factor: opt_f64(m, "k_intake_factor", 1.0)?,
+                k_loads: match m.get("k_loads") {
+                    None => Vec::new(),
+                    Some(Json::Array(a)) => a
+                        .iter()
+                        .enumerate()
+                        .map(|(i, x)| {
+                            let o = obj(x, &format!("/k_loads/{i}"))?;
+                            let g = |k: &str| {
+                                o.get(k).and_then(Json::as_f64).ok_or_else(|| {
+                                    ApiError::one(format!("/k_loads/{i}/{k}"), "nombre attendu")
+                                })
+                            };
+                            Ok((g("t_h")?, g("mmol_per_kg")?))
+                        })
+                        .collect::<Result<_, ApiError>>()?,
+                    Some(_) => return Err(ApiError::one("/k_loads", "tableau attendu")),
+                },
+            };
+            if opt.t_end_h > 24.0 * 60.0 {
+                return Err(ApiError::one("/t_end_h", "au plus 60 jours"));
+            }
+            let every = opt_f64(m, "every_h", 1.0)?;
+            if !(every.is_finite() && every > 0.0) {
+                return Err(ApiError::one("/every_h", "nombre > 0 attendu"));
+            }
+            let s = e.session(patient_id)?.clone();
+            let c = e.catalog()?;
+            let rc =
+                vetsim_core::renal::renal_course(&model, &s.patient.params, &c.drugs, &ds, &opt)?;
+            // domaine validé : furosémide, horizon ≤ 14 j, sans levier (vetsim_core::renal)
+            let validated = ds.iter().all(|d| d.drug == "furosemide")
+                && opt.t_end_h <= 336.0
+                && opt.ace_inhibition == 0.0
+                && opt.na_intake_factor == 1.0
+                && opt.k_intake_factor == 1.0
+                && opt.k_loads.is_empty();
+            let stride = ((every / opt.dt_h).round() as usize).max(1);
+            let pts: Vec<_> = rc
+                .points
+                .iter()
+                .enumerate()
+                .filter(|(i, _)| i % stride == 0 || *i + 1 == rc.points.len())
+                .map(|(_, p)| p)
+                .collect();
+            let col = |f: &dyn Fn(&vetsim_core::renal::RenalPoint) -> f64| -> Json {
+                json!(pts.iter().map(|p| f(p)).collect::<Vec<_>>())
+            };
+            let ev = |f: &dyn Fn(&Evaluation) -> f64| -> Json {
+                json!(pts
+                    .iter()
+                    .map(|p| p.eval.as_ref().map(|e| f(e)))
+                    .collect::<Vec<_>>())
+            };
+            Ok(json!({
+                "ok": true,
+                "t": col(&|p| p.t_h),
+                "d_ecf_mL_kg": col(&|p| p.d_ecf_ml_kg),
+                "d_plasma_mL_kg": col(&|p| p.d_plasma_ml_kg),
+                "k": col(&|p| p.k),
+                "d_k_ic_mmol_kg": col(&|p| p.d_k_ic_mmol_kg),
+                "raas": col(&|p| p.aldo),
+                "creat": col(&|p| p.creat),
+                "urea": col(&|p| p.urea),
+                "urine_mL_kg_h": col(&|p| p.urine_ml_kg_h),
+                "urine_cum_mL_kg": col(&|p| p.urine_cum_ml_kg),
+                "una_mmol_kg_h": col(&|p| p.una_mmol_kg_h),
+                "uk_mmol_kg_h": col(&|p| p.uk_mmol_kg_h),
+                "una_mmol_L": col(&|p| p.una_mmol_l),
+                "uk_mmol_L": col(&|p| p.uk_mmol_l),
+                "uk_cum_mmol_kg": col(&|p| p.uk_cum_mmol_kg),
+                "fe_na": col(&|p| p.fe_na),
+                "fe_k": col(&|p| p.fe_k),
+                "e_loop": col(&|p| p.e_loop),
+                "map": ev(&|e| e.hemo.summary.map),
+                "hr": ev(&|e| e.params.hr),
+                "co": ev(&|e| e.hemo.summary.co),
+                "cvp": ev(&|e| e.hemo.summary.cvp),
+                "gfr": col(&|p| p.gfr),
+                "hct": ev(&|e| e.metabolic.chem.hct),
+                "death_t_h": rc.death.map(|d| d.0),
+                "cause": rc.death.map(|d| d.1),
+                "model_version": model.version,
+                "validated": validated,
+                "warning": (!validated).then_some(
+                    "hors du domaine validé (furosémide seul, ≤ 14 j, sans levier alimentaire, charge de K ni IEC)"),
+                "note": "rein dynamique (bilans Na, K, RAAS) ; usage pédagogique uniquement",
+            }))
         })
     }
 
@@ -1098,6 +1228,7 @@ impl Engine {
             "signals" => self.signals(&pid, &opts),
             "timecourse" => self.timecourse(&pid, &opts),
             "montecarlo" => self.montecarlo(&pid, &opts),
+            "renal_course" => self.renal_course(&pid, &opts),
             "add_disease" => self.add_disease(&pid, &opts),
             "new_patient" => self.new_patient(&opts),
             "list_modules" => self.list_modules(),

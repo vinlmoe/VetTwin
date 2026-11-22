@@ -119,7 +119,7 @@ pub fn ph_drive(ph: f64) -> f64 {
 /// `VA = va0·bw·drive·max(0,12, 1 + 0,08(PCO2 − 37))·ph_drive(pH)·(1 + 0,03·max(0, 70 − PaO2))`
 /// (stimulation par l'hypercapnie, l'acidémie et l'hypoxémie). 3 itérations externes sur PaO2,
 /// en partant de 90 mmHg. `PAO2 = FiO2(Pb − 47) − PCO2/QR` ; le gradient A-a augmente avec la
-/// POG au-delà de 18 mmHg (œdème). `P50 = p50·10^(0,37(7,4 − pH))` (Bohr canin, Cambier 2004).
+/// POG au-delà de `LA_EDEMA` (œdème). `P50 = p50·10^(0,37(7,4 − pH))` (Bohr canin, Cambier 2004).
 pub fn gas_exchange(p: &Params, la_mean: f64, lactate: f64) -> Result<ArterialGas, Error> {
     let bw = p.bw;
     let vco2 = p.vco2 * bw;
@@ -151,7 +151,7 @@ pub fn gas_exchange(p: &Params, la_mean: f64, lactate: f64) -> Result<ArterialGa
         let (ph, hco3) = stewart_ph(p, pco2, lactate)?;
         let va = 0.863 * vco2 / pco2;
         let p_alv_o2 = p.fio2 * (p.pb - 47.0) - pco2 / p.rq;
-        let aa = p.aagrad + p.edema_k * f64::max(0.0, la_mean - 18.0);
+        let aa = p.aagrad + p.edema_k * f64::max(0.0, la_mean - crate::engine::LA_EDEMA);
         pao2 = f64::max(p_alv_o2 - aa, 15.0);
         out = Some((pco2, ph, hco3, va, aa));
     }
@@ -167,7 +167,8 @@ pub fn gas_exchange(p: &Params, la_mean: f64, lactate: f64) -> Result<ArterialGa
         cao2: o2_content(pao2, p.hb, p50, p.hill_n),
         va,
         p50,
-        rr: 20.0 * (va / va0).sqrt(),
+        // respiration rapide et superficielle (pneumonie) : `rr_mult` (1 chez le sain)
+        rr: 20.0 * (va / va0).sqrt() * p.rr_mult,
         aa,
     })
 }

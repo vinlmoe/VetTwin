@@ -138,7 +138,8 @@ class Pneumonia(Disease):
                 # hyperventilation, tachycardie, compensation chlorée (Viitanen 2017, Young 2022)
                 ('vent_drive', 'mul', 1 + 5.0 * s),
                 ('hr', 'mul', 1 + 0.7 * s),
-                ('cl', 'add', 5.0 * s)]
+                ('cl', 'add', 5.0 * s),
+                ('rr_mult', 'mul', 1 + 1.1 * s)]               # respiration rapide et superficielle (Viitanen 2017, Young 2022)
         return Case(self.name, s, mods, dict(stage=st))
 
 

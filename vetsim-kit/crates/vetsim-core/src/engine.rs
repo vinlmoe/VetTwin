@@ -159,7 +159,9 @@ pub fn metabolic_state(p: &Params, h: &HemoInputs) -> Result<MetabolicState, Err
     // --- rein
     let co_ref = 3.29 * math::pow(bw / 20.0, 0.75);
     let by_map = ((h.map - 40.0) / 35.0).clamp(0.0, 1.0);
-    let by_co = ((h.co / co_ref - 0.5) / 0.5).clamp(0.0, 1.0);
+    // autorégulation : le débit ne limite la filtration que sous `renal_co_auto`·débit de
+    // référence (rampe de largeur 0,5 ; 1,0 redonne la rampe historique 0,5–1,0)
+    let by_co = ((h.co / co_ref - (p.renal_co_auto - 0.5)) / 0.5).clamp(0.0, 1.0);
     let perf = by_map.min(by_co).max(0.25);
     // axe cardio-rénal : congestion veineuse rénale (PVC) et vasoconstriction rénale
     // neurohormonale (tonus sympathique, RAAS) abaissent le DFG à PAM et débit conservés
@@ -530,8 +532,10 @@ pub const DECOMP_TOL: f64 = 1e-3;
 pub const F_FLOOR: f64 = 0.1;
 /// Extraction d'O2 au point d'inflexion du lactate.
 pub const ER_ANAEROBIC: f64 = 0.55;
-/// POG au-delà de laquelle le gradient A-a s'ouvre.
-pub const LA_EDEMA: f64 = 18.0;
+/// POG au-delà de laquelle le gradient A-a s'ouvre (œdème pulmonaire). 24 mmHg depuis le
+/// 21/11/2026 (18 avant) : œdème au-delà d'environ 24 mmHg chez le chien (Guyton & Lindsey 1959,
+/// cité par Yao & Aoki 2025) ; voir docs/VALIDATION_HORS_CALIBRAGE.tex.
+pub const LA_EDEMA: f64 = 24.0;
 /// PAM sous laquelle la perfusion rénale baisse (40 + 35).
 pub const MAP_RENAL: f64 = 75.0;
 

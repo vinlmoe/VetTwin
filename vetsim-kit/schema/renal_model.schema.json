@@ -1,0 +1,752 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "renal_model.schema.json",
+ "title": "Constantes du rein dynamique",
+ "type": "object",
+ "required": [
+  "schema_version",
+  "version",
+  "evidence",
+  "values"
+ ],
+ "properties": {
+  "schema_version": {
+   "const": "1.0.0"
+  },
+  "id": {
+   "type": "string"
+  },
+  "version": {
+   "type": "string"
+  },
+  "name": {
+   "type": "object"
+  },
+  "evidence": {
+   "enum": [
+    "A",
+    "B",
+    "C",
+    "D"
+   ]
+  },
+  "values": {
+   "type": "object",
+   "required": [
+    "na_intake_mmol_kg_d",
+    "fe_k0",
+    "urine0_mL_kg_h",
+    "ecf_L_kg",
+    "k_buffer_L_kg",
+    "k_ic_tau_h",
+    "fe_loop_max",
+    "k_flow",
+    "n_pressure",
+    "aldo_tau_h",
+    "aldo_g_vol",
+    "aldo_a_na",
+    "aldo_a_k",
+    "urine_floor_frac",
+    "urine_na_mmol_L",
+    "fe_k_max",
+    "k_sigma_up",
+    "k_sigma_down",
+    "aldo_k0",
+    "k_abs_tau_h",
+    "brake_frac",
+    "brake_on_tau_h",
+    "brake_off_tau_h",
+    "water_max_mL_kg_h",
+    "water_tau_h",
+    "gfr_g_vol",
+    "aldo_na_tau_h",
+    "aldo_g_md"
+   ],
+   "additionalProperties": false,
+   "properties": {
+    "fe_k0": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "urine0_mL_kg_h": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "ecf_L_kg": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "k_buffer_L_kg": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "k_ic_tau_h": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "fe_loop_max": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "k_flow": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "n_pressure": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "aldo_tau_h": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "aldo_g_vol": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "aldo_a_na": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "aldo_a_k": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "urine_floor_frac": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "urine_na_mmol_L": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "fe_k_max": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "k_sigma_up": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "k_sigma_down": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "aldo_k0": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "k_abs_tau_h": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "na_intake_mmol_kg_d": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "brake_frac": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "brake_on_tau_h": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "brake_off_tau_h": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "water_max_mL_kg_h": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "water_tau_h": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "gfr_g_vol": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "aldo_na_tau_h": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    },
+    "aldo_g_md": {
+     "type": "object",
+     "required": [
+      "value",
+      "evidence"
+     ],
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "evidence": {
+       "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ]
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "additionalProperties": false
+    }
+   }
+  },
+  "refs": {
+   "type": "array",
+   "items": {
+    "type": "string"
+   }
+  },
+  "notes": {
+   "type": "string"
+  }
+ },
+ "additionalProperties": false
+}

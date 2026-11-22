@@ -225,11 +225,10 @@ fn severity_and_weight_sweep_stays_finite() {
     // Depuis la normalisation allométrique des fuites valvulaires ((bw/20)^0,75, 18/11/2026), aucun
     // décès : à 3 kg, la MMVD 1,0 donne POG 36 mmHg et PaO2 30 mmHg, comme à 20 kg. Auparavant, la
     // fuite absolue tuait les MMVD 0,8 à 1,0 du chien de 3 kg (Python identique).
-    // Depuis le régime hémodynamique périodique (22 battements, 20/11/2026), la POG de la MMVD
-    // terminale est plus haute (20 kg, s = 1 : 32 → 38 mmHg ; PaO2 46 → 25) : le chien de 3 kg en
-    // MMVD 1,0 meurt par dette d'O2. Le calage de la MMVD datait du moteur à 11 battements
-    // (à arbitrer, docs/VALIDATION_HORS_CALIBRAGE.tex).
-    let expected_dead: [(f64, &str, i32); 1] = [(3.0, "mmvd", 10)];
+    // Le 20/11/2026, le régime périodique (POG plus haute en MMVD terminale) faisait mourir le chien
+    // de 3 kg en MMVD 1,0 ; avec le seuil d'œdème à 24 mmHg (21/11/2026, Guyton & Lindsey 1959), il
+    // survit de nouveau.
+    let expected_dead: [(f64, &str, i32); 0] = [];
     let mut dead = Vec::new();
     let c = catalog();
     for bw in [3.0, 20.0, 60.0] {

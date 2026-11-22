@@ -194,6 +194,24 @@ pub struct AnesthesiaModel {
     pub atelectasis_aa_mmhg: f64,
     /// Température où l'excès de pertes thermiques de l'anesthésie s'éteint (°C).
     pub vasoconstriction_c: f64,
+    /// Fraction du volume perdu restituée par remplissage transcapillaire.
+    pub refill_frac: f64,
+    /// Constante du remplissage transcapillaire (h).
+    pub refill_tau_h: f64,
+    /// Sang mobilisable par la rate (mL/kg).
+    pub spleen_ml_kg: f64,
+    /// Constante de la contraction splénique (min).
+    pub spleen_tau_min: f64,
+    /// Hausse de tonus sympathique qui vide entièrement la rate.
+    pub spleen_s_span: f64,
+    /// Hématocrite du sang splénique rapporté à l'hématocrite circulant.
+    pub spleen_hct_ratio: f64,
+    /// Hausse maximale des RVS par vasopressine et angiotensine II en hémorragie.
+    pub pressor_gain: f64,
+    /// Fraction du volume sanguin perdue à mi-effet presseur.
+    pub pressor_lost_frac: f64,
+    /// Pente de l'effet presseur.
+    pub pressor_hill: f64,
     /// Fraction du volume sanguin dont le contenu en O2 suit l'alvéole (réserve sanguine).
     pub blood_o2_store_frac: f64,
     /// Apport d'O2 critique (mL/kg/min) sous lequel la consommation devient dépendante de l'apport.
@@ -258,6 +276,15 @@ impl AnesthesiaModel {
         let ahill = num(&mut c, "awareness_hill");
         let atel = num(&mut c, "atelectasis_aa_mmhg");
         let vcon = num(&mut c, "vasoconstriction_c");
+        let refill_frac = num(&mut c, "refill_frac");
+        let refill_tau_h = num(&mut c, "refill_tau_h");
+        let spleen_ml_kg = num(&mut c, "spleen_ml_kg");
+        let spleen_tau_min = num(&mut c, "spleen_tau_min");
+        let spleen_s_span = num(&mut c, "spleen_s_span");
+        let spleen_hct_ratio = num(&mut c, "spleen_hct_ratio");
+        let pressor_gain = num(&mut c, "pressor_gain");
+        let pressor_lost_frac = num(&mut c, "pressor_lost_frac");
+        let pressor_hill = num(&mut c, "pressor_hill");
         let dcrit = num(&mut c, "do2_crit_ml_kg_min");
         let bfrac = num(&mut c, "blood_o2_store_frac");
         let mut tissues = [Tissue {
@@ -363,6 +390,15 @@ impl AnesthesiaModel {
             awareness_hill: g(ahill),
             atelectasis_aa_mmhg: g(atel),
             vasoconstriction_c: g(vcon),
+            refill_frac: g(refill_frac),
+            refill_tau_h: g(refill_tau_h),
+            spleen_ml_kg: g(spleen_ml_kg),
+            spleen_tau_min: g(spleen_tau_min),
+            spleen_s_span: g(spleen_s_span),
+            spleen_hct_ratio: g(spleen_hct_ratio),
+            pressor_gain: g(pressor_gain),
+            pressor_lost_frac: g(pressor_lost_frac),
+            pressor_hill: g(pressor_hill),
             do2_crit_ml_kg_min: g(dcrit),
             blood_o2_store_frac: g(bfrac),
             hypoxia_effects: he,

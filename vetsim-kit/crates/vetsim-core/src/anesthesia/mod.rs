@@ -379,6 +379,9 @@ struct Pharm {
 
 const NA: usize = 5; // états par agent : IM, SC, central, périphérique, Ce
 const NI: usize = 5; // états par halogéné : PI, PA, VRG, muscle, graisse
+/// États globaux : PaCO2, PAO2, ν, stress, sensibilisation, température, cristalloïde,
+/// remplissage transcapillaire, sang libéré par la rate.
+const NS: usize = 9;
 
 /// Résumé pharmacodynamique à un instant.
 #[derive(Debug, Clone, Copy)]
@@ -447,10 +450,10 @@ impl Session {
         seed: u64,
     ) -> Result<Self, Error> {
         let pk = agents.iter().map(|a| pk_constants(a, &base)).collect();
-        let n = NA * agents.len() + NI * inhalants.len() + 7;
+        let n = NA * agents.len() + NI * inhalants.len() + NS;
         let e0 = evaluate(&base)?;
         let mut y = vec![0.0; n];
-        let o = n - 7;
+        let o = n - NS;
         let paco2 = e0.metabolic.art.pco2;
         y[o] = paco2;
         y[o + 1] = base.fio2 * (base.pb - 47.0) - paco2 / base.rq;
@@ -528,7 +531,7 @@ impl Session {
     }
 
     fn o(&self) -> usize {
-        self.y.len() - 7
+        self.y.len() - NS
     }
 
     fn agent_index(&self, id: &str) -> Result<usize, Error> {
@@ -975,11 +978,27 @@ impl Session {
         let mut q = b.clone();
         // remplissage et pertes sanguines
         let vf = self.y[o + 6];
+        let refill = self.y[o + 7];
+        let spleen = self.y[o + 8];
         let bv = self.model.blood_volume_ml_kg * b.bw;
-        if vf != 0.0 || self.blood_lost_ml != 0.0 {
-            q.vol_shift += vf - self.blood_lost_ml;
-            let rbc = (bv - self.blood_lost_ml).max(0.05 * bv);
-            q.hb *= rbc / (rbc + vf);
+        if vf != 0.0 || self.blood_lost_ml != 0.0 || spleen != 0.0 {
+            // remplissage transcapillaire (plasma) et autotransfusion splénique (sang riche en
+            // hématies) compensent la perte ; l'hémoglobine suit la masse d'hématies circulante
+            q.vol_shift += vf + refill + spleen - self.blood_lost_ml;
+            let rbc =
+                (bv - self.blood_lost_ml).max(0.05 * bv) + spleen * self.model.spleen_hct_ratio;
+            let plasma_added = vf + refill;
+            let vol = (bv - self.blood_lost_ml).max(0.05 * bv) + spleen + plasma_added;
+            q.hb *= rbc / vol;
+        }
+        if self.blood_lost_ml > 0.0 {
+            // vasopressine et angiotensine II : vasoconstriction qui s'emballe au-delà d'environ
+            // 20 mL/kg perdus (Wang 1988, Spielman 1975, Francis 2004)
+            let f = self.blood_lost_ml / bv;
+            let c = self.model.pressor_lost_frac;
+            let x = math::pow(f, self.model.pressor_hill);
+            q.r_sys *=
+                1.0 + self.model.pressor_gain * x / (x + math::pow(c, self.model.pressor_hill));
         }
         self.agent_effects(&mut q)?;
         let mut env = Env::new();
@@ -1206,6 +1225,7 @@ impl Session {
                 hb: q.hb,
                 p50: q.p50,
                 hill_n: q.hill_n,
+                spleen: ((e.autonomic.s - self.base.s0) / self.model.spleen_s_span).clamp(0.0, 1.0),
             };
             self.integrate(dt_s, &inputs);
         }
@@ -1489,7 +1509,7 @@ impl Session {
                 dy[i + 2 + t] = qt / (vt * g.tissue_blood[t]) * (pa - y[i + 2 + t]);
             }
         }
-        let o = y.len() - 7;
+        let o = y.len() - NS;
         let (paco2, pao2) = (y[o], y[o + 1]);
         dy[o] = (u.vco2 - u.va * paco2 / 0.863) / (m.co2_store_ml_mmhg_kg * bw);
         // réserve d'O2 : alvéoles + fraction du sang en équilibre avec l'alvéole ; la pente de la
@@ -1515,6 +1535,10 @@ impl Session {
             / (m.tau_cool_h * 60.0)
             + warm;
         dy[o + 6] = self.fluids_ml_kg_h * bw / 60.0 - y[o + 6] / m.crystalloid_tau_min;
+        // remplissage transcapillaire vers une fraction du volume perdu (Joles 1989, Miller 1978)
+        dy[o + 7] = (m.refill_frac * self.blood_lost_ml - y[o + 7]) / (m.refill_tau_h * 60.0);
+        // contraction splénique commandée par le tonus sympathique (Guntheroth 1963)
+        dy[o + 8] = (m.spleen_ml_kg * bw * u.spleen - y[o + 8]) / m.spleen_tau_min;
         dy
     }
 }
@@ -1534,6 +1558,8 @@ struct Inputs {
     hb: f64,
     p50: f64,
     hill_n: f64,
+    /// Commande de la contraction splénique (0–1).
+    spleen: f64,
 }
 
 impl Inputs {

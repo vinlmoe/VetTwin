@@ -1,7 +1,7 @@
 {
  "schema_version": "1.0.0",
  "id": "anesthesia_model",
- "version": "1.7.0",
+ "version": "1.8.0",
  "name": {
   "fr": "Constantes du modèle d'anesthésie"
  },
@@ -166,6 +166,51 @@
    "value": 30.0,
    "evidence": "D",
    "source": "Placeholder : sortie vasculaire des cristalloïdes."
+  },
+  "refill_frac": {
+   "value": 0.6,
+   "evidence": "C",
+   "source": "Fraction du volume perdu restituée au plasma par remplissage transcapillaire ; avec refill_tau_h, 30 % à 2 h (Joles 1989, chiens conscients, résumé) et 56 % à 8 h (Miller & Dale 1978, résumé)."
+  },
+  "refill_tau_h": {
+   "value": 2.9,
+   "evidence": "C",
+   "source": "Constante du remplissage transcapillaire, ajustée avec refill_frac sur Joles 1989 et Miller & Dale 1978 (résumés)."
+  },
+  "spleen_ml_kg": {
+   "value": 6.8,
+   "evidence": "C",
+   "source": "Sang mobilisable par la rate : 8 % du volume sanguin en hémorragie chez le chien conscient (Guntheroth & Mullins 1963, résumé) ; 2,4–3,2 mL/kg dans les réflexes et hémorragies modérées (Shoukas 1981, Carneiro & Donald 1977)."
+  },
+  "spleen_tau_min": {
+   "value": 1.0,
+   "evidence": "D",
+   "source": "Placeholder : contraction splénique en une à quelques minutes."
+  },
+  "spleen_s_span": {
+   "value": 0.3,
+   "evidence": "D",
+   "source": "Placeholder : hausse du tonus sympathique qui vide entièrement la rate."
+  },
+  "spleen_hct_ratio": {
+   "value": 1.8,
+   "evidence": "D",
+   "source": "Placeholder : sang splénique concentré (Ht 28,9 % chez les splénectomisés contre 39,8 % chez les témoins après 50 % de saignée, Hoekstra 1988, résumé)."
+  },
+  "pressor_gain": {
+   "value": 0.6,
+   "evidence": "C",
+   "source": "Hausse maximale des RVS par vasopressine et angiotensine II en hémorragie. Calée le 21/11/2026 sur le chien conscient : PAM −10 mmHg à 17 mL/kg (Shen 1990 : −15 ± 3 à 20 mL/kg), −23 mmHg à 30 mL/kg (Thrasher 1998 : −35 ± 10), DC −41 % à 25 % (Francis 2004 : −40 %, résumés). Le blocage de l'angiotensine aggrave la chute (losartan : −40 % au lieu de −25 %, Francis 2004 ; saralasine : PAM 102 → 80, Spielman 1975)."
+  },
+  "pressor_lost_frac": {
+   "value": 0.25,
+   "evidence": "C",
+   "source": "Mi-effet presseur vers 25 % du volume sanguin : vasopressine 6, 200 puis 991 pg/mL à 10, 20 et 30 mL/kg (Wang 1988, résumé)."
+  },
+  "pressor_hill": {
+   "value": 4.0,
+   "evidence": "D",
+   "source": "Placeholder : montée raide de la vasopressine entre 10 et 30 mL/kg."
   },
   "iv_push_s": {
    "value": 30.0,
