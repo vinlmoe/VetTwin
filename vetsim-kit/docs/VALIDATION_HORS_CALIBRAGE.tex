@@ -486,7 +486,7 @@ Test : \vp{hemorrhage_matches_literature}, avec un contrôle d'échec sans les t
 \end{itemize}
 
 \section{Rein dynamique (21/11/2026)}
-Le rein était stationnaire : DFG en produit de facteurs, créatinine et urée à l'équilibre, sodium, eau et potassium sans bilan. Le module \vp{crates/vetsim-core/src/renal.rs}, avec ses constantes dans \vp{modules/renal/renal_model.json} (1.3.3), ajoute :
+Le rein était stationnaire : DFG en produit de facteurs, créatinine et urée à l'équilibre, sodium, eau et potassium sans bilan. Le module \vp{crates/vetsim-core/src/renal.rs}, avec ses constantes dans \vp{modules/renal/renal_model.json} (1.4.0), ajoute :
 \begin{itemize}
 \item le bilan du sodium, donc la variation du volume extracellulaire ($V$), iso-osmotique ; le plasma en reçoit la part $V_p/\mathrm{VEC}$ (hémo- et protéinoconcentration) ;
 \item le bilan du potassium en deux compartiments, extracellulaire et intracellulaire ;
@@ -533,32 +533,34 @@ Correction : nouveau paramètre \vp{renal_co_auto} = 0,8. Le débit ne limite la
 Sources de base, accès lu : FE$_\mathrm{Na}$ 0,20\,\% et FE$_\mathrm{K}$ 9,47\,\% chez le chien sain (Troìa 2018).
 
 \begin{table}[h]\small
-\caption{Rein dynamique 1.3.3 : calage conjoint (18 constantes, 31 cibles pondérées) et validations (modèle à \texttt{dt} 0,25 h ; chronique à 1 h, Lantis à 0,5 h).}
+\caption{Rein dynamique 1.4.0 : calage conjoint (18 constantes, 52 cibles pondérées) et validations (modèle à \texttt{dt} 0,25 h ; chronique à 1 h, Lantis à 0,5 h).}
 \begin{tabularx}{\linewidth}{P{4.6cm}P{2.4cm}P{3.3cm}LP{1.3cm}}
 \toprule
 Protocole & Modèle & Publié & Rôle & Statut\\
 \midrule
-Koh 2021 IV, 2 mg/kg, $\approx$ 11,5 kg : diurèse 1 h ; 8 h & 13,9 ; 24,4 mL/kg & 12,8 ; 24,65 (lu) & calage & \ok\\
-Koh 2021 IV : natriurèse 1 h ; 8 h & 1,98 ; 2,40 mmol/kg & 1,54 ; 2,62 (lu, $\Sigma$ débit $\times$ durée) & calage & \ecart\ ($+29$\,\%) ; \ok\\
-Koh 2021 IV : kaliurèse 8 h rapportée à la base & $\times 1{,}80$ & $\times 2{,}27$ (lu ; chiens à jeun) & calage & \ecart\ ($-21$\,\%)\\
-Koh 2021 IV : $\Delta$K à 2 h / 8 h & $-0{,}47$ / $-0{,}32$ & $-0{,}51$ / $-0{,}33$ & calage & \ok\\
-Koh 2021 per os : diurèse 2 h ; 8 h & 18,5 ; 31,0 mL/kg & 18,9 ; 30,9 (lu) & calage & \ok\\
-Koh 2021 per os : natriurèse 2 h ; 8 h & 2,48 ; 2,86 mmol/kg & 2,61 ; 3,55 (lu) & calage & \ok\ ; \ecart\ ($-19$\,\%)\\
-Koh 2021 per os : $\Delta$K à 2 h / 8 h & $-0{,}65$ / $-0{,}48$ & $-0{,}54$ / $-0{,}46$ (lu) & calage & \ok\ (1 ET)\\
-Bourgoignie 1981, chien normal, 50 mEq de KCl : pic de K ; part excrétée en 5 h & $+1{,}03$ ; 65\,\% & $+0{,}9$ à $1{,}2$ ; 61–67\,\% (résumé) & calage & \ok\\
-Adin 2021, perfusion 5 h, 23,4 kg : créatinine à 24 h & $+27$\,\% & $+23{,}9 \pm 12{,}4$\,\% (lu) & calage & \ok\\
-Lantis 2011, 2 mg/kg PO q12h, 30 kg : aldostérone urinaire J5 / J10 & $\times 2{,}49$ / $\times 2{,}38$ & $\times 2{,}41$ / $\times 2{,}57$ (lu) & calage & \ok\\
-Lantis 2011 : $\Delta$K J5 / J10 ; poids (VEC) J5 / J10 & $-0{,}43$ / $-0{,}41$ ; $-3{,}0$ / $-2{,}7$\,\% & $-0{,}5$ / $-0{,}3$ ; $-4{,}0$ / $-1{,}7$\,\% (lu) & calage & \ok\\
-Pelligand 2020, 1 à 8 mg/kg/j per os, 10 j : diurèse J9 & 25 / 40 / 75 / 95 mL/kg/j & 20 / 34 / 82 / 100 (lu) & calage & \ok\\
-Pelligand 2020 : natriurèse J1 à 8 mg/kg/j ; J3 à 2 et 8 mg/kg/j & 5,05 ; 1,80 et 1,54 & 5,30 ; 1,51, base (lu) & calage & \ok\\
+Koh 2021 IV, 2 mg/kg : diurèse 1 h ; 8 h & 14,7 ; 24,8 mL/kg & 12,8 ; 24,65 (lu) & calage & \ok\\
+Koh 2021 IV : natriurèse 1 h ; 8 h & 2,09 ; 2,54 mmol/kg & 1,54 ; 2,62 (lu) & calage & \ecart\ ($+36$\,\%) ; \ok\\
+Koh 2021 IV : kaliurèse 8 h rapportée à la base & $\times 1{,}61$ & $\times 2{,}27$ (lu ; à jeun) & calage & \ecart\ ($-29$\,\%)\\
+Koh 2021 IV : $\Delta$K 2 h / 8 h & $-0{,}48$ / $-0{,}29$ & $-0{,}51$ / $-0{,}33$ & calage & \ok\\
+Koh 2021 per os : diurèse 2 h ; 8 h & 20,4 ; 32,0 mL/kg & 18,9 ; 30,9 (lu) & calage & \ok\\
+Koh 2021 per os : natriurèse 2 h ; 8 h & 2,78 ; 3,16 mmol/kg & 2,61 ; 3,55 (lu) & calage & \ok\\
+Koh 2021 per os : $\Delta$K 2 h / 8 h & $-0{,}71$ / $-0{,}48$ & $-0{,}54$ / $-0{,}46$ (lu) & calage & \ecart\ ; \ok\\
+Bourgoignie 1981, chien normal, 50 mEq de KCl : kaliurèse nette h1–h5 (mmol/kg/h) & 0,18 / 0,46 / 0,50 / 0,44 / 0,35 & 0,07 / 0,53 / 0,57 / 0,42 / 0,32 (lu, tableau 3) & calage & \ok\\
+Bourgoignie 1981, chien normal : pic de K ; part excrétée en 5 h & $+1{,}23$ ; 66\,\% & $+0{,}9$ à $1{,}2$ ; 61–67\,\% (lu) & calage & \ok\\
+Bourgoignie 1981, rein restant (DFG $\times 0{,}27$) : kaliurèse nette h1–h5 & 0,06 / 0,18 / 0,24 / 0,25 / 0,25 & 0,05 / 0,23 / 0,26 / 0,23 / 0,16 (lu) & calage & \ok\\
+Bourgoignie 1981, rein restant : $\Delta$K à 0,5 / 1,5 / 2,5 / 3,5 / 4,5 h ; part excrétée & 0,6 / 1,6 / 1,8 / 1,8 / 1,6 ; 34\,\% & 0,8 / 1,5 / 2,5 / 2,4 / 1,9 ; 30–37\,\% (lu, groupe R15) & calage & \ecart\ (pic $-0{,}6$) ; \ok\\
+Adin 2021, perfusion 5 h : créatinine à 24 h & $+23$\,\% & $+23{,}9 \pm 12{,}4$\,\% (lu) & calage & \ok\\
+Lantis 2011, 2 mg/kg PO q12h : aldostérone urinaire J5 / J10 & $\times 2{,}58$ / $\times 2{,}33$ & $\times 2{,}41$ / $\times 2{,}57$ (lu) & calage & \ok\\
+Lantis 2011 : $\Delta$K J5 / J10 ; poids J5 / J10 & $-0{,}39$ / $-0{,}40$ ; $-2{,}1$ / $-1{,}9$\,\% & $-0{,}5$ / $-0{,}3$ ; $-4{,}0$ / $-1{,}7$\,\% (lu) & calage & \ok\\
+Hori 2007, 2 mg/kg PO q12h, 14 j : créatinine ; poids ; $\Delta$K à J14 & $+22$\,\% ; $-1{,}7$\,\% ; $-0{,}12$ & $+22$\,\% ; inchangé ; $-0{,}3$ (lu) & calage & \ok\\
+Pelligand 2020 : diurèse J9 (1, 2, 5, 8 mg/kg/j) & 25 / 40 / 75 / 95 mL/kg/j & 20 / 34 / 82 / 100 (lu) & calage & \ok\\
+Pelligand 2020 : natriurèse J1 à 8 mg/kg/j ; J3 à 2 et 8 mg/kg/j & 4,76 ; 1,61 et 1,23 & 5,30 ; 1,51 (lu) & calage & \ok\\
 \midrule
 Adin 2021 : créatinine pendant la perfusion (5 h) & $+0{,}3$\,\% & inchangée (lu) & validation & \ok\\
-Bourgoignie 1981, rein restant (DFG $\times 0{,}27$) : part excrétée en 5 h & 33\,\% & 30–37\,\% & validation & \ok\\
-Bourgoignie 1981, rein restant : pic de K & $+1{,}44$ & $+2{,}2$ à $2{,}5$ & validation & \ecart\\
+Lantis 2011 : créatinine J10 & $+20$\,\% & non mesurée ; Hori $+22$\,\% à J14 (même dose) & validation croisée & \ok\\
 Young 1976 : la régulation du K s'appuie sur l'aldostérone & charge $\times 1{,}5$ sur 7 j : $+0{,}09$ & $+8$\,\% contre $+39$\,\% sans aldostérone (résumé) & validation qualitative & \ok\\
-Giorgi 2022, $\approx$ 4,1 mg/kg/j, MMVD 0,8 : créatinine J12 ; K & $+29$\,\% ; $-0{,}31$ & $+22$\,\% ; retour à la base (lu) & validation & \ok\ ; \ecart\\
-Lantis 2011 : créatinine J10 & $+37$\,\% & non mesurée ; phosphorémie revenue à la base à J10 (lu) & validation qualitative & \ecart\ probable\\
-Wong 1977, 1 mg/kg/j IV, 7 j : $\Delta$K & $+0{,}07$ & $-0{,}39$ (accès moteur) & validation & \ecart\\
+Giorgi 2022, $\approx$ 4,1 mg/kg/j, MMVD 0,8 : créatinine J12 ; K & $+14$\,\% ; $-0{,}28$ & $+22$\,\% ; retour à la base (lu) & validation & \ok\ ; \ecart\\
+Wong 1977, 1 mg/kg/j IV, 7 j : $\Delta$K & $+0{,}06$ & $-0{,}39$ (accès moteur) & validation & \ecart\\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -599,7 +601,7 @@ Une fois le DFG relié à la déplétion après l'exposition, une déplétion mo
 \item la natrémie basse d'Adin à 24 h n'est pas représentée (eau libre supposée exactement compensée).
 \end{itemize}
 
-\textbf{Domaine validé} : furosémide, une prise ou des prises répétées, jusqu'à 12 jours, sans levier alimentaire, charge de K ni IEC. Hors de ce domaine, l'API renvoie \vp{validated} = false et un avertissement. La voie stationnaire du diurétique (\vp{pkpd::timecourse}, $D$/$U$) reste disponible pour le golden et les calages stationnaires.
+\textbf{Domaine validé} : furosémide, une prise ou des prises répétées, jusqu'à 14 jours (Hori 2007 depuis la 1.4.0), sans levier alimentaire, charge de K ni IEC. Hors de ce domaine, l'API renvoie \vp{validated} = false et un avertissement. La voie stationnaire du diurétique (\vp{pkpd::timecourse}, $D$/$U$) reste disponible pour le golden et les calages stationnaires.
 
 \subsection{Rénine de la macula densa et latence de l'aldostérone (1.3.1)}
 Dans la 1.3.0, l'aldostérone portée par la seule déplétion montait en quelques heures et agissait aussitôt sur le Na. Elle freinait donc la natriurèse aiguë (Koh : $-20$\,\%) tout en restant trop basse en chronique (Lantis $\times 1{,}38$ en moyenne sur 24 h). Deux mécanismes connus ont été ajoutés :
@@ -640,6 +642,25 @@ Huit cibles ont été ajoutées : diurèse et natriurèse de la 1re heure IV et 
 \item Créatinine chronique : $+37$\,\% chez Lantis à J10, alors que la phosphorémie, marqueur du DFG selon les auteurs, revient à la base à J10, et qu'Hori 2007 ne montre pas de variation cliniquement pertinente (cité par Lantis ; texte non accessible depuis la session). La hausse chronique de la créatinine est probablement surestimée chez le chien sain. Giorgi (MMVD) donne $+29$\,\% contre $+22$\,\%.
 \item La réponse IV reste trop concentrée dans la 1re heure (natriurèse $+29$\,\%). La forme du profil vient surtout de la pharmacodynamie du module furosémide.
 \end{itemize}
+
+\subsection{Hori 2007 et Bourgoignie 1981 en texte intégral (1.4.0)}
+Les deux textes intégraux ont été fournis par l'utilisateur et lus.
+
+\textbf{Hori 2007} (doi:10.2460/ajvr.68.10.1058) : furosémide 2 mg/kg per os toutes les 12 h pendant 14 jours chez 8 chiens de 12,6 kg (la dose de Lantis). Créatinine 0,9 $\to$ 1,0 (J1) $\to$ 1,1 mg/dL (J14), soit $+22$\,\% ; urée $+18$\,\% ; clairance de la créatinine $-25$\,\% à J14 ; poids inchangé ; K 4,5 $\to$ 4,2 ; natrémie inchangée ; aldostérone plasmatique environ $\times 2{,}2$ à J14 ; diurèse sur 24 h plus faible à J14 qu'à J1 (« résistance »). Le modèle 1.3.3 donnait $+36$\,\% et $-23$ mL/kg de VEC. La créatinine d'Hori à J14 est devenue une cible.
+
+\textbf{Bourgoignie 1981} (doi:10.1038/ki.1981.165) : chiennes de 14 à 18 kg ; charge de 50 mEq de KCl par sonde à jeun ; kaliurèse heure par heure (tableau 3), kaliémie à 0,5 h puis toutes les heures. Trois faits changent l'interprétation :
+\begin{itemize}
+\item les auteurs montrent que la captation extrarénale du K n'est \emph{pas} altérée dans le rein restant (bilan extra- et intracellulaire). La piste d'un tampon réduit, envisagée pour expliquer le pic, est donc écartée ;
+\item une seule droite $U_KV/\mathrm{DFG} = 1{,}9\,(K - 4{,}37)$ décrit chiens normaux et restants : la réserve d'excrétion suit le DFG, comme dans le modèle ;
+\item la première heure est une latence d'absorption intestinale ; le pic de kaliémie et de kaliurèse survient à la 2e ou 3e heure.
+\end{itemize}
+Le modèle absorbait la charge de façon exponentielle dès $t = 0$. Le pic survenait alors en 30 min à 1 h, avant que la différence d'excrétion rénale ait pu jouer : $+1{,}04$ chez le chien normal et $+1{,}44$ chez le chien restant. L'absorption passe à deux étapes de même constante de temps (estomac puis intestin, $\tau_\mathrm{abs}$ = 1,01 h).
+
+Quinze cibles ont été ajoutées (kaliurèse nette h1–h5 des deux groupes, kaliémie du groupe restant R15 aux cinq prélèvements, part excrétée, et créatinine, poids et K d'Hori). L'ancienne cible faible sur la créatinine de Lantis a été retirée. Avec 52 cibles, l'erreur pondérée tombe de 147 (valeurs 1.3.3) à 50. Le pic du rein restant monte à $+1{,}84$ (publié $+2{,}2$ à 2,5), et la créatinine chronique tombe à $+22$\,\% (Hori) et $+20$\,\% (Lantis).
+
+\textbf{Contrôles d'échec remaniés.} Avec $\tau_A$ = 5,7 h, le rétrocontrôle K $\to$ aldostérone pèse peu en aigu ($\Delta$K à 8 h de Koh : $-0{,}37$ sans lui contre $-0{,}29$). Il pèse beaucoup en chronique : sans lui, le $\Delta$K de Hori à J14 tombe à $-0{,}65$ et celui de Lantis à J5 à $-1{,}0$. Son contrôle porte donc maintenant sur Hori. La latence natriférique ($\tau_n$ = 0,27 h) n'a plus d'effet discriminant ; son contrôle a été retiré.
+
+\textbf{Restent :} le pic du rein restant ($-0{,}6$) ; la natriurèse IV de la 1re heure ($+36$\,\%, forme de la pharmacodynamie du furosémide) ; la kaliurèse IV de Koh rapportée à la base ($\times 1{,}61$ contre $\times 2{,}27$) ; le $\Delta$K à 2 h per os ($-0{,}71$ contre $-0{,}54$) ; le K de Giorgi à J12 ; Wong. Le paramètre $\varphi$ du freinage est proche de sa borne haute (0,976 pour 0,98).
 
 \subsection{MRC : apports fixes, néphron adapté (remarque de l'utilisateur)}
 L'utilisateur a relevé qu'en MRC l'urine n'a pas la natrémie du plasma, que la fuite sodée est faible et que le potassium pose problème. La première version faisait une erreur plus profonde. Elle fixait les apports de Na et de K à l'excrétion du patient avec les FE du chien sain, si bien que l'apport « alimentaire » suivait le DFG (10\,\% de la normale au stade 4).
@@ -704,7 +725,8 @@ Tests :
 \begin{itemize}
 \item \vp{renal_matches_literature} : Koh IV, Koh per os, Adin (créatinine à 5 h et à 24 h) ;
 \item \vp{renal_chronic_furosemide_pelligand} : natriurèse J1 et J3, diurèse J9 ; Koh IV : diurèse de la 1re heure, natriurèse 8 h ;
-\item contrôles d'échec : sans autorégulation, la créatinine d'Adin sort de la fourchette ; sans rétrocontrôle du DFG ($g_\mathrm{DFG}$ = 0), elle ne monte pas ; sans tampon intracellulaire, le $\Delta$K à 2 h sort ; sans composante kaliémique de l'aldostérone, le $\Delta$K à 8 h sort ; sans rénine de la macula densa, la natriurèse de J1 sort ; avec une action natriférique instantanée, la natriurèse de Koh sort ; sans eau libre, la diurèse de J9 sort ;
+\item \vp{renal_chronic_creatinine_hori} : créatinine et K à J14 ;
+\item contrôles d'échec : sans autorégulation, la créatinine d'Adin sort de la fourchette ; sans rétrocontrôle du DFG ($g_\mathrm{DFG}$ = 0), celle d'Adin et celle d'Hori ne montent pas ; sans tampon intracellulaire, le $\Delta$K à 2 h sort ; sans composante kaliémique de l'aldostérone, le K d'Hori à J14 s'effondre ; sans rénine de la macula densa, la natriurèse de J1 sort ; avec une action natriférique instantanée, la natriurèse de Koh sort ; sans eau libre, la diurèse de J9 sort ;
 \item \vp{renal_course_round_trip} (API).
 \end{itemize}
 

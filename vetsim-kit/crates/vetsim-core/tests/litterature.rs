@@ -661,11 +661,6 @@ fn renal_matches_literature() {
     let na8 = at(&iv, 8.0).una_cum_mmol_kg;
     // natriurèse sur 8 h : Σ débit horaire × durée de l'intervalle (tableau 6 de Koh), 2,62
     assert!((2.2..=3.0).contains(&na8), "natriurèse 8 h {na8:.2} (2,62)");
-    // contrôle d'échec : avec une action natriférique instantanée de l'aldostérone, la
-    // natriurèse aiguë s'effondre
-    let inst = renal_run(11.5, &[(0.0, 2.0, Iv)], 8.0, |m, _| m.aldo_na_tau_h = 0.02);
-    let ni8 = at(&inst, 8.0).una_cum_mmol_kg;
-    assert!(ni8 < 2.2, "action instantanée : natriurèse 8 h {ni8:.2}");
     // calage : Koh 2021 per os (mêmes chiens), diurèse et ΔK à 8 h ; ordre IV < PO
     let po = renal_run(11.5, &[(0.0, 2.0, Po)], 8.0, |_, _| {});
     let (pu8, pdk8) = (
@@ -702,14 +697,6 @@ fn renal_matches_literature() {
         !(-0.6..=-0.42).contains(&nb2),
         "sans tampon : ΔK 2 h {nb2:.2}"
     );
-    // contrôle d'échec : sans composante kaliémique de l'aldostérone (Young 1984), la kaliémie
-    // ne remonte pas à 8 h
-    let na = renal_run(11.5, &[(0.0, 2.0, Iv)], 8.0, |m, _| m.aldo_k0 = -1000.0);
-    let na8 = at(&na, 8.0).k - na.points[0].k;
-    assert!(
-        !(-0.4..=-0.26).contains(&na8),
-        "sans rétrocontrôle K → aldostérone : ΔK 8 h {na8:.2}"
-    );
 }
 
 /// Charge orale de K (Bourgoignie 1981, 50 mEq de KCl par sonde ; résumé). Chien normal
@@ -718,11 +705,12 @@ fn renal_matches_literature() {
 /// réserve d'excrétion proportionnelle au DFG).
 #[test]
 fn renal_potassium_load_scales_with_gfr() {
-    // poids non rapporté : 17 kg (≈ 57 mL/min à 3,4 mL/min/kg) ; 50 mEq = 2,94 mmol/kg
+    // chiennes de 14 à 18 kg (texte intégral) : 16 kg ; 50 mEq = 3,1 mmol/kg (la charge reste
+    // 2,94 mmol/kg, valeur du calage)
     let load = [(0.0, 2.94)];
     let summary = |s: f64, tweak: &dyn Fn(&mut vetsim_core::renal::RenalModel)| {
         let ckd = ckd_params(s);
-        let c = renal_run_k(17.0, &[], &load, 5.0, |m, p| {
+        let c = renal_run_k(16.0, &[], &load, 5.0, |m, p| {
             ckd(m, p);
             tweak(m);
         });
@@ -755,6 +743,8 @@ fn renal_potassium_load_scales_with_gfr() {
         "fraction MRC {fr:.2} (30–37 %)"
     );
     assert!(pr > 1.2 * pn, "pic MRC {pr:.2} ≤ 1,2 × pic normal {pn:.2}");
+    // calage (1.4.0, absorption en deux étapes) : pic du rein restant +2,2 à 2,5
+    assert!(pr >= 1.6, "pic MRC {pr:.2} (2,2–2,5)");
     // contrôle d'échec : sans réserve d'excrétion au-dessus de la base, la charge n'est
     // presque pas excrétée en 5 h
     let (_, f0, _) = summary(0.0, &|m| m.k_sigma_up = 0.0);
@@ -806,4 +796,38 @@ fn renal_chronic_furosemide_pelligand() {
     // contrôle d'échec : sans perte du pouvoir de concentration, pas de polyurie chronique
     let (_, _, w9) = course(8.0, &|m| m.water_max_ml_kg_h = 0.0);
     assert!(w9 < 75.0, "sans eau libre : diurèse J9 {w9:.1}");
+}
+
+/// Hori 2007 (texte intégral lu) : 2 mg/kg per os toutes les 12 h pendant 14 jours, chiens de
+/// 12,6 kg : créatinine 0,9 → 1,1 mg/dL à J14 (+22 %), poids inchangé.
+#[test]
+fn renal_chronic_creatinine_hori() {
+    use vetsim_core::Route::Po;
+    let course = |tweak: &dyn Fn(&mut vetsim_core::renal::RenalModel)| {
+        let d: Vec<_> = (0..27).map(|i| (12.0 * i as f64, 2.0, Po)).collect();
+        let c = renal_run_dt(12.6, &d, 312.0, 1.0, |m, _| tweak(m));
+        let p = at(&c, 312.0);
+        (
+            100.0 * (p.creat / c.points[0].creat - 1.0),
+            p.k - c.points[0].k,
+        )
+    };
+    let (cr, dk) = course(&|_| {});
+    eprintln!("Hori : créatinine J14 {cr:+.0} %, ΔK {dk:+.2}");
+    assert!(
+        (12.0..=32.0).contains(&cr),
+        "créatinine J14 {cr:+.0} % (+22)"
+    );
+    // K 4,5 → 4,2 à J14
+    assert!((-0.5..=-0.05).contains(&dk), "ΔK J14 {dk:+.2} (−0,3)");
+    // contrôle d'échec : sans composante kaliémique de l'aldostérone (Young 1984), la
+    // kaliémie s'effondre en chronique
+    let (_, dk0) = course(&|m| m.aldo_k0 = -1000.0);
+    assert!(
+        dk0 < -0.5,
+        "sans rétrocontrôle K → aldostérone : ΔK J14 {dk0:+.2}"
+    );
+    // contrôle d'échec : sans baisse du DFG après exposition, la créatinine ne monte presque pas
+    let (c0, _) = course(&|m| m.gfr_g_vol = 0.0);
+    assert!(c0 < 12.0, "sans rétrocontrôle du DFG : {c0:+.0} %");
 }

@@ -733,9 +733,9 @@ impl Engine {
             let c = e.catalog()?;
             let rc =
                 vetsim_core::renal::renal_course(&model, &s.patient.params, &c.drugs, &ds, &opt)?;
-            // domaine validé : furosémide, horizon ≤ 12 j, sans levier (vetsim_core::renal)
+            // domaine validé : furosémide, horizon ≤ 14 j, sans levier (vetsim_core::renal)
             let validated = ds.iter().all(|d| d.drug == "furosemide")
-                && opt.t_end_h <= 288.0
+                && opt.t_end_h <= 336.0
                 && opt.ace_inhibition == 0.0
                 && opt.na_intake_factor == 1.0
                 && opt.k_intake_factor == 1.0
@@ -788,7 +788,7 @@ impl Engine {
                 "model_version": model.version,
                 "validated": validated,
                 "warning": (!validated).then_some(
-                    "hors du domaine validé (furosémide seul, ≤ 12 j, sans levier alimentaire, charge de K ni IEC)"),
+                    "hors du domaine validé (furosémide seul, ≤ 14 j, sans levier alimentaire, charge de K ni IEC)"),
                 "note": "rein dynamique (bilans Na, K, RAAS) ; usage pédagogique uniquement",
             }))
         })

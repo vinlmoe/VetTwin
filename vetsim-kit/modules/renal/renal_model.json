@@ -1,7 +1,7 @@
 {
  "schema_version": "1.0.0",
  "id": "renal_model",
- "version": "1.3.3",
+ "version": "1.4.0",
  "name": {
   "fr": "Rein dynamique"
  },
@@ -28,24 +28,24 @@
    "note": "volume extracellulaire usuel du chien (manuels de physiologie) ; non vérifié sur source primaire"
   },
   "k_buffer_L_kg": {
-   "value": 1.19,
+   "value": 0.891,
    "evidence": "C",
-   "note": "calage conjoint 1.3.3 (18 constantes, moindres carrés pondérés, 31 cibles) sur Koh 2021 (texte intégral : diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (chien normal), Adin 2021 (créatinine 24 h), Lantis 2011 (texte intégral : aldostérone urinaire, K et poids à J5 et J10) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9)"
+   "note": "calage conjoint 1.4.0 (18 constantes, moindres carrés pondérés, 52 cibles) sur Koh 2021 (diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (texte intégral : kaliurèse horaire et kaliémie, chiens normaux et à rein restant), Adin 2021 (créatinine 24 h), Lantis 2011 (aldostérone urinaire, K, poids à J5 et J10), Hori 2007 (texte intégral : créatinine, poids, K à J14) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9) ; diurèse J9)"
   },
   "k_ic_tau_h": {
-   "value": 0.729,
+   "value": 1.01,
    "evidence": "C",
-   "note": "calage conjoint 1.3.3 (18 constantes, moindres carrés pondérés, 31 cibles) sur Koh 2021 (texte intégral : diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (chien normal), Adin 2021 (créatinine 24 h), Lantis 2011 (texte intégral : aldostérone urinaire, K et poids à J5 et J10) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9)"
+   "note": "calage conjoint 1.4.0 (18 constantes, moindres carrés pondérés, 52 cibles) sur Koh 2021 (diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (texte intégral : kaliurèse horaire et kaliémie, chiens normaux et à rein restant), Adin 2021 (créatinine 24 h), Lantis 2011 (aldostérone urinaire, K, poids à J5 et J10), Hori 2007 (texte intégral : créatinine, poids, K à J14) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9) ; diurèse J9)"
   },
   "fe_loop_max": {
-   "value": 0.127,
+   "value": 0.105,
    "evidence": "C",
-   "note": "calage conjoint 1.3.3 (18 constantes, moindres carrés pondérés, 31 cibles) sur Koh 2021 (texte intégral : diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (chien normal), Adin 2021 (créatinine 24 h), Lantis 2011 (texte intégral : aldostérone urinaire, K et poids à J5 et J10) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9)"
+   "note": "calage conjoint 1.4.0 (18 constantes, moindres carrés pondérés, 52 cibles) sur Koh 2021 (diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (texte intégral : kaliurèse horaire et kaliémie, chiens normaux et à rein restant), Adin 2021 (créatinine 24 h), Lantis 2011 (aldostérone urinaire, K, poids à J5 et J10), Hori 2007 (texte intégral : créatinine, poids, K à J14) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9) ; diurèse J9)"
   },
   "k_flow": {
-   "value": 0.567,
+   "value": 0.52,
    "evidence": "C",
-   "note": "calage conjoint 1.3.3 (18 constantes, moindres carrés pondérés, 31 cibles) sur Koh 2021 (texte intégral : diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (chien normal), Adin 2021 (créatinine 24 h), Lantis 2011 (texte intégral : aldostérone urinaire, K et poids à J5 et J10) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9)"
+   "note": "calage conjoint 1.4.0 (18 constantes, moindres carrés pondérés, 52 cibles) sur Koh 2021 (diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (texte intégral : kaliurèse horaire et kaliémie, chiens normaux et à rein restant), Adin 2021 (créatinine 24 h), Lantis 2011 (aldostérone urinaire, K, poids à J5 et J10), Hori 2007 (texte intégral : créatinine, poids, K à J14) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9) ; diurèse J9)"
   },
   "n_pressure": {
    "value": 2.0,
@@ -53,24 +53,24 @@
    "note": "placeholder : natriurèse de pression"
   },
   "aldo_tau_h": {
-   "value": 1.76,
+   "value": 5.74,
    "evidence": "C",
-   "note": "calage conjoint 1.3.3 (18 constantes, moindres carrés pondérés, 31 cibles) sur Koh 2021 (texte intégral : diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (chien normal), Adin 2021 (créatinine 24 h), Lantis 2011 (texte intégral : aldostérone urinaire, K et poids à J5 et J10) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9) ; constante de temps de l'aldostérone (rénine et kaliémie)"
+   "note": "calage conjoint 1.4.0 (18 constantes, moindres carrés pondérés, 52 cibles) sur Koh 2021 (diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (texte intégral : kaliurèse horaire et kaliémie, chiens normaux et à rein restant), Adin 2021 (créatinine 24 h), Lantis 2011 (aldostérone urinaire, K, poids à J5 et J10), Hori 2007 (texte intégral : créatinine, poids, K à J14) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9) ; diurèse J9) ; constante de temps de l'aldostérone (rénine et kaliémie)"
   },
   "aldo_g_vol": {
-   "value": 6.75,
+   "value": 8.58,
    "evidence": "C",
-   "note": "calage conjoint 1.3.3 (18 constantes, moindres carrés pondérés, 31 cibles) sur Koh 2021 (texte intégral : diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (chien normal), Adin 2021 (créatinine 24 h), Lantis 2011 (texte intégral : aldostérone urinaire, K et poids à J5 et J10) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9)"
+   "note": "calage conjoint 1.4.0 (18 constantes, moindres carrés pondérés, 52 cibles) sur Koh 2021 (diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (texte intégral : kaliurèse horaire et kaliémie, chiens normaux et à rein restant), Adin 2021 (créatinine 24 h), Lantis 2011 (aldostérone urinaire, K, poids à J5 et J10), Hori 2007 (texte intégral : créatinine, poids, K à J14) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9) ; diurèse J9)"
   },
   "aldo_a_na": {
-   "value": 1.15,
+   "value": 1.27,
    "evidence": "C",
-   "note": "calage conjoint 1.3.3 (18 constantes, moindres carrés pondérés, 31 cibles) sur Koh 2021 (texte intégral : diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (chien normal), Adin 2021 (créatinine 24 h), Lantis 2011 (texte intégral : aldostérone urinaire, K et poids à J5 et J10) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9)"
+   "note": "calage conjoint 1.4.0 (18 constantes, moindres carrés pondérés, 52 cibles) sur Koh 2021 (diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (texte intégral : kaliurèse horaire et kaliémie, chiens normaux et à rein restant), Adin 2021 (créatinine 24 h), Lantis 2011 (aldostérone urinaire, K, poids à J5 et J10), Hori 2007 (texte intégral : créatinine, poids, K à J14) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9) ; diurèse J9)"
   },
   "aldo_a_k": {
    "value": 0.486,
    "evidence": "C",
-   "note": "calage conjoint 1.3.3 (18 constantes, moindres carrés pondérés, 31 cibles) sur Koh 2021 (texte intégral : diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (chien normal), Adin 2021 (créatinine 24 h), Lantis 2011 (texte intégral : aldostérone urinaire, K et poids à J5 et J10) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9) ; s'écarte de Young 1983 (0,7, résumé) ; avec 0,7 imposé, le calage met le freinage en butée et l'aldostérone de Lantis retombe à ×1,98"
+   "note": "calage conjoint 1.4.0 (18 constantes, moindres carrés pondérés, 52 cibles) sur Koh 2021 (diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (texte intégral : kaliurèse horaire et kaliémie, chiens normaux et à rein restant), Adin 2021 (créatinine 24 h), Lantis 2011 (aldostérone urinaire, K, poids à J5 et J10), Hori 2007 (texte intégral : créatinine, poids, K à J14) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9) ; diurèse J9) ; s'écarte de Young 1983 (0,7, résumé) ; avec 0,7 imposé, le calage met le freinage en butée et l'aldostérone de Lantis retombe à ×1,98"
   },
   "urine_floor_frac": {
    "value": 0.3,
@@ -88,9 +88,9 @@
    "note": "placeholder de sécurité (capacité maximale) ; n'est pas atteint dans les scénarios validés"
   },
   "k_sigma_up": {
-   "value": 1.53,
+   "value": 1.66,
    "evidence": "C",
-   "note": "calage conjoint 1.3.3 (18 constantes, moindres carrés pondérés, 31 cibles) sur Koh 2021 (texte intégral : diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (chien normal), Adin 2021 (créatinine 24 h), Lantis 2011 (texte intégral : aldostérone urinaire, K et poids à J5 et J10) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9)"
+   "note": "calage conjoint 1.4.0 (18 constantes, moindres carrés pondérés, 52 cibles) sur Koh 2021 (diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (texte intégral : kaliurèse horaire et kaliémie, chiens normaux et à rein restant), Adin 2021 (créatinine 24 h), Lantis 2011 (aldostérone urinaire, K, poids à J5 et J10), Hori 2007 (texte intégral : créatinine, poids, K à J14) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9) ; diurèse J9)"
   },
   "k_sigma_down": {
    "value": 0.13,
@@ -103,49 +103,49 @@
    "note": "Young 1984 : aldostérone = 5,04·K − 16,56, nulle à K 3,29 (6 chiens ; résumé)"
   },
   "k_abs_tau_h": {
-   "value": 1.55,
+   "value": 1.01,
    "evidence": "C",
-   "note": "calage conjoint 1.3.3 (18 constantes, moindres carrés pondérés, 31 cibles) sur Koh 2021 (texte intégral : diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (chien normal), Adin 2021 (créatinine 24 h), Lantis 2011 (texte intégral : aldostérone urinaire, K et poids à J5 et J10) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9)"
+   "note": "calage conjoint 1.4.0 (18 constantes, moindres carrés pondérés, 52 cibles) sur Koh 2021 (diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (texte intégral : kaliurèse horaire et kaliémie, chiens normaux et à rein restant), Adin 2021 (créatinine 24 h), Lantis 2011 (aldostérone urinaire, K, poids à J5 et J10), Hori 2007 (texte intégral : créatinine, poids, K à J14) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9) ; constante de chacune des deux étapes d'absorption (vidange gastrique, absorption intestinale : latence d'environ 1 h, Bourgoignie 1981)"
   },
   "brake_frac": {
-   "value": 0.933,
+   "value": 0.976,
    "evidence": "C",
-   "note": "calage conjoint 1.3.3 (18 constantes, moindres carrés pondérés, 31 cibles) sur Koh 2021 (texte intégral : diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (chien normal), Adin 2021 (créatinine 24 h), Lantis 2011 (texte intégral : aldostérone urinaire, K et poids à J5 et J10) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9)"
+   "note": "calage conjoint 1.4.0 (18 constantes, moindres carrés pondérés, 52 cibles) sur Koh 2021 (diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (texte intégral : kaliurèse horaire et kaliémie, chiens normaux et à rein restant), Adin 2021 (créatinine 24 h), Lantis 2011 (aldostérone urinaire, K, poids à J5 et J10), Hori 2007 (texte intégral : créatinine, poids, K à J14) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9) ; proche de la borne haute du calage (0,98)"
   },
   "brake_on_tau_h": {
-   "value": 16.0,
+   "value": 13.0,
    "evidence": "C",
-   "note": "calage conjoint 1.3.3 (18 constantes, moindres carrés pondérés, 31 cibles) sur Koh 2021 (texte intégral : diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (chien normal), Adin 2021 (créatinine 24 h), Lantis 2011 (texte intégral : aldostérone urinaire, K et poids à J5 et J10) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9)"
+   "note": "calage conjoint 1.4.0 (18 constantes, moindres carrés pondérés, 52 cibles) sur Koh 2021 (diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (texte intégral : kaliurèse horaire et kaliémie, chiens normaux et à rein restant), Adin 2021 (créatinine 24 h), Lantis 2011 (aldostérone urinaire, K, poids à J5 et J10), Hori 2007 (texte intégral : créatinine, poids, K à J14) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9) ; diurèse J9)"
   },
   "brake_off_tau_h": {
-   "value": 152.0,
+   "value": 62.6,
    "evidence": "C",
-   "note": "calage conjoint 1.3.3 (18 constantes, moindres carrés pondérés, 31 cibles) sur Koh 2021 (texte intégral : diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (chien normal), Adin 2021 (créatinine 24 h), Lantis 2011 (texte intégral : aldostérone urinaire, K et poids à J5 et J10) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9)"
+   "note": "calage conjoint 1.4.0 (18 constantes, moindres carrés pondérés, 52 cibles) sur Koh 2021 (diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (texte intégral : kaliurèse horaire et kaliémie, chiens normaux et à rein restant), Adin 2021 (créatinine 24 h), Lantis 2011 (aldostérone urinaire, K, poids à J5 et J10), Hori 2007 (texte intégral : créatinine, poids, K à J14) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9) ; diurèse J9)"
   },
   "water_max_mL_kg_h": {
-   "value": 10.5,
+   "value": 10.4,
    "evidence": "C",
-   "note": "calage conjoint 1.3.3 (18 constantes, moindres carrés pondérés, 31 cibles) sur Koh 2021 (texte intégral : diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (chien normal), Adin 2021 (créatinine 24 h), Lantis 2011 (texte intégral : aldostérone urinaire, K et poids à J5 et J10) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9)"
+   "note": "calage conjoint 1.4.0 (18 constantes, moindres carrés pondérés, 52 cibles) sur Koh 2021 (diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (texte intégral : kaliurèse horaire et kaliémie, chiens normaux et à rein restant), Adin 2021 (créatinine 24 h), Lantis 2011 (aldostérone urinaire, K, poids à J5 et J10), Hori 2007 (texte intégral : créatinine, poids, K à J14) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9) ; diurèse J9)"
   },
   "water_tau_h": {
-   "value": 14.4,
+   "value": 16.4,
    "evidence": "C",
-   "note": "calage conjoint 1.3.3 (18 constantes, moindres carrés pondérés, 31 cibles) sur Koh 2021 (texte intégral : diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (chien normal), Adin 2021 (créatinine 24 h), Lantis 2011 (texte intégral : aldostérone urinaire, K et poids à J5 et J10) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9)"
+   "note": "calage conjoint 1.4.0 (18 constantes, moindres carrés pondérés, 52 cibles) sur Koh 2021 (diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (texte intégral : kaliurèse horaire et kaliémie, chiens normaux et à rein restant), Adin 2021 (créatinine 24 h), Lantis 2011 (aldostérone urinaire, K, poids à J5 et J10), Hori 2007 (texte intégral : créatinine, poids, K à J14) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9) ; diurèse J9)"
   },
   "gfr_g_vol": {
-   "value": 2.55,
+   "value": 2.04,
    "evidence": "C",
-   "note": "calage conjoint 1.3.3 (18 constantes, moindres carrés pondérés, 31 cibles) sur Koh 2021 (texte intégral : diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (chien normal), Adin 2021 (créatinine 24 h), Lantis 2011 (texte intégral : aldostérone urinaire, K et poids à J5 et J10) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9) ; DFG préservé pendant l'exposition, abaissé ensuite par la déplétion (Adin 2021 : créatinine inchangée pendant la perfusion)"
+   "note": "calage conjoint 1.4.0 (18 constantes, moindres carrés pondérés, 52 cibles) sur Koh 2021 (diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (texte intégral : kaliurèse horaire et kaliémie, chiens normaux et à rein restant), Adin 2021 (créatinine 24 h), Lantis 2011 (aldostérone urinaire, K, poids à J5 et J10), Hori 2007 (texte intégral : créatinine, poids, K à J14) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9) ; diurèse J9) ; DFG préservé pendant l'exposition, abaissé ensuite par la déplétion (Adin 2021 : créatinine inchangée pendant la perfusion)"
   },
   "aldo_na_tau_h": {
-   "value": 0.253,
+   "value": 0.274,
    "evidence": "C",
-   "note": "calage conjoint 1.3.3 (18 constantes, moindres carrés pondérés, 31 cibles) sur Koh 2021 (texte intégral : diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (chien normal), Adin 2021 (créatinine 24 h), Lantis 2011 (texte intégral : aldostérone urinaire, K et poids à J5 et J10) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9) ; action génomique retardée de l'aldostérone sur le Na"
+   "note": "calage conjoint 1.4.0 (18 constantes, moindres carrés pondérés, 52 cibles) sur Koh 2021 (diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (texte intégral : kaliurèse horaire et kaliémie, chiens normaux et à rein restant), Adin 2021 (créatinine 24 h), Lantis 2011 (aldostérone urinaire, K, poids à J5 et J10), Hori 2007 (texte intégral : créatinine, poids, K à J14) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9) ; diurèse J9) ; action génomique retardée de l'aldostérone sur le Na"
   },
   "aldo_g_md": {
-   "value": 5.0,
+   "value": 5.54,
    "evidence": "C",
-   "note": "calage conjoint 1.3.3 (18 constantes, moindres carrés pondérés, 31 cibles) sur Koh 2021 (texte intégral : diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (chien normal), Adin 2021 (créatinine 24 h), Lantis 2011 (texte intégral : aldostérone urinaire, K et poids à J5 et J10) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9) ; libération de rénine par blocage du NKCC2 de la macula densa, indépendante du volume (Lantis 2011, discussion)"
+   "note": "calage conjoint 1.4.0 (18 constantes, moindres carrés pondérés, 52 cibles) sur Koh 2021 (diurèse et natriurèse horaires IV et per os, kaliurèse IV rapportée à la base, ΔK), Bourgoignie 1981 (texte intégral : kaliurèse horaire et kaliémie, chiens normaux et à rein restant), Adin 2021 (créatinine 24 h), Lantis 2011 (aldostérone urinaire, K, poids à J5 et J10), Hori 2007 (texte intégral : créatinine, poids, K à J14) et Pelligand 2020 (natriurèse J1, J3 ; diurèse J9) ; diurèse J9) ; libération de rénine par blocage du NKCC2 de la macula densa, indépendante du volume (Lantis 2011, discussion)"
   }
  },
  "refs": [
@@ -158,10 +158,11 @@
   "Young DB 1982, Am J Physiol 242:F599 (résumé)",
   "Young DB, Paulsen AW 1983, Am J Physiol 244:F28 (résumé)",
   "Young DB et al. 1984, Am J Physiol 247:E328 (résumé)",
-  "Bourgoignie JJ et al. 1981, Kidney Int 20:482 (résumé)",
-  "Bourgoignie JJ et al. 1985, Miner Electrolyte Metab 11:150 (résumé)",
+  "Bourgoignie JJ et al. 1981, Kidney Int 20:482–490, doi:10.1038/ki.1981.165 (texte intégral lu)",
+  "Bourgoignie JJ et al. 1981, Kidney Int 20:482–490, doi:10.1038/ki.1981.165 (texte intégral lu)",
   "Pelligand L et al. 2020, Front Vet Sci 7:151 (PMC7199743, lu)",
-  "Loughran KA et al. 2020, J Vet Intern Med 34:2253 (PMC7694836, lu)"
+  "Loughran KA et al. 2020, J Vet Intern Med 34:2253 (PMC7694836, lu)",
+  "Hori Y et al. 2007, Am J Vet Res 68:1058–1063, doi:10.2460/ajvr.68.10.1058 (texte intégral lu)"
  ],
  "notes": "Domaine validé : aigu (≤ 24 h). Prises répétées sur plusieurs jours : déplétion sodée surestimée (docs/VALIDATION_HORS_CALIBRAGE.tex)."
 }

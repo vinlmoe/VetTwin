@@ -1,6 +1,6 @@
 # Proposition : rein dynamique (21/11/2026)
 
-**Statut (21/11/2026) : implémenté (1.3.3, aigu et chronique ≤ 12 j)** (`crates/vetsim-core/src/renal.rs`, `modules/renal/renal_model.json`, message API `renal_course`). Bilan et écarts : `docs/VALIDATION_HORS_CALIBRAGE.tex`, section « Rein dynamique ».
+**Statut (21/11/2026) : implémenté (1.4.0, aigu et chronique ≤ 14 j)** (`crates/vetsim-core/src/renal.rs`, `modules/renal/renal_model.json`, message API `renal_course`). Bilan et écarts : `docs/VALIDATION_HORS_CALIBRAGE.tex`, section « Rein dynamique ».
 
 | Étape | État |
 |---|---|
