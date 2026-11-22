@@ -652,13 +652,20 @@ fn renal_matches_literature() {
     assert!((22.0..=27.5).contains(&u8), "diurèse 8 h {u8:.1} (24,65)");
     assert!((-0.6..=-0.42).contains(&dk2), "ΔK 2 h {dk2:.2} (−0,51)");
     assert!((-0.4..=-0.26).contains(&dk8), "ΔK 8 h {dk8:.2} (−0,33)");
+    // profil horaire (Koh, tableau 5) : 147 mL/h la 1re heure pour ≈ 11,5 kg, soit 12,8 mL/kg
+    let u1 = at(&iv, 1.0).urine_cum_ml_kg;
+    assert!(
+        (10.0..=16.0).contains(&u1),
+        "diurèse 1re heure {u1:.1} (12,8)"
+    );
     let na8 = at(&iv, 8.0).una_cum_mmol_kg;
-    assert!((2.6..=3.5).contains(&na8), "natriurèse 8 h {na8:.2} (3,06)");
+    // natriurèse sur 8 h : Σ débit horaire × durée de l'intervalle (tableau 6 de Koh), 2,62
+    assert!((2.2..=3.0).contains(&na8), "natriurèse 8 h {na8:.2} (2,62)");
     // contrôle d'échec : avec une action natriférique instantanée de l'aldostérone, la
     // natriurèse aiguë s'effondre
     let inst = renal_run(11.5, &[(0.0, 2.0, Iv)], 8.0, |m, _| m.aldo_na_tau_h = 0.02);
     let ni8 = at(&inst, 8.0).una_cum_mmol_kg;
-    assert!(ni8 < 2.6, "action instantanée : natriurèse 8 h {ni8:.2}");
+    assert!(ni8 < 2.2, "action instantanée : natriurèse 8 h {ni8:.2}");
     // calage : Koh 2021 per os (mêmes chiens), diurèse et ΔK à 8 h ; ordre IV < PO
     let po = renal_run(11.5, &[(0.0, 2.0, Po)], 8.0, |_, _| {});
     let (pu8, pdk8) = (

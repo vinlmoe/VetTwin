@@ -43,8 +43,8 @@
 //! Koh 2021 (IV et per os), Bourgoignie 1981 (chien normal), Pelligand 2020 (10 jours),
 //! Adin 2021 (créatinine à 24 h) et Lantis 2011 (texte intégral) ; validé sur le profil de créatinine d'Adin,
 //! Giorgi 2022 (créatinine à J12) et le rein restant de Bourgoignie (part excrétée). Écarts
-//! documentés : aldostérone de Lantis à J10 (×2,0 contre ×2,6), natriurèse et ΔK à 2 h de Koh per
-//! os, K de Giorgi à J12, pic de K du rein restant, ΔK de Wong.
+//! documentés : natriurèse IV de la 1re heure et per os sur 8 h (Koh), créatinine chronique
+//! probablement surestimée (Lantis), K de Giorgi à J12, pic de K du rein restant, ΔK de Wong.
 //!
 //! La physiologie (`evaluate`) est recalculée à chaque pas `dt_h` avec l'état rénal courant ;
 //! entre deux pas, les équations rénales sont intégrées par sous-pas explicites à physiologie

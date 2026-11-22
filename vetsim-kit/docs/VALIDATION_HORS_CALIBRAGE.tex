@@ -486,7 +486,7 @@ Test : \vp{hemorrhage_matches_literature}, avec un contrôle d'échec sans les t
 \end{itemize}
 
 \section{Rein dynamique (21/11/2026)}
-Le rein était stationnaire : DFG en produit de facteurs, créatinine et urée à l'équilibre, sodium, eau et potassium sans bilan. Le module \vp{crates/vetsim-core/src/renal.rs}, avec ses constantes dans \vp{modules/renal/renal_model.json} (1.3.2), ajoute :
+Le rein était stationnaire : DFG en produit de facteurs, créatinine et urée à l'équilibre, sodium, eau et potassium sans bilan. Le module \vp{crates/vetsim-core/src/renal.rs}, avec ses constantes dans \vp{modules/renal/renal_model.json} (1.3.3), ajoute :
 \begin{itemize}
 \item le bilan du sodium, donc la variation du volume extracellulaire ($V$), iso-osmotique ; le plasma en reçoit la part $V_p/\mathrm{VEC}$ (hémo- et protéinoconcentration) ;
 \item le bilan du potassium en deux compartiments, extracellulaire et intracellulaire ;
@@ -520,7 +520,7 @@ U_K = \mathrm{DFG}\,\bigl(K_b\,\mathrm{FE_{K,b}} + \sigma\,(K - K_b)\bigr)\Bigl(
 \frac{dK_e}{dt} = K_\mathrm{in} + K_\mathrm{abs} - U_K - J,\qquad
 \frac{dK_i}{dt} = J = \frac{B\cdot \mathrm{bw}\cdot\Delta K - K_i}{\tau_{ic}},\qquad \Delta K = K_e/\mathrm{VEC}.
 \]
-$\mathrm{FE_{Na,b}}$ et $\mathrm{FE_{K,b}}$ : FE de base du patient (apport $/$ charge filtrée). $\sigma$ : réserve d'excrétion au-dessus ($\sigma_\uparrow$) ou au-dessous ($\sigma_\downarrow$ = 0,13, Young 1982) de la kaliémie de base, proportionnelle au DFG (Bourgoignie 1981). $A_K$ : composante kaliémique de l'aldostérone, nulle à $k_0$ = 3,29 mmol/L (Young 1984) ; elle ne sécrète que le K (« paradoxe de l'aldostérone »). $a_K$ = 0,7 (Young 1983). $K_\mathrm{abs}$ : absorption d'une charge orale de K. Tous ces chiffres canins sont tirés de résumés.
+$\mathrm{FE_{Na,b}}$ et $\mathrm{FE_{K,b}}$ : FE de base du patient (apport $/$ charge filtrée). $\sigma$ : réserve d'excrétion au-dessus ($\sigma_\uparrow$) ou au-dessous ($\sigma_\downarrow$ = 0,13, Young 1982) de la kaliémie de base, proportionnelle au DFG (Bourgoignie 1981). $A_K$ : composante kaliémique de l'aldostérone, nulle à $k_0$ = 3,29 mmol/L (Young 1984) ; elle ne sécrète que le K (« paradoxe de l'aldostérone »). $a_K$ = 0,7 (Young 1983 ; recalé à 0,49 en 1.3.3, voir plus bas). $K_\mathrm{abs}$ : absorption d'une charge orale de K. Tous ces chiffres canins sont tirés de résumés.
 
 La physiologie (\vp{evaluate}) est recalculée à chaque pas (0,25 h), mais seulement si un paramètre a bougé de plus de 0,2\,\% (K : 0,03 mmol/L). Une évaluation de MMVD coûte environ 200 ms.
 
@@ -533,31 +533,31 @@ Correction : nouveau paramètre \vp{renal_co_auto} = 0,8. Le débit ne limite la
 Sources de base, accès lu : FE$_\mathrm{Na}$ 0,20\,\% et FE$_\mathrm{K}$ 9,47\,\% chez le chien sain (Troìa 2018).
 
 \begin{table}[h]\small
-\caption{Rein dynamique 1.3.2 : calage conjoint (17 constantes, 23 cibles pondérées) et validations (modèle à \texttt{dt} 0,25 h ; chronique à 1 h, Lantis à 0,5 h).}
+\caption{Rein dynamique 1.3.3 : calage conjoint (18 constantes, 31 cibles pondérées) et validations (modèle à \texttt{dt} 0,25 h ; chronique à 1 h, Lantis à 0,5 h).}
 \begin{tabularx}{\linewidth}{P{4.6cm}P{2.4cm}P{3.3cm}LP{1.3cm}}
 \toprule
 Protocole & Modèle & Publié & Rôle & Statut\\
 \midrule
-Koh 2021, 2 mg/kg IV, 11,5 kg : diurèse ; natriurèse 8 h & 25,8 mL/kg ; 3,05 mmol/kg & 24,65 ; 3,06 (lu) & calage & \ok\\
-Koh 2021 IV : $\Delta$K à 2 h / 8 h & $-0{,}52$ / $-0{,}31$ & $-0{,}51$ / $-0{,}33$ & calage & \ok\\
-Koh 2021 per os : diurèse 8 h ; $\Delta$K 8 h & 30,3 ; $-0{,}45$ & 30,9 ; $-0{,}46$ (lu) & calage & \ok\\
-Bourgoignie 1981, chien normal, 50 mEq de KCl : pic de K ; part excrétée en 5 h & $+1{,}05$ ; 64\,\% & $+0{,}9$ à $1{,}2$ ; 61–67\,\% (résumé) & calage & \ok\\
-Adin 2021, perfusion 5 h, 23,4 kg : créatinine à 24 h & $+24$\,\% & $+23{,}9 \pm 12{,}4$\,\% (lu) & calage & \ok\\
-Lantis 2011, 2 mg/kg PO q12h, 30 kg : aldostérone urinaire J5 / J10 (prélèvements à 2–3 h et 8–10 h) & $\times 2{,}12$ / $\times 1{,}99$ & $\times 2{,}41$ / $\times 2{,}57$ (lu ; ET 0,23 et 0,63 µg/g) & calage & \ok\ ($-12$\,\%) ; \ecart\ ($-23$\,\%, < 1 ET)\\
-Lantis 2011 : $\Delta$K J5 / J10 & $-0{,}42$ / $-0{,}41$ & $-0{,}5$ / $-0{,}3$ (lu) & calage & \ok\\
-Lantis 2011 : poids (VEC) J5 / J10 & $-2{,}9$ / $-2{,}5$\,\% & $-4{,}0$ / $-1{,}7$\,\% (lu) & calage & \ok\\
-Pelligand 2020, 1 à 8 mg/kg/j per os, 10 j : diurèse J9 & 25 / 40 / 76 / 95 mL/kg/j & 20 / 34 / 82 / 100 (lu) & calage & \ok\\
-Pelligand 2020 : natriurèse J1 à 8 mg/kg/j ; J3 à 2 et 8 mg/kg/j & 5,25 ; 1,73 et 1,36 & 5,30 ; 1,51, base (lu) & calage & \ok\\
+Koh 2021 IV, 2 mg/kg, $\approx$ 11,5 kg : diurèse 1 h ; 8 h & 13,9 ; 24,4 mL/kg & 12,8 ; 24,65 (lu) & calage & \ok\\
+Koh 2021 IV : natriurèse 1 h ; 8 h & 1,98 ; 2,40 mmol/kg & 1,54 ; 2,62 (lu, $\Sigma$ débit $\times$ durée) & calage & \ecart\ ($+29$\,\%) ; \ok\\
+Koh 2021 IV : kaliurèse 8 h rapportée à la base & $\times 1{,}80$ & $\times 2{,}27$ (lu ; chiens à jeun) & calage & \ecart\ ($-21$\,\%)\\
+Koh 2021 IV : $\Delta$K à 2 h / 8 h & $-0{,}47$ / $-0{,}32$ & $-0{,}51$ / $-0{,}33$ & calage & \ok\\
+Koh 2021 per os : diurèse 2 h ; 8 h & 18,5 ; 31,0 mL/kg & 18,9 ; 30,9 (lu) & calage & \ok\\
+Koh 2021 per os : natriurèse 2 h ; 8 h & 2,48 ; 2,86 mmol/kg & 2,61 ; 3,55 (lu) & calage & \ok\ ; \ecart\ ($-19$\,\%)\\
+Koh 2021 per os : $\Delta$K à 2 h / 8 h & $-0{,}65$ / $-0{,}48$ & $-0{,}54$ / $-0{,}46$ (lu) & calage & \ok\ (1 ET)\\
+Bourgoignie 1981, chien normal, 50 mEq de KCl : pic de K ; part excrétée en 5 h & $+1{,}03$ ; 65\,\% & $+0{,}9$ à $1{,}2$ ; 61–67\,\% (résumé) & calage & \ok\\
+Adin 2021, perfusion 5 h, 23,4 kg : créatinine à 24 h & $+27$\,\% & $+23{,}9 \pm 12{,}4$\,\% (lu) & calage & \ok\\
+Lantis 2011, 2 mg/kg PO q12h, 30 kg : aldostérone urinaire J5 / J10 & $\times 2{,}49$ / $\times 2{,}38$ & $\times 2{,}41$ / $\times 2{,}57$ (lu) & calage & \ok\\
+Lantis 2011 : $\Delta$K J5 / J10 ; poids (VEC) J5 / J10 & $-0{,}43$ / $-0{,}41$ ; $-3{,}0$ / $-2{,}7$\,\% & $-0{,}5$ / $-0{,}3$ ; $-4{,}0$ / $-1{,}7$\,\% (lu) & calage & \ok\\
+Pelligand 2020, 1 à 8 mg/kg/j per os, 10 j : diurèse J9 & 25 / 40 / 75 / 95 mL/kg/j & 20 / 34 / 82 / 100 (lu) & calage & \ok\\
+Pelligand 2020 : natriurèse J1 à 8 mg/kg/j ; J3 à 2 et 8 mg/kg/j & 5,05 ; 1,80 et 1,54 & 5,30 ; 1,51, base (lu) & calage & \ok\\
 \midrule
-Adin 2021 : créatinine pendant la perfusion (5 h) & $+0{,}3$\,\% & inchangée (résumé) & validation & \ok\\
-Koh 2021 per os : ordre des diurèses ; $\Delta$K 2 h & PO $>$ IV ; $-0{,}74$ & PO $>$ IV ; $-0{,}54$ & validation & \ok\ ; \ecart\\
-Koh 2021 per os : natriurèse 8 h & 3,51 & $\approx 4{,}56$ (lu) & validation & \ecart\ ($-23$\,\%)\\
-Bourgoignie 1981, rein restant (DFG $\times 0{,}27$) : part excrétée en 5 h & 36\,\% & 30–37\,\% & validation & \ok\\
-Bourgoignie 1981, rein restant : pic de K & $+1{,}33$ & $+2{,}2$ à $2{,}5$ & validation & \ecart\\
+Adin 2021 : créatinine pendant la perfusion (5 h) & $+0{,}3$\,\% & inchangée (lu) & validation & \ok\\
+Bourgoignie 1981, rein restant (DFG $\times 0{,}27$) : part excrétée en 5 h & 33\,\% & 30–37\,\% & validation & \ok\\
+Bourgoignie 1981, rein restant : pic de K & $+1{,}44$ & $+2{,}2$ à $2{,}5$ & validation & \ecart\\
 Young 1976 : la régulation du K s'appuie sur l'aldostérone & charge $\times 1{,}5$ sur 7 j : $+0{,}09$ & $+8$\,\% contre $+39$\,\% sans aldostérone (résumé) & validation qualitative & \ok\\
-Giorgi 2022, $\approx$ 4,1 mg/kg/j, MMVD 0,8 : créatinine J12 & $+17$\,\% & $+22$\,\% (lu) & validation & \ok\\
-Giorgi 2022 : K à J12 & $-0{,}28$ & retour à la base (4,4) & validation & \ecart\ partiel\\
-Lantis 2011 : créatinine & $+27$\,\% à J10 & non mesurée (phosphorémie : hausse à J5, base à J10) & — & non vérifiable\\
+Giorgi 2022, $\approx$ 4,1 mg/kg/j, MMVD 0,8 : créatinine J12 ; K & $+29$\,\% ; $-0{,}31$ & $+22$\,\% ; retour à la base (lu) & validation & \ok\ ; \ecart\\
+Lantis 2011 : créatinine J10 & $+37$\,\% & non mesurée ; phosphorémie revenue à la base à J10 (lu) & validation qualitative & \ecart\ probable\\
 Wong 1977, 1 mg/kg/j IV, 7 j : $\Delta$K & $+0{,}07$ & $-0{,}39$ (accès moteur) & validation & \ecart\\
 \bottomrule
 \end{tabularx}
@@ -627,6 +627,20 @@ Six cibles ont été ajoutées au calage conjoint : aldostérone, $\Delta$K et p
 
 \textbf{Reste} : l'aldostérone de J10 décline dans le modèle ($\times 1{,}99$) alors qu'elle se maintient chez les chiens ($\times 2{,}57$, mais avec un ET de 0,63 µg/g). Le modèle n'a pas de mécanisme qui entretienne l'activation au-delà de la déplétion et de l'exposition, par exemple une hyperplasie de la zone glomérulée.
 
+\subsection{Koh 2021 en texte intégral (1.3.3)}
+Le texte intégral (PMC8420016, lu) donne les débits horaires (tableaux 4 à 6). Les valeurs sont des moyennes sur l'intervalle qui se termine à l'instant indiqué (1, 2, 4, 6, 8 h). La natriurèse sur 8 h se calcule donc en sommant débit $\times$ durée : IV 30,1 mmol, soit 2,62 mmol/kg ; per os 40,9 mmol, soit 3,55 mmol/kg. Les cibles précédentes (3,06 et $\approx$ 4,56), obtenues par la méthode des trapèzes, étaient surestimées. Autres données : pharmacocinétique (biodisponibilité orale 55\,\%, cohérente avec le module ; pic plasmatique à 1 h) ; K 4,48 $\to$ 3,97 (2 h) $\to$ 4,15 (8 h) en IV, 4,51 $\to$ 3,97 $\to$ 4,05 per os.
+
+Les chiens étaient à jeun depuis 12 h. Leur kaliurèse de base (0,027 mmol/kg/h) vaut le tiers de celle du modèle, calée sur des chiens nourris (Troìa 2018). Dans le modèle, l'augmentation de kaliurèse est proportionnelle à la sécrétion de base. La cible est donc le rapport de la kaliurèse sur 8 h à la base ($\times 2{,}27$ en IV ; la base orale, 0,92 $\pm$ 1,12 mmol/h, est trop dispersée pour servir). Une première version comparait la kaliurèse nette en valeur absolue et concluait à tort à une kaliurèse deux fois trop forte.
+
+Huit cibles ont été ajoutées : diurèse et natriurèse de la 1re heure IV et des 2 premières heures per os, natriurèse per os, kaliurèse IV rapportée à la base, $\Delta$K à 2 h per os. La constante $a_K$ a été libérée. L'erreur pondérée sur les 31 cibles est de 18,3.
+
+\textbf{Arbitrages.}
+\begin{itemize}
+\item $a_K$ = 0,49 s'écarte de Young 1983 (0,7, résumé). Avec 0,7 imposé et une cible faible sur la créatinine de Lantis, le freinage part en butée sur ses trois bornes et l'aldostérone de Lantis retombe à $\times 1{,}98$ (erreur 24,2). Les données lues (Lantis, Koh) ont été privilégiées.
+\item Créatinine chronique : $+37$\,\% chez Lantis à J10, alors que la phosphorémie, marqueur du DFG selon les auteurs, revient à la base à J10, et qu'Hori 2007 ne montre pas de variation cliniquement pertinente (cité par Lantis ; texte non accessible depuis la session). La hausse chronique de la créatinine est probablement surestimée chez le chien sain. Giorgi (MMVD) donne $+29$\,\% contre $+22$\,\%.
+\item La réponse IV reste trop concentrée dans la 1re heure (natriurèse $+29$\,\%). La forme du profil vient surtout de la pharmacodynamie du module furosémide.
+\end{itemize}
+
 \subsection{MRC : apports fixes, néphron adapté (remarque de l'utilisateur)}
 L'utilisateur a relevé qu'en MRC l'urine n'a pas la natrémie du plasma, que la fuite sodée est faible et que le potassium pose problème. La première version faisait une erreur plus profonde. Elle fixait les apports de Na et de K à l'excrétion du patient avec les FE du chien sain, si bien que l'apport « alimentaire » suivait le DFG (10\,\% de la normale au stade 4).
 
@@ -689,7 +703,7 @@ Placeholders (evidence D) :
 Tests :
 \begin{itemize}
 \item \vp{renal_matches_literature} : Koh IV, Koh per os, Adin (créatinine à 5 h et à 24 h) ;
-\item \vp{renal_chronic_furosemide_pelligand} : natriurèse J1 et J3, diurèse J9 ; Koh IV : natriurèse 8 h ;
+\item \vp{renal_chronic_furosemide_pelligand} : natriurèse J1 et J3, diurèse J9 ; Koh IV : diurèse de la 1re heure, natriurèse 8 h ;
 \item contrôles d'échec : sans autorégulation, la créatinine d'Adin sort de la fourchette ; sans rétrocontrôle du DFG ($g_\mathrm{DFG}$ = 0), elle ne monte pas ; sans tampon intracellulaire, le $\Delta$K à 2 h sort ; sans composante kaliémique de l'aldostérone, le $\Delta$K à 8 h sort ; sans rénine de la macula densa, la natriurèse de J1 sort ; avec une action natriférique instantanée, la natriurèse de Koh sort ; sans eau libre, la diurèse de J9 sort ;
 \item \vp{renal_course_round_trip} (API).
 \end{itemize}
