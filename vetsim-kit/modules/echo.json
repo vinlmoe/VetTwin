@@ -1,0 +1,92 @@
+{
+ "schema_version": "1.0.0",
+ "id": "echo",
+ "version": "0.1.0",
+ "description": "Échocardiographie virtuelle (prototype E0–E1) : géométrie des cavités tirée des volumes simulés (VG, VD, OG, OD), épaississement pariétal par conservation du volume myocardique, oreillettes en observateurs (sans rétroaction sur l'hémodynamique), dimensions allométriques de référence, scène schématique et propriétés acoustiques pour le rendu. Usage pédagogique uniquement.",
+ "lv": {
+  "shape": "obus (cylindre de hauteur L/2 surmonté d'une demi-ellipsoïde de hauteur L/2) : V = 5π/24 · D² · L ; L = L_ref · (V/V_ref)^long_exponent",
+  "vref_ml_per_kg": 3.42,
+  "shape_ratio_ref": 1.85,
+  "long_exponent": 0.15,
+  "source": "vref : VTD du chien sain simulé (68,4 mL à 20 kg, 137 mL à 40 kg ; volumes du modèle proportionnels au poids). shape_ratio_ref (L/D télédiastolique, indice de sphéricité) et long_exponent (part longitudinale du raccourcissement, ~13 % de raccourcissement du grand axe pour une FE de 55 %) : placeholders à sourcer.",
+  "evidence": "D",
+  "calibre_sur": "vref calé sur le modèle ; forme non calée"
+ },
+ "wall": {
+  "ivsd": [0.41, 0.241],
+  "lvwd": [0.42, 0.232],
+  "source": "Cornell CC et al. 2004, J Vet Intern Med 18:311-321 (allométrie du mode TM, Y = a·BW^b, cm, kg ; 494 chiens sains) : IVSd et LVWd moyens. Épaisseur au volume de référence ; ensuite volume myocardique constant (myocarde incompressible), donc l'épaississement systolique est calculé.",
+  "evidence": "B",
+  "calibre_sur": "coefficients publiés, confirmés sur des sources secondaires en texte intégral (BMC Vet Res 2022, PMC9297600, tableau 6 ; Esser et al. 2020, PMC7694859)"
+ },
+ "aorta": {
+  "ao": [0.795, 0.3333333333333333],
+  "source": "Brown DJ et al. 2003, J Vet Intern Med 17:653-662 (doi 10.1111/j.1939-1676.2003.tb02496.x) : aorte attendue Ao = 0,795·BW^(1/3) (cm), repris dans l'étude Golden retriever, J Vet Med Sci 2025 (PMC11964857). L'exposant de Cornell 2004 pour Ao n'a pas été lu. Diamètre constant au cours du cycle dans ce prototype.",
+  "evidence": "B",
+  "calibre_sur": "coefficient publié (source secondaire lue)"
+ },
+ "normalization": {
+  "lvidd_exp": 0.294,
+  "source": "LVIDdN = LVIDd / BW^0,294 (Cornell 2004 ; critère du stade B2 ACVIM, Keene et al. 2019, J Vet Intern Med 33:1127-1140).",
+  "evidence": "B",
+  "calibre_sur": "exposant publié"
+ },
+ "la": {
+  "model": "observateur : l'OG et les veines pulmonaires forment un seul compartiment du modèle, à la même pression passive P = (V_pv − v0_pv)/c_pv ; la part de l'OG est V_OG = s·v0 + s·c·P (s = BW/20). La contraction atriale du modèle multiplie la pression totale, la vidange atriale vient donc des débits mitraux simulés.",
+  "v0_ml_20kg": 2.1,
+  "c_ml_per_mmhg_20kg": 2.4,
+  "axes": [0.93, 1.0, 1.15],
+  "source": "v0 calé pour que le volume maximal de l'OG du chien sain simulé (fin de systole ventriculaire) vaille 0,95 mL/kg, entre Wesselowski et al. 2014 (J Vet Intern Med 28:1527-1533, aire-longueur biplan, moyenne 0,88 mL/kg, n = 22) et Visser et al. 2019 (J Vet Intern Med, PMC6766555, Simpson monoplan, médiane 1,09 mL/kg, IR 95 % 0,68–1,62, n = 122). c (compliance propre de l'OG) : placeholder, aucun volume minimal publié lu. axes : proportions calées pour que OG/Ao en petit axe à la fermeture aortique vaille 1,35 chez le chien sain (Rishniw et Erb 2000, J Vet Intern Med 14:429-435 : médiane 1,31, maximum 1,59, n = 36, rapportés par Visser 2019).",
+  "evidence": "C",
+  "calibre_sur": "OG max 0,95 mL/kg et OG/Ao 1,35 chez le chien sain simulé de 5, 20 et 40 kg (test echo_matches_published_healthy_targets)"
+ },
+ "ra": {
+  "model": "observateur symétrique de l'OG sur le compartiment veineux systémique : P = (V_sv − v0_sv)/(c_sv·ven_cap) ; V_OD = s·v0 + s·c·P.",
+  "v0_ml_20kg": 6.0,
+  "c_ml_per_mmhg_20kg": 3.0,
+  "axes": [1.0, 0.8, 0.95],
+  "source": "Placeholders.",
+  "evidence": "D",
+  "calibre_sur": "non calé"
+ },
+ "rv": {
+  "model": "croissant autour de l'épicarde du VG : secteur angulaire de demi-ouverture coverage_deg, sur une fraction length_fraction de la longueur du VG ; épaisseur du croissant calculée pour contenir le volume du VD simulé.",
+  "coverage_deg": 95.0,
+  "length_fraction": 0.8,
+  "wall_ratio": 0.45,
+  "source": "Placeholders (forme schématique du VD).",
+  "evidence": "D",
+  "calibre_sur": "non calé"
+ },
+ "valves": {
+  "mitral_annulus_ratio": 0.78,
+  "leaflet_ratio": 0.42,
+  "open_ref_fraction": 0.25,
+  "source": "Diamètre de l'anneau mitral et longueur des feuillets rapportés au diamètre de référence du VG : placeholders. Ouverture des valves = min(1, débit antérograde / (open_ref_fraction × débit antérograde maximal)) : la valve suit le débit du modèle (fermeture partielle en diastasis, fermeture en systole).",
+  "evidence": "D",
+  "calibre_sur": "non calé"
+ },
+ "render": {
+  "source": "Scène schématique et constantes acoustiques du rendu. Atténuations : ordres de grandeur des manuels de physique de l'échographie (sang ~0,2, tissus mous ~0,5–1 dB/cm/MHz, os et poumon très atténuants) ; rétrodiffusion relative et disposition anatomique : placeholders, à remplacer par une anatomie segmentée sur scanner.",
+  "evidence": "D",
+  "calibre_sur": "non calé",
+  "thorax": { "depth_cm_per_kg13": 9.2, "width_cm_per_kg13": 6.8, "wall_cm_per_kg13": 0.55, "rib_spacing_cm_per_kg13": 0.95, "rib_width_cm_per_kg13": 0.42, "n_ribs": 9 },
+  "heart": {
+   "center_frac": [-0.1, -0.33, 0.05],
+   "long_axis_tilt_deg": 42.0,
+   "long_axis_yaw_deg": 18.0,
+   "septum_roll_deg": 28.0,
+   "lung_notch_y_frac": -0.05
+  },
+  "tissues": {
+   "blood":  { "alpha_db_cm_mhz": 0.18, "backscatter": 0.00004, "z": 1.61 },
+   "myo":    { "alpha_db_cm_mhz": 0.52, "backscatter": 0.30,  "z": 1.70 },
+   "wall":   { "alpha_db_cm_mhz": 0.80, "backscatter": 0.25,  "z": 1.65 },
+   "fat":    { "alpha_db_cm_mhz": 0.60, "backscatter": 0.07,  "z": 1.38 },
+   "peri":   { "alpha_db_cm_mhz": 0.80, "backscatter": 1.00,  "z": 1.75 },
+   "valve":  { "alpha_db_cm_mhz": 0.80, "backscatter": 0.90,  "z": 1.75 },
+   "bone":   { "alpha_db_cm_mhz": 15.0, "backscatter": 1.00,  "z": 7.80 },
+   "lung":   { "alpha_db_cm_mhz": 40.0, "backscatter": 0.30,  "z": 0.40 }
+  }
+ }
+}

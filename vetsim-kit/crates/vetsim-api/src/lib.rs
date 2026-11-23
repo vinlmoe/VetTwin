@@ -116,6 +116,7 @@ pub struct Engine {
     anesthesia: Option<anesthesia::AnesthesiaCatalog>,
     anesthesia_sessions: BTreeMap<String, vetsim_core::anesthesia::Session>,
     renal: Option<vetsim_core::renal::RenalModel>,
+    echo: Option<vetsim_core::echo::EchoConfig>,
 }
 
 fn load_issues(prefix: &str, e: LoadError) -> Vec<(String, String)> {
@@ -229,10 +230,22 @@ impl Engine {
                 }
             },
         };
+        // Échocardiographie virtuelle (optionnelle).
+        let echo = match m.get("echo") {
+            None | Some(Json::Null) => None,
+            Some(a) => match vetsim_core::echo::EchoConfig::from_json(&a.to_string(), "echo") {
+                Ok(c) => Some(c),
+                Err(e) => {
+                    errors.extend(load_issues("/echo", e));
+                    None
+                }
+            },
+        };
         if !errors.is_empty() {
             return Err(ApiError(errors));
         }
         self.renal = renal;
+        self.echo = echo;
         self.auscultation = auscultation;
         self.variation = variation;
         self.anesthesia = anesthesia;
@@ -243,7 +256,8 @@ impl Engine {
                              "auscultation": self.auscultation.is_some(),
                              "variation": self.variation.is_some(),
                              "anesthesia": self.anesthesia.is_some(),
-                             "renal": self.renal.is_some() });
+                             "renal": self.renal.is_some(),
+                             "echo": self.echo.is_some() });
         self.catalog = Some(catalog);
         self.patients.clear();
         Ok(json!({ "ok": true, "loaded": counts }))
@@ -1204,6 +1218,76 @@ impl Engine {
         })
     }
 
+    /// Échocardiographie virtuelle : sorties du cœur animé (`heart`) et géométrie des cavités
+    /// tirée des volumes simulés (VG obus à volume myocardique constant, OG et OD en
+    /// observateurs, VD en croissant), ouvertures valvulaires suivant les débits, mesures
+    /// « vraies » sur coupe parfaite et scène schématique du rendu (`modules/echo.json`).
+    pub fn echo(&mut self, patient_id: &str, options: &str) -> String {
+        let heart = self.heart(patient_id, options);
+        self.respond(|e| {
+            use vetsim_core::echo::{echo_series, echo_truth, EchoInputs};
+            let cfg = e
+                .echo
+                .clone()
+                .ok_or_else(|| ApiError::one("/echo", "module echo non chargé"))?;
+            let mut h: Json = serde_json::from_str(&heart)
+                .map_err(|_| ApiError::one("", "réponse heart illisible"))?;
+            if h["ok"] != true {
+                return Ok(h);
+            }
+            let o = parse(options, "options")?;
+            let m = obj(&o, "")?.clone();
+            let sess = e.session(patient_id)?.clone();
+            let p = e.drugged_params(&sess, &m)?;
+            let arr = |k: &str| -> Vec<f64> {
+                h["series"][k]
+                    .as_array()
+                    .map(|a| a.iter().filter_map(Json::as_f64).collect())
+                    .unwrap_or_default()
+            };
+            let (v_lv, v_rv, v_pv, v_sv) = (arr("v_lv"), arr("v_rv"), arr("v_la"), arr("v_ra"));
+            let (q_mi, q_ao, q_tr, q_pu) = (arr("q_mi"), arr("q_ao"), arr("q_tr"), arr("q_pu"));
+            let inp = EchoInputs {
+                v_lv: &v_lv, v_rv: &v_rv, v_pv: &v_pv, v_sv: &v_sv,
+                q_mi: &q_mi, q_ao: &q_ao, q_tr: &q_tr, q_pu: &q_pu,
+            };
+            let (st, s) = echo_series(&cfg, &p, &inp);
+            let fs = h["fs"].as_f64().unwrap_or(100.0);
+            let beats: Vec<f64> = h["mechanics"]["beats"]
+                .as_array()
+                .map(|a| a.iter().filter_map(|b| b["t"].as_f64()).collect())
+                .unwrap_or_default();
+            let tr = echo_truth(&st, &s, &v_lv, &q_ao, &beats, 1.0 / fs, vetsim_core::math::pow(p.bw, cfg.lvidd_exp));
+            let f32s = |v: &[f64]| v.iter().map(|x| *x as f32 as f64).collect::<Vec<_>>();
+            let col = |i: usize, v: &[[f64; 3]]| v.iter().map(|a| a[i] as f32 as f64).collect::<Vec<_>>();
+            h["echo"] = json!({
+                "bw": p.bw,
+                "static": { "ao_d": st.ao_d, "mitral_annulus_d": st.mitral_annulus_d,
+                            "leaflet_l": st.leaflet_l, "rv_wall": st.rv_wall,
+                            "lv_ref": { "v": st.lv.v_ref, "d": st.lv.d_ref, "l": st.lv.l_ref,
+                                        "w": st.lv.w_ref, "v_myo": st.lv.v_myo } },
+                "series": {
+                    "lv_d": f32s(&s.lv_d), "lv_l": f32s(&s.lv_l), "lv_w": f32s(&s.lv_w),
+                    "rv_t": f32s(&s.rv_t),
+                    "la_v": f32s(&s.la_v), "la_ax": [col(0, &s.la_axes), col(1, &s.la_axes), col(2, &s.la_axes)],
+                    "ra_v": f32s(&s.ra_v), "ra_ax": [col(0, &s.ra_axes), col(1, &s.ra_axes), col(2, &s.ra_axes)],
+                    "mi_open": f32s(&s.mi_open), "ao_open": f32s(&s.ao_open),
+                    "tr_open": f32s(&s.tr_open), "pu_open": f32s(&s.pu_open),
+                },
+                "truth": {
+                    "n_beats": tr.n_beats, "lvidd": tr.lvidd, "lvids": tr.lvids, "fs": tr.fs,
+                    "ef": tr.ef, "wall_d": tr.wall_d, "wall_s": tr.wall_s, "lvidd_n": tr.lvidd_n,
+                    "ao": tr.ao, "la_d": tr.la_d, "la_ao": tr.la_ao, "la_max": tr.la_max,
+                    "la_min": tr.la_min, "lv_mass_g": tr.lv_mass_g, "instants": tr.instants,
+                },
+                "geometry": cfg.geometry_json(),
+                "render": cfg.render,
+                "note": "géométrie tirée des volumes du modèle ; OG et OD observées (sans rétroaction) ; scène et acoustique schématiques (evidence D) ; usage pédagogique uniquement",
+            });
+            Ok(h)
+        })
+    }
+
     /// Message JSON générique `{"op": ..., "patient": ..., "options": {...}}` : `pcg`, `state`,
     /// `signals`, `timecourse`, `add_disease`, `new_patient`, `list_modules`, `api_version`.
     pub fn message(&mut self, text: &str) -> String {
@@ -1224,6 +1308,7 @@ impl Engine {
         match op {
             "pcg" => self.pcg(&pid, &opts),
             "heart" => self.heart(&pid, &opts),
+            "echo" => self.echo(&pid, &opts),
             "state" => self.state(&pid, &opts),
             "signals" => self.signals(&pid, &opts),
             "timecourse" => self.timecourse(&pid, &opts),
@@ -1709,8 +1794,85 @@ mod tests {
         .map(|d| read(&format!("drugs/{d}.json")))
         .collect();
         json!({ "patient": read("healthy_dog.json"), "diseases": ds, "drugs": dr,
-                "auscultation": read("auscultation.json"), "variation": read("variation.json") })
+                "auscultation": read("auscultation.json"), "variation": read("variation.json"),
+                "echo": read("echo.json") })
         .to_string()
+    }
+
+    fn echo_truth_of(e: &mut Engine, bw: f64, dis: &str, sev: f64) -> Json {
+        let id = j(&e.new_patient(&json!({"bw": bw, "variability": false}).to_string()))
+            ["patient_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        if !dis.is_empty() {
+            e.add_disease(&id, &json!({"id": dis, "severity": sev}).to_string());
+        }
+        let r = j(&e.echo(&id, r#"{"duration_s": 6, "fs": 200, "seed": 3}"#));
+        assert_eq!(r["ok"], true, "{r}");
+        let t = r["echo"]["truth"].clone();
+        println!("{bw} kg {dis}:{sev} → {t}");
+        t
+    }
+
+    /// Échocardiographie, chien sain de 5, 20 et 40 kg : LVIDd dans l'intervalle de prédiction
+    /// de Cornell 2004 (1,27–1,85 × BW^0,294), FR de 25 à 45 %, OG/Ao < 1,6 (Rishniw et Erb
+    /// 2000), volume maximal de l'OG dans l'IR 95 % de Visser 2019 (0,68–1,62 mL/kg) ;
+    /// épaississement systolique de la paroi (volume myocardique conservé).
+    #[test]
+    fn echo_matches_published_healthy_targets() {
+        let mut e = Engine::new();
+        assert_eq!(j(&e.load_modules(&bundle()))["loaded"]["echo"], true);
+        for bw in [5.0, 20.0, 40.0] {
+            let t = echo_truth_of(&mut e, bw, "", 0.0);
+            let f = |k: &str| t[k].as_f64().unwrap();
+            assert!(t["n_beats"].as_u64().unwrap() >= 3);
+            let lo = 1.27 * vetsim_core::math::pow(bw, 0.294);
+            let hi = 1.85 * vetsim_core::math::pow(bw, 0.294);
+            assert!(
+                (lo..hi).contains(&f("lvidd")),
+                "{bw} kg : LVIDd {}",
+                f("lvidd")
+            );
+            assert!((0.25..0.45).contains(&f("fs")), "{bw} kg : FR {}", f("fs"));
+            assert!(f("la_ao") < 1.6, "{bw} kg : OG/Ao {}", f("la_ao"));
+            let la_kg = f("la_max") / bw;
+            assert!(
+                (0.68..1.62).contains(&la_kg),
+                "{bw} kg : OG max {la_kg} mL/kg"
+            );
+            assert!(f("la_min") < f("la_max"));
+            assert!(f("wall_s") > 1.2 * f("wall_d"));
+            assert!(f("lvidd_n") < 1.7, "{bw} kg : LVIDdN {}", f("lvidd_n"));
+        }
+    }
+
+    /// MMVD : l'OG et le VG se dilatent avec la sévérité (OG observée sur la pression du
+    /// modèle) ; à s = 0,9 les deux critères échographiques du stade B2 (Keene 2019 :
+    /// OG/Ao ≥ 1,6 et LVIDdN ≥ 1,7) sont atteints. FA : plus de vidange active de l'OG.
+    #[test]
+    fn echo_follows_disease_mechanics() {
+        let mut e = Engine::new();
+        e.load_modules(&bundle());
+        let h = echo_truth_of(&mut e, 20.0, "", 0.0);
+        let mut prev = h["la_ao"].as_f64().unwrap();
+        for sev in [0.3, 0.6, 0.9] {
+            let t = echo_truth_of(&mut e, 20.0, "mmvd", sev);
+            let la_ao = t["la_ao"].as_f64().unwrap();
+            assert!(la_ao > prev, "OG/Ao croissant avec la sévérité");
+            prev = la_ao;
+            if sev == 0.9 {
+                assert!(la_ao >= 1.6 && t["lvidd_n"].as_f64().unwrap() >= 1.7, "{t}");
+            }
+        }
+        let af = echo_truth_of(&mut e, 20.0, "atrial_fibrillation", 0.8);
+        let frac = |t: &Json| 1.0 - t["la_min"].as_f64().unwrap() / t["la_max"].as_f64().unwrap();
+        assert!(
+            frac(&af) < 0.7 * frac(&h),
+            "fraction de vidange de l'OG en FA {} vs {}",
+            frac(&af),
+            frac(&h)
+        );
     }
 
     /// Monte-Carlo : un même chien MMVD C sous traitement, 20 trajectoires ; les bandes ne sont

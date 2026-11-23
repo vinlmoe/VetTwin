@@ -1,0 +1,412 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "echo.schema.json",
+  "title": "Échocardiographie virtuelle : géométrie des cavités tirée des volumes simulés",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "id",
+    "version",
+    "lv",
+    "wall",
+    "aorta",
+    "normalization",
+    "la",
+    "ra",
+    "rv",
+    "valves",
+    "render"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "id": {
+      "const": "echo"
+    },
+    "version": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "lv": {
+      "type": "object",
+      "required": [
+        "source",
+        "evidence",
+        "calibre_sur",
+        "vref_ml_per_kg",
+        "shape_ratio_ref",
+        "long_exponent"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "evidence": {
+          "enum": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ]
+        },
+        "calibre_sur": {
+          "type": "string"
+        },
+        "shape": {
+          "type": "string"
+        },
+        "vref_ml_per_kg": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "shape_ratio_ref": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "long_exponent": {
+          "type": "number",
+          "minimum": 0,
+          "exclusiveMaximum": 0.3333334
+        }
+      }
+    },
+    "wall": {
+      "type": "object",
+      "required": [
+        "source",
+        "evidence",
+        "calibre_sur",
+        "ivsd",
+        "lvwd"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "evidence": {
+          "enum": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ]
+        },
+        "calibre_sur": {
+          "type": "string"
+        },
+        "ivsd": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "lvwd": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        }
+      }
+    },
+    "aorta": {
+      "type": "object",
+      "required": [
+        "source",
+        "evidence",
+        "calibre_sur",
+        "ao"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "evidence": {
+          "enum": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ]
+        },
+        "calibre_sur": {
+          "type": "string"
+        },
+        "ao": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        }
+      }
+    },
+    "normalization": {
+      "type": "object",
+      "required": [
+        "source",
+        "evidence",
+        "calibre_sur",
+        "lvidd_exp"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "evidence": {
+          "enum": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ]
+        },
+        "calibre_sur": {
+          "type": "string"
+        },
+        "lvidd_exp": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "la": {
+      "type": "object",
+      "required": [
+        "source",
+        "evidence",
+        "calibre_sur",
+        "v0_ml_20kg",
+        "c_ml_per_mmhg_20kg",
+        "axes"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "evidence": {
+          "enum": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ]
+        },
+        "calibre_sur": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "v0_ml_20kg": {
+          "type": "number"
+        },
+        "c_ml_per_mmhg_20kg": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "axes": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "minItems": 3,
+          "maxItems": 3
+        }
+      }
+    },
+    "ra": {
+      "type": "object",
+      "required": [
+        "source",
+        "evidence",
+        "calibre_sur",
+        "v0_ml_20kg",
+        "c_ml_per_mmhg_20kg",
+        "axes"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "evidence": {
+          "enum": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ]
+        },
+        "calibre_sur": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "v0_ml_20kg": {
+          "type": "number"
+        },
+        "c_ml_per_mmhg_20kg": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "axes": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "minItems": 3,
+          "maxItems": 3
+        }
+      }
+    },
+    "rv": {
+      "type": "object",
+      "required": [
+        "source",
+        "evidence",
+        "calibre_sur",
+        "coverage_deg",
+        "length_fraction",
+        "wall_ratio"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "evidence": {
+          "enum": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ]
+        },
+        "calibre_sur": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "coverage_deg": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "length_fraction": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "wall_ratio": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "valves": {
+      "type": "object",
+      "required": [
+        "source",
+        "evidence",
+        "calibre_sur",
+        "mitral_annulus_ratio",
+        "leaflet_ratio",
+        "open_ref_fraction"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "evidence": {
+          "enum": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ]
+        },
+        "calibre_sur": {
+          "type": "string"
+        },
+        "mitral_annulus_ratio": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "leaflet_ratio": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "open_ref_fraction": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "render": {
+      "type": "object",
+      "required": [
+        "source",
+        "evidence",
+        "calibre_sur",
+        "thorax",
+        "heart",
+        "tissues"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "evidence": {
+          "enum": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ]
+        },
+        "calibre_sur": {
+          "type": "string"
+        },
+        "thorax": {
+          "type": "object"
+        },
+        "heart": {
+          "type": "object"
+        },
+        "tissues": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "alpha_db_cm_mhz",
+              "backscatter",
+              "z"
+            ],
+            "properties": {
+              "alpha_db_cm_mhz": {
+                "type": "number",
+                "minimum": 0
+              },
+              "backscatter": {
+                "type": "number",
+                "minimum": 0
+              },
+              "z": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,128 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage[margin=1.9cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs,tabularx}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{siunitx}
+\usepackage{newunicodechar}
+\newunicodechar{−}{-}
+\newunicodechar{≈}{~}
+\sisetup{locale=FR,detect-all}
+\setlength{\parskip}{0.4em}
+\setlength{\parindent}{0pt}
+\newcommand{\vp}[1]{\texttt{\detokenize{#1}}}
+
+\title{Échocardiographie virtuelle : prototype E0--E1\\\large géométrie tirée du modèle, oreillette gauche observée, image formée par une physique simplifiée}
+\date{23 novembre 2026}
+\begin{document}
+\maketitle
+
+\emph{Usage pédagogique uniquement : aucune mesure de ce simulateur ne sert à une décision clinique.}
+
+\section{Principe}
+L'image n'est pas dessinée. Le moteur Rust (\vp{vetsim-core/src/echo.rs}, API \vp{echo}) transforme les
+séries du modèle hémodynamique (volumes, débits valvulaires) en géométrie des cavités ; le navigateur
+(\vp{web/echo.js}) place ces formes dans un thorax schématique et forme l'image par une physique
+ultrasonore simplifiée. Les constantes et leur provenance sont dans \vp{modules/echo.json}
+(schéma \vp{schema/echo.schema.json}).
+
+\section{Géométrie tirée des volumes}
+\paragraph{Ventricule gauche.} Cavité en obus (cylindre de hauteur $L/2$ et demi-ellipsoïde de hauteur $L/2$) :
+\[
+V_{VG}=\frac{5\pi}{24}\,D^2L,\qquad L=L_{\mathrm{ref}}\Bigl(\frac{V_{VG}}{V_{\mathrm{ref}}}\Bigr)^{\lambda},
+\qquad V_{\mathrm{ref}}=\SI{3,42}{mL/kg}\times BW,\quad \frac{L_{\mathrm{ref}}}{D_{\mathrm{ref}}}=1{,}85,\quad \lambda=0{,}15.
+\]
+Avec $\lambda<1/3$, un VG dilaté devient plus sphérique. La paroi d'épaisseur $w$ vérifie
+\[
+\frac{5\pi}{24}(D+2w)^2(L+w)-V_{VG}=V_{\mathrm{myo}}=\text{constante},
+\]
+le volume myocardique étant fixé au volume de référence par l'épaisseur télédiastolique de Cornell et al.\ (2004),
+$\tfrac12(0{,}41\,BW^{0{,}241}+0{,}42\,BW^{0{,}232})$~cm. L'épaississement systolique est donc calculé (myocarde incompressible), pas imposé.
+
+\paragraph{Oreillettes : observateurs.} Le modèle confond l'OG et les veines pulmonaires dans un seul compartiment de
+pression passive $P=(V_{pv}-v_{0,pv})/c_{pv}$. La part de l'OG est
+\[
+V_{OG}(t)=s\,\bigl(v_{0,OG}+c_{OG}\,P(t)\bigr),\qquad s=BW/20 .
+\]
+Aucune rétroaction : hémodynamique, golden et calibration inchangés. La contraction atriale du modèle multiplie la
+pression totale ; la vidange atriale vient donc des débits mitraux simulés. L'OD suit la même construction sur le
+compartiment veineux systémique. L'OG est une ellipsoïde ; son diamètre transverse à la première image après la
+fermeture aortique (débit aortique redevenu nul) donne l'OG de l'indice OG/Ao.
+
+\paragraph{Ventricule droit.} Croissant autour de l'épicarde du VG (secteur de demi-ouverture \ang{95}, 80~\% de la
+longueur), d'épaisseur calculée par quadrature pour contenir $V_{VD}$.
+
+\paragraph{Valves.} Ouverture $=\min\bigl(1,\,Q/(0{,}25\,Q_{\max})\bigr)$ : la valve suit le débit antérograde du modèle
+(fermeture partielle en diastasis). Feuillets en entonnoir articulés sur l'anneau.
+
+\section{Calage et validation}
+\begin{tabularx}{\linewidth}{@{}lXl@{}}
+\toprule
+Grandeur & Source & Évidence\\\midrule
+IVSd, LVWd & Cornell et al.\ 2004, J Vet Intern Med 18:311--321 (confirmés sur sources secondaires en texte intégral) & B\\
+Ao & Brown et al.\ 2003, J Vet Intern Med 17:653--662 : $0{,}795\,BW^{1/3}$ & B\\
+$v_{0,OG}$ & OG max du chien sain \SI{0,95}{mL/kg} : entre Wesselowski et al.\ 2014 (\SI{0,88}{mL/kg}) et Visser et al.\ 2019 (médiane \SI{1,09}{mL/kg}) & C\\
+axes de l'OG & OG/Ao $=1{,}35$ chez le sain (Rishniw et Erb 2000 : médiane 1,31, max 1,59) & C\\
+$c_{OG}$, forme du VG, VD, valves, scène, acoustique & placeholders & D\\
+\bottomrule
+\end{tabularx}
+
+Tests (\vp{cargo test -p vetsim-api echo_}) :
+\begin{itemize}
+\item chien sain de 5, 20 et \SI{40}{kg} : LVIDd dans l'intervalle de prédiction de Cornell ($1{,}27$--$1{,}85\times BW^{0{,}294}$),
+FR de 25 à 45~\%, OG/Ao $<1{,}6$, OG max dans l'IR 95~\% de Visser 2019 ($0{,}68$--\SI{1,62}{mL/kg}), LVIDdN $<1{,}7$,
+paroi systolique $>1{,}2\times$ diastolique ;
+\item MMVD : OG/Ao croissant avec la sévérité ; à $s=0{,}9$ les deux critères échographiques du stade B2 (Keene et al.\ 2019 :
+OG/Ao $\ge 1{,}6$, LVIDdN $\ge 1{,}7$) sont atteints ;
+\item fibrillation atriale : fraction de vidange de l'OG réduite de plus de 30~\% (perte de la contraction atriale).
+\end{itemize}
+
+Valeurs obtenues (\SI{20}{kg}) : sain LVIDd \SI{3,83}{cm}, FR 29~\%, OG/Ao 1,35, OG \SIrange{9,2}{19,0}{mL} ;
+MMVD $s=0{,}7$ : LVIDdN 1,94, OG/Ao 1,67 ; $s=0{,}9$ : LVIDdN 2,22, OG/Ao 2,04.
+
+\paragraph{Limites.} Pas de remodelage chronique de l'OG ni d'hypertrophie excentrique (masse VG constante : la paroi
+s'amincit quand le VG se dilate) ; dilatation de l'OG seulement par la pression. VG global : pas de trouble régional.
+Disposition anatomique schématique ; pas de piliers ni de cordages ; pas encore de Doppler.
+
+\section{Formation de l'image}
+Sonde à balayage sectoriel (\ang{80}, 128 lignes, pas axial \SI{0,25}{mm}). Pour chaque échantillon : tissu au point
+(paroi thoracique, côte, poumon, graisse, péricarde, myocarde, sang, valve) ; diffuseur complexe gaussien tiré d'une
+maille de \SI{0,3}{mm} en \emph{coordonnées matérielles} (le speckle suit le myocarde) ; réflexion spéculaire
+$R=\bigl((Z_2-Z_1)/(Z_2+Z_1)\bigr)^2$ aux interfaces et transmission $1-R$ ; atténuation aller-retour $2\alpha f r$ ;
+réverbérations pleurales (lignes A) ; réponse impulsionnelle axiale (≈ une longueur d'onde) et latérale (largeur de
+faisceau $\lambda F/A$ au foyer, élargie hors foyer) ; compression logarithmique, gain, gamme dynamique, TGC. Le mode TM
+calcule une ligne à chaque colonne de temps. Environ \SI{30}{ms} par image dans un navigateur de bureau.
+
+\section{Sonde}
+Point de contact sur la paroi (hémithorax, hauteur, position crânio-caudale) et trois angles (angulation crânio-caudale,
+dorso-ventrale, rotation). Cinq coupes de référence (parasternale droite grand axe 4 cavités et chambre de chasse, petit
+axe piliers et base, apicale gauche 4 cavités) : un bouton d'aide cherche une fenêtre sans poumon ni côte, et la qualité
+de la coupe de l'étudiant (angle du plan, distance à la cible, raccourcissement apparent du VG) est affichée en continu.
+Option téléphone : l'orientation du faisceau suit le gyroscope (DeviceOrientation, page en HTTPS), relativement à une
+pose de calibration.
+
+\section{Anatomie segmentée sur scanner : état de la recherche}
+Ressources canines repérées (sites non joignables depuis l'environnement de développement : contenus et licences
+\emph{non vérifiés}) :
+\begin{itemize}
+\item atlas DT-IRM ex vivo de 8 cœurs canins normaux (Helm et al., Johns Hopkins, CardioVascular Research Grid,
+format MATLAB ; probablement ventricules seuls) --- piste la plus prometteuse ;
+\item modèles Sketchfab issus d'angioscanners canins (communication interatriale, canal artériel persistant) ;
+\item Mendeley Data (Fries et al.\ 2019, 6 chiens sains, angioscanner, IRM et échographie ; probablement des mesures) ;
+\item IMAIOS vet-Anatomy : propriétaire, inutilisable dans un logiciel redistribué.
+\end{itemize}
+Aucun jeu ouvert de segmentation cardiaque canine en scanner n'a été trouvé. Repli : segmentations humaines
+(MM-WHS) remises à l'échelle, ou segmentation d'un angioscanner canin du service d'imagerie de l'école.
+Pour vérifier ces pistes, autoriser dans le réseau de l'environnement : cvrgrid.org, sketchfab.com, zenodo.org,
+data.mendeley.com, morphosource.org, 3d.nih.gov, vhlab.umn.edu.
+
+\section{Suite}
+E2 : Doppler pulsé, continu et couleur ($v=Q/A$, jets par Bernoulli $v=\sqrt{\Delta P/4}$, angle, repliement) ;
+remplacement de la scène par un maillage segmenté déformé pour respecter les volumes du modèle ; sonde imprimée en 3D
+(centrale inertielle et suivi par marqueur).
+\end{document}

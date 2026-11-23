@@ -17,6 +17,7 @@ Prérequis : Rust avec la cible `wasm32-unknown-unknown` et `cargo install wasm-
   - Mécanique : contraction des quatre cavités (volumes) et parois épaissies selon l'activation mécanique ; les valves s'ouvrent ou fuient selon les débits du modèle.
   - Électrique : dépolarisation du myocarde pendant les ondes P, QRS et T de l'ECG, influx dans le tissu de conduction, et devenir de chaque influx au nœud AV.
   - Interface : ruban des phases du cœur gauche, tracés synchronisés, clavier (espace pour la lecture, ← → pour changer de battement).
+- `echo.js` : échocardiographie virtuelle (prototype, `docs/ECHO.tex`). Géométrie des cavités tirée des volumes du modèle (API `echo` : VG à volume myocardique constant, OG et OD observées, VD en croissant, valves suivant les débits) ; image formée par une physique simplifiée (speckle attaché aux tissus, interfaces, atténuation, ombres costales, lignes A, faisceau focalisé, TGC) ; mode TM, calipers comparés aux mesures du modèle, coupes de référence, sonde pilotable par le gyroscope d'un téléphone.
 - `charts.js` : tracés sur canvas (courbes, ECG, spectrogramme, curseur, zoom).
 - `selftest.html` : recalcule dans le navigateur les cas `eval` du golden et les compare au bit près au binaire natif.
 - Générés par `build.sh`, non versionnés : `pkg/` (moteur), `modules.json`, `selftest.json`.
@@ -26,7 +27,7 @@ Le workflow `.github/workflows/pages.yml` publie le site à chaque fusion dans `
 
 ## Cas partageables par l'adresse
 Les paramètres après `#` décrivent un cas, ce qui permet de distribuer un lien aux étudiants :
-`bw`, `disease`, `stage`, `tab` (`patient`, `respiration`, `model`, `auscultation`, `heart`, `treatment`), `conc=drogue:mg/L,...`, `plan=drogue:mg/kg:voie:intervalle_h:nb_prises[:début_h],...`, `days`, `t` (instant d'examen, h), `sim=1` (simulation immédiate), `window` (zoom de l'auscultation, s), `speed` (vitesse du cœur animé, ex. 0.25), `ht` (instant figé du cœur animé, s).
+`bw`, `disease`, `stage`, `tab` (`patient`, `respiration`, `model`, `auscultation`, `heart`, `echo`, `treatment`), `conc=drogue:mg/L,...`, `plan=drogue:mg/kg:voie:intervalle_h:nb_prises[:début_h],...`, `days`, `t` (instant d'examen, h), `sim=1` (simulation immédiate), `window` (zoom de l'auscultation, s), `speed` (vitesse du cœur animé, ex. 0.25), `ht` (instant figé du cœur animé, s).
 
 Exemple : `index.html#disease=mmvd&stage=C&tab=treatment&plan=furosemide:2:po:12:14,pimobendan:0.25:po:12:14&days=7&sim=1`
 
