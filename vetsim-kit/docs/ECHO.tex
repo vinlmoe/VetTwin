@@ -124,6 +124,60 @@ au-delà. L'interface péricarde--poumon produit une ligne pleurale brillante (d
 montre pas les couches de la paroi thoracique. La chambre de chasse et la coupe apicale (qualité 60~\%) restent
 médiocres, faute d'anatomie segmentée.
 
+\subsection*{Version 0.3 : mesure par tissu et réalisme}
+Les niveaux de gris sont désormais mesurés par tissu dans le moteur de rendu, grâce au masque des tissus
+(\vp{_internals.grayStats}), et comparés aux régions correspondantes de l'image réelle.
+
+\begin{tabularx}{\linewidth}{@{}Xcc@{}}
+\toprule
+Région (P10 / médiane / P90) & Réel & Simulé 0.3\\\midrule
+Myocarde & 56 / 158 / 205 & 113 / 157 / 200\\
+Paroi thoracique (champ proche) & 41 / 106 / 195 & 97 / 135 / 173\\
+Péricarde & saturé (≈ 250) & 154 / 214 / 248\\
+Au-delà du péricarde (poumon) & 86 / 128 / 244 & 18 / 81 / 181\\
+Sang & médiane ≈ 17 & médiane 0\\
+Grain du speckle (axial × latéral) & ≈ 1--1,5 × 2--2,6~mm & ≈ 1--1,5 × 2--3~mm\\
+\bottomrule
+\end{tabularx}
+
+Ajouts de la version 0.3 :
+\begin{itemize}
+\item \textbf{imagerie harmonique} par défaut : émission à $f$ et réception à $2f$ ; atténuation à $1{,}5f$ sur
+l'aller-retour ; signal harmonique faible en surface ; impulsion de deux cycles ;
+\item \textbf{lobes secondaires} (piédestal à $-28$~dB) et \textbf{halo de réverbérations pariétales} : voile des
+cavités près des structures brillantes ;
+\item \textbf{réduction de speckle} légère : moyenne locale $3\times3$ de l'intensité, à 30~\% ;
+\textbf{rémanence} : moyenne temporelle des images ;
+\item \textbf{anatomie} :
+  \begin{itemize}
+  \item trabéculations de l'endocarde, plus marquées vers l'apex ;
+  \item endocarde et épicarde plus échogènes ;
+  \item deux piliers et leurs cordages vers le bord libre des feuillets mitraux ;
+  \item feuillet antérieur plus long que le postérieur ; feuillets de \SI{1,3}{mm} ;
+  \item épicarde et oreillettes irréguliers ;
+  \end{itemize}
+\item \textbf{paroi thoracique en couches} : peau, tissu sous-cutané, muscles striés, fascias brillants ;
+\item \textbf{poumon} : ligne pleurale puis zone sous-pleurale texturée qui s'éteint sur \SIrange{1}{2}{cm} ;
+\item \textbf{scène} :
+  \begin{itemize}
+  \item thorax de 20~kg ramené à $\approx$ \SI{16}{cm} de large sur \SI{23}{cm} de haut ;
+  \item paroi de \SI{1,1}{cm} ;
+  \item cœur rapproché de la fenêtre droite ;
+  \item graisse épicardique ramenée à \SI{1,5}{mm} ;
+  \end{itemize}
+\item \textbf{aide aux coupes} : elle cadre aussi des repères anatomiques (apex, mitrale, OG).
+\end{itemize}
+
+Écarts restants :
+\begin{itemize}
+\item champ proche trop homogène ;
+\item poumon sous-pleural plus sombre que dans le réel ;
+\item OD absente de la coupe 4 cavités ;
+\item apex du VG hors du secteur à \SI{11,5}{cm} : il l'est aussi en partie dans l'image réelle.
+\end{itemize}
+Toutes ces constantes de rendu restent des placeholders (D) ajustés sur une seule image : à recaler sur une série
+d'enregistrements.
+
 \section{Formation de l'image}
 Sonde à balayage sectoriel (\ang{80}, 128 lignes, pas axial \SI{0,25}{mm}). Pour chaque échantillon : tissu au point
 (paroi thoracique, côte, poumon, graisse, péricarde, myocarde, sang, valve) ; diffuseur complexe gaussien tiré d'une

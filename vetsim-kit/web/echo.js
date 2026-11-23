@@ -45,6 +45,17 @@ function hash3(x, y, z) {
 }
 const SPK = new Float32Array(2);
 const CELL = 0.03; // cm : maille des diffuseurs (plus fine que la réponse impulsionnelle)
+// Bruit de valeur lisse (trilinéaire) dans [-1, 1] : irrégularités de forme (trabéculations).
+function vnoise(x, y, z) {
+  const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z), fx = x - ix, fy = y - iy, fz = z - iz;
+  const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy), sz = fz * fz * (3 - 2 * fz);
+  const v = (a, b, c) => hash3(ix + a, iy + b, iz + c) / 2147483648 - 1;
+  const l = (a, b, u) => a + (b - a) * u;
+  return l(l(l(v(0, 0, 0), v(1, 0, 0), sx), l(v(0, 1, 0), v(1, 1, 0), sx), sy),
+    l(l(v(0, 0, 1), v(1, 0, 1), sx), l(v(0, 1, 1), v(1, 1, 1), sx), sy), sz);
+}
+// Facteur local de rétrodiffusion posé par la classification (bords endocardiques, couches pariétales).
+let BST = 1;
 const TEX = 0.15; // cm : maille de la microstructure (densité locale des diffuseurs)
 // Modulation lognormale de la rétrodiffusion, attachée au tissu (aspect granuleux hétérogène).
 function texture(mx, my, mz) {
@@ -52,7 +63,7 @@ function texture(mx, my, mz) {
   const u1 = (h + 1) / 4294967297, u2 = (Math.imul(h ^ 0x27d4eb2d, 0x165667b1) >>> 0) / 4294967296;
   return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
 }
-const TEX_SD = [0, 1.1, 0.3, 0.3, 0.9, 0.6, 1.05, 0, 0.3]; // écart-type de ln(rétrodiffusion) par tissu
+const TEX_SD = [0, 1.1, 0.3, 0.3, 0.9, 0.6, 1.6, 0, 0.3]; // écart-type de ln(rétrodiffusion) par tissu
 function scatter(mx, my, mz) {
   const h1 = hash3(Math.floor(mx / CELL), Math.floor(my / CELL), Math.floor(mz / CELL));
   const h2 = Math.imul(h1 ^ 0x9e3779b9, 0x85ebca6b) >>> 0;
@@ -113,13 +124,27 @@ function frameGeometry(r, sc, t) {
     Tc: [epiD / 2 + rvt / 2, -0.05 * d], rt: Math.max(0.3, 0.55 * rvt + 0.3), at: Math.pow(at(S.tr_open), 0.7) * 70 * D2R,
     la, ra,
   };
+  { const ax = G.A[0] - G.M[0], ay = G.A[1] - G.M[1], an = Math.hypot(ax, ay) || 1; G.aoDir = [ax / an, ay / an]; }
+  G.pap = [-1, 1].map((sg) => {
+    const ph = Math.PI + sg * 0.45, z = 0.58 * l, rIn = bulletR(d, l, z);
+    const a = 0.16 * d, al = 0.2 * l;
+    const c = [Math.cos(ph) * (rIn - 0.6 * a), Math.sin(ph) * (rIn - 0.6 * a), z];
+    const tip = [c[0] * 0.92, c[1] * 0.92, z - al * 0.95];
+    // extrémités libres des feuillets (dans le plan du pilier)
+    const alM = Math.pow(at(S.mi_open), 0.7) * 75 * D2R;
+    const ch = [-0.35, 0, 0.35].map((dp) => {
+      const pp = ph + dp, rr = 0.5 * st.mitral_annulus_d * Math.pow(d / st.lv_ref.d, 0.3) - st.leaflet_l * Math.cos(alM) * 0.9;
+      return [-0.18 * d + Math.cos(pp) * rr, -0.12 * d + Math.sin(pp) * rr, st.leaflet_l * Math.sin(alM) * 0.9 + 0.05];
+    });
+    return { c, a, al, tip, ch };
+  });
   G.LAc = [G.M[0] - 0.12 * la[0], G.M[1] - 0.22 * la[1], -(la[2] / 2 - 0.25)];
   G.RAc = [epiD / 2 + rvt * 0.6 + 0.15 * ra[0], -0.25 * ra[1], -(ra[2] / 2 - 0.25)];
   // sac péricardique : ellipsoïde englobante
   const top = Math.min(-la[2] + 0.25, -ra[2] + 0.25, -G.aoLen * 0.6);
   const bot = epiL + 0.25;
   G.sac = { c: [0.25 * (rvt + G.rvw), 0, (top + bot) / 2], a: [epiD / 2 + rvt + G.rvw + 0.55, Math.max(epiD / 2, la[1] * 0.75) + 0.6, (bot - top) / 2 + 0.25] };
-  G.laW = 0.18; G.raW = 0.15; G.aoW = 0.16; G.vth = 0.07; G.periW = 0.2; G.envW = 0.5;
+  G.laW = 0.18; G.raW = 0.15; G.aoW = 0.16; G.vth = 0.09; G.vthM = 0.13; G.periW = 0.15; G.envW = 0.3;
   return G;
 }
 
@@ -128,6 +153,7 @@ const MAT = new Float64Array(3);
 function classify(sc, G, x, y, z, h1, h2, h3, t) {
   const qo = (x / sc.X) ** 2 + (y / sc.Y) ** 2;
   MAT[0] = x; MAT[1] = y; MAT[2] = z;
+  BST = 1;
   if (qo > 1) return T.AIR;
   const qi = (x / sc.Xi) ** 2 + (y / sc.Yi) ** 2;
   if (qi > 1) {
@@ -135,6 +161,15 @@ function classify(sc, G, x, y, z, h1, h2, h3, t) {
     if (qr <= 1) {
       for (const rz of sc.ribs) if (Math.abs(z - rz) < sc.ribW / 2) return T.BONE;
     }
+    // couches de la paroi (u = 0 à la peau, 1 au fascia endothoracique) : peau, tissu sous-cutané,
+    // muscles striés séparés par des fascias, graisse extrapleurale
+    const u = (1 - Math.sqrt(qo)) / (1 - Math.sqrt(sc.Xi / sc.X)) ;
+    const fas = (c, w) => Math.exp(-(((u - c) / w) ** 2));
+    if (u < 0.05) { BST = 2.2; return T.WALL; }
+    if (u < 0.22) { BST = 0.35 + 3 * fas(0.14, 0.015); return T.FAT; }
+    BST = Math.max(0.05, 0.45 + 0.9 * vnoise(z * 6, u * 14, x * 2)) + 4 * fas(0.22, 0.012) + 3 * fas(0.55, 0.012) + 4 * fas(0.88, 0.015);
+    // stries musculaires : diffuseurs allongés le long des fibres (crânio-caudales)
+    MAT[2] = z * 0.25;
     return T.WALL;
   }
   const sac = G.sac;
@@ -145,7 +180,7 @@ function classify(sc, G, x, y, z, h1, h2, h3, t) {
     // enveloppe : graisse épicardique dans les sillons, péricarde à la surface externe, puis poumon
     if (envelope(G, h1, h2, h3, G.envW)) {
       if (envelope(G, h1, h2, h3, G.envW - G.periW)) { matHeart(h1, h2, h3, 8); return T.FAT; }
-      matHeart(h1, h2, h3, 9); return T.PERI;
+      matHeart(h1, h2, h3, 9); BST = 2.5; return T.PERI;
     }
   }
   // incisures cardiaques : à droite (fenêtre parasternale), plus petite et plus ventrale à gauche (fenêtre apicale)
@@ -178,7 +213,8 @@ function heartTissue(G, h1, h2, h3, t, g) {
   // valve mitrale (s'ouvre vers l'apex, +h3) et vestibule
   const m1 = h1 - G.M[0], m2 = h2 - G.M[1], rhoM = Math.sqrt(m1 * m1 + m2 * m2);
   if (rhoM < G.rm * 1.05 && h3 > -0.5 && h3 < G.lfm + 0.1) {
-    if (leaflet(rhoM, h3, G.rm, G.lfm, G.am, G.vth)) { matHeart(h1, h2, h3, 1); return T.VALVE; }
+    const lfm = G.lfm * (1 + 0.32 * ((m1 * G.aoDir[0] + m2 * G.aoDir[1]) / Math.max(1e-6, rhoM)));
+    if (leaflet(rhoM, h3, G.rm, lfm, G.am, G.vthM)) { matHeart(h1, h2, h3, 1); BST = 1.2; return T.VALVE; }
     if (h3 <= 0 && rhoM < G.rm) { matBlood(h1, h2, h3, t); return T.BLOOD; }
   }
   // valve tricuspide
@@ -190,12 +226,25 @@ function heartTissue(G, h1, h2, h3, t, g) {
   const rho = Math.sqrt(h1 * h1 + h2 * h2);
   // VG : cavité et myocarde (coordonnées matérielles normalisées : le speckle suit la paroi)
   if (h3 >= 0 && h3 <= G.epiL) {
-    const rin = bulletR(G.d, G.l, h3), rout = bulletR(G.epiD, G.epiL, h3);
-    if (rho < rin) { matBlood(h1, h2, h3, t); return T.BLOOD; }
+    const ph = Math.atan2(h2, h1), zn = h3 / G.epiL;
+    // trabéculations : endocarde irrégulier, plus marqué vers l'apex ; attaché au tissu (zn, ph)
+    const tr = 1 + (0.03 + 0.07 * zn) * vnoise(zn * 9, Math.cos(ph) * 3 + 11, Math.sin(ph) * 3);
+    const rin0 = bulletR(G.d, G.l, h3), rin = rin0 * tr, rout = bulletR(G.epiD, G.epiL, h3) * (1 + 0.035 * vnoise(zn * 4 + 5, Math.cos(ph) * 1.6, Math.sin(ph) * 1.6));
+    if (rho < rin) {
+      // piliers (paroi libre, à l'opposé du septum) et cordages vers les feuillets mitraux
+      for (const pm of G.pap) {
+        const q = ((h1 - pm.c[0]) / pm.a) ** 2 + ((h2 - pm.c[1]) / pm.a) ** 2 + ((h3 - pm.c[2]) / pm.al) ** 2;
+        if (q < 1) { matHeart(h1 / G.d * 4, h2 / G.d * 4, zn * 8, 6); BST = q > 0.75 ? 1.8 : 1; return T.MYO; }
+        for (const ch of pm.ch) if (segDist2(h1, h2, h3, pm.tip, ch) < 0.0016) { matHeart(h1, h2, h3, 7); BST = 0.8; return T.VALVE; }
+      }
+      matBlood(h1, h2, h3, t); return T.BLOOD;
+    }
     if (rho < rout) {
-      const nu = (rho - rin) / Math.max(1e-6, rout - rin), ph = Math.atan2(h2, h1);
-      const rr = 2 + nu * 0.9, zz = (h3 / G.epiL) * 8;
+      const nu = (rho - rin) / Math.max(1e-6, rout - rin);
+      const rr = 2 + nu * 0.9, zz = zn * 8;
       MAT[0] = 1000 + rr * Math.cos(ph) * 1.6; MAT[1] = rr * Math.sin(ph) * 1.6; MAT[2] = zz;
+      // endocarde et épicarde plus échogènes (fibres et tissu conjonctif)
+      BST = 1 + 1.8 * Math.exp(-nu / 0.06) + 1.2 * Math.exp(-(1 - nu) / 0.05);
       return T.MYO;
     }
   }
@@ -207,7 +256,10 @@ function heartTissue(G, h1, h2, h3, t, g) {
   }
   // oreillettes (ellipsoïdes, paroi mince)
   for (const [c, a, wth, k] of [[G.LAc, G.la, G.laW, 4], [G.RAc, G.ra, G.raW, 5]]) {
-    const q = ((h1 - c[0]) / (a[1] / 2)) ** 2 + ((h2 - c[1]) / (a[0] / 2)) ** 2 + ((h3 - c[2]) / (a[2] / 2)) ** 2;
+    const dx = (h1 - c[0]) / (a[1] / 2), dy = (h2 - c[1]) / (a[0] / 2), dz = (h3 - c[2]) / (a[2] / 2);
+    // forme irrégulière (auricule, veines pulmonaires) : rayon modulé par un bruit lisse de la direction
+    const rn = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+    const q = (dx * dx + dy * dy + dz * dz) / (1 + 0.12 * vnoise(dx / rn * 1.5 + 3 * k, dy / rn * 1.5, dz / rn * 1.5)) ** 2;
     if (q < 1) { matBlood(h1, h2, h3, t); return T.BLOOD; }
     const g = 1 + wth / ((a[0] + a[1] + a[2]) / 6);
     if (q < g * g) { matHeart(h1, h2, h3, k); return T.MYO; }
@@ -231,6 +283,14 @@ function envelope(G, h1, h2, h3, g) {
     if (Math.sqrt(p1 * p1 + p2 * p2 + p3 * p3) < G.rao + G.aoW + g) return true;
   }
   return false;
+}
+// Carré de la distance du point au segment [a, b].
+function segDist2(x, y, z, a, b) {
+  const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
+  const L2 = ux * ux + uy * uy + uz * uz || 1e-9;
+  const t = Math.max(0, Math.min(1, ((x - a[0]) * ux + (y - a[1]) * uy + (z - a[2]) * uz) / L2));
+  const dx = x - a[0] - t * ux, dy = y - a[1] - t * uy, dz = z - a[2] - t * uz;
+  return dx * dx + dy * dy + dz * dz;
 }
 function matHeart(h1, h2, h3, k) { MAT[0] = 2000 + 100 * k + h1; MAT[1] = h2; MAT[2] = h3; }
 function matBlood(h1, h2, h3, t) { MAT[0] = 5000 + h1 + 7.3 * t; MAT[1] = h2 - 3.1 * t; MAT[2] = h3 + 5.7 * t; }
@@ -279,12 +339,14 @@ function views(sc, G) {
   const laMid = fromHeart(sc, G.LAc);
   const aoAtLa = fromHeart(sc, add(G.A, mul(G.ao, Math.abs(G.LAc[2]) * 0.9)));
   return [
-    { id: 'rplax4', name: 'Parasternale droite grand axe 4 cavités', side: 'right', target: lvMid, normal: sc.e2, beam: mul(sc.e1, -1), lat: mul(sc.e3, -1), lax: true },
+    { id: 'rplax4', name: 'Parasternale droite grand axe 4 cavités', side: 'right', target: lvMid, normal: sc.e2, beam: mul(sc.e1, -1), lat: mul(sc.e3, -1), lax: true,
+      keys: [fromHeart(sc, [0, 0, G.epiL * 0.95]), laMid, fromHeart(sc, [G.M[0], 0, 0])] },
     { id: 'rplax5', name: 'Parasternale droite grand axe, chambre de chasse', side: 'right', target: fromHeart(sc, [0.2 * G.d, 0.14 * G.d, G.l * 0.35]),
       normal: norm(cross(sc.e3, dirFromHeart(sc, [0.83, 0.55, 0]))), beam: mul(dirFromHeart(sc, [0.83, 0.55, 0]), -1), lat: mul(sc.e3, -1), lax: true },
     { id: 'rpsa', name: 'Parasternale droite petit axe (piliers)', side: 'right', target: fromHeart(sc, [0, 0, G.l * 0.55]), normal: sc.e3, beam: mul(sc.e1, -1), lat: sc.e2 },
     { id: 'rpsab', name: 'Parasternale droite petit axe, base (Ao/OG)', side: 'right', target: mul(add(aoAtLa, laMid), 0.5), normal: aoAxis, beam: mul(sc.e1, -1), lat: sc.e2 },
-    { id: 'lap4', name: 'Apicale gauche 4 cavités', side: 'left', target: fromHeart(sc, [0, 0, G.l * 0.3]), normal: sc.e2, beam: mul(sc.e3, -1), lat: sc.e1, lax: true },
+    { id: 'lap4', name: 'Apicale gauche 4 cavités', side: 'left', target: fromHeart(sc, [0, 0, G.l * 0.3]), normal: sc.e2, beam: mul(sc.e3, -1), lat: sc.e1, lax: true,
+      keys: [laMid, fromHeart(sc, [0, 0, G.epiL * 0.9])] },
   ];
 }
 
@@ -315,8 +377,26 @@ function solveView(sc, G, v, t) {
           if (id === T.LUNG || id === T.BONE) { bad += 1; break; }
         }
       }
-      const score = bad * 10 + off * 40 + (1 - along) * 8 + dist * 0.2;
-      if (!best || score < best.s) best = { s: score, P, b, L };
+      let miss = 0;
+      for (const kp of v.keys || []) {
+        const q = sub(kp, P), zb = dot(q, b), xl = dot(q, L);
+        if (zb <= 0 || Math.abs(Math.atan2(xl, zb)) > 36 * D2R || Math.hypot(zb, xl) > 9.5) miss += 1;
+      }
+      let best1 = null;
+      // orientation dans le plan : la cible peut être décalée de l'axe pour cadrer les repères
+      for (const tilt of [-20, -10, 0, 10, 20]) {
+        const bb = norm(rotAbout(b, v.normal, tilt * D2R));
+        let LL = norm(cross(v.normal, bb)); if (dot(LL, v.lat) < 0) LL = mul(LL, -1);
+        let m2 = 0;
+        for (const kp of v.keys || []) {
+          const q = sub(kp, P), zb = dot(q, bb), xl = dot(q, LL);
+          if (zb <= 0 || Math.abs(Math.atan2(xl, zb)) > 36 * D2R || Math.hypot(zb, xl) > 9.5) m2 += 1;
+        }
+        if (!best1 || m2 < best1.m) best1 = { m: m2, b: bb, L: LL, tilt };
+      }
+      void miss;
+      const score = bad * 10 + off * 40 + (1 - along) * 8 + dist * 0.2 + best1.m * 6 + Math.abs(best1.tilt) * 0.03;
+      if (!best || score < best.s) best = { s: score, P, b: best1.b, L: best1.L };
     }
   }
   return poseFrom(sc, sub(best.P, mul(norm([-best.P[0] / (sc.X * sc.X), -best.P[1] / (sc.Y * sc.Y), 0]), 0.02)), best.b, best.L);
@@ -361,9 +441,11 @@ function setupGrid(eng, set, W, H) {
 }
 
 // Calcule les lignes d'angles `thetas` (radians) : signal complexe en bande de base.
-function acquire(sc, G, f, set, t, thetas, re, im, NS, seedT) {
+function acquire(sc, G, f, set, t, thetas, re, im, NS, seedT, ids) {
   const dr = set.depth / NS, fMHz = set.freq, tis = sc.tis;
-  const lam = 0.154 / fMHz; // cm
+  // imagerie harmonique : émission à f, réception à 2f ; atténuation à f à l'aller et 2f au retour
+  const fAtt = set.harmonic ? 1.5 * fMHz : fMHz, fRx = set.harmonic ? 2 * fMHz : fMHz;
+  const lam = 0.154 / fRx; // cm
   const hP = toHeart(sc, f.P);
   for (let li = 0; li < thetas.length; li++) {
     const th = thetas[li], c = Math.cos(th), s = Math.sin(th);
@@ -378,9 +460,10 @@ function acquire(sc, G, f, set, t, thetas, re, im, NS, seedT) {
       const tp = tis[id];
       let ar = 0, ai = 0;
       if (id !== T.AIR && trans > 1e-6) {
-        const amp = trans * Math.pow(10, -att / 10); // aller-retour : 2 × att/20 dB
+        // aller-retour : 2 × att/20 dB ; l'harmonique se forme avec la propagation (faible en surface)
+        const amp = trans * Math.pow(10, -att / 10) * (set.harmonic ? 1 - 0.75 * Math.exp(-rr / 1.2) : 1);
         scatter(MAT[0], MAT[1], MAT[2]);
-        const bs = Math.sqrt(tp.backscatter * Math.exp(TEX_SD[id] * texture(MAT[0], MAT[1], MAT[2]) - TEX_SD[id] * TEX_SD[id] / 2)) * amp;
+        const bs = Math.sqrt(tp.backscatter * BST * Math.exp(TEX_SD[id] * texture(MAT[0], MAT[1], MAT[2]) - TEX_SD[id] * TEX_SD[id] / 2)) * amp;
         ar = bs * SPK[0]; ai = bs * SPK[1];
         if (id !== prev) {
           const z1 = tis[prev].z, z2 = tp.z, R = ((z2 - z1) / (z2 + z1)) ** 2;
@@ -389,13 +472,20 @@ function acquire(sc, G, f, set, t, thetas, re, im, NS, seedT) {
           trans *= 1 - R;
           if (id === T.LUNG && pleura < 0) { pleura = k; pleuraA = sp; trans0 = amp; }
         }
-        if (id === T.LUNG && pleura >= 0 && (k - pleura) * dr < 0.25) {
-          const pa = 1.6 * trans0 * Math.exp(-(k - pleura) * dr / 0.12);
+        att += tp.alpha_db_cm_mhz * fAtt * dr;
+      } else if (id === T.AIR) trans = 0;
+      // surface pulmonaire : ligne pleurale brillante puis zone texturée qui s'éteint (réverbérations
+      // dans les alvéoles sous-pleurales), indépendamment de la transmission dans le poumon
+      if (id === T.LUNG && pleura >= 0) {
+        const dd = (k - pleura) * dr;
+        if (dd < 2.5) {
+          scatter(x * 3.1 + 900, y * 3.1, z * 0.4 + 37 * Math.floor(t * 2));
+          const pa = trans0 * (1.8 * Math.exp(-dd / 0.12) + 0.2 * Math.exp(-dd / 0.6));
           ar += pa * SPK[0]; ai += pa * SPK[1];
         }
-        att += tp.alpha_db_cm_mhz * fMHz * dr;
-      } else if (id === T.AIR) trans = 0;
+      }
       prev = id;
+      if (ids) ids[base + k] = id;
       re[base + k] = ar; im[base + k] = ai;
     }
     // réverbérations entre la sonde et la plèvre (lignes A)
@@ -407,11 +497,15 @@ function acquire(sc, G, f, set, t, thetas, re, im, NS, seedT) {
         for (let j = -1; j <= 1; j++) if (k + j < NS && k + j >= 0) re[base + k + j] += a * (j === 0 ? 1 : 0.5);
       }
     }
-    // bruit électronique
+    // bruit électronique et halo de réverbérations pariétales (clutter du champ proche,
+    // décroissant avec la profondeur ; plus faible en harmonique)
+    const hz = set.harmonic ? 0.012 : 0.03;
     for (let k = 0; k < NS; k++) {
-      const h = hash3(li + seedT * 131, k, 77);
-      re[base + k] += ((h & 0xffff) / 65536 - 0.5) * 2.2e-5;
-      im[base + k] += ((h >>> 16) / 65536 - 0.5) * 2.2e-5;
+      const rr = (k + 0.5) * dr;
+      const h = hash3(li + seedT * 131, k, 77), g = hash3(li >> 1, k >> 2, 1201 + (seedT >> 3));
+      const cl = hz * Math.exp(-rr / 2.2);
+      re[base + k] += ((h & 0xffff) / 65536 - 0.5) * 2.2e-5 + cl * ((g & 0xffff) / 65536 - 0.5);
+      im[base + k] += ((h >>> 16) / 65536 - 0.5) * 2.2e-5 + cl * ((g >>> 16) / 65536 - 0.5);
     }
   }
   return lam;
@@ -420,7 +514,8 @@ function acquire(sc, G, f, set, t, thetas, re, im, NS, seedT) {
 // Réponse impulsionnelle : axiale (≈ 1 longueur d'onde) puis latérale (faisceau focalisé).
 function psf(set, NL, NS, re, im, tr, ti, lam, dth) {
   const dr = set.depth / NS;
-  const sa = Math.max(0.6, (0.6 * lam) / dr), ra = Math.ceil(2.5 * sa);
+  // impulsion d'environ 2 cycles : résolution axiale ≈ λ (FWHM)
+  const sa = Math.max(0.6, (lam / 2.355) / dr), ra = Math.ceil(2.5 * sa);
   const ka = []; for (let j = -ra; j <= ra; j++) ka.push(Math.exp(-0.5 * (j / sa) ** 2));
   for (let l = 0; l < NL; l++) {
     const b = l * NS;
@@ -449,6 +544,17 @@ function psf(set, NL, NS, re, im, tr, ti, lam, dth) {
       }
       re[l * NS + k] = sr / Math.sqrt(ws); im[l * NS + k] = si / Math.sqrt(ws);
     }
+    // lobes secondaires de l'ouverture : piédestal à −28 dB sur ±3 largeurs de faisceau
+    // (voile des cavités au voisinage des structures brillantes)
+    const rw = Math.min(NL - 1, Math.ceil(3 * sl) + 4), sideA = 0.04;
+    let cr = 0, ci = 0;
+    const pr = new Float64Array(NL + 1), pi = new Float64Array(NL + 1);
+    for (let l = 0; l < NL; l++) { cr += tr[l * NS + k]; ci += ti[l * NS + k]; pr[l + 1] = cr; pi[l + 1] = ci; }
+    for (let l = 0; l < NL; l++) {
+      const a = Math.max(0, l - rw), b = Math.min(NL, l + rw + 1), n = b - a;
+      re[l * NS + k] += sideA * (pr[b] - pr[a]) / Math.sqrt(n);
+      im[l * NS + k] += sideA * (pi[b] - pi[a]) / Math.sqrt(n);
+    }
   }
 }
 
@@ -460,12 +566,24 @@ function tgcAt(set, rr) {
 
 function toGray(set, re, im, env, NL, NS) {
   const dr = set.depth / NS, ref = 20 * Math.log10(Math.sqrt(0.3));
+  // réduction de speckle légère (comme les filtres des échographes) : moyenne locale 3 × 3 de
+  // l'intensité, mêlée à l'intensité brute ; comble les trous profonds du speckle de Rayleigh
+  const P = new Float32Array(NL * NS);
+  for (let i = 0; i < P.length; i++) P[i] = re[i] * re[i] + im[i] * im[i];
+  const mix = set.srf ?? 0.5;
   for (let k = 0; k < NS; k++) {
     const add0 = set.gain + tgcAt(set, (k + 0.5) * dr) - ref;
     for (let l = 0; l < NL; l++) {
-      const i = l * NS + k, a = Math.hypot(re[i], im[i]);
-      const db = 20 * Math.log10(a + 1e-12) + add0;
-      env[i] = Math.min(1, Math.max(0, (db + set.dr) / set.dr - 0.32));
+      const i = l * NS + k;
+      let m = 0, n = 0;
+      for (let dl = -1; dl <= 1; dl++) {
+        const ll = l + dl; if (ll < 0 || ll >= NL) continue;
+        for (let dk = -1; dk <= 1; dk++) { const kk = k + dk; if (kk < 0 || kk >= NS) continue; m += P[ll * NS + kk]; n++; }
+      }
+      const pw = (1 - mix) * P[i] + mix * m / n;
+      const db = 10 * Math.log10(pw + 1e-24) + add0;
+      const x = Math.min(1, Math.max(0, (db + set.dr) / set.dr - set.offset));
+      env[i] = Math.pow(x, set.gamma);
     }
   }
 }
@@ -478,7 +596,7 @@ export function mountEcho(v, r, E, ui) {
   const set = E.set;
   if (!set.depth) set.depth = Math.round(Math.min(18, Math.max(5, 4.2 * Math.cbrt(r.echo.bw))) * 2) / 2;
   if (!set.focus) set.focus = set.depth * 0.5;
-  if (!set.freq) set.freq = r.echo.bw < 10 ? 7 : r.echo.bw < 25 ? 5 : 3.5;
+  if (!set.freq) set.freq = set.harmonic ? (r.echo.bw < 10 ? 3.5 : r.echo.bw < 25 ? 1.7 : 1.5) : (r.echo.bw < 10 ? 7 : r.echo.bw < 25 ? 5 : 3.5);
   const G0 = frameGeometry(r, sc, 0);
   const VIEWS = views(sc, G0);
   if (!E.pose) E.pose = solveView(sc, G0, VIEWS[0], 0);
@@ -496,6 +614,7 @@ export function mountEcho(v, r, E, ui) {
         <button id="e-prev" title="image précédente (←)">◀︎</button><button id="e-next" title="image suivante (→)">▶︎</button>
         <label class="inline"><input type="checkbox" id="e-mm" ${E.mmode ? 'checked' : ''}> Mode TM</label>
         <label class="inline"><input type="checkbox" id="e-flip" ${set.flip ? 'checked' : ''}> Inverser gauche-droite</label>
+        <label class="inline"><input type="checkbox" id="e-harm" ${set.harmonic ? 'checked' : ''}> Harmonique</label>
       </div>
       <canvas id="e-img" width="640" height="560" class="ec-img"></canvas>
       <canvas id="e-mmc" width="640" height="300" class="ec-img" ${E.mmode ? '' : 'hidden'}></canvas>
@@ -552,7 +671,11 @@ export function mountEcho(v, r, E, ui) {
     const lam = acquire(sc, G, f, set, E.t, thetas, eng.re, eng.im, NS, frame);
     psf(set, NL, NS, eng.re, eng.im, eng.tmpR, eng.tmpI, lam, dth);
     toGray(set, eng.re, eng.im, eng.env, NL, NS);
-    const d = img.data, env = eng.env;
+    const env = eng.env;
+    if (!eng.prev || eng.prev.length !== env.length) eng.prev = new Float32Array(env);
+    const pk = E.playing ? set.persist : 0;
+    for (let i = 0; i < env.length; i++) { env[i] = pk * eng.prev[i] + (1 - pk) * env[i]; eng.prev[i] = env[i]; }
+    const d = img.data;
     for (let p = 0; p < W * IH; p++) {
       const i = eng.lut[p];
       let g = 0;
@@ -575,7 +698,7 @@ export function mountEcho(v, r, E, ui) {
   function overlay(f, G) {
     ctx.save();
     ctx.font = '12px system-ui'; ctx.fillStyle = '#9fd3c7';
-    ctx.fillText(`${fmt(set.freq, 1)} MHz  ·  prof. ${fmt(set.depth, 1)} cm  ·  gain ${set.gain} dB  ·  GD ${set.dr} dB`, 8, 16);
+    ctx.fillText(`${set.harmonic ? `H ${fmt(set.freq, 1)}/${fmt(2 * set.freq, 1)}` : fmt(set.freq, 1)} MHz  ·  prof. ${fmt(set.depth, 1)} cm  ·  gain ${set.gain} dB  ·  GD ${set.dr} dB`, 8, 16);
     ctx.fillText(`FC ${fmt(r.hr, 0)}/min`, W - 90, 16);
     // échelle de profondeur
     ctx.strokeStyle = '#6aa'; ctx.fillStyle = '#6aa';
@@ -785,6 +908,7 @@ export function mountEcho(v, r, E, ui) {
   $('#e-prev').onclick = () => step(-1); $('#e-next').onclick = () => step(1);
   $('#e-mm').onchange = (ev) => { E.mmode = ev.target.checked; mm.hidden = !E.mmode; E.mLast = undefined; dirty = true; };
   $('#e-flip').onchange = (ev) => { set.flip = ev.target.checked; dirty = true; };
+  $('#e-harm').onchange = (ev) => { set.harmonic = ev.target.checked; dirty = true; E.mLast = undefined; };
   $('#e-mclear').onclick = () => { E.meas = []; renderMeas(); dirty = true; };
   $('#e-truth').onclick = () => { E.showTruth = !E.showTruth; $('#e-truth').textContent = (E.showTruth ? 'Masquer' : 'Comparer au') + ' modèle'; renderMeas(); };
 
@@ -858,4 +982,24 @@ const MEAS = [['lvidd', 'LVIDd (VG télédiastole)'], ['lvids', 'LVIDs (VG tél�
 const labOf = (k) => (MEAS.find((m) => m[0] === k) || ['', ''])[1].split(' (')[0];
 
 // Accès aux fonctions internes pour les tests et le diagnostic (aucun effet sur l'interface).
-export const _internals = { buildScene, frameGeometry, classify, probeFrame, solveView, views, toHeart, T };
+// Statistiques des niveaux de gris par tissu (0–255) sur une image calculée hors affichage.
+function grayStats(r, set, viewIdx, t) {
+  const sc = buildScene(r), G = frameGeometry(r, sc, t);
+  const pose = solveView(sc, G, views(sc, G)[viewIdx], t), f = probeFrame(sc, pose);
+  const NL = set.lines, NS = Math.round(set.depth / 0.025), half = set.sector / 2 * D2R, dth = 2 * half / (NL - 1);
+  const thetas = Array.from({ length: NL }, (_, i) => -half + i * dth);
+  const re = new Float32Array(NL * NS), im = new Float32Array(NL * NS), a = new Float32Array(NL * NS), b = new Float32Array(NL * NS), env = new Float32Array(NL * NS), ids = new Uint8Array(NL * NS);
+  const lam = acquire(sc, G, f, set, t, thetas, re, im, NS, 1, ids);
+  psf(set, NL, NS, re, im, a, b, lam, dth);
+  toGray(set, re, im, env, NL, NS);
+  const out = {};
+  for (const [name, id] of Object.entries(T)) {
+    const v = []; for (let i = 0; i < env.length; i++) if (ids[i] === id && (i % NS) * set.depth / NS > 0.3) v.push(255 * env[i]);
+    if (v.length < 50) continue;
+    v.sort((x, y) => x - y);
+    const q = (p) => Math.round(v[Math.floor(p * (v.length - 1))]);
+    out[name] = { n: v.length, p10: q(0.1), med: q(0.5), p90: q(0.9) };
+  }
+  return out;
+}
+export const _internals = { buildScene, frameGeometry, classify, probeFrame, solveView, views, toHeart, T, grayStats };
