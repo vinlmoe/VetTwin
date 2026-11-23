@@ -568,8 +568,16 @@ mod tests {
         let es = c.lv_geometry(&rf, 31.0);
         assert!(es.w > 1.3 * ed.w, "épaississement {} → {}", ed.w, es.w);
         assert!(es.d < ed.d && es.l < ed.l);
-        // raccourcissement radial dominant
-        assert!(1.0 - es.d / ed.d > 2.0 * (1.0 - es.l / ed.l));
+        // raccourcissement radial supérieur au longitudinal
+        assert!(1.0 - es.d / ed.d > 1.0 - es.l / ed.l);
+        // Visser 2019, fig. 1 (chien sain, grand axe 4 cavités) : volume 62,0 → 31,9 mL et grand
+        // axe 6,59 → 5,50 cm entre télédiastole et télésystole.
+        let (a, b) = (c.lv_geometry(&rf, 62.0), c.lv_geometry(&rf, 31.9));
+        assert!(
+            (b.l / a.l - 5.50 / 6.59).abs() < 0.01,
+            "grand axe {}",
+            b.l / a.l
+        );
     }
 
     #[test]

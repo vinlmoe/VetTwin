@@ -7,10 +7,10 @@
   "shape": "obus (cylindre de hauteur L/2 surmonté d'une demi-ellipsoïde de hauteur L/2) : V = 5π/24 · D² · L ; L = L_ref · (V/V_ref)^long_exponent",
   "vref_ml_per_kg": 3.42,
   "shape_ratio_ref": 1.85,
-  "long_exponent": 0.15,
-  "source": "vref : VTD du chien sain simulé (68,4 mL à 20 kg, 137 mL à 40 kg ; volumes du modèle proportionnels au poids). shape_ratio_ref (L/D télédiastolique, indice de sphéricité) et long_exponent (part longitudinale du raccourcissement, ~13 % de raccourcissement du grand axe pour une FE de 55 %) : placeholders à sourcer.",
+  "long_exponent": 0.27,
+  "source": "vref : VTD du chien sain simulé (68,4 mL à 20 kg, 137 mL à 40 kg ; volumes du modèle proportionnels au poids). shape_ratio_ref (L/D télédiastolique) : placeholder, cohérent avec la coupe grand axe de Visser et al. 2019 (fig. 1, chien sain : grand axe 6,59 cm, aire 22,39 cm², soit L/D ≈ 1,94). long_exponent : calé sur la même figure (grand axe 6,59 → 5,50 cm et volume 62,0 → 31,9 mL entre télédiastole et télésystole : λ = ln(0,835)/ln(0,515) = 0,27 ; un seul chien).",
   "evidence": "D",
-  "calibre_sur": "vref calé sur le modèle ; forme non calée"
+  "calibre_sur": "vref calé sur le modèle ; long_exponent sur un exemple publié (n = 1)"
  },
  "wall": {
   "ivsd": [0.41, 0.241],
@@ -76,13 +76,14 @@
    "long_axis_tilt_deg": 42.0,
    "long_axis_yaw_deg": 18.0,
    "septum_roll_deg": 28.0,
-   "lung_notch_y_frac": -0.05
+   "lung_notch_y_frac": 0.12,
+   "lung_notch_note": "incisure droite : poumon absent sous y = lung_notch_y_frac·Y du côté droit ; incisure gauche plus petite (0,3·Y plus ventrale)"
   },
   "tissues": {
    "blood":  { "alpha_db_cm_mhz": 0.18, "backscatter": 0.00004, "z": 1.61 },
    "myo":    { "alpha_db_cm_mhz": 0.52, "backscatter": 0.30,  "z": 1.70 },
    "wall":   { "alpha_db_cm_mhz": 0.80, "backscatter": 0.25,  "z": 1.65 },
-   "fat":    { "alpha_db_cm_mhz": 0.60, "backscatter": 0.07,  "z": 1.38 },
+   "fat":    { "alpha_db_cm_mhz": 0.60, "backscatter": 0.12,  "z": 1.38 },
    "peri":   { "alpha_db_cm_mhz": 0.80, "backscatter": 1.00,  "z": 1.75 },
    "valve":  { "alpha_db_cm_mhz": 0.80, "backscatter": 0.90,  "z": 1.75 },
    "bone":   { "alpha_db_cm_mhz": 15.0, "backscatter": 1.00,  "z": 7.80 },

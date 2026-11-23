@@ -35,7 +35,7 @@ ultrasonore simplifiée. Les constantes et leur provenance sont dans \vp{modules
 \paragraph{Ventricule gauche.} Cavité en obus (cylindre de hauteur $L/2$ et demi-ellipsoïde de hauteur $L/2$) :
 \[
 V_{VG}=\frac{5\pi}{24}\,D^2L,\qquad L=L_{\mathrm{ref}}\Bigl(\frac{V_{VG}}{V_{\mathrm{ref}}}\Bigr)^{\lambda},
-\qquad V_{\mathrm{ref}}=\SI{3,42}{mL/kg}\times BW,\quad \frac{L_{\mathrm{ref}}}{D_{\mathrm{ref}}}=1{,}85,\quad \lambda=0{,}15.
+\qquad V_{\mathrm{ref}}=\SI{3,42}{mL/kg}\times BW,\quad \frac{L_{\mathrm{ref}}}{D_{\mathrm{ref}}}=1{,}85,\quad \lambda=0{,}27.
 \]
 Avec $\lambda<1/3$, un VG dilaté devient plus sphérique. La paroi d'épaisseur $w$ vérifie
 \[
@@ -82,12 +82,47 @@ OG/Ao $\ge 1{,}6$, LVIDdN $\ge 1{,}7$) sont atteints ;
 \item fibrillation atriale : fraction de vidange de l'OG réduite de plus de 30~\% (perte de la contraction atriale).
 \end{itemize}
 
-Valeurs obtenues (\SI{20}{kg}) : sain LVIDd \SI{3,83}{cm}, FR 29~\%, OG/Ao 1,35, OG \SIrange{9,2}{19,0}{mL} ;
-MMVD $s=0{,}7$ : LVIDdN 1,94, OG/Ao 1,67 ; $s=0{,}9$ : LVIDdN 2,22, OG/Ao 2,04.
+Valeurs obtenues (\SI{20}{kg}, $\lambda=0{,}27$) : sain LVIDd \SI{3,83}{cm}, FR 25,7~\%, OG/Ao 1,35, OG \SIrange{9,2}{19,0}{mL} ;
+MMVD $s=0{,}6$ : LVIDdN 1,77, OG/Ao 1,53 ; $s=0{,}9$ : LVIDdN 2,12, OG/Ao 2,04.
 
 \paragraph{Limites.} Pas de remodelage chronique de l'OG ni d'hypertrophie excentrique (masse VG constante : la paroi
 s'amincit quand le VG se dilate) ; dilatation de l'OG seulement par la pression. VG global : pas de trouble régional.
 Disposition anatomique schématique ; pas de piliers ni de cordages ; pas encore de Doppler.
+
+\section{Comparaison avec une image réelle}
+Référence : Visser et al.\ 2019 (J Vet Intern Med, PMC6766555, CC BY-NC 4.0), fig.~1 : coupe parasternale droite grand
+axe 4 cavités de chiens sains, \SI{10}{cm}, harmonique 1,6/3,2~MHz, avec tracés du VG en télédiastole et télésystole.
+L'image n'est ni copiée ni embarquée ; seuls des chiffres mesurés sont repris.
+
+\begin{tabularx}{\linewidth}{@{}Xccc@{}}
+\toprule
+Région (niveau de gris, 0--255) & Réel & Simulé, version 0.1 & Simulé, version 0.2\\\midrule
+Cavité du VG (médiane) & 17 & 7 & 0\\
+Myocarde, paroi postérieure (moyenne) & 135 & 198 & 143\\
+Champ proche (moyenne) & 154 & 132 & 147\\
+Péricarde--poumon (maximum par colonne) & 253 & non individualisé & bande brillante\\
+Hétérogénéité du myocarde (écart-type) & ≈ 60 & 18 & 25\\
+Raccourcissement du grand axe du VG & 16,5~\% & 9,5~\% & 16,5~\%\\
+\bottomrule
+\end{tabularx}
+
+Corrections de la version 0.2 :
+\begin{itemize}
+\item $\lambda$ recalé sur les tracés de la figure : grand axe 6,59 → \SI{5,50}{cm} pour un volume 62,0 → \SI{31,9}{mL}, soit
+$\lambda=\ln(0{,}835)/\ln(0{,}515)=0{,}27$ (un seul chien). Conséquence : la FR « vraie » du chien sain tombe à 25,7~\%,
+en bas de la plage normale. Avec un diamètre uniforme, l'obus ne distingue pas la base, peu contractile, du niveau des
+cordages où se mesure la FR en TM. Un profil radial (base moins mobile que la partie moyenne) est la prochaine correction
+de la géométrie.
+\item Péricarde collé aux cavités (feuillet de \SI{2}{mm}), graisse épicardique dans les sillons (\SI{3}{mm}), poumon
+au-delà. L'interface péricarde--poumon produit une ligne pleurale brillante (diffusion de surface sur \SI{2,5}{mm}).
+\item Incisure cardiaque surtout à droite (fenêtre parasternale), plus petite et plus ventrale à gauche.
+\item Microstructure : modulation lognormale de la rétrodiffusion à l'échelle de \SI{1,5}{mm}, attachée au tissu.
+\item TGC : compensation de 0,35~dB/cm/MHz (trajet mixte sang/tissu) ; gamme dynamique 50~dB ; gain +6~dB.
+\item Aide aux coupes : recherche du point de contact sur toute la paroi du côté de la fenêtre.
+\end{itemize}
+Écarts restants : le speckle simulé reste plus fin et plus régulier que l'image harmonique réelle. Le champ proche ne
+montre pas les couches de la paroi thoracique. La chambre de chasse et la coupe apicale (qualité 60~\%) restent
+médiocres, faute d'anatomie segmentée.
 
 \section{Formation de l'image}
 Sonde à balayage sectoriel (\ang{80}, 128 lignes, pas axial \SI{0,25}{mm}). Pour chaque échantillon : tissu au point

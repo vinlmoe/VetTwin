@@ -45,6 +45,14 @@ function hash3(x, y, z) {
 }
 const SPK = new Float32Array(2);
 const CELL = 0.03; // cm : maille des diffuseurs (plus fine que la réponse impulsionnelle)
+const TEX = 0.15; // cm : maille de la microstructure (densité locale des diffuseurs)
+// Modulation lognormale de la rétrodiffusion, attachée au tissu (aspect granuleux hétérogène).
+function texture(mx, my, mz) {
+  const h = hash3(Math.floor(mx / TEX) + 7919, Math.floor(my / TEX), Math.floor(mz / TEX));
+  const u1 = (h + 1) / 4294967297, u2 = (Math.imul(h ^ 0x27d4eb2d, 0x165667b1) >>> 0) / 4294967296;
+  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+}
+const TEX_SD = [0, 1.1, 0.3, 0.3, 0.9, 0.6, 1.05, 0, 0.3]; // écart-type de ln(rétrodiffusion) par tissu
 function scatter(mx, my, mz) {
   const h1 = hash3(Math.floor(mx / CELL), Math.floor(my / CELL), Math.floor(mz / CELL));
   const h2 = Math.imul(h1 ^ 0x9e3779b9, 0x85ebca6b) >>> 0;
@@ -77,7 +85,7 @@ function buildScene(r) {
   const tis = TISSUE_KEY.map((k) => (k ? R.tissues[k] : { alpha_db_cm_mhz: 0, backscatter: 0, z: 0.0004 }));
   return {
     bw, X, Y, wall, Xi: X - wall, Yi: Y - wall, Xr: X - 0.25 * wall, Yr: Y - 0.25 * wall,
-    ribs, ribW, notchY: hz.lung_notch_y_frac * Y, e1, e2, e3, origin, center,
+    ribs, ribW, notchY: hz.lung_notch_y_frac * Y, notchYL: (hz.lung_notch_y_frac - 0.45) * Y, e1, e2, e3, origin, center,
     zLo: center[2] - heartLen * 0.75, zHi: center[2] + heartLen * 0.75, tis,
     geo: E.geometry, st,
   };
@@ -111,7 +119,7 @@ function frameGeometry(r, sc, t) {
   const top = Math.min(-la[2] + 0.25, -ra[2] + 0.25, -G.aoLen * 0.6);
   const bot = epiL + 0.25;
   G.sac = { c: [0.25 * (rvt + G.rvw), 0, (top + bot) / 2], a: [epiD / 2 + rvt + G.rvw + 0.55, Math.max(epiD / 2, la[1] * 0.75) + 0.6, (bot - top) / 2 + 0.25] };
-  G.laW = 0.18; G.raW = 0.15; G.aoW = 0.16; G.vth = 0.07;
+  G.laW = 0.18; G.raW = 0.15; G.aoW = 0.16; G.vth = 0.07; G.periW = 0.2; G.envW = 0.5;
   return G;
 }
 
@@ -131,13 +139,19 @@ function classify(sc, G, x, y, z, h1, h2, h3, t) {
   }
   const sac = G.sac;
   const sv = ((h1 - sac.c[0]) / sac.a[0]) ** 2 + ((h2 - sac.c[1]) / sac.a[1]) ** 2 + ((h3 - sac.c[2]) / sac.a[2]) ** 2;
-  if (sv >= 1) {
-    if (y > sc.notchY || z < sc.zLo || z > sc.zHi) return T.LUNG;
-    return T.FAT;
+  if (sv < 1) {
+    const id = heartTissue(G, h1, h2, h3, t, 0);
+    if (id) return id;
+    // enveloppe : graisse épicardique dans les sillons, péricarde à la surface externe, puis poumon
+    if (envelope(G, h1, h2, h3, G.envW)) {
+      if (envelope(G, h1, h2, h3, G.envW - G.periW)) { matHeart(h1, h2, h3, 8); return T.FAT; }
+      matHeart(h1, h2, h3, 9); return T.PERI;
+    }
   }
-  const id = heartTissue(G, h1, h2, h3, t);
-  if (id) return id;
-  return sv > 0.93 ? T.PERI : T.FAT;
+  // incisures cardiaques : à droite (fenêtre parasternale), plus petite et plus ventrale à gauche (fenêtre apicale)
+  if (z < sc.zLo || z > sc.zHi) return T.LUNG;
+  if (x <= 0 ? y > sc.notchY : y > sc.notchYL) return T.LUNG;
+  return T.FAT;
 }
 
 // Feuillet valvulaire en entonnoir : charnière au rayon `ra`, ouvert de l'angle `al` vers +s.
@@ -149,7 +163,8 @@ function leaflet(rho, s, ra, lf, al, thk) {
   return Math.abs(s - sl) * ca < thk / 2;
 }
 
-function heartTissue(G, h1, h2, h3, t) {
+function heartTissue(G, h1, h2, h3, t, g) {
+  if (g > 0) return envelope(G, h1, h2, h3, g);
   // racine aortique et valve aortique
   const r1 = h1 - G.A[0], r2 = h2 - G.A[1], r3 = h3 - G.A[2];
   const sa = r1 * G.ao[0] + r2 * G.ao[1] + r3 * G.ao[2];
@@ -198,6 +213,24 @@ function heartTissue(G, h1, h2, h3, t) {
     if (q < g * g) { matHeart(h1, h2, h3, k); return T.MYO; }
   }
   return 0;
+}
+// Enveloppe des cavités dilatée de `g` (péricarde).
+function envelope(G, h1, h2, h3, g) {
+  const rho = Math.sqrt(h1 * h1 + h2 * h2);
+  if (h3 >= -g && h3 <= G.epiL + g && rho < bulletR(G.epiD + 2 * g, G.epiL + g, Math.max(0, h3))) return true;
+  if (h3 >= -g && h3 <= G.lr + G.rvt + G.rvw + g && rho > 1e-6 && h1 / rho >= G.cosCov - 0.15
+    && rho < bulletR(G.epiD + 2 * (G.rvt + G.rvw + g), G.lr + G.rvt + G.rvw + g, Math.max(0, h3))) return true;
+  for (const [c, a, wth] of [[G.LAc, G.la, G.laW], [G.RAc, G.ra, G.raW]]) {
+    const q = ((h1 - c[0]) / (a[1] / 2 + wth + g)) ** 2 + ((h2 - c[1]) / (a[0] / 2 + wth + g)) ** 2 + ((h3 - c[2]) / (a[2] / 2 + wth + g)) ** 2;
+    if (q < 1) return true;
+  }
+  const r1 = h1 - G.A[0], r2 = h2 - G.A[1], r3 = h3 - G.A[2];
+  const sa = r1 * G.ao[0] + r2 * G.ao[1] + r3 * G.ao[2];
+  if (sa > -0.6 && sa < G.aoLen * 0.7) {
+    const p1 = r1 - sa * G.ao[0], p2 = r2 - sa * G.ao[1], p3 = r3 - sa * G.ao[2];
+    if (Math.sqrt(p1 * p1 + p2 * p2 + p3 * p3) < G.rao + G.aoW + g) return true;
+  }
+  return false;
 }
 function matHeart(h1, h2, h3, k) { MAT[0] = 2000 + 100 * k + h1; MAT[1] = h2; MAT[2] = h3; }
 function matBlood(h1, h2, h3, t) { MAT[0] = 5000 + h1 + 7.3 * t; MAT[1] = h2 - 3.1 * t; MAT[2] = h3 + 5.7 * t; }
@@ -255,40 +288,38 @@ function views(sc, G) {
   ];
 }
 
-// Pose qui réalise une coupe de référence : faisceau dans le plan, fenêtre sans poumon ni côte.
+// Pose qui réalise une coupe de référence : recherche du point de contact sur toute la paroi du
+// côté de la fenêtre (faisceau vers la cible, dans le plan de référence, sans poumon ni côte).
 function solveView(sc, G, v, t) {
+  const sx = v.side === 'left' ? 1 : -1;
   let best = null;
-  for (let da = -40; da <= 40; da += 5) {
-    const beam = norm(rotAbout(v.beam, v.normal, da * D2R));
-    const P = hitWall(sc, v.target, mul(beam, -1));
-    const b = norm(sub(v.target, P));
-    const L = norm(sub(v.lat, mul(b, dot(v.lat, b))));
-    // obstacle : poumon ou côte sur le rayon central et deux rayons latéraux
-    let bad = 0;
-    const dist = Math.hypot(...sub(v.target, P));
-    for (const off of [-0.6, -0.3, 0, 0.3, 0.6]) {
-      const u = norm(add(b, mul(L, off)));
-      for (let s = 0.05; s < dist; s += 0.1) {
-        const p = add(P, mul(u, s)), h = toHeart(sc, p);
-        const id = classify(sc, G, p[0], p[1], p[2], h[0], h[1], h[2], t);
-        if (id === T.LUNG || id === T.BONE) bad += 1;
+  for (let psi = -84; psi <= 40; psi += 3) {
+    for (let z = -9; z <= 9; z += 0.5) {
+      const P0 = [sx * sc.X * Math.cos(psi * D2R), sc.Y * Math.sin(psi * D2R), sc.center[2] + z];
+      const n = norm([-P0[0] / (sc.X * sc.X), -P0[1] / (sc.Y * sc.Y), 0]);
+      const P = add(P0, mul(n, 0.02));
+      const b = norm(sub(v.target, P));
+      if (dot(b, n) < 0.35) continue; // angulation au-delà de ~70° : impossible
+      const off = Math.abs(dot(b, v.normal)); // le faisceau doit être dans le plan de référence
+      if (off > 0.35) continue;
+      const along = dot(b, v.beam); // sens d'insonation de la coupe de référence
+      let L = norm(cross(v.normal, b));
+      if (dot(L, v.lat) < 0) L = mul(L, -1);
+      const dist = Math.hypot(...sub(v.target, P));
+      let bad = 0;
+      for (const ang of [-0.45, -0.22, 0, 0.22, 0.45]) {
+        const u = norm(add(mul(b, Math.cos(ang)), mul(L, Math.sin(ang))));
+        for (let s2 = 0.1; s2 < dist; s2 += 0.15) {
+          const p = add(P, mul(u, s2)), h = toHeart(sc, p);
+          const id = classify(sc, G, p[0], p[1], p[2], h[0], h[1], h[2], t);
+          if (id === T.LUNG || id === T.BONE) { bad += 1; break; }
+        }
       }
+      const score = bad * 10 + off * 40 + (1 - along) * 8 + dist * 0.2;
+      if (!best || score < best.s) best = { s: score, P, b, L };
     }
-    const sc2 = bad + Math.abs(da) * 0.02 + (((P[0] >= 0) !== (v.side === 'left')) ? 1000 : 0);
-    if (!best || sc2 < best.s) best = { s: sc2, P, b, L };
   }
-  // décaler le point de contact dans l'espace intercostal le plus proche
-  const P = best.P;
-  let rz = sc.ribs[0];
-  for (const z of sc.ribs) if (Math.abs(z - P[2]) < Math.abs(rz - P[2])) rz = z;
-  const dz = P[2] - rz;
-  if (Math.abs(dz) < sc.ribW * 0.9) {
-    const shift = (dz >= 0 ? 1 : -1) * (sc.ribW * 0.9 - Math.abs(dz) + 0.25);
-    const P2 = [P[0], P[1], P[2] + shift];
-    const b2 = norm(sub(v.target, P2));
-    return poseFrom(sc, P2, b2, norm(sub(v.lat, mul(b2, dot(v.lat, b2)))));
-  }
-  return poseFrom(sc, P, best.b, best.L);
+  return poseFrom(sc, sub(best.P, mul(norm([-best.P[0] / (sc.X * sc.X), -best.P[1] / (sc.Y * sc.Y), 0]), 0.02)), best.b, best.L);
 }
 
 function viewScore(sc, f, vw) {
@@ -338,7 +369,7 @@ function acquire(sc, G, f, set, t, thetas, re, im, NS, seedT) {
     const th = thetas[li], c = Math.cos(th), s = Math.sin(th);
     const u = [f.b[0] * c + f.L[0] * s, f.b[1] * c + f.L[1] * s, f.b[2] * c + f.L[2] * s];
     const hu = [dot(u, sc.e1), dot(u, sc.e2), dot(u, sc.e3)];
-    let att = 0, trans = 1, prev = T.WALL, pleura = -1, pleuraA = 0;
+    let att = 0, trans = 1, prev = T.WALL, pleura = -1, pleuraA = 0, trans0 = 0;
     const base = li * NS;
     for (let k = 0; k < NS; k++) {
       const rr = (k + 0.5) * dr;
@@ -349,14 +380,18 @@ function acquire(sc, G, f, set, t, thetas, re, im, NS, seedT) {
       if (id !== T.AIR && trans > 1e-6) {
         const amp = trans * Math.pow(10, -att / 10); // aller-retour : 2 × att/20 dB
         scatter(MAT[0], MAT[1], MAT[2]);
-        const bs = Math.sqrt(tp.backscatter) * amp;
+        const bs = Math.sqrt(tp.backscatter * Math.exp(TEX_SD[id] * texture(MAT[0], MAT[1], MAT[2]) - TEX_SD[id] * TEX_SD[id] / 2)) * amp;
         ar = bs * SPK[0]; ai = bs * SPK[1];
         if (id !== prev) {
           const z1 = tis[prev].z, z2 = tp.z, R = ((z2 - z1) / (z2 + z1)) ** 2;
           const sp = 2.2 * Math.sqrt(R) * amp;
           ar += sp; ai += sp * 0.3;
           trans *= 1 - R;
-          if (id === T.LUNG && pleura < 0) { pleura = k; pleuraA = sp; }
+          if (id === T.LUNG && pleura < 0) { pleura = k; pleuraA = sp; trans0 = amp; }
+        }
+        if (id === T.LUNG && pleura >= 0 && (k - pleura) * dr < 0.25) {
+          const pa = 1.6 * trans0 * Math.exp(-(k - pleura) * dr / 0.12);
+          ar += pa * SPK[0]; ai += pa * SPK[1];
         }
         att += tp.alpha_db_cm_mhz * fMHz * dr;
       } else if (id === T.AIR) trans = 0;
@@ -420,7 +455,7 @@ function psf(set, NL, NS, re, im, tr, ti, lam, dth) {
 function tgcAt(set, rr) {
   const u = rr / set.depth, g = set.tgc;
   const v = u < 0.5 ? g[0] + (g[1] - g[0]) * (u / 0.5) : g[1] + (g[2] - g[1]) * ((u - 0.5) / 0.5);
-  return v + 2 * 0.5 * set.freq * rr; // compensation de l'atténuation moyenne des tissus mous
+  return v + 2 * 0.35 * set.freq * rr; // compensation de l'atténuation moyenne d'un trajet mixte sang/tissu
 }
 
 function toGray(set, re, im, env, NL, NS) {
@@ -821,3 +856,6 @@ export function mountEcho(v, r, E, ui) {
 const MEAS = [['lvidd', 'LVIDd (VG télédiastole)'], ['lvids', 'LVIDs (VG télésystole)'], ['ivsd', 'SIVd'], ['lvwd', 'PPVGd'],
   ['ivss', 'SIVs'], ['lvws', 'PPVGs'], ['la', 'OG (petit axe, fermeture Ao)'], ['ao', 'Ao (petit axe)'], ['', 'Autre (sans étiquette)']];
 const labOf = (k) => (MEAS.find((m) => m[0] === k) || ['', ''])[1].split(' (')[0];
+
+// Accès aux fonctions internes pour les tests et le diagnostic (aucun effet sur l'interface).
+export const _internals = { buildScene, frameGeometry, classify, probeFrame, solveView, views, toHeart, T };
