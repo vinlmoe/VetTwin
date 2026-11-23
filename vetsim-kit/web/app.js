@@ -16,7 +16,7 @@ const S = {
   res: null,
   ausc: { hr: null, site: 'base', r: null, spec: null, window: 8, start: 0, cursor: null, playing: false, audio: null, src: null, loop: false, zoomOnly: false, played: false, gain: 1, gainNode: null },
   mc: { n: 1, dog: 1, individual: true, src: { natural: false, disease: false, drug: true, measurement: false }, progression: 0, running: false, progress: 0, res: null, sig: null, worker: null, error: null },
-  treat: { regimens: [], days: 3, r: null, cursor: 0, shown: ['hr', 'map', 'k'], ref: null, editing: null, open: null, pending: false, t0: 0 },
+  treat: { regimens: [], days: 3, r: null, cursor: 0, shown: ['hr', 'map', 'k'], ref: null, open: null, pending: false, form: null },
   model: { selected: null },
   heart: { r: null, t: 0, speed: 0.25, playing: true, raf: null, last: null },
 };
@@ -56,9 +56,12 @@ async function main() {
   const cat = S.ctl.catalog;
   $('#api').textContent = 'API ' + S.ctl.apiVersion;
   $('#disease').innerHTML = '<option value="">Aucune (sain)</option>' + cat.diseases.map((d) => `<option value="${d.id}">${esc(d.name)} [${d.evidence}]</option>`).join('');
-  $('#disease').onchange = () => { fillStages(); markDirty(); };
-  $('#stage').onchange = markDirty;
+  // changer de maladie, de stade ou de poids évalue aussitôt (plus besoin de cliquer « Évaluer »)
+  const submit = () => { if (isDirty()) $('#case-form').requestSubmit(); };
+  $('#disease').onchange = () => { fillStages(); markDirty(); submit(); };
+  $('#stage').onchange = () => { markDirty(); submit(); };
   $('#bw').oninput = markDirty;
+  $('#bw').onchange = submit;
   // Entrée dans le formulaire = Évaluer ; le libellé « Calcul… » s'affiche avant le calcul
   $('#case-form').onsubmit = (e) => { e.preventDefault(); busy($('#evaluate'), () => { S.treat.r = null; evaluate(); if (S.treat.regimens.length) resimulate(); }); };
   $('#copy-link').onclick = copyLink;
@@ -580,30 +583,39 @@ function renderHeart(v) {
 function renderTreatment(v) {
   const T = S.treat, cat = S.ctl.catalog;
   const dname = (id) => cat.drugs.find((d) => d.id === id).name;
-  const ed = T.editing !== null ? T.regimens[T.editing] : { drug: cat.drugs[0].id, mgPerKg: 1, route: 'po', intervalH: 12, count: 6, startH: 0 };
+  // le formulaire d'ajout garde ses valeurs d'un rendu à l'autre (la resimulation re-rend la vue)
+  const f = T.form ??= { drug: cat.drugs[0].id, mgPerKg: 1, route: 'po', intervalH: 12, count: 6, startH: 0 };
+  const sel = (a, b) => (a === b ? 'selected' : '');
+  const routeSel = (attr, val) => `<select ${attr}><option value="po" ${sel(val, 'po')}>per os</option><option value="iv" ${sel(val, 'iv')}>IV bolus</option></select>`;
   let html = '<div class="warn">Exploration pédagogique de la PK/PD : les doses sont libres et n\'ont valeur ni de recommandation ni de posologie. PK de l\'atropine, du bêtabloquant et de l\'opioïde, et PD de tous les médicaments : placeholders (evidence D). Ne jamais utiliser pour décider d\'une dose ou d\'un traitement réel.</div>';
-  html += card("Schéma d'administration", `<div class="row">
-      <select id="t-drug">${cat.drugs.map((d) => `<option value="${d.id}" ${d.id === ed.drug ? 'selected' : ''}>${esc(d.name)} [${d.evidence}]</option>`).join('')}</select>
-      <label>mg/kg<input id="t-dose" type="number" step="any" min="0" value="${ed.mgPerKg}"></label>
-      <label>voie<select id="t-route"><option value="po" ${ed.route === 'po' ? 'selected' : ''}>per os</option><option value="iv" ${ed.route === 'iv' ? 'selected' : ''}>IV bolus</option></select></label>
-      <label>toutes les (h)<input id="t-int" type="number" step="any" min="0.1" value="${ed.intervalH}"></label>
-      <label>nb de prises<input id="t-n" type="number" min="1" max="200" value="${ed.count}"></label>
-      <label>début (h)<input id="t-start" type="number" step="any" min="0" value="${ed.startH}"></label>
-      <button class="primary" id="t-add">${T.editing === null ? 'Ajouter' : 'Enregistrer'}</button>${T.editing !== null ? '<button id="t-cancel">Annuler</button>' : ''}</div>`
+  html += card("Schéma d'administration", `<form id="t-form" class="row">
+      <select id="t-drug" aria-label="Médicament">${cat.drugs.map((d) => `<option value="${d.id}" ${sel(d.id, f.drug)}>${esc(d.name)} [${d.evidence}]</option>`).join('')}</select>
+      <label>mg/kg<input id="t-dose" type="number" step="any" min="0" value="${f.mgPerKg}" required></label>
+      <label>voie${routeSel('id="t-route"', f.route)}</label>
+      <label>toutes les (h)<input id="t-int" type="number" step="any" min="0.1" value="${f.intervalH}" required></label>
+      <label>nb de prises<input id="t-n" type="number" min="1" max="200" value="${f.count}" required></label>
+      <label>début (h)<input id="t-start" type="number" step="any" min="0" value="${f.startH}"></label>
+      <button class="primary" type="submit" id="t-add" title="Entrée">Ajouter</button></form>`
     + T.regimens.map((r, i) => {
       const om = Object.values(r.overrides || {}).filter((x) => x === 0).length;
-      let s = `<div class="row"><i style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${COLORS.drugs[i % 5]}"></i>
-        ${esc(dname(r.drug))} : <button data-step="${i}:-1" title="−10 %">−</button><input data-mg="${i}" type="number" step="any" min="0" style="width:72px" value="${r.mgPerKg}"><button data-step="${i}:1" title="+10 %">+</button> mg/kg ${r.route === 'po' ? 'per os' : 'IV'}, toutes les ${r.intervalH} h × ${r.count} (de ${dayLabel(r.startH)} à ${dayLabel(r.startH + (r.count - 1) * r.intervalH)})${om ? ` ; ${om} omise(s)` : ''}
-        <button data-ed="${i}">Modifier</button><button data-op="${i}">${T.open === i ? 'Masquer les prises' : 'Prises individuelles'}</button><button data-rm="${i}">Retirer</button></div>`;
+      // schéma modifiable sur place : chaque champ relance la simulation
+      let s = `<div class="row regimen"><i style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${COLORS.drugs[i % 5]}"></i>
+        <b>${esc(dname(r.drug))}</b> <button type="button" data-step="${i}:-1" title="−10 %" aria-label="dose −10 %">−</button><input data-mg="${i}" type="number" step="any" min="0" style="width:72px" value="${r.mgPerKg}" aria-label="mg/kg"><button type="button" data-step="${i}:1" title="+10 %" aria-label="dose +10 %">+</button> mg/kg
+        ${routeSel(`data-f="${i}:route" aria-label="voie"`, r.route)}
+        toutes les <input data-f="${i}:intervalH" type="number" step="any" min="0.1" style="width:64px" value="${r.intervalH}" aria-label="intervalle (h)"> h
+        × <input data-f="${i}:count" type="number" min="1" max="200" style="width:60px" value="${r.count}" aria-label="nombre de prises">
+        dès <input data-f="${i}:startH" type="number" step="any" min="0" style="width:60px" value="${r.startH}" aria-label="début (h)"> h
+        <span class="note">(${dayLabel(r.startH)} → ${dayLabel(r.startH + (r.count - 1) * r.intervalH)}${om ? ` ; ${om} omise(s)` : ''})</span>
+        <button type="button" data-op="${i}">${T.open === i ? 'Masquer les prises' : 'Prises individuelles'}</button><button type="button" data-rm="${i}" title="Retirer ce schéma">✕</button></div>`;
       if (T.open === i) {
         s += '<div class="note">Dose de chaque prise (mg/kg) ; 0 = prise omise</div><div class="row">'
           + Array.from({ length: r.count }, (_, k) => `<label>${dayLabel(r.startH + k * r.intervalH)}<input data-dose="${i}:${k}" type="number" step="any" min="0" style="width:84px" value="${r.overrides && r.overrides[k] !== undefined ? r.overrides[k] : r.mgPerKg}"></label>`).join('') + '</div>';
       }
       return s;
     }).join('')
-    + `<div class="row">Durée simulée : <b id="t-dl">${T.days}</b> j <input id="t-days" type="range" min="1" max="14" step="1" value="${T.days}" style="width:240px">
+    + `<div class="row">Durée simulée : <b id="t-dl">${T.days}</b> j <input id="t-days" type="range" min="1" max="14" step="1" value="${T.days}" style="width:240px" aria-label="Durée simulée (jours)">
        <span class="note">${T.regimens.length ? 'simulation mise à jour à chaque changement' : 'ajouter un schéma pour simuler'}</span></div>`
-    + (T.pending ? `<div class="sim-status" role="status"><span class="spinner"></span>Simulation en cours (${T.days} j${S.inputs.disease === 'mmvd' ? ', plusieurs secondes en MMVD' : ''})… L'interface reste utilisable ; un nouveau changement relance le calcul.<button id="t-abort">Interrompre</button></div>` : ''));
+    + (T.pending ? `<div class="sim-status" role="status"><span class="spinner"></span>Simulation en cours (${T.days} j${S.inputs.disease === 'mmvd' ? ', plusieurs secondes en MMVD' : ''})… L'interface reste utilisable ; un nouveau changement relance le calcul.<button type="button" id="t-abort">Interrompre</button></div>` : ''));
   const r = T.r;
   if (r) {
     html += `<div class="treat-results${T.pending ? ' stale-res' : ''}">`;
@@ -611,9 +623,10 @@ function renderTreatment(v) {
     html += card(`Instant d'examen : ${dayLabel(T.cursor)} (t = ${fmt(T.cursor, 1)} h)`, `<div class="row">
         ${T.ref ? `<button id="t-trough">◀ creux</button><button id="t-peak">pic ▶</button>
         <select id="t-ref">${Object.keys(r.conc_mg_L).map((d) => `<option value="${d}" ${d === T.ref ? 'selected' : ''}>repère : ${esc(dname(d))}</option>`).join('')}</select>` : ''}
-        <button class="primary" id="t-exam" ${T.pending ? 'disabled title="simulation en cours"' : ''}>Examiner le patient à cet instant</button></div>
+        <button class="primary" id="t-exam" ${T.pending ? 'disabled title="simulation en cours"' : ''}>${examFollows() ? 'Voir l\'examen complet' : 'Examen complet à cet instant'}</button></div>
         <input id="t-cur" type="range" min="0" max="${h}" step="0.05" value="${T.cursor}" aria-label="Instant d'examen (h)">
-        <div class="note">Astuce : cliquer ou glisser sur une courbe déplace l'instant d'examen ; ◀ creux / pic ▶ sautent d'un extremum au suivant.</div>
+        <div id="t-vitals">${cursorVitals(r)}</div>
+        <div class="note">Cliquer ou glisser sur une courbe déplace l'instant ; ◀ creux / pic ▶ sautent d'un extremum au suivant.${examFollows() ? ' <b>L\'examen complet (ECG, auscultation, autres onglets) suit l\'instant choisi.</b>' : ''}</div>
         <div class="note">${Object.keys(r.conc_mg_L).map((d) => `${esc(dname(d))} : ${fmt(r.conc_mg_L[d][i], 4)} mg/L, E = ${fmt(r.effect[d][i], 2)}`).join(' &nbsp; ')}</div>
         ${outcomeNote(r)}`);
     html += card('Un chien suivi dans le temps (variabilité naturelle)', mcPanel(r));
@@ -644,17 +657,30 @@ function renderTreatment(v) {
     const overrides = Object.fromEntries(Object.entries(old.overrides || {}).filter(([, x]) => x !== val));
     setRegimen(i, { ...old, mgPerKg: val, overrides });
   };
-  $('#t-add').onclick = () => {
-    const reg = { drug: $('#t-drug').value, mgPerKg: +$('#t-dose').value, route: $('#t-route').value, intervalH: +$('#t-int').value, count: Math.round(+$('#t-n').value), startH: +$('#t-start').value || 0, overrides: {} };
+  const readForm = () => ({ drug: $('#t-drug').value, mgPerKg: +$('#t-dose').value, route: $('#t-route').value, intervalH: +$('#t-int').value, count: Math.round(+$('#t-n').value), startH: +$('#t-start').value || 0 });
+  $('#t-form').oninput = $('#t-form').onchange = () => { T.form = readForm(); };
+  // Entrée ou « Ajouter » : le schéma est ajouté et simulé aussitôt
+  $('#t-form').onsubmit = (e) => {
+    e.preventDefault();
+    const reg = { ...readForm(), overrides: {} };
     if (!(reg.mgPerKg >= 0 && reg.intervalH > 0 && reg.count >= 1 && reg.count <= 200)) return;
-    if (T.editing === null) T.regimens = [...T.regimens, reg];
-    else { const old = T.regimens[T.editing]; reg.overrides = Object.fromEntries(Object.entries(old.overrides || {}).filter(([k]) => +k < reg.count)); T.regimens = T.regimens.map((x, j) => (j === T.editing ? reg : x)); T.editing = null; }
+    T.form = readForm();
+    T.regimens = [...T.regimens, reg];
     resimulate();
   };
-  if ($('#t-cancel')) $('#t-cancel').onclick = () => { T.editing = null; render(); };
-  for (const b of v.querySelectorAll('[data-ed]')) b.onclick = () => { T.editing = +b.dataset.ed; render(); };
+  for (const inp of v.querySelectorAll('[data-f]')) inp.onchange = () => {
+    const [i, k] = inp.dataset.f.split(':'), reg = { ...T.regimens[+i] };
+    if (k === 'route') reg.route = inp.value;
+    else {
+      const x = k === 'count' ? Math.round(+inp.value) : +inp.value;
+      if (!(k === 'startH' ? x >= 0 : k === 'count' ? x >= 1 && x <= 200 : x > 0)) { inp.value = reg[k]; return; }
+      reg[k] = x;
+      if (k === 'count') reg.overrides = Object.fromEntries(Object.entries(reg.overrides || {}).filter(([n]) => +n < x));
+    }
+    setRegimen(+i, reg);
+  };
   for (const b of v.querySelectorAll('[data-op]')) b.onclick = () => { T.open = T.open === +b.dataset.op ? null : +b.dataset.op; render(); };
-  for (const b of v.querySelectorAll('[data-rm]')) b.onclick = () => { T.regimens = T.regimens.filter((_, j) => j !== +b.dataset.rm); T.editing = null; T.open = null; resimulate(); };
+  for (const b of v.querySelectorAll('[data-rm]')) b.onclick = () => { T.regimens = T.regimens.filter((_, j) => j !== +b.dataset.rm); T.open = null; resimulate(); };
   for (const inp of v.querySelectorAll('[data-mg]')) inp.onchange = () => setDose(+inp.dataset.mg, parseFloat(inp.value));
   for (const b of v.querySelectorAll('[data-step]')) b.onclick = () => {
     const [i, dir] = b.dataset.step.split(':').map(Number), x = T.regimens[i].mgPerKg;
@@ -671,21 +697,15 @@ function renderTreatment(v) {
   $('#t-days').onchange = () => resimulate();
   if ($('#t-abort')) $('#t-abort').onclick = () => { S.bg.cancel(); };
   if (!r) return;
-  const setCursor = (t) => { T.cursor = Math.max(0, Math.min(r.plan.horizonH, t)); render(); };
+  const setCursor = (t) => { T.cursor = Math.max(0, Math.min(r.plan.horizonH, t)); cursorDone(); };
   $('#t-cur').oninput = (e) => { T.cursor = +e.target.value; drawTreatment(); };
-  $('#t-cur').onchange = () => render();
+  $('#t-cur').onchange = cursorDone;
   if ($('#t-trough')) {
     $('#t-trough').onclick = () => setCursor(extremum(r.t, r.conc_mg_L[T.ref], T.cursor, false, false));
     $('#t-peak').onclick = () => setCursor(extremum(r.t, r.conc_mg_L[T.ref], T.cursor, true, true));
     $('#t-ref').onchange = (e) => { T.ref = e.target.value; };
   }
-  $('#t-exam').onclick = () => {
-    const dead = r.death_t_h !== null && r.death_t_h !== undefined;
-    const cause = dead ? r.outcomes.find((x) => x.state === 'dead').cause : null;
-    S.inputs.plan = r.plan; S.inputs.atH = T.cursor;
-    S.inputs.death = dead ? { t_h: r.death_t_h, cause, label_fr: DEATH_FR[cause] || 'décès' } : null;
-    S.tab = 'patient'; evaluate();
-  };
+  $('#t-exam').onclick = () => { S.tab = 'patient'; examine(r); };
   bindMc(v);
   for (const b of v.querySelectorAll('[data-ind]')) b.onclick = () => { const k = b.dataset.ind; T.shown = T.shown.includes(k) ? T.shown.filter((x) => x !== k) : [...T.shown, k]; render(); };
   // cliquer ou glisser sur une courbe : instant d'examen (tracé du curseur seul pendant le glissé)
@@ -697,10 +717,36 @@ function renderTreatment(v) {
       c.setPointerCapture(e.pointerId);
       T.cursor = at(e); $('#t-cur').value = T.cursor; drawTreatment();
       c.onpointermove = (m) => { T.cursor = at(m); $('#t-cur').value = T.cursor; drawTreatment(); };
-      c.onpointerup = c.onpointercancel = () => { c.onpointermove = null; c.onpointerup = c.onpointercancel = null; render(); };
+      c.onpointerup = c.onpointercancel = () => { c.onpointermove = null; c.onpointerup = c.onpointercancel = null; cursorDone(); };
     };
   }
   drawTreatment();
+}
+
+/** Le patient de la barre latérale est examiné sous ce traitement : l'examen suit le curseur. */
+function examFollows() { return !!(S.inputs.plan && S.inputs.atH !== null && S.inputs.atH !== undefined); }
+
+/** Examen complet du patient à l'instant du curseur (barre latérale et autres onglets). */
+function examine(r) {
+  const dead = r.death_t_h !== null && r.death_t_h !== undefined;
+  const cause = dead ? r.outcomes.find((x) => x.state === 'dead').cause : null;
+  S.inputs.plan = r.plan; S.inputs.atH = S.treat.cursor;
+  S.inputs.death = dead ? { t_h: r.death_t_h, cause, label_fr: DEATH_FR[cause] || 'décès' } : null;
+  evaluate();
+}
+
+/** Fin d'un déplacement du curseur : l'examen suit s'il est actif, sinon simple re-rendu. */
+function cursorDone() {
+  const r = S.treat.r;
+  if (r && !S.treat.pending && examFollows() && S.inputs.atH !== S.treat.cursor) examine(r); else render();
+}
+
+/** Constantes du modèle à l'instant du curseur, lues sur la grille d'états (sans examen). */
+function cursorVitals(r) {
+  const j = nearest(r.state_t, S.treat.cursor), o = r.outcomes[j];
+  if (o && o.state === 'dead') return '<div class="note">Patient décédé à cet instant.</div>';
+  const st = Object.fromEntries(Object.entries(r.states).map(([k, a]) => [k, a[j]]));
+  return vitals(st).replace('class="vitals"', 'class="vitals compact"') + `<div class="note">Constantes à ${dayLabel(r.state_t[j])} (point de grille le plus proche), sans signaux ; l'examen complet ajoute ECG, pressions et auscultation.</div>`;
 }
 
 /**
@@ -748,7 +794,7 @@ async function resimulateNow() {
 function focusKey() {
   const f = document.activeElement;
   if (!f || f === document.body) return null;
-  for (const a of ['id', 'data-mg', 'data-dose', 'data-step']) if (f.hasAttribute(a)) return `[${a}="${f.getAttribute(a)}"]`;
+  for (const a of ['id', 'data-mg', 'data-dose', 'data-step', 'data-f']) if (f.hasAttribute(a)) return `[${a}="${f.getAttribute(a)}"]`;
   return null;
 }
 function restoreFocus(v, key) {
@@ -782,6 +828,8 @@ function drawTreatment() {
   const T = S.treat, r = T.r;
   if (!r) return;
   const h = r.plan.horizonH;
+  const tv = document.getElementById('t-vitals');
+  if (tv) tv.innerHTML = cursorVitals(r);
   const marks = r.plan.regimens.flatMap((reg, i) => planDoses({ regimens: [reg] }).map((d) => ({ t: d.t_h, color: COLORS.drugs[i % 5] })));
   const col = (d) => COLORS.drugs[Math.max(0, r.plan.regimens.findIndex((x) => x.drug === d)) % 5];
   // fonds en cache : déplacer le curseur ne retrace que le curseur (les canvas sont recréés à chaque rendu)

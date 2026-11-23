@@ -211,3 +211,9 @@ button.mini { padding: 2px 8px; border-radius: 8px; font-size: 12px; }
 .mach-live { font-size: 12px; background: #f6f8f9; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
 .ok { color: #0b7a55; }
 .prep-hint { margin: 4px 2px; }
+/* constantes à l'instant du curseur (onglet Traitement) */
+.vitals.compact { grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 6px; }
+.vitals.compact .vital { padding: 6px 10px; background: var(--accent-soft); border-color: transparent; }
+.vitals.compact .vital .v { font-size: 17px; }
+.row.regimen { gap: 6px; padding: 6px 0; border-top: 1px solid #eef1f4; }
+.row.regimen select { padding: 4px 6px; }

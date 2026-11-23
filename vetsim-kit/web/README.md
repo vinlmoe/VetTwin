@@ -29,7 +29,12 @@ Le workflow `.github/workflows/pages.yml` publie le site à chaque fusion dans `
 ## Ergonomie
 - L'adresse suit le cas affiché (patient, onglet, schéma de traitement) : un rechargement le restitue, et le bouton « Copier le lien du cas » la copie pour la distribuer.
 - Clavier : Entrée dans le formulaire du patient = Évaluer ; flèches gauche/droite, Début, Fin sur les onglets ; espace = écouter/arrêter (Auscultation) ou lecture/pause (Cœur animé) ; blocs du schéma du modèle atteignables par Tab, ouverts par Entrée.
-- Traitement : cliquer ou glisser sur une courbe déplace l'instant d'examen.
+- Barre latérale : changer de maladie, de stade ou de poids évalue aussitôt le patient.
+- Traitement :
+  - Entrée ajoute le schéma, qui est simulé aussitôt ; le formulaire garde ses valeurs.
+  - Chaque schéma se modifie sur place (dose ±10 %, voie, intervalle, nombre de prises, début).
+  - Cliquer ou glisser sur une courbe déplace l'instant d'examen ; les constantes à cet instant s'affichent en direct, sans examen.
+  - Une fois l'examen complet demandé, il suit l'instant choisi (curseur, creux, pic) sans quitter l'onglet.
 - Anesthésie : le calcul de chaque seconde réelle est borné ; un patient coûteux (MMVD) avance moins vite que la vitesse demandée au lieu de geler l'interface, et la vitesse effective est affichée.
 
 ## Cas partageables par l'adresse
