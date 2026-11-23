@@ -1,7 +1,7 @@
 // VetTwins (web) : interface du patient virtuel canin. Le moteur vetsim tourne en
 // WebAssembly dans le navigateur (aucun serveur de calcul, aucune donnée envoyée).
 // Usage pédagogique uniquement.
-import { Controller, planDoses } from './engine.js';
+import { Controller, BackgroundEngine, Superseded, planDoses } from './engine.js';
 import { COLORS, timeChart, spectrogram, computeSpectrogram, dayLabel } from './charts.js';
 import { mountHeart } from './heart.js';
 import { renderAnesthesia } from './anesthesia.js';
@@ -11,12 +11,12 @@ const fmt = (v, d) => (v === undefined || v === null || Number.isNaN(v) ? '—' 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 const S = {
-  ctl: null, tab: 'patient',
+  ctl: null, tab: 'patient', bg: new BackgroundEngine(),
   inputs: { bw: 20, disease: null, stage: null, seed: 1, plan: null, atH: null },
   res: null,
   ausc: { hr: null, site: 'base', r: null, spec: null, window: 8, start: 0, cursor: null, playing: false, audio: null, src: null, loop: false, zoomOnly: false, played: false, gain: 1, gainNode: null },
   mc: { n: 1, dog: 1, individual: true, src: { natural: false, disease: false, drug: true, measurement: false }, progression: 0, running: false, progress: 0, res: null, sig: null, worker: null, error: null },
-  treat: { regimens: [], days: 3, r: null, cursor: 0, shown: ['hr', 'map', 'k'], ref: null, editing: null, open: null },
+  treat: { regimens: [], days: 3, r: null, cursor: 0, shown: ['hr', 'map', 'k'], ref: null, editing: null, open: null, pending: false, t0: 0 },
   model: { selected: null },
   heart: { r: null, t: 0, speed: 0.25, playing: true, raf: null, last: null },
 };
@@ -59,13 +59,85 @@ async function main() {
   $('#disease').onchange = () => { fillStages(); markDirty(); };
   $('#stage').onchange = markDirty;
   $('#bw').oninput = markDirty;
-  $('#evaluate').onclick = () => evaluate();
-  for (const b of document.querySelectorAll('#tabs button')) b.onclick = () => { S.tab = b.dataset.tab; render(); };
-  window.addEventListener('resize', () => render());
+  // Entrée dans le formulaire = Évaluer ; le libellé « Calcul… » s'affiche avant le calcul
+  $('#case-form').onsubmit = (e) => { e.preventDefault(); busy($('#evaluate'), () => { S.treat.r = null; evaluate(); if (S.treat.regimens.length) resimulate(); }); };
+  $('#copy-link').onclick = copyLink;
+  wireTabs();
+  // redimensionnement : un seul re-rendu par image, et seulement si la largeur change (sur mobile,
+  // la barre d'adresse qui se replie modifie la hauteur à chaque défilement)
+  let lastW = window.innerWidth, pend = 0;
+  window.addEventListener('resize', () => {
+    if (pend || window.innerWidth === lastW) return;
+    pend = requestAnimationFrame(() => { pend = 0; lastW = window.innerWidth; render(); });
+  });
+  window.addEventListener('keydown', onKey);
   fillStages();
   applyHash();
   evaluate();
-  if (S.treat.autoSim) { S.treat.autoSim = false; try { S.treat.r = S.ctl.treatment(S.inputs, { regimens: S.treat.regimens, horizonH: S.treat.days * 24 }); S.treat.ref = Object.keys(S.treat.r.conc_mg_L)[0]; } catch (e) { showError(e); } render(); }
+  if (S.treat.autoSim) { S.treat.autoSim = false; resimulate(); }
+}
+
+const TABS = ['patient', 'respiration', 'model', 'auscultation', 'heart', 'treatment', 'anesthesia'];
+
+/** Onglets : clic, flèches gauche/droite, Début/Fin (motif ARIA « tablist »). */
+function wireTabs() {
+  const tabs = [...document.querySelectorAll('#tabs [role=tab]')];
+  for (const b of tabs) b.onclick = () => selectTab(b.dataset.tab);
+  $('#tabs').onkeydown = (e) => {
+    const i = tabs.indexOf(document.activeElement);
+    if (i < 0) return;
+    const j = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
+    if (j === undefined) return;
+    e.preventDefault(); e.stopPropagation();
+    const b = tabs[(j + tabs.length) % tabs.length];
+    b.focus(); selectTab(b.dataset.tab);
+  };
+}
+function selectTab(tab) { if (tab !== S.tab) { S.tab = tab; render(); } }
+
+/** Raccourcis globaux (hors champs de saisie) : espace = écouter/arrêter dans l'onglet Auscultation. */
+function onKey(e) {
+  if (e.target.closest && e.target.closest('input, select, textarea, button, [role=tab]')) return;
+  if (S.tab === 'auscultation' && e.key === ' ' && S.ausc.r) { e.preventDefault(); if (S.ausc.playing) stopAusc(); else play(); }
+}
+
+/** Exécute un calcul synchrone après avoir affiché « Calcul… » sur le bouton. */
+function busy(btn, f) {
+  const old = btn.textContent;
+  btn.textContent = 'Calcul…'; btn.disabled = true; document.body.classList.add('busy');
+  requestAnimationFrame(() => setTimeout(() => {
+    try { f(); } finally { btn.disabled = false; document.body.classList.remove('busy'); if (btn.textContent === 'Calcul…') btn.textContent = old; markDirty(); }
+  }, 0));
+}
+
+/** Adresse décrivant le cas affiché (mêmes paramètres que applyHash). */
+function caseHash() {
+  const q = new URLSearchParams(), T = S.treat;
+  q.set('bw', S.inputs.bw);
+  if (S.inputs.disease) { q.set('disease', S.inputs.disease); if (S.inputs.stage) q.set('stage', S.inputs.stage); }
+  q.set('tab', S.tab);
+  if (T.regimens.length) {
+    q.set('plan', T.regimens.map((r) => [r.drug, r.mgPerKg, r.route, r.intervalH, r.count, r.startH].join(':')).join(','));
+    q.set('days', T.days);
+    if (T.cursor) q.set('t', +T.cursor.toFixed(2));
+    if (T.r || T.pending) q.set('sim', '1');
+  }
+  if (S.ausc.window !== 8) q.set('window', S.ausc.window);
+  if (S.heart.speed !== 0.25) q.set('speed', S.heart.speed);
+  return '#' + q.toString().replace(/%3A/gi, ':').replace(/%2C/gi, ',');
+}
+
+/** L'adresse suit le cas affiché : un rechargement le restitue, et elle se partage telle quelle. */
+function syncHash() {
+  const h = caseHash();
+  if (location.hash !== h) history.replaceState(null, '', h);
+}
+
+async function copyLink() {
+  syncHash();
+  const b = $('#copy-link'), old = 'Copier le lien du cas';
+  try { await navigator.clipboard.writeText(location.href); b.textContent = 'Lien copié ✓'; } catch (e) { prompt('Lien du cas :', location.href); }
+  setTimeout(() => { b.textContent = old; }, 1800);
 }
 
 /**
@@ -78,14 +150,14 @@ function applyHash() {
   if (q.get('bw')) $('#bw').value = q.get('bw');
   if (q.get('disease')) { $('#disease').value = q.get('disease'); fillStages(); }
   if (q.get('stage')) $('#stage').value = q.get('stage');
-  if (q.get('tab')) S.tab = q.get('tab');
+  if (TABS.includes(q.get('tab'))) S.tab = q.get('tab');
   if (q.get('plan')) {
     S.treat.regimens = q.get('plan').split(',').map((x) => {
       const [drug, mg, route, iv, n, st] = x.split(':');
-      return { drug, mgPerKg: +mg, route, intervalH: +iv, count: +n, startH: +(st || 0), overrides: {} };
-    });
+      return { drug, mgPerKg: +mg, route: route === 'iv' ? 'iv' : 'po', intervalH: +iv, count: Math.round(+n), startH: +(st || 0), overrides: {} };
+    }).filter((r) => S.ctl.catalog.drugs.some((d) => d.id === r.drug) && r.mgPerKg >= 0 && r.intervalH > 0 && r.count >= 1 && r.count <= 200);
   }
-  if (q.get('days')) S.treat.days = +q.get('days');
+  if (q.get('days')) S.treat.days = Math.min(14, Math.max(1, Math.round(+q.get('days')) || 3));
   if (q.get('t')) S.treat.cursor = +q.get('t');
   S.treat.autoSim = q.get('sim') === '1' && S.treat.regimens.length > 0;
   if (q.get('window')) S.ausc.window = +q.get('window');
@@ -137,9 +209,11 @@ function render() {
   if (!S.res) return;
   for (const b of document.querySelectorAll('#tabs button')) {
     const on = b.dataset.tab === S.tab;
-    b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false');
+    b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); b.tabIndex = on ? 0 : -1;
   }
+  $('#view').setAttribute('aria-labelledby', 'tab-' + S.tab);
   markDirty();
+  syncHash();
   // bandeau traitement et liste des concentrations fixes
   const tb = $('#treatment-banner');
   tb.hidden = !(S.inputs.plan && S.inputs.atH !== null);
@@ -312,7 +386,8 @@ function renderModel(v) {
     const words = label(id).split(' '); const lines = []; let cur = '';
     for (const w of words) { if ((cur + ' ' + w).trim().length > 24) { lines.push(cur); cur = w; } else cur = (cur + ' ' + w).trim(); }
     lines.push(cur); if (k && n[3] === 'b') lines.push(`${k} paramètre${k > 1 ? 's' : ''} modifié${k > 1 ? 's' : ''}`);
-    svg += `<g data-node="${id}" style="cursor:${n[3] === 'b' ? 'pointer' : 'default'}"><rect x="${x - nw / 2}" y="${y - nh / 2}" width="${nw}" height="${nh}" rx="10" fill="${fill}" stroke="${sel ? COLORS.ink : stroke}" stroke-width="${sel ? 3 : 1.5}"/>`
+    const clickable = cat.blocks.some((b) => b.id === id);
+    svg += `<g data-node="${id}" style="cursor:${clickable ? 'pointer' : 'default'}"${clickable ? ` tabindex="0" role="button" aria-pressed="${sel}" aria-label="${esc(label(id))}"` : ''}><rect x="${x - nw / 2}" y="${y - nh / 2}" width="${nw}" height="${nh}" rx="10" fill="${fill}" stroke="${sel ? COLORS.ink : stroke}" stroke-width="${sel ? 3 : 1.5}"/>`
       + lines.map((l, i) => `<text x="${x}" y="${y + (i - (lines.length - 1) / 2) * 14 + 4}" font-size="12" text-anchor="middle" fill="${COLORS.ink}" ${k && i === lines.length - 1 ? 'font-weight="600"' : ''}>${esc(l)}</text>`).join('') + '</g>';
   }
   svg += '</svg>';
@@ -327,7 +402,11 @@ function renderModel(v) {
     ? `<div class="scroll-x"><table class="values params"><tr><th>Paramètre</th><th>Bloc</th><th class="v">Sain → patient</th><th>Source</th></tr>${r.changes.map((c) => `<tr><td>${c.param}</td><td>${esc(c.blocks.map((b) => (cat.blocks.find((x) => x.id === b) || {}).label_fr).join(', '))}</td><td class="v">${num(c.healthy)} → ${num(c.patient)}</td><td class="src">${esc(c.sources.join(', '))}</td></tr>`).join('')}</table></div>`
     : '<div class="note">Aucun : patient sain.</div>');
   v.innerHTML = `<div class="legend"><span><i style="background:${COLORS.ao}"></i>modifié par la maladie</span><span><i style="background:${COLORS.lv}"></i>modifié par un médicament</span><span>Cliquer un bloc pour ses paramètres.</span></div>` + svg + detail + table;
-  for (const g of v.querySelectorAll('g[data-node]')) g.onclick = () => { const id = g.dataset.node; if (cat.blocks.some((b) => b.id === id)) { S.model.selected = S.model.selected === id ? null : id; render(); } };
+  const pick = (id) => { if (cat.blocks.some((b) => b.id === id)) { S.model.selected = S.model.selected === id ? null : id; render(); const g = v.querySelector(`g[data-node="${id}"]`); if (g) g.focus(); } };
+  for (const g of v.querySelectorAll('g[data-node]')) {
+    g.onclick = () => pick(g.dataset.node);
+    g.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(g.dataset.node); } };
+  }
 }
 
 /** Point et tangente d'une courbe quadratique [s, c, e] au paramètre t. */
@@ -386,7 +465,12 @@ function renderAuscultation(v) {
   const A = S.ausc;
   if (isDead()) { v.innerHTML = deadView('bruit cardiaque : silence à l\'auscultation'); return; }
   if (!A.r) {
-    try { A.r = S.ctl.auscultate(S.inputs, A.hr, A.site); A.spec = computeSpectrogram(A.r.samples, A.r.fs); A.cursor = null; A.start = 0; A.window = Math.min(A.window, A.r.duration_s); }
+    try {
+      A.r = S.ctl.auscultate(S.inputs, A.hr, A.site); A.spec = computeSpectrogram(A.r.samples, A.r.fs); A.cursor = null; A.start = 0; A.window = Math.min(A.window, A.r.duration_s);
+      // échelle des pressions fixée une fois (pas de Math.max(...) sur de grands tableaux à chaque image)
+      let hi = 0; for (const a of [A.r.pressures.ao, A.r.pressures.lv]) for (const x of a) if (x > hi) hi = x;
+      A.prMax = hi * 1.05;
+    }
     catch (e) { showError(e); return; }
   }
   const r = A.r, dur = r.duration_s;
@@ -394,7 +478,7 @@ function renderAuscultation(v) {
   v.innerHTML = `<div class="toolbar"><div class="row" style="gap:18px">
       <div class="group"><span class="lab">FC</span>${chip('Patient', A.hr === null, 'hr:')}${chip('Repos 72', A.hr === 72, 'hr:72')}${chip('90', A.hr === 90, 'hr:90')}</div>
       <div class="group"><span class="lab">Site</span>${chip('Base', A.site === 'base', 'site:base')}${chip('Apex', A.site === 'apex', 'site:apex')}</div></div>
-    <div class="row" style="gap:18px"><button class="primary" id="play">${A.playing ? '■ Arrêter' : A.played ? '↻ Rejouer' : '▶ Écouter'}</button>
+    <div class="row" style="gap:18px"><button class="primary" id="play" title="Espace">${A.playing ? '■ Arrêter' : A.played ? '↻ Rejouer' : '▶ Écouter'}</button>
       <label class="inline"><input type="checkbox" id="loop" ${A.loop ? 'checked' : ''}> en boucle</label>
       <label class="inline"><input type="checkbox" id="zoomonly" ${A.zoomOnly ? 'checked' : ''}> fenêtre affichée seulement</label>
       <label class="inline">Volume <input id="vol" type="range" min="1" max="8" step="0.5" value="${A.gain}" style="width:120px"> <b id="voll">×${fmt(A.gain, 1)}</b></label></div>
@@ -425,11 +509,13 @@ function renderAuscultation(v) {
 
 function drawAusc() {
   const A = S.ausc, r = A.r, x0 = A.start, x1 = A.start + A.window;
-  timeChart($('#a-pcg'), { series: [{ y: r.samples, dt: 1 / r.fs, color: COLORS.accent }], x0, x1, yMin: -1, yMax: 1, cursor: A.cursor });
+  // pendant la lecture, la fenêtre bouge peu : les fonds sont mis en cache, seul le curseur est retracé
+  const cacheKey = `${x0}:${x1}`;
+  timeChart($('#a-pcg'), { series: [{ y: r.samples, dt: 1 / r.fs, color: COLORS.accent }], x0, x1, yMin: -1, yMax: 1, cursor: A.cursor, cacheKey });
   spectrogram($('#a-spec'), A.spec, x0, x1, A.cursor);
-  timeChart($('#a-ecg'), { series: [{ y: r.ecg, dt: 1 / r.ecg_fs, color: COLORS.ecg }], x0, x1, cursor: A.cursor, yMin: ECG_MIN, yMax: ECG_MAX });
-  const p = r.pressures, hi = Math.max(...p.ao, ...p.lv) * 1.05;
-  timeChart($('#a-pr'), { series: [p.ao, p.lv, p.la].map((y, i) => ({ y, dt: 1 / p.fs, color: [COLORS.ao, COLORS.lv, COLORS.la][i] })), x0, x1, yMin: 0, yMax: hi, cursor: A.cursor });
+  timeChart($('#a-ecg'), { series: [{ y: r.ecg, dt: 1 / r.ecg_fs, color: COLORS.ecg }], x0, x1, cursor: A.cursor, yMin: ECG_MIN, yMax: ECG_MAX, cacheKey });
+  const p = r.pressures;
+  timeChart($('#a-pr'), { series: [p.ao, p.lv, p.la].map((y, i) => ({ y, dt: 1 / p.fs, color: [COLORS.ao, COLORS.lv, COLORS.la][i] })), x0, x1, yMin: 0, yMax: A.prMax, cursor: A.cursor, cacheKey });
 }
 
 /** Lecture Web Audio ; le curseur suit l'horloge audio et la fenêtre suit le curseur. */
@@ -516,15 +602,18 @@ function renderTreatment(v) {
       return s;
     }).join('')
     + `<div class="row">Durée simulée : <b id="t-dl">${T.days}</b> j <input id="t-days" type="range" min="1" max="14" step="1" value="${T.days}" style="width:240px">
-       <span class="note">${T.regimens.length ? 'simulation mise à jour à chaque changement' : 'ajouter un schéma pour simuler'}</span></div>`);
+       <span class="note">${T.regimens.length ? 'simulation mise à jour à chaque changement' : 'ajouter un schéma pour simuler'}</span></div>`
+    + (T.pending ? `<div class="sim-status" role="status"><span class="spinner"></span>Simulation en cours (${T.days} j${S.inputs.disease === 'mmvd' ? ', plusieurs secondes en MMVD' : ''})… L'interface reste utilisable ; un nouveau changement relance le calcul.<button id="t-abort">Interrompre</button></div>` : ''));
   const r = T.r;
   if (r) {
+    html += `<div class="treat-results${T.pending ? ' stale-res' : ''}">`;
     const h = r.plan.horizonH, i = nearest(r.t, T.cursor);
     html += card(`Instant d'examen : ${dayLabel(T.cursor)} (t = ${fmt(T.cursor, 1)} h)`, `<div class="row">
         ${T.ref ? `<button id="t-trough">◀ creux</button><button id="t-peak">pic ▶</button>
         <select id="t-ref">${Object.keys(r.conc_mg_L).map((d) => `<option value="${d}" ${d === T.ref ? 'selected' : ''}>repère : ${esc(dname(d))}</option>`).join('')}</select>` : ''}
-        <button class="primary" id="t-exam">Examiner le patient à cet instant</button></div>
-        <input id="t-cur" type="range" min="0" max="${h}" step="0.05" value="${T.cursor}">
+        <button class="primary" id="t-exam" ${T.pending ? 'disabled title="simulation en cours"' : ''}>Examiner le patient à cet instant</button></div>
+        <input id="t-cur" type="range" min="0" max="${h}" step="0.05" value="${T.cursor}" aria-label="Instant d'examen (h)">
+        <div class="note">Astuce : cliquer ou glisser sur une courbe déplace l'instant d'examen ; ◀ creux / pic ▶ sautent d'un extremum au suivant.</div>
         <div class="note">${Object.keys(r.conc_mg_L).map((d) => `${esc(dname(d))} : ${fmt(r.conc_mg_L[d][i], 4)} mg/L, E = ${fmt(r.effect[d][i], 2)}`).join(' &nbsp; ')}</div>
         ${outcomeNote(r)}`);
     html += card('Un chien suivi dans le temps (variabilité naturelle)', mcPanel(r));
@@ -541,6 +630,7 @@ function renderTreatment(v) {
       const j = nearest(r.state_t, T.cursor);
       html += card(`${ind[1]}${ind[2] ? ` (${ind[2]})` : ''} : ${fmt(r.states[k][j] * (ind[4] || 1), Math.max(ind[3], 2))} à ${dayLabel(r.state_t[j])}${mcBandNote(k)}`, canvas('ti-' + k, 90));
     }
+    html += '</div>';
   }
   const focus = focusKey();
   v.innerHTML = html;
@@ -579,6 +669,7 @@ function renderTreatment(v) {
   };
   $('#t-days').oninput = (e) => { T.days = +e.target.value; $('#t-dl').textContent = T.days; };
   $('#t-days').onchange = () => resimulate();
+  if ($('#t-abort')) $('#t-abort').onclick = () => { S.bg.cancel(); };
   if (!r) return;
   const setCursor = (t) => { T.cursor = Math.max(0, Math.min(r.plan.horizonH, t)); render(); };
   $('#t-cur').oninput = (e) => { T.cursor = +e.target.value; drawTreatment(); };
@@ -597,10 +688,18 @@ function renderTreatment(v) {
   };
   bindMc(v);
   for (const b of v.querySelectorAll('[data-ind]')) b.onclick = () => { const k = b.dataset.ind; T.shown = T.shown.includes(k) ? T.shown.filter((x) => x !== k) : [...T.shown, k]; render(); };
-  for (const c of v.querySelectorAll('canvas')) c.onclick = (e) => {
-    const rect = c.getBoundingClientRect(), left = 44;
-    setCursor(((e.clientX - rect.left - left) / (rect.width - left)) * r.plan.horizonH);
-  };
+  // cliquer ou glisser sur une courbe : instant d'examen (tracé du curseur seul pendant le glissé)
+  for (const c of v.querySelectorAll('canvas')) {
+    const at = (e) => { const rect = c.getBoundingClientRect(), left = 44; return Math.max(0, Math.min(r.plan.horizonH, ((e.clientX - rect.left - left) / (rect.width - left)) * r.plan.horizonH)); };
+    c.style.cursor = 'col-resize'; c.style.touchAction = 'pan-y';
+    c.onpointerdown = (e) => {
+      if (e.button !== 0) return;
+      c.setPointerCapture(e.pointerId);
+      T.cursor = at(e); $('#t-cur').value = T.cursor; drawTreatment();
+      c.onpointermove = (m) => { T.cursor = at(m); $('#t-cur').value = T.cursor; drawTreatment(); };
+      c.onpointerup = c.onpointercancel = () => { c.onpointermove = null; c.onpointerup = c.onpointercancel = null; render(); };
+    };
+  }
   drawTreatment();
 }
 
@@ -614,14 +713,28 @@ function resimulate() {
   clearTimeout(S.treat.timer);
   S.treat.timer = setTimeout(resimulateNow, 0);
 }
-function resimulateNow() {
+/**
+ * Le calcul tourne dans un Web Worker (plusieurs secondes en MMVD) : l'interface reste utilisable,
+ * les anciens résultats restent affichés (grisés) jusqu'au nouveau, et un changement pendant le
+ * calcul annule celui-ci au profit du plus récent.
+ */
+async function resimulateNow() {
   const T = S.treat;
-  if (!T.regimens.length) { T.r = null; render(); return; }
+  if (!T.regimens.length) { S.bg.cancel(); T.pending = false; T.r = null; render(); return; }
+  T.pending = true;
+  render();
   try {
-    T.r = S.ctl.treatment(S.inputs, { regimens: T.regimens, horizonH: T.days * 24 });
+    // instantané des entrées : le calcul porte sur le patient et le schéma de cet instant
+    const r = await S.bg.run('treatment', { ...S.inputs }, { regimens: T.regimens, horizonH: T.days * 24 });
+    T.pending = false;
+    T.r = r;
     T.cursor = Math.min(T.cursor, T.days * 24);
     if (!T.ref || !(T.ref in T.r.conc_mg_L)) T.ref = Object.keys(T.r.conc_mg_L)[0];
-  } catch (e) { showError(e); render(); return; }
+  } catch (e) {
+    if (e instanceof Superseded) { if (!S.bg.busy) { T.pending = false; render(); } return; }
+    T.pending = false; showError(e); render(); return;
+  }
+  $('#error').hidden = true;
   if (S.inputs.plan && S.inputs.atH !== null) {
     const r = T.r, dead = r.death_t_h !== null && r.death_t_h !== undefined;
     const cause = dead ? r.outcomes.find((x) => x.state === 'dead').cause : null;
@@ -666,10 +779,13 @@ function outcomeBands(r) {
 }
 
 function drawTreatment() {
-  const T = S.treat, r = T.r, h = r.plan.horizonH;
+  const T = S.treat, r = T.r;
+  if (!r) return;
+  const h = r.plan.horizonH;
   const marks = r.plan.regimens.flatMap((reg, i) => planDoses({ regimens: [reg] }).map((d) => ({ t: d.t_h, color: COLORS.drugs[i % 5] })));
   const col = (d) => COLORS.drugs[Math.max(0, r.plan.regimens.findIndex((x) => x.drug === d)) % 5];
-  const base = { x0: 0, x1: h, cursor: T.cursor, marks, ticks: 'treatment', bands: outcomeBands(r) };
+  // fonds en cache : déplacer le curseur ne retrace que le curseur (les canvas sont recréés à chaque rendu)
+  const base = { x0: 0, x1: h, cursor: T.cursor, marks, ticks: 'treatment', bands: outcomeBands(r), cacheKey: 'treatment' };
   for (const d of Object.keys(r.conc_mg_L)) {
     const c = document.getElementById('tc-' + d);
     if (c) timeChart(c, { ...base, series: [{ y: r.conc_mg_L[d], t: r.t, color: col(d) }], refLines: [S.ctl.catalog.drugs.find((x) => x.id === d).ec50_mg_L] });
@@ -811,13 +927,19 @@ function mcSummary(t, trajs, keys) {
   return { t, n: trajs.length, bands, examples, alive };
 }
 
-function nearest(t, x) { let b = 0; for (let i = 0; i < t.length; i++) if (Math.abs(t[i] - x) < Math.abs(t[b] - x)) b = i; return b; }
+/** Indice du point de la grille (croissante) le plus proche de x (le premier en cas d'égalité). */
+function nearest(t, x) {
+  let lo = 0, hi = t.length - 1;
+  if (hi <= 0) return 0;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (t[m] <= x) lo = m; else hi = m; }
+  return Math.abs(t[hi] - x) < Math.abs(t[lo] - x) ? hi : lo;
+}
 
 /** Prochain pic (maximum local) après x, ou dernier creux (minimum local) avant x. */
 function extremum(t, c, x, forward, max) {
-  const idx = forward ? [...Array(c.length - 2).keys()].map((i) => i + 1).filter((i) => t[i] > x + 1e-9)
-    : [...Array(c.length - 2).keys()].map((i) => c.length - 2 - i).filter((i) => t[i] < x - 1e-9);
-  for (const i of idx) if (max ? c[i] >= c[i - 1] && c[i] > c[i + 1] : c[i] <= c[i - 1] && c[i] < c[i + 1]) return t[i];
+  const ok = (i) => (max ? c[i] >= c[i - 1] && c[i] > c[i + 1] : c[i] <= c[i - 1] && c[i] < c[i + 1]);
+  if (forward) { for (let i = 1; i < c.length - 1; i++) if (t[i] > x + 1e-9 && ok(i)) return t[i]; }
+  else for (let i = c.length - 2; i >= 1; i--) if (t[i] < x - 1e-9 && ok(i)) return t[i];
   return x;
 }
 

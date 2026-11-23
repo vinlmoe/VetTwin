@@ -23,6 +23,7 @@ header.case h2 { margin: 0; font-size: 18px; }
 header.case .stale { font-weight: 400; font-size: 13px; color: var(--warn); }
 
 label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); min-width: 0; }
+label:has(> input[type=checkbox]), label:has(> input[type=radio]) { flex-direction: row; align-items: center; gap: 6px; font-size: 13px; color: var(--ink); align-self: center; }
 label.inline { flex-direction: row; align-items: center; gap: 6px; font-size: 13px; color: var(--ink); }
 input, select { font: inherit; font-size: 14px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: white; color: var(--ink); max-width: 100%; min-width: 0; }
 aside select, aside input { width: 100%; }
@@ -51,6 +52,21 @@ button:focus-visible { outline-offset: 3px; }
 .dead-view { padding: 24px; text-align: center; color: var(--muted); }
 
 #tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+#view { display: flex; flex-direction: column; gap: 12px; outline: none; }
+g[data-node]:focus { outline: none; }
+g[data-node]:focus-visible rect { stroke: var(--accent); stroke-width: 3; stroke-dasharray: 5 3; }
+#case-form { display: flex; flex-direction: column; gap: 10px; }
+#copy-link { align-self: flex-start; font-size: 12px; padding: 5px 10px; }
+body.busy, body.busy * { cursor: progress !important; }
+
+/* simulation du traitement en arrière-plan */
+.sim-status { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--accent); background: var(--accent-soft); border-radius: 8px; padding: 8px 10px; }
+.sim-status button { margin-left: auto; }
+.spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin 0.8s linear infinite; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+.treat-results { display: flex; flex-direction: column; gap: 12px; transition: opacity 0.2s; }
+.treat-results.stale-res { opacity: 0.5; }
 
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .card h3 { margin: 0; font-size: 14px; }

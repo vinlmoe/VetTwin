@@ -423,7 +423,7 @@ export function mountHeart(v, r, H, ui) {
   if (H.onKey) window.removeEventListener('keydown', H.onKey);
   H.onKey = (e) => {
     if (!svg.isConnected) { window.removeEventListener('keydown', H.onKey); H.onKey = null; return; }
-    if (e.target.closest && e.target.closest('input, select, textarea')) return;
+    if (e.target.closest && e.target.closest('input, select, textarea, [role=tab]')) return;
     if (e.key === ' ') { e.preventDefault(); setPlaying(!H.playing); } else if (e.key === 'ArrowRight') jump(1); else if (e.key === 'ArrowLeft') jump(-1);
   };
   window.addEventListener('keydown', H.onKey);

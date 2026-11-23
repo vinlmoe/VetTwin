@@ -332,6 +332,13 @@ impl Engine {
         })
     }
 
+    /// Libère un patient (et ses sessions d'anesthésie) : `{"ok": true, "dropped": bool}`.
+    /// Les interfaces créent un patient par calcul ; sans libération, ils s'accumulent.
+    pub fn drop_patient(&mut self, patient_id: &str) -> String {
+        let dropped = self.patients.remove(patient_id).is_some();
+        json!({ "ok": true, "dropped": dropped }).to_string()
+    }
+
     fn session(&mut self, id: &str) -> Result<&mut Session, ApiError> {
         self.patients
             .get_mut(id)
@@ -1205,7 +1212,8 @@ impl Engine {
     }
 
     /// Message JSON générique `{"op": ..., "patient": ..., "options": {...}}` : `pcg`, `state`,
-    /// `signals`, `timecourse`, `add_disease`, `new_patient`, `list_modules`, `api_version`.
+    /// `signals`, `timecourse`, `add_disease`, `new_patient`, `drop_patient`, `list_modules`,
+    /// `api_version`, `anesthesia_*` (dont `anesthesia_end`, qui libère la session).
     pub fn message(&mut self, text: &str) -> String {
         let msg = match parse(text, "message") {
             Ok(m) => m,
@@ -1231,17 +1239,19 @@ impl Engine {
             "renal_course" => self.renal_course(&pid, &opts),
             "add_disease" => self.add_disease(&pid, &opts),
             "new_patient" => self.new_patient(&opts),
+            "drop_patient" => self.drop_patient(&pid),
             "list_modules" => self.list_modules(),
             "anesthesia_list" => self.respond(|e| e.anesthesia_list()),
             "anesthesia_start" => {
                 let o = msg.get("options").cloned().unwrap_or_else(|| json!({}));
                 self.respond(|e| e.anesthesia_start(&pid, &o))
             }
-            "anesthesia_event" | "anesthesia_step" | "anesthesia_record" => {
+            "anesthesia_event" | "anesthesia_step" | "anesthesia_record" | "anesthesia_end" => {
                 let o = msg.get("options").cloned().unwrap_or_else(|| json!({}));
                 self.respond(|e| match op {
                     "anesthesia_event" => e.anesthesia_event(&o),
                     "anesthesia_step" => e.anesthesia_step(&o),
+                    "anesthesia_end" => e.anesthesia_end(&o),
                     _ => e.anesthesia_record(&o),
                 })
             }
@@ -2249,6 +2259,31 @@ mod tests {
                 r#"{"doses": [{"drug": "x", "mg_per_kg": 1, "route": "iv"}]}"#
             ))["ok"],
             false
+        );
+    }
+
+    #[test]
+    fn dropped_patients_and_sessions_are_freed() {
+        let mut e = Engine::new();
+        e.load_modules(&bundle());
+        let id = j(&e.new_patient("{}"))["patient_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        assert_eq!(e.patients.len(), 1);
+        let r = j(&e.message(&json!({ "op": "drop_patient", "patient": id }).to_string()));
+        assert_eq!(
+            (r["ok"].as_bool(), r["dropped"].as_bool()),
+            (Some(true), Some(true))
+        );
+        assert!(e.patients.is_empty());
+        assert_eq!(j(&e.state(&id, "{}"))["ok"], false);
+        // seconde libération : sans effet, sans erreur
+        assert_eq!(j(&e.drop_patient(&id))["dropped"], false);
+        let r = j(&e.message(r#"{"op": "anesthesia_end", "options": {"session": "s0"}}"#));
+        assert_eq!(
+            (r["ok"].as_bool(), r["ended"].as_bool()),
+            (Some(true), Some(false))
         );
     }
 

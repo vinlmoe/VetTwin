@@ -52,6 +52,7 @@ Un écran : choix du poids, d'une maladie et d'un stade; boutons « évaluer » 
 
   Renvoie une erreur pour un patient décédé.
 - `message(json)` : `{"op": "pcg"|"heart"|"state"|"signals"|"timecourse"|"add_disease"|"new_patient"|"list_modules"|"api_version", "patient": id, "options": {...}}`. Même réponse que la méthode correspondante. `hr` (FC imposée) est accepté aussi par `state` et `signals`.
+- Libération : `{"op": "drop_patient", "patient": id}` → `{"ok": true, "dropped": bool}` ; `{"op": "anesthesia_end", "options": {"session": id}}` → `{"ok": true, "ended": bool}`. Le moteur garde chaque patient et chaque session jusqu'à leur libération : une interface qui crée un patient par calcul doit le libérer ensuite (l'application web le fait).
 - Anesthésie en temps réel (`docs/ANESTHESIE.tex`) : `anesthesia_list`, `anesthesia_start` (`patient`, `options.seed`, `options.procedure`), `anesthesia_event` (`options.session`, `options.event` : `{type: bolus|cri|vaporizer|fresh_gas|circuit|intubate|extubate|ventilation|oxygen|stimulus|procedure_step|end_surgery|local_block|fluids|fluid_bolus|hemorrhage|warming, ...}`), `anesthesia_step` (`dt_s` ≤ 60, `n`, `all`, `waves_s` : ECG et pression artérielle de l'état final), `anesthesia_record` (feuille d'anesthésie, journal, jalons). `loadModules` accepte un bloc optionnel `anesthesia` : `{model, agents, inhalants, procedures}`.
 
 ### Diurétique : définition de `D` et `U`

@@ -10,11 +10,14 @@
   <aside id="side">
     <h1>VetTwins</h1>
     <p class="sub">Patient virtuel canin · moteur vetsim <span id="api"></span> · calcul dans le navigateur</p>
-    <label>Poids (kg)<input id="bw" type="number" min="1" max="90" step="0.5" value="20"></label>
-    <label>Maladie<select id="disease"></select></label>
-    <label id="stage-wrap">Stade<select id="stage"></select></label>
-    <button id="evaluate" class="primary">Évaluer</button>
+    <form id="case-form" aria-label="Patient">
+      <label>Poids (kg)<input id="bw" type="number" min="1" max="90" step="0.5" value="20" required></label>
+      <label>Maladie<select id="disease"></select></label>
+      <label id="stage-wrap">Stade<select id="stage"></select></label>
+      <button id="evaluate" type="submit" class="primary" title="Entrée">Évaluer</button>
+    </form>
     <div id="treatment-banner" class="banner" hidden></div>
+    <button id="copy-link" type="button" title="L'adresse décrit le cas affiché (patient, onglet, traitement) : à distribuer aux étudiants">Copier le lien du cas</button>
     <p class="note">Médicaments : onglet « Traitement (PK/PD) », puis « Examiner le patient à cet instant ». Les concentrations découlent toujours des doses (PK/PD).</p>
     <p class="warn">Outil pédagogique : ne jamais utiliser pour décider d'une dose ou d'un traitement réel. Les niveaux de preuve [A–D] sont ceux des modules ; D = placeholder.</p>
   </aside>
@@ -22,18 +25,18 @@
     <header class="case">
       <h2 id="case-label">Chargement du moteur…</h2>
       <nav id="tabs" role="tablist" aria-label="Vues du patient">
-        <button role="tab" data-tab="patient" class="on">Patient</button>
-        <button role="tab" data-tab="respiration">Respiration</button>
-        <button role="tab" data-tab="model">Schéma du modèle</button>
-        <button role="tab" data-tab="auscultation">Auscultation</button>
-        <button role="tab" data-tab="heart">Cœur animé</button>
-        <button role="tab" data-tab="treatment">Traitement (PK/PD)</button>
-        <button role="tab" data-tab="anesthesia">Anesthésie</button>
+        <button role="tab" id="tab-patient" aria-controls="view" data-tab="patient" class="on">Patient</button>
+        <button role="tab" id="tab-respiration" aria-controls="view" data-tab="respiration">Respiration</button>
+        <button role="tab" id="tab-model" aria-controls="view" data-tab="model">Schéma du modèle</button>
+        <button role="tab" id="tab-auscultation" aria-controls="view" data-tab="auscultation">Auscultation</button>
+        <button role="tab" id="tab-heart" aria-controls="view" data-tab="heart">Cœur animé</button>
+        <button role="tab" id="tab-treatment" aria-controls="view" data-tab="treatment">Traitement (PK/PD)</button>
+        <button role="tab" id="tab-anesthesia" aria-controls="view" data-tab="anesthesia">Anesthésie</button>
       </nav>
     </header>
     <div id="error" class="error" role="alert" hidden></div>
     <div id="outcome-banner" role="status" hidden></div>
-    <section id="view" role="tabpanel"></section>
+    <section id="view" role="tabpanel" tabindex="-1" aria-live="off"></section>
   </main>
   <script type="module" src="app.js"></script>
 </body>
