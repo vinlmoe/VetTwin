@@ -82,8 +82,8 @@ OG/Ao $\ge 1{,}6$, LVIDdN $\ge 1{,}7$) sont atteints ;
 \item fibrillation atriale : fraction de vidange de l'OG réduite de plus de 30~\% (perte de la contraction atriale).
 \end{itemize}
 
-Valeurs obtenues (\SI{20}{kg}, $\lambda=0{,}27$) : sain LVIDd \SI{3,83}{cm}, FR 25,7~\%, OG/Ao 1,35, OG \SIrange{9,2}{19,0}{mL} ;
-MMVD $s=0{,}6$ : LVIDdN 1,77, OG/Ao 1,53 ; $s=0{,}9$ : LVIDdN 2,12, OG/Ao 2,04.
+Valeurs obtenues (\SI{20}{kg}, $\lambda=0{,}27$, moteur du 24/11/2026) : sain LVIDd \SI{3,83}{cm}, FR 28,5~\%, OG/Ao 1,35,
+OG maximale \SI{18,9}{mL} ; MMVD $s=0{,}6$ : LVIDdN 1,78, OG/Ao 1,58 ; $s=0{,}9$ : LVIDdN 2,10, OG/Ao 2,08.
 
 \paragraph{Limites.} Pas de remodelage chronique de l'OG ni d'hypertrophie excentrique (masse VG constante : la paroi
 s'amincit quand le VG se dilate) ; dilatation de l'OG seulement par la pression. VG global : pas de trouble régional.
@@ -231,18 +231,23 @@ vitesses ne sont pas calées.
 
 \begin{tabularx}{\linewidth}{@{}Xcc@{}}
 \toprule
-Chien de 20 kg & Modèle & Publié\\\midrule
-E / A (m/s) & 0,75 / 0,55 & 0,72 / 0,50, IR 0,43--1,05 / 0,31--0,86 (Bagardi 2025)\\
-E/A & 1,37 & 1,43, IR 0,8--2,25 (Bagardi 2025)\\
-Vmax aortique (m/s) & 1,65 & CW 1,60, IR 1,10--2,33 (Favier 2025)\\
-Vmax pulmonaire (m/s) & 1,18 & 0,94, IR 0,59--1,41 (Favier 2025)\\
-IM, MMVD (m/s) & 5,5--5,8 & médianes 5,3--5,9 (Koch 2024)\\
-E, MMVD $s=0{,}6$ (m/s) & 1,48 & B2 : 1,47 (Koch 2024)\\
-EROA, MMVD $s=0{,}6$ (cm²) & 0,25 & B2 0,15 ; C 0,27 (Koch 2024)\\
+20 kg, moteur du 24/11 & Modèle & Publié\\\midrule
+E / A (m/s) & 0,73 / 0,49 & 0,72 / 0,50, IR 0,43--1,05 / 0,31--0,86 (Bagardi 2025)\\
+E/A & 1,49 & 1,43, IR 0,8--2,25 (Bagardi 2025)\\
+Vmax aortique (m/s) & 1,27 & CW 1,60, IR 1,10--2,33 ; PW 1,16 (Favier 2025)\\
+ITV aortique (cm) & 11,2 & --\\
+Vmax pulmonaire (m/s) & 1,24 & 0,94, IR 0,59--1,41 (Favier 2025)\\
+IM, MMVD $s = 0{,}175$--$0{,}9$ (m/s) & 5,9--6,4 & médianes 5,3--5,9 (Koch 2024)\\
+E, MMVD $s=0{,}6$ (m/s) & 1,04 & B2 : 1,47 (Koch 2024)\\
+EROA, MMVD $s=0{,}6$ (cm²) & 0,26 & B2 0,15 ; C 0,27 (Koch 2024)\\
+E ; EROA, MMVD $s=0{,}9$ & \SI{1,44}{m/s} ; \SI{0,99}{cm^2} & stade C : 1,75 ; 0,27--0,52 (Koch 2024)\\
 \bottomrule
 \end{tabularx}
 
-\paragraph{Écarts signalés, sans correction de l'hémodynamique calibrée.}
+\paragraph{Écarts signalés avec le moteur du 23/11/2026.} Les deux premiers ont été traités le 24/11 par la révision du
+moteur (section suivante) ; le tableau ci-dessus donne les valeurs après révision. Restent : un jet d'IM un peu plus rapide
+que les médianes publiées, et une onde E de MMVD désormais plutôt basse (\SI{1,04}{m/s} à $s=0{,}6$ contre 1,47 publié en
+B2), alors que l'EROA est dans la plage publiée.
 \begin{itemize}
 \item Débit aortique trop pointu : rapport pic/moyenne de 3, contre environ 2 sur une courbe réelle. La Vmax aortique est
 dans l'intervalle CW mais au-dessus des valeurs PW. L'ITV (\SI{10,4}{cm}) n'en dépend pas.
@@ -284,8 +289,8 @@ $L\,\dot Q = P_{VG} - P_{Ao} - rQ$. La pression aortique proximale vaut $P_C + Z
 de la résistance totale. $L$, $Z_c$ et la compliance aortique sont calés ensemble sur la PAM (Haskins 2005), la pression
 pulsée (Meyer 2010, télémétrie : 44--46 mmHg) et la vitesse aortique Doppler.
 
-\emph{Chien sain} : 132/88 mmHg, vitesse aortique \SI{1,22}{m/s} (\SI{1,65}{m/s} avant ; publié \SIrange{1,16}{1,39}{m/s}),
-FR 28~\%.
+\emph{Chien sain} : 132/88 mmHg, vitesse aortique \SI{1,27}{m/s} mesurée par l'API \vp{echo} (\SI{1,22}{m/s} dans le
+programme de calage ; \SI{1,65}{m/s} avant ; publié \SIrange{1,16}{1,39}{m/s}), FR 28,5~\%.
 \item \textbf{Loi d'orifice.} Les fuites valvulaires suivent $Q = 50\,A\sqrt{\Delta P}$ (Bernoulli) au lieu d'une
 conductance linéaire. L'EROA du Doppler est alors l'aire d'orifice du moteur. L'orifice mitral dynamique (Yoran) est
 borné par l'anatomie.
