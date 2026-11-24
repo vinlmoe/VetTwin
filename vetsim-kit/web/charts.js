@@ -37,6 +37,52 @@ export function dayLabel(h) {
  *        série : dash ([motif]) pour un tracé pointillé
  */
 export function timeChart(canvas, opts) {
+  // fond inchangé (même clé, même taille) : on recolle l'image mise en cache et on ne trace que le curseur
+  if (opts.cacheKey !== undefined && reuseBase(canvas, opts.cacheKey)) {
+    const left = opts.left ?? 44, x0 = opts.x0, x1 = opts.x1;
+    drawCursor(canvas, opts.cursor, left, x0, x1, canvas.clientHeight - 16);
+    return { left, W: canvas.clientWidth - left, x0, x1 };
+  }
+  const out = drawTimeChart(canvas, { ...opts, cursor: undefined });
+  if (opts.cacheKey !== undefined) storeBase(canvas, opts.cacheKey);
+  if (out) drawCursor(canvas, opts.cursor, out.left, opts.x0, opts.x1, canvas.clientHeight - 16);
+  return out;
+}
+
+/** Clé de cache d'un fond : clé fournie + taille en pixels physiques. */
+function baseKey(canvas, key) { return `${key}|${canvas.width}x${canvas.height}`; }
+
+/** Recolle le fond mis en cache si la clé et la taille n'ont pas changé. */
+function reuseBase(canvas, key) {
+  const c = canvas._base;
+  const dpr = window.devicePixelRatio || 1;
+  if (!c || canvas.width !== Math.round(canvas.clientWidth * dpr) || canvas.height !== Math.round(canvas.clientHeight * dpr)) return false;
+  if (c.key !== baseKey(canvas, key)) return false;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(c.img, 0, 0);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return true;
+}
+
+function storeBase(canvas, key) {
+  const c = canvas._base || (canvas._base = { img: document.createElement('canvas') });
+  c.img.width = canvas.width; c.img.height = canvas.height;
+  const g = c.img.getContext('2d');
+  g.clearRect(0, 0, canvas.width, canvas.height);
+  g.drawImage(canvas, 0, 0);
+  c.key = baseKey(canvas, key);
+}
+
+function drawCursor(canvas, cursor, left, x0, x1, H) {
+  if (cursor === undefined || cursor === null || cursor < x0 || cursor > x1) return;
+  const ctx = canvas.getContext('2d'), W = canvas.clientWidth - left, x = left + ((cursor - x0) / (x1 - x0 || 1)) * W;
+  ctx.strokeStyle = COLORS.cursor; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+}
+
+function drawTimeChart(canvas, opts) {
   const { ctx, w, h } = setup(canvas);
   const left = opts.left ?? 44, axis = 16, W = w - left, H = h - axis;
   const x0 = opts.x0, x1 = opts.x1, span = x1 - x0 || 1;
@@ -133,10 +179,6 @@ export function timeChart(canvas, opts) {
     }
   }
   ctx.setLineDash([]);
-  if (opts.cursor !== undefined && opts.cursor !== null && opts.cursor >= x0 && opts.cursor <= x1) {
-    ctx.strokeStyle = COLORS.cursor; ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.moveTo(X(opts.cursor), 0); ctx.lineTo(X(opts.cursor), H); ctx.stroke();
-  }
   return { left, W, x0, x1 };
 }
 
@@ -172,6 +214,16 @@ function forVisible(s, x0, x1, f) {
 
 /** Spectrogramme : s = {frames, bins, db (Float32Array), hopS, minDb, maxDb}. */
 export function spectrogram(canvas, s, x0, x1, cursor) {
+  const left = 44, H = canvas.clientHeight - 16;
+  // l'image ne dépend que du spectrogramme et de la fenêtre : recalculée seulement s'ils changent
+  if (!s.id) s.id = ++spectroIds;
+  const key = `spec${s.id}:${x0}:${x1}`;
+  if (!reuseBase(canvas, key)) { drawSpectrogram(canvas, s, x0, x1); storeBase(canvas, key); }
+  drawCursor(canvas, cursor, left, x0, x1, H);
+}
+let spectroIds = 0;
+
+function drawSpectrogram(canvas, s, x0, x1) {
   const { ctx, w, h } = setup(canvas);
   const left = 44, axis = 16, W = w - left, H = h - axis;
   if (!s.frames) return;
@@ -179,13 +231,16 @@ export function spectrogram(canvas, s, x0, x1, cursor) {
   // putImageData travaille en pixels physiques (sans la transformation d'échelle)
   const dpr = window.devicePixelRatio || 1;
   const img = ctx.createImageData(Math.max(1, Math.floor(W * dpr)), Math.max(1, Math.floor(H * dpr)));
-  for (let px = 0; px < img.width; px++) {
-    const f = Math.min(s.frames - 1, f0 + Math.floor((px / img.width) * (f1 - f0)));
-    for (let py = 0; py < img.height; py++) {
-      const b = Math.min(s.bins - 1, Math.floor(((img.height - 1 - py) / img.height) * s.bins));
-      const v = Math.max(0, Math.min(1, (s.db[f * s.bins + b] - s.minDb) / (s.maxDb - s.minDb)));
-      const k = 4 * (py * img.width + px);
-      img.data[k] = 255 * (0.05 + 0.95 * v); img.data[k + 1] = 255 * 0.9 * v * v; img.data[k + 2] = 255 * (0.25 + 0.5 * (1 - v)) * (1 - 0.6 * v); img.data[k + 3] = 255;
+  // palette précalculée (256 niveaux) et bande de fréquence de chaque ligne de pixels
+  const lut = spectroLut(), data = new Uint32Array(img.data.buffer), iw = img.width, ih = img.height;
+  const rowBin = new Int32Array(ih);
+  for (let py = 0; py < ih; py++) rowBin[py] = Math.min(s.bins - 1, Math.floor(((ih - 1 - py) / ih) * s.bins));
+  const scale = 255 / (s.maxDb - s.minDb);
+  for (let px = 0; px < iw; px++) {
+    const base = Math.min(s.frames - 1, f0 + Math.floor((px / iw) * (f1 - f0))) * s.bins;
+    for (let py = 0; py < ih; py++) {
+      const q = (s.db[base + rowBin[py]] - s.minDb) * scale;
+      data[py * iw + px] = lut[q <= 0 ? 0 : q >= 255 ? 255 : q | 0];
     }
   }
   ctx.putImageData(img, Math.round(left * dpr), 0);
@@ -196,10 +251,19 @@ export function spectrogram(canvas, s, x0, x1, cursor) {
     const x = left + ((t - x0) / span) * W;
     if (x + 40 < w) ctx.fillText(`${fmt(t, ticks < 0.5 ? 2 : 1)} s`, x + 2, h - 3);
   }
-  if (cursor !== null && cursor !== undefined && cursor >= x0 && cursor <= x1) {
-    const x = left + ((cursor - x0) / span) * W;
-    ctx.strokeStyle = COLORS.cursor; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+}
+
+/** Palette du spectrogramme en mots RGBA (ordre des octets de la plateforme). */
+let lutCache = null;
+function spectroLut() {
+  if (lutCache) return lutCache;
+  const bytes = new Uint8ClampedArray(256 * 4);
+  for (let i = 0; i < 256; i++) {
+    const v = i / 255;
+    bytes[4 * i] = 255 * (0.05 + 0.95 * v); bytes[4 * i + 1] = 255 * 0.9 * v * v;
+    bytes[4 * i + 2] = 255 * (0.25 + 0.5 * (1 - v)) * (1 - 0.6 * v); bytes[4 * i + 3] = 255;
   }
+  return (lutCache = new Uint32Array(bytes.buffer));
 }
 
 /** Spectrogramme par TFCT (Hann, FFT radix 2). */
@@ -217,16 +281,27 @@ export function computeSpectrogram(x, fs, nfft = 512, hop = 64, maxHz = 500) {
   return { frames, bins, db, hopS: hop / fs, minDb: maxDb - 60, maxDb };
 }
 
+/** Facteurs de rotation e^(−2iπk/n) de la FFT, calculés une fois par taille. */
+const twiddles = new Map();
+function twiddle(n) {
+  if (!twiddles.has(n)) {
+    const c = new Float64Array(n / 2), s = new Float64Array(n / 2);
+    for (let k = 0; k < n / 2; k++) { c[k] = Math.cos((-2 * Math.PI * k) / n); s[k] = Math.sin((-2 * Math.PI * k) / n); }
+    twiddles.set(n, { c, s });
+  }
+  return twiddles.get(n);
+}
+
 function fft(re, im) {
-  const n = re.length;
+  const n = re.length, tw = twiddle(n);
   for (let i = 1, j = 0; i < n; i++) {
     let bit = n >> 1; for (; j & bit; bit >>= 1) j ^= bit; j ^= bit;
-    if (i < j) { [re[i], re[j]] = [re[j], re[i]]; [im[i], im[j]] = [im[j], im[i]]; }
+    if (i < j) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; }
   }
   for (let len = 2; len <= n; len <<= 1) {
-    const ang = (-2 * Math.PI) / len;
-    for (let i = 0; i < n; i += len) for (let k = 0; k < len / 2; k++) {
-      const c = Math.cos(ang * k), s = Math.sin(ang * k), a = i + k, b = a + len / 2;
+    const half = len >> 1, stride = n / len;
+    for (let i = 0; i < n; i += len) for (let k = 0; k < half; k++) {
+      const c = tw.c[k * stride], s = tw.s[k * stride], a = i + k, b = a + half;
       const vr = re[b] * c - im[b] * s, vi = re[b] * s + im[b] * c;
       re[b] = re[a] - vr; im[b] = im[a] - vi; re[a] += vr; im[a] += vi;
     }
