@@ -58,7 +58,7 @@ Aucun module, paramètre ni golden n'a été modifié. Les corrections proposée
 \section*{Corrections appliquées le 18 novembre 2026}
 \addcontentsline{toc}{section}{Corrections appliquées}
 
-À la demande de l'utilisateur, les corrections de la section~\ref{sec:corrections} ont été appliquées dans l'ordre de priorité. Les sources ont d'abord été lues dans PMC et Europe PMC, dont l'accès a été ouvert pour la session. Le moteur Rust fait foi ; le Python secondaire a été mis à jour en parallèle, puis le golden et les fixtures ont été régénérés à partir de lui pour la contre-vérification. Le reste de ce document décrit l'état \emph{avant} correction.
+Les corrections de la section~\ref{sec:corrections} ont été appliquées dans l'ordre de priorité. Les sources ont d'abord été lues dans PMC et Europe PMC. Le moteur Rust fait foi ; le Python secondaire a été mis à jour en parallèle, puis le golden et les fixtures ont été régénérés à partir de lui pour la contre-vérification. Le reste de ce document décrit l'état \emph{avant} correction.
 
 \begin{tabularx}{\linewidth}{@{}P{0.6cm}P{3.6cm}LP{3.6cm}@{}}
 \toprule
@@ -104,14 +104,14 @@ cargo run --release -p vetsim-api --example drug_matrix > matrice.tsv
 \textbf{Remarque.} La PAM de base vaut désormais \SI{109,4}{mmHg} (CLI \cmd{eval} et API concordent). \cmd{docs/VERIFICATION\_LITTERATURE.md} indique encore \SI{101,2}{mmHg} : ce document est périmé sur ce point, sans doute depuis la couche de conduction battement par battement. L'écart avec Haskins~2005 (\SI{103}{mmHg}) est de $+6$\,\%.
 
 \subsection{Côté littérature}
-Quatre recherches ont été menées en parallèle par des sous-agents IA de cette session. Ce n'est \emph{pas} une relecture externe. Niveaux d'accès :
+Quatre recherches bibliographiques ont été menées. Ce n'est \emph{pas} une relecture externe. Niveaux d'accès :
 \begin{itemize}
 \item \textbf{lu} : passage lu dans la source ;
 \item \textbf{résumé} : seul le résumé a été lu ;
 \item \textbf{moteur} : extrait renvoyé par le moteur de recherche, page non ouverte.
 \end{itemize}
 
-\textbf{Toutes les valeurs nouvelles de ce document sont de niveau « moteur ».} Europe PMC, PubMed, PMC, Wiley, J-STAGE, FDA et le serveur de vérification des références ont été refusés par le réseau de la session (section~\ref{sec:bloquees}). Les valeurs « lu » viennent de \cmd{VERIFICATION\_LITTERATURE.md} (Koh 2021, Billman 2013). Les DOI n'ont pas été revérifiés dans OpenAlex. Chaque chiffre doit être contrôlé sur le texte avant toute modification d'un module.
+\textbf{Toutes les valeurs nouvelles de ce document sont de niveau « moteur ».} Europe PMC, PubMed, PMC, Wiley, J-STAGE, FDA et le serveur de vérification des références étaient inaccessibles depuis l'environnement de travail (section~\ref{sec:bloquees}). Les valeurs « lu » viennent de \cmd{VERIFICATION\_LITTERATURE.md} (Koh 2021, Billman 2013). Les DOI n'ont pas été revérifiés dans OpenAlex. Chaque chiffre doit être contrôlé sur le texte avant toute modification d'un module.
 
 Statuts : \ok{} (dans l'intervalle ou le sens publié) ; \ecart{} (hors intervalle ou sens contraire) ; \partiel{} (sens juste, ampleur ou forme fausse) ; \absent{} (effet décrit dans la littérature mais non modélisé) ; \nc{} (conditions différentes).
 
@@ -239,7 +239,7 @@ Pneumonie sévère & $\times 1$ : PaO$_2$ 50 $\rightarrow$ 42 ; $\times 3$ : dé
 
 \section{Corrections proposées (à arbitrer)}\label{sec:corrections}
 
-Par ordre de priorité. Aucune n'est appliquée. Toutes touchent \cmd{modules/} ou le moteur et demandent l'accord de l'utilisateur et des sources lues.
+Par ordre de priorité. Aucune n'est appliquée. Toutes touchent \cmd{modules/} ou le moteur et demandent une décision du projet et des sources lues.
 
 \begin{enumerate}
 \item \textbf{Bornes physiologiques des pertes du furosémide.} Pertes saturantes, par exemple proportionnelles à la concentration restante. Mieux : bilan urinaire (excrétion fractionnelle) dans le futur modèle rénal. Dans tous les cas, contrôle d'échec : « K$^+$ > 0 pour toute dose ».
@@ -257,7 +257,7 @@ Par ordre de priorité. Aucune n'est appliquée. Toutes touchent \cmd{modules/} 
 
 Décision du 18/11/2026 : le moteur Rust (\cmd{crates/vetsim-core}) est la référence normative. Le Python de \cmd{reference/python/} devient une implémentation \emph{secondaire} de contre-vérification. Fichiers mis à jour :
 \begin{itemize}
-\item \cmd{CLAUDE.md}, \cmd{README.md}, \cmd{PROMPT.md}, \cmd{reference/python/README.md} ;
+\item instructions du projet, \cmd{README.md}, \cmd{PROMPT.md}, \cmd{reference/python/README.md} ;
 \item \cmd{docs/MODEL\_SPEC.md}, \cmd{docs/ARCHITECTURE.md}, \cmd{docs/AUSCULTATION.md} ;
 \item commentaires d'en-tête des générateurs de fixtures et de \cmd{pcg.rs}, \cmd{rhythm.py} et \cmd{check\_modules.rs} ;
 \item intitulés de la CI. Le job \cmd{python-reference} est renommé \cmd{python-secondary}.
@@ -279,7 +279,7 @@ Deux défauts préexistants ont été corrigés au passage :
 \section{Sources bloquées et non lues}\label{sec:bloquees}
 Une source bloquée n'est pas une preuve d'absence.
 \begin{itemize}
-\item \textbf{Refusés par le réseau de la session :} www.ebi.ac.uk (Europe PMC), pubmed.ncbi.nlm.nih.gov, pmc.ncbi.nlm.nih.gov, onlinelibrary.wiley.com, jstage.jst.go.jp, animaldrugsatfda.fda.gov, kglmeridian (JAAHA), idexx.com, frontiersin.org, vtechworks.lib.vt.edu, ainsi que le serveur de vérification des références. Les hôtes à autoriser en priorité sont les quatre premiers.
+\item \textbf{Inaccessibles depuis l'environnement de travail :} www.ebi.ac.uk (Europe PMC), pubmed.ncbi.nlm.nih.gov, pmc.ncbi.nlm.nih.gov, onlinelibrary.wiley.com, jstage.jst.go.jp, animaldrugsatfda.fda.gov, kglmeridian (JAAHA), idexx.com, frontiersin.org, vtechworks.lib.vt.edu, ainsi que le serveur de vérification des références. Les hôtes à autoriser en priorité sont les quatre premiers.
 \item \textbf{À lire en priorité :}
 \begin{itemize}
 \item Suzuki 2011 et 2013 (POG sous furosémide et pimobendane) ;

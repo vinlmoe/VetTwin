@@ -61,7 +61,7 @@ L'aléa (FA, décharges ectopiques) passe par un **nouveau flux ChaCha `RHYTHM =
 
 ### 4. Maladies, médicaments, ionogramme
 
-- **Nouvelles maladies** (décision de l'utilisateur, 17/11/2026) : chaque trouble est un module maladie à part entière (`modules/diseases/*.json`), avec stades et sévérité, combinable avec les autres (MMVD + FA, MRC + hyperkaliémie…). Modules (JSON, DSL) :
+- **Nouvelles maladies** (décision du 17/11/2026) : chaque trouble est un module maladie à part entière (`modules/diseases/*.json`), avec stades et sévérité, combinable avec les autres (MMVD + FA, MRC + hyperkaliémie…). Modules (JSON, DSL) :
 
   | Module | Paramètres modifiés |
   |---|---|

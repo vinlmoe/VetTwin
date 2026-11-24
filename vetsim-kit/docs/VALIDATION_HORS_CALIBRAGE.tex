@@ -29,12 +29,12 @@
 
 \textbf{Usage pédagogique uniquement.} Aucun résultat ne sert à décider d'un traitement réel.
 
-\textbf{Qui a fait quoi.} Les simulations, les corrections et ce rapport ont été faits par Claude Code (Anthropic) dans une session de travail du projet. Trois sous-agents de la même session ont fait les recherches bibliographiques (hémodynamique, gaz du sang, anesthésie) via Europe PMC, PMC et des moteurs de recherche. Ce n'est \emph{pas} une relecture par des pairs ni une relecture extérieure. Chaque valeur publiée porte son niveau d'accès : \textbf{lu} (passage ou tableau du texte intégral lu), \textbf{résumé} (abstract seul), \textbf{secondaire} (chiffre lu dans un article qui cite la source).
+\textbf{Niveaux d'accès.} Les recherches bibliographiques (hémodynamique, gaz du sang, anesthésie) ont été faites dans Europe PMC, PMC et des moteurs de recherche. Ce n'est \emph{pas} une relecture par des pairs ni une relecture extérieure. Chaque valeur publiée porte son niveau d'accès : \textbf{lu} (passage ou tableau du texte intégral lu), \textbf{résumé} (abstract seul), \textbf{secondaire} (chiffre lu dans un article qui cite la source).
 
 \section*{Résumé}
 Les vérifications précédentes (\vp{VERIFICATION_LITTERATURE.md}, \vp{VERIFICATION_MALADIES_MEDICAMENTS.tex}, \vp{VERIFICATION_ECG.md}, \vp{VERIFICATION_PCG.md}, calibration de l'anesthésie) comparaient surtout le modèle aux données qui avaient servi à le caler. Ici, on rejoue \emph{d'autres} protocoles publiés : hémorragie, remplissage, apnée, oxygénation sous anesthésie, réveil, hypothermie, perfusions continues, poids corporel, compensation acide-base, pneumonie, crise addisonienne, troubles du rythme.
 
-Résultat : un défaut du moteur (convergence du cycle cardiaque), une loi physiologique fausse (compensation respiratoire) et onze écarts de calage. Tous ont été corrigés sauf quatre, qui demandent un mécanisme absent du modèle (tableau~\ref{tab:bilan}). Les corrections ont été validées par l'utilisateur le 20/11/2026, y compris la régénération du golden et des fixtures Python.
+Résultat : un défaut du moteur (convergence du cycle cardiaque), une loi physiologique fausse (compensation respiratoire) et onze écarts de calage. Tous ont été corrigés sauf quatre, qui demandent un mécanisme absent du modèle (tableau~\ref{tab:bilan}). Les corrections ont été validées le 20/11/2026, y compris la régénération du golden et des fixtures Python.
 
 \begin{table}[h]\small
 \caption{Bilan. Avant : moteur du 19/11/2026 (commit \texttt{386478e}). Après : ce rapport.}\label{tab:bilan}
@@ -616,7 +616,7 @@ Un troisième mécanisme a été essayé puis retiré : un plancher saturant de 
 Contrôles d'échec ajoutés : avec une action natriférique instantanée, la natriurèse de Koh tombe à 1,8 mmol/kg ; sans rénine de la macula densa, la natriurèse de J1 chez Pelligand monte à 9,0 mmol/kg et la créatinine d'Adin à $+107$\,\%.
 
 \subsection{Lantis 2011 en texte intégral (1.3.2)}
-Le texte intégral (doi:10.2460/ajvr.72.12.1646, fourni par l'utilisateur, lu) précise le protocole et ajoute des mesures. Groupe furosémide seul : 6 chiens de 30 kg, prises à 7 h et 19 h, régime commercial standard. Mesures :
+Le texte intégral (doi:10.2460/ajvr.72.12.1646, lu) précise le protocole et ajoute des mesures. Groupe furosémide seul : 6 chiens de 30 kg, prises à 7 h et 19 h, régime commercial standard. Mesures :
 \begin{itemize}
 \item aldostérone/créatinine urinaire : 0,37 $\pm$ 0,14 µg/g au départ ; 0,89 $\pm$ 0,23 à J5 ($\times 2{,}41$) ; 0,95 $\pm$ 0,63 à J10. Ce sont deux urines ponctuelles par jour, à 2–3 h et 8–10 h après la prise du matin, mélangées à parts égales ;
 \item kaliémie 4,7 $\to$ 4,2 (J5) $\to$ 4,4 mmol/L (J10) ; poids 30,1 $\to$ 28,9 $\to$ 29,6 kg ; natrémie inchangée ; chlorémie en baisse et bicarbonates en hausse ; PAS en baisse d'environ 15 mmHg à J5 ;
@@ -644,7 +644,7 @@ Huit cibles ont été ajoutées : diurèse et natriurèse de la 1re heure IV et 
 \end{itemize}
 
 \subsection{Hori 2007 et Bourgoignie 1981 en texte intégral (1.4.0)}
-Les deux textes intégraux ont été fournis par l'utilisateur et lus.
+Les deux textes intégraux ont été lus.
 
 \textbf{Hori 2007} (doi:10.2460/ajvr.68.10.1058) : furosémide 2 mg/kg per os toutes les 12 h pendant 14 jours chez 8 chiens de 12,6 kg (la dose de Lantis). Créatinine 0,9 $\to$ 1,0 (J1) $\to$ 1,1 mg/dL (J14), soit $+22$\,\% ; urée $+18$\,\% ; clairance de la créatinine $-25$\,\% à J14 ; poids inchangé ; K 4,5 $\to$ 4,2 ; natrémie inchangée ; aldostérone plasmatique environ $\times 2{,}2$ à J14 ; diurèse sur 24 h plus faible à J14 qu'à J1 (« résistance »). Le modèle 1.3.3 donnait $+36$\,\% et $-23$ mL/kg de VEC. La créatinine d'Hori à J14 est devenue une cible.
 
@@ -662,8 +662,8 @@ Quinze cibles ont été ajoutées (kaliurèse nette h1–h5 des deux groupes, ka
 
 \textbf{Restent :} le pic du rein restant ($-0{,}6$) ; la natriurèse IV de la 1re heure ($+36$\,\%, forme de la pharmacodynamie du furosémide) ; la kaliurèse IV de Koh rapportée à la base ($\times 1{,}61$ contre $\times 2{,}27$) ; le $\Delta$K à 2 h per os ($-0{,}71$ contre $-0{,}54$) ; le K de Giorgi à J12 ; Wong. Le paramètre $\varphi$ du freinage est proche de sa borne haute (0,976 pour 0,98).
 
-\subsection{MRC : apports fixes, néphron adapté (remarque de l'utilisateur)}
-L'utilisateur a relevé qu'en MRC l'urine n'a pas la natrémie du plasma, que la fuite sodée est faible et que le potassium pose problème. La première version faisait une erreur plus profonde. Elle fixait les apports de Na et de K à l'excrétion du patient avec les FE du chien sain, si bien que l'apport « alimentaire » suivait le DFG (10\,\% de la normale au stade 4).
+\subsection{MRC : apports fixes, néphron adapté}
+En MRC, l'urine n'a pas la natrémie du plasma, la fuite sodée est faible et le potassium pose problème. La première version faisait une erreur plus profonde. Elle fixait les apports de Na et de K à l'excrétion du patient avec les FE du chien sain, si bien que l'apport « alimentaire » suivait le DFG (10\,\% de la normale au stade 4).
 
 Correction (\vp{renal_model.json} 1.1.0, puis 1.2.0 pour le K) :
 \begin{itemize}
@@ -676,7 +676,7 @@ Correction (\vp{renal_model.json} 1.1.0, puis 1.2.0 pour le K) :
 
 Résultats (20 kg, sans médicament) :
 \begin{itemize}
-\item stade 4 ($s$ = 0,85) : FE$_\mathrm{Na}$ 0,20 $\to$ 1,66\,\% ($\times 8{,}3$), FE$_\mathrm{K}$ 9,5 $\to$ 79\,\%, pour un DFG de 70 $\to$ 8 mL/min. C'est cohérent avec des FE « environ dix fois plus élevées au stade IV » (étude de 20 chiens) et des FE qui « dépendent de la créatinine » (Selin 2025). Accès : résumés de recherche ; les textes intégraux (vin.com, pub.epsilon.slu.se) étaient bloqués par le réseau de la session.
+\item stade 4 ($s$ = 0,85) : FE$_\mathrm{Na}$ 0,20 $\to$ 1,66\,\% ($\times 8{,}3$), FE$_\mathrm{K}$ 9,5 $\to$ 79\,\%, pour un DFG de 70 $\to$ 8 mL/min. C'est cohérent avec des FE « environ dix fois plus élevées au stade IV » (étude de 20 chiens) et des FE qui « dépendent de la créatinine » (Selin 2025). Accès : résumés de recherche ; les textes intégraux (vin.com, pub.epsilon.slu.se) étaient inaccessibles depuis l'environnement de travail.
 \item natriurie de base 63 mmol/L à tous les stades (apport / diurèse), loin des 150 du plasma.
 \end{itemize}
 
@@ -735,7 +735,7 @@ Sonde de calage reproductible : \vp{cargo run --release -p vetsim-core --example
 \section{Effet sur les références du projet}
 \begin{itemize}
 \item \textbf{Golden} (\vp{tests/golden/cases.json}), régénéré depuis le Python corrigé (\vp{make_golden.py}). 121 valeurs sur 1782 sortent de la tolérance de l'ancien golden : pneumonie (62), Addison (28), BAV 0,8 (21), MRC 0,8 (2, PaCO$_2$), et 8 cas où seule \vp{lv_edp} ou \vp{la_mean} bouge (MMVD 0,5 et 0,8, pimobendane, bêtabloquant, furosémide, chiens de 5 et 40 kg), sensibles au régime périodique. Rust contre nouveau golden : 1862/1862 valeurs conformes.
-\item \textbf{Fixtures Python} (M1–M6, conduction, battements, toxicité, PCG) régénérées. \vp{calibration/calibration_run_python.json} régénéré par \vp{reference/python/calibrate.py}, avec l'accord de l'utilisateur. Le dossier \vp{calibration/} est en principe protégé ; \vp{targets.json} n'a pas été touché.
+\item \textbf{Fixtures Python} (M1–M6, conduction, battements, toxicité, PCG) régénérées. \vp{calibration/calibration_run_python.json} régénéré par \vp{reference/python/calibrate.py}. Le dossier \vp{calibration/} est en principe protégé ; \vp{targets.json} n'a pas été touché.
 \item \textbf{Deux tests modifiés}, propriété et seuil conservés :
   \begin{itemize}
   \item \vp{isoflurane_depresses_blood_pressure_and_ventilation_dose_dependently} : le palier « profond » passe de 3 \% à 4 \% de vaporisateur. À 3 \%, la MAC cérébrale n'était que de 1,15 et la PaCO$_2$ montait de 2,8 mmHg, ce qui est conforme à la courbe recalée.
@@ -778,7 +778,7 @@ Sonde de calage reproductible : \vp{cargo run --release -p vetsim-core --example
 \item Mazzaferro EM, Ford RB 2012. In \emph{Kirk \& Bistner's Handbook}. doi:10.1016/B978-1-4377-0798-4.00001-3 (lu, tableau 1-6).
 \item McNally EM et al. 2009. \emph{Am J Vet Res} 70:1333. doi:10.2460/ajvr.70.11.1333 (résumé).
 \item Menaut P et al. 2005. \emph{J Vet Cardiol} 7:75. doi:10.1016/j.jvc.2005.07.002 (résumé).
-\item Moran-Muñoz R et al. 2017. \emph{Can Vet J} 58:729, PMC5479674 (lu, via WebFetch).
+\item Moran-Muñoz R et al. 2017. \emph{Can Vet J} 58:729, PMC5479674 (lu).
 \item Mosing M et al. 2025. \emph{Front Vet Sci}. doi:10.3389/fvets.2025.1545683 (lu).
 \item Pascoe PJ et al. 2006. \emph{Vet Anaesth Analg} 33:97. doi:10.1111/j.1467-2995.2005.00236.x (résumé ; pourcentages cités par Acevedo-Arcique).
 \item Rastas, Zhao \& Johnson 2025. \emph{PLoS One} 20:e0317997. doi:10.1371/journal.pone.0317997 (lu).

@@ -38,7 +38,7 @@ L'application (\cmd{vetsim-kit/web/}) est un site \emph{statique} : le moteur Ru
 \end{enumerate}
 Une variante sans HTTPS, par port ouvert directement sur l'adresse Tailscale, est donnée en section~\ref{sec:portdirect}.
 
-Dans la suite, remplacez \aremplacer{VOUS} par votre nom d'utilisateur macOS (\cmd{whoami}). Toutes les commandes se tapent dans le Terminal du Mac mini (en local ou par \cmd{ssh}).
+Dans la suite, remplacez \aremplacer{VOUS} par votre identifiant de compte macOS (\cmd{whoami}). Toutes les commandes se tapent dans le Terminal du Mac mini (en local ou par \cmd{ssh}).
 
 \section{Prérequis sur le Mac mini}
 \subsection{Outils de compilation}
@@ -60,7 +60,7 @@ sudo pmset -a autorestart 1                # redémarre après une coupure de co
 \end{Verbatim}
 
 \subsection{Tailscale en service système}
-Pour un serveur sans session ouverte, utilisez le démon Tailscale de Homebrew, qui démarre avec la machine (l'application Tailscale du Mac ne tourne que lorsqu'un utilisateur est connecté) :
+Pour un serveur sans session ouverte, utilisez le démon Tailscale de Homebrew, qui démarre avec la machine (l'application Tailscale du Mac ne tourne que lorsqu'une session macOS est ouverte) :
 \begin{Verbatim}
 brew install tailscale
 sudo brew services start tailscale

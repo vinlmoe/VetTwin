@@ -24,7 +24,7 @@ RS = json.loads(subprocess.check_output(shlex.split(a.cmd) + ['calibrate', '--n-
 N_PY_H, N_PY_D, N_PY_HRV = 50, 24, 20
 NAMES = {'MMVD': 'mmvd', 'CKD': 'ckd', 'Addison': 'addison'}
 HRV = {'RR moyen', 'SDNN', 'RMSSD', 'LF/HF'}
-# Écart connu sur LF/HF (décision de l'utilisateur du 17/11/2026) levé le 18/11/2026 : PAM saine
+# Écart connu sur LF/HF (décision du 17/11/2026) levé le 18/11/2026 : PAM saine
 # recalée à 103, solveur du baroréflexe, sym_noise 0,14 → LF/HF conforme. Même règle que
 # signal_properties.rs (ensemble vide : les quatre indicateurs doivent tenir ±1 ET).
 KNOWN = set()

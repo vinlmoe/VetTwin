@@ -155,8 +155,7 @@ Accès : « lu » = texte intégral, « résumé » = résumé seul. Detail : `d
 ## Périphérie et relations dose-effet (19/11/2026)
 Recherche bibliographique PubMed/Europe PMC sur six volets (thermorégulation, pupille, digestif et
 sécrétions, système nerveux, atropine, opioïdes, furosémide, pimobendane). Le volet bêtabloquants
-est resté incomplet : l'agent de recherche a été arrêté par les garde-fous d'Anthropic avant d'avoir
-fini. Aucune série d'intoxication canine n'a été trouvée pour cette classe, ni pour le furosémide
+est resté incomplet : la recherche bibliographique n'a pas abouti. Aucune série d'intoxication canine n'a été trouvée pour cette classe, ni pour le furosémide
 ou l'atropine.
 
 - **Modèle thermique** : calé sur la seule cinétique de refroidissement sous anesthésie

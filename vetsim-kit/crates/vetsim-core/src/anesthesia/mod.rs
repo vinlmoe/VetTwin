@@ -77,7 +77,7 @@ pub enum Ventilation {
     },
 }
 
-/// Action de l'utilisateur ou du scénario.
+/// Action manuelle ou du scénario.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Event {
     /// Bolus (mg/kg).

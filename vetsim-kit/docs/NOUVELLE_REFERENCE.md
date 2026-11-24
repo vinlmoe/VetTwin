@@ -1,6 +1,6 @@
 # Nouvelle référence : conduction, oreillettes contractiles, ECG et sons depuis la conduction
 
-Date : 17/11/2026. Décision de l'utilisateur : « nouvelle référence ». L'oreillette contractile ne
+Date : 17/11/2026. Décision : « nouvelle référence ». L'oreillette contractile ne
 pouvait pas tenir dans les tolérances de l'ancien golden : dès 0,8 % de contribution atriale,
 5 valeurs sortaient.
 
@@ -88,7 +88,7 @@ pouvait pas tenir dans les tolérances de l'ancien golden : dès 0,8 % de contri
   - Cohérent avec 9 à 21 % de chiens bradycardes en crise (Chalifoux 2023), mais la forte
     tachycardie compensatrice reste à vérifier.
 - **Chien sain un peu haut** : PAM 106 (Haskins : 103) ; index cardiaque ≈ 4,58 (cible 4,42).
-- **Systole raccourcie (17/11/2026, décision de l'utilisateur)** : `ts_coef` 0,37 → 0,325, calé
+- **Systole raccourcie (17/11/2026, décision du projet)** : `ts_coef` 0,37 → 0,325, calé
   sur l'intervalle B1→B2 du beagle (236–251 ms, n = 14, PMC9394128) ; B1→B2 ≈ 244 ms à
   RR 0,57 s.
   - Conséquences : PAM saine 106 → 109,4 ; le baroréflexe renforce le vagal et LF/HF tombe à

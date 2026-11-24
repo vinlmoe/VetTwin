@@ -63,7 +63,7 @@ Non vérifiés faute de texte intégral : PVC, HCO₃⁻, ET de Haskins, moyenne
 | rMSSD (ms) | 85 | 172,66 ± 116,68 | OK (dans l'ET) mais −51 % |
 | LF/HF | 0,25 | 0,40 ± 0,13 | Écart : ≈ −1,2 ET ; le modèle ne fait pas monter LF/HF |
 
-**Arythmie sinusale respiratoire et fréquence cardiaque** (remarque de l'utilisateur du 17/11/2026). Ce que disent les sources :
+**Arythmie sinusale respiratoire et fréquence cardiaque** (17/11/2026). Ce que disent les sources :
 
 - **Billman 2013** (**lu**, 74 chiens vigiles) :
   - au repos, FC et puissance HF sont corrélées à r = −0,51 ;
@@ -92,7 +92,7 @@ Conclusion :
   - la RSA du modèle en stade C (40 bpm) n'est pas « perdue » ;
   - l'abolition complète au halètement n'est rapportée que chez 2 chiens (**résumé**) ;
   - l'exercice réduit la RSA sans l'abolir (**moteur**).
-- **Correction éventuelle :** à décider par l'utilisateur. Elle exige d'abord une source chiffrée de la RSA en fonction de la FC.
+- **Correction éventuelle :** à décider. Elle exige d'abord une source chiffrée de la RSA en fonction de la FC.
 
 ## 3. MMVD par stade
 
@@ -210,7 +210,7 @@ La comparaison de cet ionogramme à la littérature figure dans la section 6.
 | Na⁺ en crise (*s* = 0,85) | 131,3 | médiane 137 (116–160), n = 70 (Baumstark 2014) | lu | OK |
 | K⁺ en crise | 6,99 | médiane 7,3 (3,3–11,3) | lu | OK |
 | Créatinine en crise | 140 µmol/L = 1,58 mg/dL | médiane 1,7 (0,5–11,3) mg/dL dans le groupe gluco- et minéralocorticoïde, n = 72 (Hall 2023) | lu | OK |
-| **FC en crise (hyperkaliémie)** | *s* = 0,85 : K 6,99, **FC 106** (tonus sympathique 0,66) ; *s* = 1 : K 7,50, FC 92 | FC < 70 associée à l'hyperkaliémie (8× plus probable ; revue Can Vet J, PMC13142072) ; perte des ondes P (arrêt atrial) et rythmes d'échappement dès K ≥ 7 (PMC13040492, figure adaptée de l'humain) ; BAV de 3e degré transitoire à K 7,9 (10.3390/vetsci12010063) | lu | **Écart** (relevé par l'utilisateur) : K⁺ n'agit que par un frein multiplicatif `kfac` sur la FC sinusale (0,70 à K 6,99), que le baroréflexe annule, et par l'aspect de l'ECG (T, P, PR, QRS), sans effet sur la conduction. Le libellé « bradycardie hyperkaliémique » était trompeur et a été renommé « frein hyperkaliémique de la FC ». Correction mécanistique validée : `kfac` remplacé par les effets de K⁺ sur l'excitabilité atriale et la conduction AV (`docs/PROPOSITION_RYTHME.md`) |
+| **FC en crise (hyperkaliémie)** | *s* = 0,85 : K 6,99, **FC 106** (tonus sympathique 0,66) ; *s* = 1 : K 7,50, FC 92 | FC < 70 associée à l'hyperkaliémie (8× plus probable ; revue Can Vet J, PMC13142072) ; perte des ondes P (arrêt atrial) et rythmes d'échappement dès K ≥ 7 (PMC13040492, figure adaptée de l'humain) ; BAV de 3e degré transitoire à K 7,9 (10.3390/vetsci12010063) | lu | **Écart** : K⁺ n'agit que par un frein multiplicatif `kfac` sur la FC sinusale (0,70 à K 6,99), que le baroréflexe annule, et par l'aspect de l'ECG (T, P, PR, QRS), sans effet sur la conduction. Le libellé « bradycardie hyperkaliémique » était trompeur et a été renommé « frein hyperkaliémique de la FC ». Correction mécanistique validée : `kfac` remplacé par les effets de K⁺ sur l'excitabilité atriale et la conduction AV (`docs/PROPOSITION_RYTHME.md`) |
 | Glycémie | −2 mmol/L chez la moitié des patients | 84 (36–401) mg/dL ; forme glucocorticoïde seule, n = 29 (Reagan 2022) | lu | Non comparable (autre population) |
 
 ### Urines et DFG du chien sain (base du futur modèle urinaire)
@@ -227,7 +227,7 @@ Statut DFG : **OK**, en haut de l'intervalle.
 
 ## 6. Ionogramme et acide-base de la MRC par stade IRIS
 
-Recherche dédiée faite à la demande de l'utilisateur. Le modèle est évalué au milieu de chaque plage de stade du module (mode déterministe) :
+Recherche dédiée. Le modèle est évalué au milieu de chaque plage de stade du module (mode déterministe) :
 
 | Stade | *s* | Créatinine (µmol/L) |
 |---|---|---|
@@ -282,7 +282,7 @@ Implications pour l'ionogramme du patient virtuel :
    - Le calcium est absent (section 6).
    - La créatinine du haut de la plage IRIS1 tombe déjà en stade 2.
 
-Toute correction touche la référence normative et attend la décision de l'utilisateur.
+Toute correction touche la référence normative et attend une décision du projet.
 
 ## Recherches et sources bloquées
 

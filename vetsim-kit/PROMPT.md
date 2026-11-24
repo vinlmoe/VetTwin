@@ -1,4 +1,4 @@
-# Prompt à donner à l'IA (Claude Code ou équivalent)
+# Prompt de développement
 
 Colle le texte ci-dessous dans une session ouverte à la racine de ce dossier. Fais-la travailler jalon par jalon (docs/ROADMAP.md) et valide chaque jalon avant de passer au suivant.
 
@@ -7,7 +7,7 @@ Colle le texte ci-dessous dans une session ouverte à la racine de ce dossier. F
 Tu es un ingénieur Rust senior avec une bonne culture de la physiologie et de la simulation numérique. Tu dois réaliser **vetsim**, un moteur de patient virtuel vétérinaire (chien) : un modèle mécaniste (hémodynamique, gaz du sang, acide-base, rein, PK/PD, système autonome, ECG, auscultation) auquel on branche des **modules maladie et médicament décrits en JSON**, avec une interface Kotlin Multiplatform (KMP).
 
 ## Contexte
-- L'utilisateur est enseignant-chercheur en nutrition clinique vétérinaire. Le but est pédagogique (jeux de simulation de clinique, jeu de cartes, révisions des étudiants), pas clinique : le logiciel ne doit jamais servir à décider d'une dose ou d'un traitement réel.
+- Le projet est porté par un enseignant-chercheur en nutrition clinique vétérinaire. Le but est pédagogique (jeux de simulation de clinique, jeu de cartes, révisions des étudiants), pas clinique : le logiciel ne doit jamais servir à décider d'une dose ou d'un traitement réel.
 - Une **implémentation Python de référence** existe dans `reference/python/` (≈1000 lignes). Elle a servi de référence pendant le portage ; depuis le 18/11/2026 elle est **secondaire** : le moteur Rust est normatif et le Python sert de contre-vérification dans les tolérances de `tests/golden/cases.json`.
 - Les modules JSON (`modules/`) ont déjà été convertis depuis le Python et vérifiés (`python tests/check_modules.py`). Le DSL de formules est spécifié dans `docs/DSL.md` avec un interpréteur de référence en Python (`tests/dsl_ref.py`).
 
