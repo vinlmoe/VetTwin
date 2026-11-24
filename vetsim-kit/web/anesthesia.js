@@ -2,6 +2,7 @@
 // Le moteur (WebAssembly) porte toute la physiologie ; ce fichier n'affiche que ses sorties et
 // lui transmet les actions. Usage pédagogique uniquement.
 import { COLORS, timeChart, setup } from './charts.js';
+import { decodeWav as decodeWavFile } from './engine.js';
 
 const fmt = (v, d = 0) => (v === undefined || v === null || Number.isNaN(v) ? '—' : Number(v).toFixed(d).replace('.', ','));
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -55,21 +56,19 @@ export function renderAnesthesia(v, ctx) {
 }
 
 function stop() {
-  if (A.timer) clearInterval(A.timer);
-  A.timer = null; A.running = false;
+  if (A.timer) clearTimeout(A.timer);
+  A.timer = null; A.running = false; A.effSpeed = null;
 }
 
 function start(ctl, inputs, key) {
   stop();
-  const pid = ctl.call('newPatient', JSON.stringify({ bw: inputs.bw, seed: inputs.seed, variability: false })).patient_id;
-  if (inputs.disease) {
-    const o = { id: inputs.disease }; if (inputs.stage) o.stage = inputs.stage;
-    ctl.call('addDisease', pid, JSON.stringify(o));
-  }
+  // la session précédente est libérée dans le moteur ; le patient aussi, une fois la session
+  // créée (elle copie ses paramètres)
+  if (A.session) { try { ctl.call('message', JSON.stringify({ op: 'anesthesia_end', options: { session: A.session } })); } catch (e) { /* moteur antérieur */ } A.session = null; }
   const opts = { seed: inputs.seed || 1 };
   if (A.procedure) opts.procedure = A.procedure;
-  const r = ctl.call('message', JSON.stringify({ op: 'anesthesia_start', patient: pid, options: opts }));
-  A.session = r.session; A.key = key; A.hist = [r.snapshot]; A.snap = r.snapshot; A.rec = null; A.waves = null; A.lastWave = -1e9; A.mon = null;
+  const r = ctl.withPatient(inputs, ({ id }) => ctl.call('message', JSON.stringify({ op: 'anesthesia_start', patient: id, options: opts })));
+  A.session = r.session; A.key = key; A.costPerStep = null; A.hist = [r.snapshot]; A.snap = r.snapshot; A.rec = null; A.waves = null; A.lastWave = -1e9; A.mon = null;
   // nouvelle session : seringues et pousse-seringues préparés conservés (pleins, à l'arrêt)
   for (const x of A.syr) x.left = x.vol;
   for (const x of A.pumps) { x.left = x.vol; x.on = false; }
@@ -106,19 +105,44 @@ function event(ctl, ev) {
   }
 }
 
+/**
+ * Lecture : un pas par seconde réelle, enchaîné par setTimeout (jamais d'empilement). Le calcul
+ * de chaque pas est borné (TICK_BUDGET_S) : un patient coûteux (MMVD : ≈ 0,2 s par seconde
+ * simulée) avance moins vite que la vitesse demandée au lieu de geler l'interface, et la vitesse
+ * effective est affichée.
+ */
+const TICK_S = 1, TICK_BUDGET_S = 0.45;
 function play(ctl, v) {
   if (A.running || !A.session || (A.snap && A.snap.dead)) return;
   A.running = true;
   let last = performance.now();
-  A.timer = setInterval(() => { const now = performance.now(); advance(ctl, (now - last) / 1000, v); last = now; }, 1000);
+  const tick = () => {
+    if (!A.running) return;
+    const t0 = performance.now(), wall = Math.min(3 * TICK_S, (t0 - last) / 1000);
+    last = t0;
+    advance(ctl, wall, v, true);
+    if (!A.running) return;
+    const spent = (performance.now() - t0) / 1000;
+    A.timer = setTimeout(tick, Math.max(50, 1000 * (TICK_S - spent)));
+  };
+  A.timer = setTimeout(tick, 1000 * TICK_S);
 }
 
-function advance(ctl, wallS, v) {
-  // pas de 1 s jusqu'à ×10, de 5 s au-delà : coût borné à ~12 évaluations par seconde réelle
-  const sim = wallS * A.speed, dt = A.speed > 10 ? 5 : 1, n = Math.max(1, Math.round(sim / dt));
+function advance(ctl, wallS, v, budget = false) {
+  // pas de 1 s jusqu'à ×10, de 5 s au-delà ; en lecture, nombre de pas limité par le coût mesuré
+  const sim = wallS * A.speed, dt = A.speed > 10 ? 5 : 1;
+  let n = Math.max(1, Math.round(sim / dt));
+  if (budget) n = Math.max(1, Math.min(n, A.costPerStep ? Math.floor(TICK_BUDGET_S / A.costPerStep) : 2));
+  const c0 = performance.now();
   const wantWaves = !A.mon || A.mon.pending.length === 0;
   try {
     const r = ctl.call('message', JSON.stringify({ op: 'anesthesia_step', options: { session: A.session, dt_s: dt, n, all: true, waves_s: wantWaves ? 6 : 0, seed: 1, pcg: wantWaves && A.steth ? { site: A.stethSite } : false } }));
+    if (budget) {
+      // coût moyen d'un pas (moyenne glissante), hors segment de tracés si possible
+      const c = (performance.now() - c0) / 1000 / n;
+      A.costPerStep = A.costPerStep ? 0.7 * A.costPerStep + 0.3 * c : c;
+      A.effSpeed = wallS > 0 ? (n * dt) / wallS : null;
+    }
     const t0 = A.snap ? A.snap.t_s : 0;
     for (const s of r.snapshots) A.hist.push(s);
     if (A.hist.length > 20000) A.hist.splice(0, A.hist.length - 20000);
@@ -213,7 +237,7 @@ function wire(v, ctl, inputs, key, ctx) {
     rerender(); play(ctl, v); rerender();
   });
   on('an-play', () => { if (A.running) stop(); else play(ctl, v); rerender(); });
-  for (const b of v.querySelectorAll('[data-speed]')) b.onclick = () => { A.speed = +b.dataset.speed; rerender(); };
+  for (const b of v.querySelectorAll('[data-speed]')) b.onclick = () => { A.speed = +b.dataset.speed; A.costPerStep = null; rerender(); };
   on('an-step', () => { const s0 = A.speed; A.speed = 60; advance(ctl, 1, v); A.speed = s0; rerender(); });
   on('an-sound', () => {
     A.sound = !A.sound;
@@ -308,9 +332,14 @@ function paint(v) {
 }
 
 function drawTrends() {
-  const H = A.hist; if (!H.length) return;
+  const all = A.hist; if (!all.length) return;
+  // fenêtre des 60 dernières minutes : seuls les instantanés visibles sont convertis en séries
+  // (l'historique garde jusqu'à 20 000 instantanés)
+  const tEnd = all[all.length - 1].t_s / 60, x1 = Math.max(10, tEnd), x0 = Math.max(0, x1 - 60);
+  let i0 = 0, hi = all.length - 1;
+  while (i0 < hi) { const m = (i0 + hi) >> 1; if (all[m].t_s / 60 < x0) i0 = m + 1; else hi = m; }
+  const H = all.slice(Math.max(0, i0 - 1));
   const t = H.map((s) => s.t_s / 60);
-  const x1 = Math.max(10, t[t.length - 1]), x0 = Math.max(0, x1 - 60);
   const ser = (f, color) => ({ t, y: H.map((s) => { const x = f(s); return x === null || x === undefined ? NaN : x; }), color });
   const c1 = document.getElementById('an-t1'), c2 = document.getElementById('an-t2'), c3 = document.getElementById('an-t3');
   if (!c1) return;
@@ -340,7 +369,8 @@ function paintStatus() {
   const hdr = document.querySelector('header.case');
   el.style.top = (hdr ? hdr.offsetHeight : 0) + 'px';
   const vi = s.vitals || {};
-  const state = s.dead ? '<b class="warn">décès</b>' : A.running ? `▶ lecture ×${A.speed}` : '<b class="warn">⏸ en pause : appuyer sur Lecture</b>';
+  const slow = A.running && A.effSpeed && A.effSpeed < 0.85 * A.speed;
+  const state = s.dead ? '<b class="warn">décès</b>' : A.running ? `▶ lecture ×${A.speed}${slow ? ` <span class="warn" title="calcul du modèle limité pour garder l'interface réactive">(effectif ×${fmt(A.effSpeed, A.effSpeed < 10 ? 1 : 0)} : patient coûteux à simuler)</span>` : ''}` : '<b class="warn">⏸ en pause : appuyer sur Lecture</b>';
   const last = A.last ? `<span class="${A.last.ok ? '' : 'warn'}">${clock(A.last.t)} ${esc(A.last.text)}</span>` : '';
   el.innerHTML = `<span class="clock">${clock(s.t_s)}</span> ${state}
     <span>FC <b>${fmt(vi.hr)}</b></span><span>PA <b>${fmt(vi.sap)}/${fmt(vi.dap)} (${fmt(vi.map)})</b></span>
@@ -404,12 +434,7 @@ function stethLine() {
 }
 
 /** WAV PCM 16 bits (base64) → échantillons. */
-function decodeWav(b64) {
-  const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-  const view = new DataView(bytes.buffer), n = (bytes.length - 44) / 2, out = new Float32Array(n);
-  for (let i = 0; i < n; i++) out[i] = view.getInt16(44 + 2 * i, true) / 32767;
-  return out;
-}
+const decodeWav = (b64) => decodeWavFile(b64).samples;
 
 /** Joue le son d'un segment du moniteur dans `delay` s (fondus de 5 ms aux raccords). */
 function playSegment(seg, delay) {

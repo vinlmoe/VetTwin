@@ -403,6 +403,13 @@ impl Engine {
         Ok(res)
     }
 
+    /// Termine et libère une session : `{"ok": true, "ended": bool}`.
+    pub(crate) fn anesthesia_end(&mut self, opts: &Json) -> ApiResult {
+        let m = obj(opts, "")?;
+        let id = req_str(m, "session")?;
+        Ok(json!({ "ok": true, "ended": self.anesthesia_sessions.remove(id).is_some() }))
+    }
+
     pub(crate) fn anesthesia_record(&mut self, opts: &Json) -> ApiResult {
         let m = obj(opts, "")?;
         let s = self.anesthesia_session(m)?;
