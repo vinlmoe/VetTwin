@@ -2,7 +2,7 @@
 //! (miroir de `physio.simulate_hemo`, MODEL_SPEC §2).
 //!
 //! États : volumes `[VG, VD, aorte, veines systémiques, artère pulmonaire, veines pulmonaires/OG]`
-//! (mL). Les ventricules suivent une élastance activée par un demi-cosinus (systole `ts`,
+//! (mL) et débit antérograde aortique (mL/s), freiné par l'inertance de la colonne éjectée. Les ventricules suivent une élastance activée par un demi-cosinus (systole `ts`,
 //! relaxation `tr`), avec une relation télédiastolique exponentielle ; les vaisseaux sont des
 //! compliances linéaires ; les valves sont des diodes lisses avec une conductance de fuite
 //! (régurgitation).
@@ -51,11 +51,45 @@ pub fn ventricular_pressure_beat(
     e_act * ees * (v - v0) + (1.0 - e) * a * (math::exp(x) - 1.0)
 }
 
-/// Débit valvulaire (diode lisse) : `σ = ½(1 + tanh(Δp/0,3))`,
-/// `Q = σ·Δp/r + (1 − σ)·g·Δp` (`g` = conductance de fuite rétrograde).
-pub fn valve_flow(dp: f64, r_forward: f64, g_back: f64) -> f64 {
+/// Constante de la loi d'orifice : `v (cm/s) = 50·√Δp (mmHg)` (Bernoulli, `Δp = 4v²` en m/s),
+/// donc `Q (mL/s) = 50·A (cm²)·√Δp`.
+pub const ORIFICE_K: f64 = 50.0;
+/// Lissage de la loi d'orifice autour de Δp = 0 (mmHg).
+const ORIFICE_DELTA: f64 = 0.5;
+
+/// Fuite rétrograde par un orifice d'aire `area` (cm²) : `(1 − σ)·K·A·Δp/(Δp² + δ²)^¼`,
+/// soit `−K·A·√|Δp|` dès que |Δp| ≫ δ (loi d'orifice de Bernoulli).
+pub fn orifice_leak(dp: f64, area: f64) -> f64 {
     let s = 0.5 * (1.0 + math::tanh(dp / 0.3));
-    s * dp / r_forward + (1.0 - s) * g_back * dp
+    (1.0 - s) * ORIFICE_K * area * dp
+        / f64::sqrt(f64::sqrt(dp * dp + ORIFICE_DELTA * ORIFICE_DELTA))
+}
+
+/// Débit valvulaire (diode lisse) : `σ = ½(1 + tanh(Δp/0,3))`, débit antérograde `σ·Δp/r`
+/// et fuite rétrograde par la loi d'orifice ([`orifice_leak`], aire `area` en cm²).
+pub fn valve_flow(dp: f64, r_forward: f64, area: f64) -> f64 {
+    let s = 0.5 * (1.0 + math::tanh(dp / 0.3));
+    s * dp / r_forward + orifice_leak(dp, area)
+}
+
+/// Constante de temps de fermeture de la valve aortique quand le débit inertiel s'annule (s).
+const AO_CLOSE_TAU: f64 = 0.002;
+/// Débit d'échelle de la fermeture (mL/s).
+const AO_CLOSE_Q: f64 = 0.5;
+
+/// Éjection aortique avec inertie : `L·dQ/dt = Δp − r·Q` tant que la valve est ouverte
+/// (débit antérograde ou gradient positif), puis fermeture rapide (`τ` = 2 ms) ; ouverture et
+/// fermeture lissées comme la diode valvulaire. `l_ao = 0` : débit algébrique `σ·Δp/r` (modèle
+/// sans inertie). Renvoie (débit antérograde, dérivée de l'état).
+pub fn aortic_forward(dp: f64, qa: f64, r_forward: f64, l_ao: f64) -> (f64, f64) {
+    let s2 = 0.5 * (1.0 + math::tanh(dp / 0.3));
+    if l_ao <= 0.0 {
+        return (s2 * dp / r_forward, -qa / AO_CLOSE_TAU);
+    }
+    let s1 = 0.5 * (1.0 + math::tanh(qa / AO_CLOSE_Q));
+    let w = 1.0 - (1.0 - s1) * (1.0 - s2);
+    let d = w * (dp - r_forward * qa) / l_ao - (1.0 - w) * qa / AO_CLOSE_TAU;
+    (qa, d)
 }
 
 /// Pressions (mmHg) des 6 compartiments.
@@ -90,6 +124,8 @@ pub struct Flows {
     pub sys: f64,
     /// Circulation pulmonaire.
     pub pul: f64,
+    /// Dérivée du débit antérograde aortique (mL/s²), état inertiel.
+    pub dqa: f64,
 }
 
 /// Rythme : période et durées de systole et de relaxation.
@@ -155,8 +191,10 @@ pub fn atrial_activation(t: f64, p: &Params, tm: &Timing) -> f64 {
     activation(t + lead, tm.period, p.ta_atr, p.tra_atr)
 }
 
-/// Échelle allométrique des fuites valvulaires : les conductances `g_*` sont normalisées au
-/// chien de référence de 20 kg et suivent les débits, `(bw/20)^0,75` (comme `1/r_valve`).
+/// Échelle allométrique des orifices régurgitants : aires `a_*` normalisées au chien de
+/// référence de 20 kg, à l'échelle des débits `(bw/20)^0,75` (comme `1/r_valve`) : à pressions
+/// égales, même fraction régurgitée et mêmes vitesses de jet à tout poids (la vitesse aortique
+/// ne dépend pas du poids, Brown 1991).
 pub fn leak_scale(p: &Params) -> f64 {
     math::pow(p.bw / 20.0, 0.75)
 }
@@ -166,35 +204,46 @@ pub fn leak_scale(p: &Params) -> f64 {
 /// Oreillettes contractiles : élastance active proportionnelle à la pression passive des
 /// compartiments `pv` (OG + veines pulmonaires) et `sv` (OD + veines systémiques),
 /// `P = (1 + k·e_a(t))·P_passive` ; `k = 0` : oreillettes passives (modèle d'origine).
-pub fn flows(v: &[f64; 6], t: f64, p: &Params, tm: &Timing) -> (Pressures, Flows, f64) {
-    let [lv, rv, ao, sv, pa, pv] = *v;
+pub fn flows(v: &[f64; 7], t: f64, p: &Params, tm: &Timing) -> (Pressures, Flows, f64) {
+    let [lv, rv, ao, sv, pa, pv, qa] = *v;
     let e = activation_g(t, tm.period, tm.ts, tm.tr, tm.gamma);
     let ea = atrial_activation(t, p, tm);
     let pr = Pressures {
         lv: ventricular_pressure(lv, e, p.ees_lv, p.v0_lv, p.a_lv, p.b_lv),
         rv: ventricular_pressure(rv, e, p.ees_rv, p.v0_rv, p.a_rv, p.b_rv),
-        ao: (ao - p.v0_ao) / p.c_ao,
+        ao: (ao - p.v0_ao) / p.c_ao + p.z_ao * qa,
         sv: (1.0 + p.k_ra * ea) * (sv - p.v0_sv) / (p.c_sv * p.ven_cap),
         pa: (pa - p.v0_pa) / p.c_pa,
         pv: (1.0 + p.k_la * ea) * (pv - p.v0_pv) / p.c_pv,
     };
+    let q = valve_flows(&pr, qa, p);
+    (pr, q, e)
+}
+
+/// Débits valvulaires et vasculaires pour des pressions données et le débit inertiel `qa`.
+/// `pr.ao` est la pression aortique proximale (compliance + `z_ao·qa`) ; le débit périphérique
+/// part de la compliance, à travers `r_sys − z_ao` (résistance totale conservée).
+fn valve_flows(pr: &Pressures, qa: f64, p: &Params) -> Flows {
+    let p_c = pr.ao - p.z_ao * qa;
     let rf = p.r_valve;
     let gs = leak_scale(p);
-    let q = Flows {
-        mi: valve_flow(pr.pv - pr.lv, rf, p.g_mr * gs),
-        ao: valve_flow(pr.lv - pr.ao, rf, p.g_ar * gs),
-        tr: valve_flow(pr.sv - pr.rv, rf, p.g_tr * gs),
-        pu: valve_flow(pr.rv - pr.pa, rf, p.g_pr * gs),
-        sys: (pr.ao - pr.sv) / p.r_sys,
+    let dp_ao = pr.lv - pr.ao;
+    let (qf, dqa) = aortic_forward(dp_ao, qa, rf, p.l_ao);
+    Flows {
+        mi: valve_flow(pr.pv - pr.lv, rf, p.a_mr * gs),
+        ao: qf + orifice_leak(dp_ao, p.a_ar * gs),
+        tr: valve_flow(pr.sv - pr.rv, rf, p.a_tr * gs),
+        pu: valve_flow(pr.rv - pr.pa, rf, p.a_pr * gs),
+        sys: (p_c - pr.sv) / (p.r_sys - p.z_ao),
         pul: (pr.pa - pr.pv) / p.r_pul,
-    };
-    (pr, q, e)
+        dqa,
+    }
 }
 
 /// Volumes initiaux (mL) : ventricules sur leur relation télédiastolique (8 et 4 mmHg),
 /// vaisseaux à des pressions de départ usuelles ; la volémie (`bvf`, sur 85 mL/kg) et
 /// `vol_shift` agissent sur le réservoir veineux systémique.
-pub fn initial_volumes(p: &Params) -> [f64; 6] {
+pub fn initial_volumes(p: &Params) -> [f64; 7] {
     let vtot = 85.0 * p.bw;
     [
         p.v0_lv + math::ln(1.0 + 8.0 / p.a_lv) / p.b_lv,
@@ -204,6 +253,7 @@ pub fn initial_volumes(p: &Params) -> [f64; 6] {
         p.v0_sv + p.c_sv * 4.0 + (p.bvf - 1.0) * vtot + p.vol_shift,
         p.v0_pa + p.c_pa * 14.0,
         p.v0_pv + p.c_pv * 6.0,
+        0.0,
     ]
 }
 
@@ -352,14 +402,14 @@ fn simulate_hemo_once(p: &Params, n_beats: usize, pr: Option<f64>) -> Result<Hem
     let n = ((t_end - start) / DT).ceil() as usize;
     let delta = (start + DT) - start;
     let t_eval: Vec<f64> = (0..n).map(|i| start + i as f64 * delta).collect();
-    let mut samples: Vec<[f64; 6]> = Vec::with_capacity(n);
+    let mut samples: Vec<[f64; 7]> = Vec::with_capacity(n);
     let opts = Options {
         rtol: 1e-6,
         atol: 1e-6,
         max_step: 0.004,
         ..Options::default()
     };
-    let rhs = |t: f64, v: &[f64; 6]| {
+    let rhs = |t: f64, v: &[f64; 7]| {
         let (_, q, _) = flows(v, t, p, &tm);
         [
             q.mi - q.ao,
@@ -368,6 +418,7 @@ fn simulate_hemo_once(p: &Params, n_beats: usize, pr: Option<f64>) -> Result<Hem
             q.sys - q.tr,
             q.pu - q.pul,
             q.pul - q.mi,
+            q.dqa,
         ]
     };
     let mut next = 0;
@@ -505,7 +556,24 @@ mod tests {
     fn valve_is_a_smooth_diode() {
         assert!((valve_flow(10.0, 0.03, 0.0) - 10.0 / 0.03).abs() < 1e-6);
         assert!(valve_flow(-10.0, 0.03, 0.0).abs() < 1e-20);
-        assert!((valve_flow(-10.0, 0.03, 0.5) + 5.0).abs() < 1e-6);
+        // loi d'orifice : −50·A·√|Δp| dès que |Δp| ≫ 0,5 mmHg (Bernoulli, Δp = 4v²)
+        let q = valve_flow(-100.0, 0.03, 0.5);
+        assert!((q + 50.0 * 0.5 * 10.0).abs() < 0.01 * 250.0, "{q}");
+        // la vitesse du jet q/A suit Bernoulli : 4 m/s ⇔ 64 mmHg
+        let v = -valve_flow(-64.0, 0.03, 0.2) / 0.2;
+        assert!((v - 400.0).abs() < 1.0, "{v}");
+    }
+
+    /// Éjection inertielle : `l_ao = 0` restitue le débit algébrique ; avec inertie, le débit
+    /// s'accélère selon (Δp − r·Q)/L et la valve se ferme quand le débit et le gradient s'annulent.
+    #[test]
+    fn aortic_ejection_is_inertial() {
+        let (q, d) = aortic_forward(10.0, 0.0, 0.03, 0.0);
+        assert!((q - 10.0 / 0.03).abs() < 1e-6 && d == 0.0);
+        let (q, d) = aortic_forward(10.0, 100.0, 0.03, 0.0014);
+        assert!(q == 100.0 && (d - (10.0 - 3.0) / 0.0014).abs() < 1.0);
+        let (_, d) = aortic_forward(-20.0, -5.0, 0.03, 0.0014);
+        assert!(d > 0.0, "valve fermée : le reflux s'annule");
     }
 }
 
@@ -617,32 +685,23 @@ fn activations_at(t: f64, beats: &[Beat], atr: &[f64], p: &Params) -> (f64, f64,
 }
 
 fn flows_beats(
-    v: &[f64; 6],
+    v: &[f64; 7],
     t: f64,
     p: &Params,
     beats: &[Beat],
     atr: &[f64],
 ) -> (Pressures, Flows, f64, f64) {
-    let [lv, rv, ao, sv, pa, pv] = *v;
+    let [lv, rv, ao, sv, pa, pv, qa] = *v;
     let (e, e_act, ea) = activations_at(t, beats, atr, p);
     let pr = Pressures {
         lv: ventricular_pressure_beat(lv, e, e_act, p.ees_lv, p.v0_lv, p.a_lv, p.b_lv),
         rv: ventricular_pressure_beat(rv, e, e_act, p.ees_rv, p.v0_rv, p.a_rv, p.b_rv),
-        ao: (ao - p.v0_ao) / p.c_ao,
+        ao: (ao - p.v0_ao) / p.c_ao + p.z_ao * qa,
         sv: (1.0 + p.k_ra * ea) * (sv - p.v0_sv) / (p.c_sv * p.ven_cap),
         pa: (pa - p.v0_pa) / p.c_pa,
         pv: (1.0 + p.k_la * ea) * (pv - p.v0_pv) / p.c_pv,
     };
-    let rf = p.r_valve;
-    let gs = leak_scale(p);
-    let q = Flows {
-        mi: valve_flow(pr.pv - pr.lv, rf, p.g_mr * gs),
-        ao: valve_flow(pr.lv - pr.ao, rf, p.g_ar * gs),
-        tr: valve_flow(pr.sv - pr.rv, rf, p.g_tr * gs),
-        pu: valve_flow(pr.rv - pr.pa, rf, p.g_pr * gs),
-        sys: (pr.ao - pr.sv) / p.r_sys,
-        pul: (pr.pa - pr.pv) / p.r_pul,
-    };
+    let q = valve_flows(&pr, qa, p);
     (pr, q, e, ea)
 }
 
@@ -705,14 +764,14 @@ pub fn simulate_hemo_beats(
     let n = ((t_end - warm) / DT).ceil() as usize;
     let delta = (warm + DT) - warm;
     let t_eval: Vec<f64> = (0..n).map(|i| warm + i as f64 * delta).collect();
-    let mut samples: Vec<[f64; 6]> = Vec::with_capacity(n);
+    let mut samples: Vec<[f64; 7]> = Vec::with_capacity(n);
     let opts = Options {
         rtol: 1e-6,
         atol: 1e-6,
         max_step: 0.004,
         ..Options::default()
     };
-    let rhs = |t: f64, v: &[f64; 6]| {
+    let rhs = |t: f64, v: &[f64; 7]| {
         let (_, q, _, _) = flows_beats(v, t, p, &beats, &atr);
         [
             q.mi - q.ao,
@@ -721,6 +780,7 @@ pub fn simulate_hemo_beats(
             q.sys - q.tr,
             q.pu - q.pul,
             q.pul - q.mi,
+            q.dqa,
         ]
     };
     let mut next = 0;

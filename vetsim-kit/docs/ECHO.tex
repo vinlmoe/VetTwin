@@ -273,6 +273,27 @@ référence. Score pondéré : 3,57 contre 3,23 auparavant. Les cinq coupes sont
 4 cavités proche de la figure de référence. La ligne CW apicale capte le jet d'IM à \SI{5,8}{m/s}.
 \end{itemize}
 
+\section{Moteur rendu plus mécanistique (24/11/2026)}
+Le Doppler avait révélé deux écarts du moteur hémodynamique : un débit aortique trop pointu et une EROA excessive en
+MMVD sévère. Les deux mécanismes simplifiés ont été remplacés par leur physique, puis le moteur a été recalé.
+Le golden et les fixtures ont été régénérés depuis la référence Python ; voir \vp{docs/MODEL_SPEC.md} et
+\vp{docs/PROVENANCE.md}.
+\begin{itemize}
+\item \textbf{Windkessel à quatre éléments.} Le débit aortique devient un état inertiel,
+$L\,\dot Q = P_{VG} - P_{Ao} - rQ$. La pression aortique proximale vaut $P_C + Z_c Q$, et $Z_c = \rho c/A$ est retranchée
+de la résistance totale. $L$, $Z_c$ et la compliance aortique sont calés ensemble sur la PAM (Haskins 2005), la pression
+pulsée (Meyer 2010, télémétrie : 44--46 mmHg) et la vitesse aortique Doppler.
+
+\emph{Chien sain} : 132/88 mmHg, vitesse aortique \SI{1,22}{m/s} (\SI{1,65}{m/s} avant ; publié \SIrange{1,16}{1,39}{m/s}),
+FR 28~\%.
+\item \textbf{Loi d'orifice.} Les fuites valvulaires suivent $Q = 50\,A\sqrt{\Delta P}$ (Bernoulli) au lieu d'une
+conductance linéaire. L'EROA du Doppler est alors l'aire d'orifice du moteur. L'orifice mitral dynamique (Yoran) est
+borné par l'anatomie.
+
+\emph{MMVD recalée} : EROA \SIrange{0,05}{0,99}{cm^2}, FR 15 à 72~\%, POG du stade C \SI{15}{mmHg}, du stade D \SI{25}{mmHg}.
+Le furosémide abaisse la POG de 19,5~\% (Suzuki 2013 : 27~\%).
+\end{itemize}
+
 \section{Sonde}
 Point de contact sur la paroi (hémithorax, hauteur, position crânio-caudale) et trois angles (angulation crânio-caudale,
 dorso-ventrale, rotation). Cinq coupes de référence (parasternale droite grand axe 4 cavités et chambre de chasse, petit

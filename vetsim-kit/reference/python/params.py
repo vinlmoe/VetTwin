@@ -18,11 +18,13 @@ def healthy_params(bw=20.0):
         hr=87.0 * s ** -0.25,          # Haskins 2005 : 87/min (97 chiens éveillés)
         ees_lv=4.4915 / s, v0_lv=4.0 * s, a_lv=1.0, b_lv=0.028137 / s,   # calage Haskins 2005 (recalé le 18/11/2026 avec la chronologie systolique)
         ees_rv=1.6 / s, v0_rv=6.0 * s, a_rv=0.4, b_rv=0.05 / s,
-        c_ao=0.7 * s, c_sv=55.0 * s, ven_cap=1.0, c_pa=2.5 * s, c_pv=5.0 * s,   # ven_cap : capacitance veineuse relative (pression seulement)
+        c_ao=1.4 * s, c_sv=55.0 * s, ven_cap=1.0, c_pa=2.5 * s, c_pv=5.0 * s,   # ven_cap : capacitance veineuse relative (pression seulement)
         v0_ao=150.0 * s, v0_sv=900.0 * s, v0_pa=60.0 * s, v0_pv=120.0 * s,
         r_sys=1.7925 / fq, r_pul=0.15626 / fq, r_valve=0.03 / fq,
-        g_mr=0.0005, g_ar=0.0002, g_tr=0.0002, g_pr=0.0002,   # conductances de fuite (mL/s/mmHg)
-        mr_k=2.5, mr_vref=68.5 * s,   # orifice mitral dynamique g_mr·(VTD/mr_vref)^mr_k, fixé par battement (Yoran 1979 ; calé sur Suzuki 2013) ; mr_vref = VTD du chien sain
+        l_ao=0.00035 * s ** (-1 / 3),   # inertance de la colonne éjectée ρ·ℓ/A (ℓ ≈ 0,75 diamètre aortique, calée ; mmHg·s²/mL)
+        z_ao=0.08 * s ** (-2 / 3),       # impédance caractéristique ρ·c/A (c ≈ 3,7 m/s, calée), comprise dans r_sys
+        a_mr=1e-4, a_ar=4e-5, a_tr=4e-5, a_pr=4e-5,   # orifices régurgitants effectifs à 20 kg (cm²), loi d'orifice Q = 50·A·√Δp
+        mr_k=4.0, mr_vref=68.5 * s, mr_amax=1.5,   # orifice mitral dynamique a_mr·(VTD/mr_vref)^mr_k, fixé par battement (Yoran 1979 ; calé sur Suzuki 2013) ; mr_vref = VTD du chien sain
         bvf=1.0, vol_shift=-22.43 * s,          # facteur de volémie, déficit/excès de volume (mL)
         map_set=103.0, baro_gain=1.0,
         # --- respiration / gaz ---

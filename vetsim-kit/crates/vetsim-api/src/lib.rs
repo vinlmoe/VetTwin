@@ -2362,7 +2362,7 @@ mod tests {
         let m0 = &c["case"]["modifiers"][0];
         assert_eq!(
             (m0["param"].as_str(), m0["op"].as_str()),
-            (Some("g_mr"), Some("add"))
+            (Some("a_mr"), Some("add"))
         );
         assert_eq!(m0["blocks"][0], "valves");
         assert_eq!(l["blocks"].as_array().unwrap().len(), 19);
@@ -2402,7 +2402,7 @@ mod tests {
         }
         // conductance de base de la MMVD 0,8 (0,9458·0,8^1,111 ≈ 0,74) ; la conductance effective,
         // fixée par battement selon le VTD (orifice dynamique), est plus élevée
-        assert!(st["params"]["g_mr"].as_f64().unwrap() > 0.5);
+        assert!(st["params"]["a_mr"].as_f64().unwrap() > 0.05);
         assert_eq!(st["params"].as_object().unwrap().len(), Params::NAMES.len());
         let signs: Vec<&str> = st["emergent_signs"]
             .as_array()

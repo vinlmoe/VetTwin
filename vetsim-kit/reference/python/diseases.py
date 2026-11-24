@@ -53,7 +53,7 @@ class Disease:
 
 
 # coefficients du module MMVD (calés par fit_mmvd.py sur : fraction de régurgitation par stade, POG, PAM ; voir rapport)
-KM = dict(g=0.9458, gexp=1.111,   # g, gexp recalés le 18/11/2026 avec l orifice dynamique (mr_k = 2,5)
+KM = dict(g=0.15, gexp=0.8,   # g, gexp recalés le 18/11/2026 avec l orifice dynamique (mr_k = 2,5)
            cpv=0.116, v0=1.115, b=0.2, ret=0.37, ret0=0.05, aut=0.65, zsd=0.25)
 
 
@@ -67,7 +67,7 @@ class MMVD(Disease):
         s, st = self.draw_severity(rng, severity, stage)
         z = lambda: _lnz(rng, 0.25 * KM['zsd'] / 0.25) if KM['zsd'] > 0 else 1.0
         late = max(0.0, (s - 0.8) / 0.2)
-        mods = [('g_mr', 'add', KM['g'] * s ** KM['gexp'] * z()),
+        mods = [('a_mr', 'add', KM['g'] * s ** KM['gexp'] * z()),
                 ('c_pv', 'mul', 1 + KM['cpv'] * s * z()),
                 ('v0_lv', 'mul', 1 + KM['v0'] * s),
                 ('b_lv', 'mul', 1 - KM['b'] * s),

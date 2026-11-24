@@ -169,7 +169,8 @@ def _beat_events(h, dt=0.002):
     # fermeture mitrale : P_lv dépasse P_pv après avoir été inférieure
     d = plv - ppv
     idx = np.where((d[:-1] < 0) & (d[1:] >= 0))[0]
-    i_mc = int(idx[0]) if len(idx) else 0
+    # déjà fermée au premier échantillon du cycle : fermeture à son début (miroir de signals::beat_events)
+    i_mc = 0 if d[0] >= 0 else (int(idx[0]) if len(idx) else 0)
     # fermeture aortique : débit aortique passe de >0 à <=0 après le pic
     ipk = int(np.argmax(qao))
     neg = np.where(qao[ipk:] <= 0)[0]

@@ -134,8 +134,10 @@ pub fn blocks_of(name: &str) -> &'static [Block] {
         | "sympathetic" => &[Autonomic],
         "ees_lv" | "v0_lv" | "a_lv" | "b_lv" => &[LeftHeart],
         "ees_rv" | "v0_rv" | "a_rv" | "b_rv" => &[RightHeart],
-        "r_valve" | "g_mr" | "g_ar" | "g_tr" | "g_pr" | "mr_k" | "mr_vref" => &[Valves],
-        "c_ao" | "c_sv" | "ven_cap" | "v0_ao" | "v0_sv" | "r_sys" => &[SystemicCirculation],
+        "r_valve" | "a_mr" | "a_ar" | "a_tr" | "a_pr" | "mr_k" | "mr_vref" | "mr_amax" => &[Valves],
+        "c_ao" | "c_sv" | "ven_cap" | "v0_ao" | "v0_sv" | "r_sys" | "l_ao" | "z_ao" => {
+            &[SystemicCirculation]
+        }
         "c_pa" | "c_pv" | "v0_pa" | "v0_pv" | "r_pul" => &[PulmonaryCirculation],
         "bvf" | "vol_shift" => &[Volume],
         "vco2" | "va0" | "vent_drive" | "aagrad" | "fio2" | "pb" | "rq" => &[Ventilation],

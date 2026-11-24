@@ -15,7 +15,7 @@ SCEN = [
     dict(id='bav1', hr=88.0, over=dict(pr=0.25, av_beta=0.0)),
     dict(id='bav3', hr=88.0, over=dict(hp_conduction=0.0)),
     dict(id='esv', hr=88.0, over=dict(vpc_rate=10.0)),
-    dict(id='mmvd_like_fa', hr=110.0, over=dict(af=1.0, g_mr=2.0)),
+    dict(id='mmvd_like_fa', hr=110.0, over=dict(af=1.0, a_mr=0.4)),
 ]
 KEYS = ['map', 'sap', 'dap', 'co', 'edv', 'esv', 'sv', 'la_mean', 'pap_mean', 'cvp', 'lv_edp', 'reg_fraction', 'mitral_e', 'mitral_a', 'hr_v']
 
