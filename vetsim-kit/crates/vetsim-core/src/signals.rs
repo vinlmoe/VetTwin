@@ -580,14 +580,20 @@ pub(crate) struct BeatEvents {
     pub(crate) dp_close: f64,
 }
 
-/// Événements valvulaires : fermeture mitrale (P_VG dépasse P_OG), fermeture aortique (débit
-/// aortique repasse ≤ 0 après son pic), dP/dt max du VG, remplissage rapide.
+/// Événements valvulaires : fermeture mitrale (P_VG dépasse P_OG ; déjà dépassée au premier
+/// échantillon du cycle : fermeture à son début, et non au franchissement du cycle suivant),
+/// fermeture aortique (débit aortique repasse ≤ 0 après son pic), dP/dt max du VG, remplissage
+/// rapide.
 pub(crate) fn beat_events(h: &PcgInputs, dt: f64) -> BeatEvents {
     let n = h.t.len();
     let d: Vec<f64> = h.p_lv.iter().zip(&h.p_pv).map(|(a, b)| a - b).collect();
-    let i_mc = (0..n.saturating_sub(1))
-        .find(|&i| d[i] < 0.0 && d[i + 1] >= 0.0)
-        .unwrap_or(0);
+    let i_mc = if d.first().is_some_and(|&x| x >= 0.0) {
+        0
+    } else {
+        (0..n.saturating_sub(1))
+            .find(|&i| d[i] < 0.0 && d[i + 1] >= 0.0)
+            .unwrap_or(0)
+    };
     let mut ipk = 0;
     for (i, v) in h.q_ao.iter().enumerate() {
         if *v > h.q_ao[ipk] {

@@ -1,0 +1,324 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage[margin=1.9cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs,tabularx}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{siunitx}
+\usepackage{newunicodechar}
+\newunicodechar{−}{-}
+\newunicodechar{≈}{~}
+\sisetup{locale=FR,detect-all}
+\setlength{\parskip}{0.4em}
+\setlength{\parindent}{0pt}
+\newcommand{\vp}[1]{\texttt{\detokenize{#1}}}
+
+\title{Échocardiographie virtuelle : prototype E0--E1\\\large géométrie tirée du modèle, oreillette gauche observée, image formée par une physique simplifiée}
+\date{23 novembre 2026}
+\begin{document}
+\maketitle
+
+\emph{Usage pédagogique uniquement : aucune mesure de ce simulateur ne sert à une décision clinique.}
+
+\section{Principe}
+L'image n'est pas dessinée. Le moteur Rust (\vp{vetsim-core/src/echo.rs}, API \vp{echo}) transforme les
+séries du modèle hémodynamique (volumes, débits valvulaires) en géométrie des cavités ; le navigateur
+(\vp{web/echo.js}) place ces formes dans un thorax schématique et forme l'image par une physique
+ultrasonore simplifiée. Les constantes et leur provenance sont dans \vp{modules/echo.json}
+(schéma \vp{schema/echo.schema.json}).
+
+\section{Géométrie tirée des volumes}
+\paragraph{Ventricule gauche.} Cavité en obus (cylindre de hauteur $L/2$ et demi-ellipsoïde de hauteur $L/2$) :
+\[
+V_{VG}=\frac{5\pi}{24}\,D^2L,\qquad L=L_{\mathrm{ref}}\Bigl(\frac{V_{VG}}{V_{\mathrm{ref}}}\Bigr)^{\lambda},
+\qquad V_{\mathrm{ref}}=\SI{3,42}{mL/kg}\times BW,\quad \frac{L_{\mathrm{ref}}}{D_{\mathrm{ref}}}=1{,}85,\quad \lambda=0{,}27.
+\]
+Avec $\lambda<1/3$, un VG dilaté devient plus sphérique. La paroi d'épaisseur $w$ vérifie
+\[
+\frac{5\pi}{24}(D+2w)^2(L+w)-V_{VG}=V_{\mathrm{myo}}=\text{constante},
+\]
+le volume myocardique étant fixé au volume de référence par l'épaisseur télédiastolique de Cornell et al.\ (2004),
+$\tfrac12(0{,}41\,BW^{0{,}241}+0{,}42\,BW^{0{,}232})$~cm. L'épaississement systolique est donc calculé (myocarde incompressible), pas imposé.
+
+\paragraph{Oreillettes : observateurs.} Le modèle confond l'OG et les veines pulmonaires dans un seul compartiment de
+pression passive $P=(V_{pv}-v_{0,pv})/c_{pv}$. La part de l'OG est
+\[
+V_{OG}(t)=s\,\bigl(v_{0,OG}+c_{OG}\,P(t)\bigr),\qquad s=BW/20 .
+\]
+Aucune rétroaction : hémodynamique, golden et calibration inchangés. La contraction atriale du modèle multiplie la
+pression totale ; la vidange atriale vient donc des débits mitraux simulés. L'OD suit la même construction sur le
+compartiment veineux systémique. L'OG est une ellipsoïde ; son diamètre transverse à la première image après la
+fermeture aortique (débit aortique redevenu nul) donne l'OG de l'indice OG/Ao.
+
+\paragraph{Ventricule droit.} Croissant autour de l'épicarde du VG (secteur de demi-ouverture \ang{95}, 80~\% de la
+longueur), d'épaisseur calculée par quadrature pour contenir $V_{VD}$.
+
+\paragraph{Valves.} Ouverture $=\min\bigl(1,\,Q/(0{,}25\,Q_{\max})\bigr)$ : la valve suit le débit antérograde du modèle
+(fermeture partielle en diastasis). Feuillets en entonnoir articulés sur l'anneau.
+
+\section{Calage et validation}
+\begin{tabularx}{\linewidth}{@{}lXl@{}}
+\toprule
+Grandeur & Source & Évidence\\\midrule
+IVSd, LVWd & Cornell et al.\ 2004, J Vet Intern Med 18:311--321 (confirmés sur sources secondaires en texte intégral) & B\\
+Ao & Brown et al.\ 2003, J Vet Intern Med 17:653--662 : $0{,}795\,BW^{1/3}$ & B\\
+$v_{0,OG}$ & OG max du chien sain \SI{0,95}{mL/kg} : entre Wesselowski et al.\ 2014 (\SI{0,88}{mL/kg}) et Visser et al.\ 2019 (médiane \SI{1,09}{mL/kg}) & C\\
+axes de l'OG & OG/Ao $=1{,}35$ chez le sain (Rishniw et Erb 2000 : médiane 1,31, max 1,59) & C\\
+$c_{OG}$, forme du VG, VD, valves, scène, acoustique & placeholders & D\\
+\bottomrule
+\end{tabularx}
+
+Tests (\vp{cargo test -p vetsim-api echo_}) :
+\begin{itemize}
+\item chien sain de 5, 20 et \SI{40}{kg} : LVIDd dans l'intervalle de prédiction de Cornell ($1{,}27$--$1{,}85\times BW^{0{,}294}$),
+FR de 25 à 45~\%, OG/Ao $<1{,}6$, OG max dans l'IR 95~\% de Visser 2019 ($0{,}68$--\SI{1,62}{mL/kg}), LVIDdN $<1{,}7$,
+paroi systolique $>1{,}2\times$ diastolique ;
+\item MMVD : OG/Ao croissant avec la sévérité ; à $s=0{,}9$ les deux critères échographiques du stade B2 (Keene et al.\ 2019 :
+OG/Ao $\ge 1{,}6$, LVIDdN $\ge 1{,}7$) sont atteints ;
+\item fibrillation atriale : fraction de vidange de l'OG réduite de plus de 30~\% (perte de la contraction atriale).
+\end{itemize}
+
+Valeurs obtenues (\SI{20}{kg}, $\lambda=0{,}27$) : sain LVIDd \SI{3,83}{cm}, FR 25,7~\%, OG/Ao 1,35, OG \SIrange{9,2}{19,0}{mL} ;
+MMVD $s=0{,}6$ : LVIDdN 1,77, OG/Ao 1,53 ; $s=0{,}9$ : LVIDdN 2,12, OG/Ao 2,04.
+
+\paragraph{Limites.} Pas de remodelage chronique de l'OG ni d'hypertrophie excentrique (masse VG constante : la paroi
+s'amincit quand le VG se dilate) ; dilatation de l'OG seulement par la pression. VG global : pas de trouble régional.
+Disposition anatomique schématique ; pas de piliers ni de cordages ; pas encore de Doppler.
+
+\section{Comparaison avec une image réelle}
+Référence : Visser et al.\ 2019 (J Vet Intern Med, PMC6766555, CC BY-NC 4.0), fig.~1 : coupe parasternale droite grand
+axe 4 cavités de chiens sains, \SI{10}{cm}, harmonique 1,6/3,2~MHz, avec tracés du VG en télédiastole et télésystole.
+L'image n'est ni copiée ni embarquée ; seuls des chiffres mesurés sont repris.
+
+\begin{tabularx}{\linewidth}{@{}Xccc@{}}
+\toprule
+Région (niveau de gris, 0--255) & Réel & Simulé, version 0.1 & Simulé, version 0.2\\\midrule
+Cavité du VG (médiane) & 17 & 7 & 0\\
+Myocarde, paroi postérieure (moyenne) & 135 & 198 & 143\\
+Champ proche (moyenne) & 154 & 132 & 147\\
+Péricarde--poumon (maximum par colonne) & 253 & non individualisé & bande brillante\\
+Hétérogénéité du myocarde (écart-type) & ≈ 60 & 18 & 25\\
+Raccourcissement du grand axe du VG & 16,5~\% & 9,5~\% & 16,5~\%\\
+\bottomrule
+\end{tabularx}
+
+Corrections de la version 0.2 :
+\begin{itemize}
+\item $\lambda$ recalé sur les tracés de la figure : grand axe 6,59 → \SI{5,50}{cm} pour un volume 62,0 → \SI{31,9}{mL}, soit
+$\lambda=\ln(0{,}835)/\ln(0{,}515)=0{,}27$ (un seul chien). Conséquence : la FR « vraie » du chien sain tombe à 25,7~\%,
+en bas de la plage normale. Avec un diamètre uniforme, l'obus ne distingue pas la base, peu contractile, du niveau des
+cordages où se mesure la FR en TM. Un profil radial (base moins mobile que la partie moyenne) est la prochaine correction
+de la géométrie.
+\item Péricarde collé aux cavités (feuillet de \SI{2}{mm}), graisse épicardique dans les sillons (\SI{3}{mm}), poumon
+au-delà. L'interface péricarde--poumon produit une ligne pleurale brillante (diffusion de surface sur \SI{2,5}{mm}).
+\item Incisure cardiaque surtout à droite (fenêtre parasternale), plus petite et plus ventrale à gauche.
+\item Microstructure : modulation lognormale de la rétrodiffusion à l'échelle de \SI{1,5}{mm}, attachée au tissu.
+\item TGC : compensation de 0,35~dB/cm/MHz (trajet mixte sang/tissu) ; gamme dynamique 50~dB ; gain +6~dB.
+\item Aide aux coupes : recherche du point de contact sur toute la paroi du côté de la fenêtre.
+\end{itemize}
+Écarts restants : le speckle simulé reste plus fin et plus régulier que l'image harmonique réelle. Le champ proche ne
+montre pas les couches de la paroi thoracique. La chambre de chasse et la coupe apicale (qualité 60~\%) restent
+médiocres, faute d'anatomie segmentée.
+
+\subsection*{Version 0.3 : mesure par tissu et réalisme}
+Les niveaux de gris sont désormais mesurés par tissu dans le moteur de rendu, grâce au masque des tissus
+(\vp{_internals.grayStats}), et comparés aux régions correspondantes de l'image réelle.
+
+\begin{tabularx}{\linewidth}{@{}Xcc@{}}
+\toprule
+Région (P10 / médiane / P90) & Réel & Simulé 0.3\\\midrule
+Myocarde & 56 / 158 / 205 & 113 / 157 / 200\\
+Paroi thoracique (champ proche) & 41 / 106 / 195 & 97 / 135 / 173\\
+Péricarde & saturé (≈ 250) & 154 / 214 / 248\\
+Au-delà du péricarde (poumon) & 86 / 128 / 244 & 18 / 81 / 181\\
+Sang & médiane ≈ 17 & médiane 0\\
+Grain du speckle (axial × latéral) & ≈ 1--1,5 × 2--2,6~mm & ≈ 1--1,5 × 2--3~mm\\
+\bottomrule
+\end{tabularx}
+
+Ajouts de la version 0.3 :
+\begin{itemize}
+\item \textbf{imagerie harmonique} par défaut : émission à $f$ et réception à $2f$ ; atténuation à $1{,}5f$ sur
+l'aller-retour ; signal harmonique faible en surface ; impulsion de deux cycles ;
+\item \textbf{lobes secondaires} (piédestal à $-28$~dB) et \textbf{halo de réverbérations pariétales} : voile des
+cavités près des structures brillantes ;
+\item \textbf{réduction de speckle} légère : moyenne locale $3\times3$ de l'intensité, à 30~\% ;
+\textbf{rémanence} : moyenne temporelle des images ;
+\item \textbf{anatomie} :
+  \begin{itemize}
+  \item trabéculations de l'endocarde, plus marquées vers l'apex ;
+  \item endocarde et épicarde plus échogènes ;
+  \item deux piliers et leurs cordages vers le bord libre des feuillets mitraux ;
+  \item feuillet antérieur plus long que le postérieur ; feuillets de \SI{1,3}{mm} ;
+  \item épicarde et oreillettes irréguliers ;
+  \end{itemize}
+\item \textbf{paroi thoracique en couches} : peau, tissu sous-cutané, muscles striés, fascias brillants ;
+\item \textbf{poumon} : ligne pleurale puis zone sous-pleurale texturée qui s'éteint sur \SIrange{1}{2}{cm} ;
+\item \textbf{scène} :
+  \begin{itemize}
+  \item thorax de 20~kg ramené à $\approx$ \SI{16}{cm} de large sur \SI{23}{cm} de haut ;
+  \item paroi de \SI{1,1}{cm} ;
+  \item cœur rapproché de la fenêtre droite ;
+  \item graisse épicardique ramenée à \SI{1,5}{mm} ;
+  \end{itemize}
+\item \textbf{aide aux coupes} : elle cadre aussi des repères anatomiques (apex, mitrale, OG).
+\end{itemize}
+
+Écarts restants :
+\begin{itemize}
+\item champ proche trop homogène ;
+\item poumon sous-pleural plus sombre que dans le réel ;
+\item OD absente de la coupe 4 cavités ;
+\item apex du VG hors du secteur à \SI{11,5}{cm} : il l'est aussi en partie dans l'image réelle.
+\end{itemize}
+Toutes ces constantes de rendu restent des placeholders (D) ajustés sur une seule image : à recaler sur une série
+d'enregistrements.
+
+\section{Formation de l'image}
+Sonde à balayage sectoriel (\ang{80}, 128 lignes, pas axial \SI{0,25}{mm}). Pour chaque échantillon : tissu au point
+(paroi thoracique, côte, poumon, graisse, péricarde, myocarde, sang, valve) ; diffuseur complexe gaussien tiré d'une
+maille de \SI{0,3}{mm} en \emph{coordonnées matérielles} (le speckle suit le myocarde) ; réflexion spéculaire
+$R=\bigl((Z_2-Z_1)/(Z_2+Z_1)\bigr)^2$ aux interfaces et transmission $1-R$ ; atténuation aller-retour $2\alpha f r$ ;
+réverbérations pleurales (lignes A) ; réponse impulsionnelle axiale (≈ une longueur d'onde) et latérale (largeur de
+faisceau $\lambda F/A$ au foyer, élargie hors foyer) ; compression logarithmique, gain, gamme dynamique, TGC. Le mode TM
+calcule une ligne à chaque colonne de temps. Environ \SI{30}{ms} par image dans un navigateur de bureau.
+
+\section{Doppler (jalon E2)}
+\paragraph{Vitesses tirées du modèle} (\vp{doppler_series}, Rust) :
+\begin{itemize}
+\item \textbf{flux antérogrades par continuité}, $v=Q/A$ :
+  \begin{itemize}
+  \item $A$ aortique : anneau de Brown 2003 ;
+  \item $A$ pulmonaire : placeholder égal à l'aortique ;
+  \item orifices mitral et tricuspide : aire à l'extrémité des feuillets, d'après leur angle d'ouverture (il suit le débit), bornée à 25~\% de l'aire ouverte.
+  \end{itemize}
+  Le gradient direct du modèle ($\Delta P$ sur la résistance valvulaire linéaire) n'est pas utilisé : il donnerait une vitesse aortique de \SI{2,25}{m/s}.
+\item \textbf{jets régurgitants par Bernoulli simplifiée} sur les pressions du modèle :
+  $v=\sqrt{\Delta P/4}$ (m/s, mmHg), avec $\mathrm{EROA}=|Q|/v$. Un reflux inférieur à 3~\% du débit antérograde maximal
+  est considéré comme le volume de fermeture de la valve, pas comme un jet.
+\end{itemize}
+
+\paragraph{Champ de vitesses (rendu).}
+\begin{itemize}
+\item En aval des orifices : jets ronds turbulents. Cône potentiel sur $B\,d_0$, puis $U_c=U_0\,B\,d_0/x$ ; demi-largeur
+$r_{1/2}=S\,x$, avec $S=0{,}094$ et $B=5{,}8$ (Pope 2000). Fluctuations turbulentes : 22~\% de $U_c$.
+\item En amont : convergence hémisphérique $v=Q/(2\pi r^2)$. La zone de convergence de l'IM (PISA) en découle.
+\item Dans l'aorte : écoulement en bloc.
+\end{itemize}
+
+\paragraph{Modes.}
+\begin{itemize}
+\item \textbf{Doppler couleur} :
+  \begin{itemize}
+  \item vitesse moyenne estimée, avec bruit et turbulence ;
+  \item repliement au-delà de la limite de Nyquist $v_N = c\,\mathrm{PRF}/(4f_0)$, avec $\mathrm{PRF}\le c/(2\,d_{\max})$ ;
+  \item filtre de paroi, variance (vert), boîte réglable.
+  \end{itemize}
+\item \textbf{Doppler pulsé} : porte de \SI{3}{mm}, repliement selon la profondeur de la porte.
+\item \textbf{Doppler continu} : toute la ligne, sans repliement.
+\end{itemize}
+Les spectres sont construits par échantillonnage des vitesses (composante $v\cos\theta$) et élargissement spectral. L'angle
+faisceau/flux est affiché à la porte. Les calipers spectraux donnent la vitesse et le gradient $4v^2$, comparés aux
+valeurs « vraies » (E, A, E/A, Vmax aortique et pulmonaire, IM, IT et PAPs estimée).
+
+\paragraph{Calage et validation} (test \vp{echo_doppler_matches_published_values}). L'angle maximal d'ouverture des
+feuillets mitraux (68°) est calé sur l'onde E du chien sain (médianes publiées \SIrange{0,72}{0,82}{m/s}). Les autres
+vitesses ne sont pas calées.
+
+\begin{tabularx}{\linewidth}{@{}Xcc@{}}
+\toprule
+Chien de 20 kg & Modèle & Publié\\\midrule
+E / A (m/s) & 0,75 / 0,55 & 0,72 / 0,50, IR 0,43--1,05 / 0,31--0,86 (Bagardi 2025)\\
+E/A & 1,37 & 1,43, IR 0,8--2,25 (Bagardi 2025)\\
+Vmax aortique (m/s) & 1,65 & CW 1,60, IR 1,10--2,33 (Favier 2025)\\
+Vmax pulmonaire (m/s) & 1,18 & 0,94, IR 0,59--1,41 (Favier 2025)\\
+IM, MMVD (m/s) & 5,5--5,8 & médianes 5,3--5,9 (Koch 2024)\\
+E, MMVD $s=0{,}6$ (m/s) & 1,48 & B2 : 1,47 (Koch 2024)\\
+EROA, MMVD $s=0{,}6$ (cm²) & 0,25 & B2 0,15 ; C 0,27 (Koch 2024)\\
+\bottomrule
+\end{tabularx}
+
+\paragraph{Écarts signalés, sans correction de l'hémodynamique calibrée.}
+\begin{itemize}
+\item Débit aortique trop pointu : rapport pic/moyenne de 3, contre environ 2 sur une courbe réelle. La Vmax aortique est
+dans l'intervalle CW mais au-dessus des valeurs PW. L'ITV (\SI{10,4}{cm}) n'en dépend pas.
+\item MMVD très sévère ($s=0{,}9$) : E \SI{3,8}{m/s} et EROA \SI{1,4}{cm^2}, nettement au-delà du stade C publié
+(E \SI{1,75}{m/s} ; EROA \SIrange{0,27}{0,52}{cm^2}). Le débit régurgité du modèle est excessif à ce niveau de sévérité.
+\item Pas d'insuffisance tricuspide dans le module MMVD : la PAP systolique ne peut pas être estimée par l'IT. Pourtant,
+la PAP vraie monte (\SI{42}{mmHg} à $s=0{,}9$).
+\item Pas d'artère pulmonaire dans la scène : le flux pulmonaire n'est pas échantillonnable à l'image.
+\end{itemize}
+
+\paragraph{Scène.} Pour la coupe apicale, le thorax a été rendu en carène (40~\% plus étroit au sternum), le cœur
+abaissé et l'apex orienté de 32° vers la gauche. Les valves auriculo-ventriculaires sont placées dans le plan
+4 cavités, et l'OG est raccordée à l'anneau mitral. Contrepartie : la coupe parasternale droite grand axe est devenue
+plus oblique qu'en version 0.3.
+
+\section{Vraisemblance (version 0.5)}
+\begin{itemize}
+\item \textbf{Mouvement du cœur.} L'apex reste quasi immobile et la base descend vers lui en systole : l'origine du repère
+cardiaque avance de 85~\% du raccourcissement longitudinal. Auparavant, la base était fixe et l'apex bougeait, ce qui
+n'est pas le cas chez l'animal.
+\item \textbf{Dilatation annulaire.} Le diamètre de l'anneau mitral suit le diamètre télédiastolique du VG
+(exposant 1, placeholder). L'onde E de la MMVD très sévère ($s=0{,}9$) passe de \SIrange{3,8}{1,51}{m/s} (stade C publié :
+\SI{1,75}{m/s} chez Koch 2024, \SI{1,04}{m/s} chez Tidholm 2017). Chien sain : E \SI{0,70}{m/s}. L'EROA, qui vient
+directement du débit et des pressions du modèle, reste à \SI{1,4}{cm^2} à $s=0{,}9$ : l'écart persiste.
+\item \textbf{Disposition.} Position, lacet du cœur et forme du thorax ont été choisis par recherche sur grille
+(54 combinaisons) : on maximise la part de cœur visible sans ombre pulmonaire ou costale dans les cinq coupes de
+référence. Score pondéré : 3,57 contre 3,23 auparavant. Les cinq coupes sont de nouveau exploitables, avec un grand axe
+4 cavités proche de la figure de référence. La ligne CW apicale capte le jet d'IM à \SI{5,8}{m/s}.
+\end{itemize}
+
+\section{Moteur rendu plus mécanistique (24/11/2026)}
+Le Doppler avait révélé deux écarts du moteur hémodynamique : un débit aortique trop pointu et une EROA excessive en
+MMVD sévère. Les deux mécanismes simplifiés ont été remplacés par leur physique, puis le moteur a été recalé.
+Le golden et les fixtures ont été régénérés depuis la référence Python ; voir \vp{docs/MODEL_SPEC.md} et
+\vp{docs/PROVENANCE.md}.
+\begin{itemize}
+\item \textbf{Windkessel à quatre éléments.} Le débit aortique devient un état inertiel,
+$L\,\dot Q = P_{VG} - P_{Ao} - rQ$. La pression aortique proximale vaut $P_C + Z_c Q$, et $Z_c = \rho c/A$ est retranchée
+de la résistance totale. $L$, $Z_c$ et la compliance aortique sont calés ensemble sur la PAM (Haskins 2005), la pression
+pulsée (Meyer 2010, télémétrie : 44--46 mmHg) et la vitesse aortique Doppler.
+
+\emph{Chien sain} : 132/88 mmHg, vitesse aortique \SI{1,22}{m/s} (\SI{1,65}{m/s} avant ; publié \SIrange{1,16}{1,39}{m/s}),
+FR 28~\%.
+\item \textbf{Loi d'orifice.} Les fuites valvulaires suivent $Q = 50\,A\sqrt{\Delta P}$ (Bernoulli) au lieu d'une
+conductance linéaire. L'EROA du Doppler est alors l'aire d'orifice du moteur. L'orifice mitral dynamique (Yoran) est
+borné par l'anatomie.
+
+\emph{MMVD recalée} : EROA \SIrange{0,05}{0,99}{cm^2}, FR 15 à 72~\%, POG du stade C \SI{15}{mmHg}, du stade D \SI{25}{mmHg}.
+Le furosémide abaisse la POG de 19,5~\% (Suzuki 2013 : 27~\%).
+\end{itemize}
+
+\section{Sonde}
+Point de contact sur la paroi (hémithorax, hauteur, position crânio-caudale) et trois angles (angulation crânio-caudale,
+dorso-ventrale, rotation). Cinq coupes de référence (parasternale droite grand axe 4 cavités et chambre de chasse, petit
+axe piliers et base, apicale gauche 4 cavités) : un bouton d'aide cherche une fenêtre sans poumon ni côte, et la qualité
+de la coupe de l'étudiant (angle du plan, distance à la cible, raccourcissement apparent du VG) est affichée en continu.
+Option téléphone : l'orientation du faisceau suit le gyroscope (DeviceOrientation, page en HTTPS), relativement à une
+pose de calibration.
+
+\section{Anatomie segmentée sur scanner : état de la recherche}
+Ressources canines repérées (sites non joignables depuis l'environnement de développement : contenus et licences
+\emph{non vérifiés}) :
+\begin{itemize}
+\item atlas DT-IRM ex vivo de 8 cœurs canins normaux (Helm et al., Johns Hopkins, CardioVascular Research Grid,
+format MATLAB ; probablement ventricules seuls) --- piste la plus prometteuse ;
+\item modèles Sketchfab issus d'angioscanners canins (communication interatriale, canal artériel persistant) ;
+\item Mendeley Data (Fries et al.\ 2019, 6 chiens sains, angioscanner, IRM et échographie ; probablement des mesures) ;
+\item IMAIOS vet-Anatomy : propriétaire, inutilisable dans un logiciel redistribué.
+\end{itemize}
+Aucun jeu ouvert de segmentation cardiaque canine en scanner n'a été trouvé. Repli : segmentations humaines
+(MM-WHS) remises à l'échelle, ou segmentation d'un angioscanner canin du service d'imagerie de l'école.
+Pour vérifier ces pistes, autoriser dans le réseau de l'environnement : cvrgrid.org, sketchfab.com, zenodo.org,
+data.mendeley.com, morphosource.org, 3d.nih.gov, vhlab.umn.edu.
+
+\section{Suite}
+E2 : Doppler pulsé, continu et couleur ($v=Q/A$, jets par Bernoulli $v=\sqrt{\Delta P/4}$, angle, repliement) ;
+remplacement de la scène par un maillage segmenté déformé pour respecter les volumes du modèle ; sonde imprimée en 3D
+(centrale inertielle et suivi par marqueur).
+\end{document}

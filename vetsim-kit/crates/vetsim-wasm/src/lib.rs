@@ -84,6 +84,11 @@ impl Engine {
         self.inner.heart(patient_id, options)
     }
 
+    /// Échocardiographie virtuelle (géométrie des cavités tirée des volumes simulés).
+    pub fn echo(&mut self, patient_id: &str, options: &str) -> String {
+        self.inner.echo(patient_id, options)
+    }
+
     /// Message générique `{"op", "patient", "options"}`.
     pub fn message(&mut self, json: &str) -> String {
         self.inner.message(json)

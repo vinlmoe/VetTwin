@@ -4,6 +4,7 @@
 import { Controller, BackgroundEngine, Superseded, planDoses } from './engine.js';
 import { COLORS, timeChart, spectrogram, computeSpectrogram, dayLabel } from './charts.js';
 import { mountHeart } from './heart.js';
+import { mountEcho } from './echo.js';
 import { renderAnesthesia } from './anesthesia.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -19,6 +20,9 @@ const S = {
   treat: { regimens: [], days: 3, r: null, cursor: 0, shown: ['hr', 'map', 'k'], ref: null, open: null, pending: false, form: null },
   model: { selected: null },
   heart: { r: null, t: 0, speed: 0.25, playing: true, raf: null, last: null },
+  echo: { r: null, t: 0, speed: 0.25, playing: true, raf: null, last: null, pose: null, meas: [], showTruth: false, mmode: false,
+    set: { freq: 0, depth: 0, focus: 0, gain: 6, dr: 50, tgc: [0, 0, 0], sector: 80, lines: 128, aperture: 1.4, flip: false, harmonic: true, gamma: 1, offset: 0.32, persist: 0.35, srf: 0.3, cScale: 70, wallFilter: 0.06, pwScale: 120, cwScale: 600, gateLen: 0.3 },
+    dop: 'off', box: { c: 0, w: 40, r0: 2, r1: 8 }, gate: { theta: 0, r: 5 } },
 };
 
 // ------------------------------------------------------------------ données d'affichage
@@ -80,7 +84,7 @@ async function main() {
   if (S.treat.autoSim) { S.treat.autoSim = false; resimulate(); }
 }
 
-const TABS = ['patient', 'respiration', 'model', 'auscultation', 'heart', 'treatment', 'anesthesia'];
+const TABS = ['patient', 'respiration', 'model', 'auscultation', 'heart', 'echo', 'treatment', 'anesthesia'];
 
 /** Onglets : clic, flèches gauche/droite, Début/Fin (motif ARIA « tablist »). */
 function wireTabs() {
@@ -193,6 +197,7 @@ function evaluate() {
     S.res = S.ctl.evaluate(S.inputs);
     stopAusc(false); S.ausc.r = null; S.ausc.played = false; // nouvelle auscultation pour ce patient
     S.heart.r = null;
+    S.echo.r = null; S.echo.pose = null; S.echo.meas = []; S.echo.set.depth = 0; S.echo.set.focus = 0; S.echo.set.freq = 0;
   } catch (e) { showError(e); }
   render();
 }
@@ -228,7 +233,7 @@ function render() {
   }
   renderOutcome(S.res.st.outcome);
   const v = $('#view');
-  ({ patient: renderPatient, respiration: renderRespiration, model: renderModel, auscultation: renderAuscultation, heart: renderHeart, treatment: renderTreatment,
+  ({ patient: renderPatient, respiration: renderRespiration, model: renderModel, auscultation: renderAuscultation, heart: renderHeart, echo: renderEcho, treatment: renderTreatment,
     anesthesia: (el) => renderAnesthesia(el, { ctl: S.ctl, inputs: S.inputs }) })[S.tab](v);
 }
 
@@ -577,6 +582,16 @@ function renderHeart(v) {
     try { H.r = S.ctl.heart(S.inputs); } catch (e) { showError(e); return; }
   }
   mountHeart(v, H.r, H, { card, canvas, legend, fmt, ecgMin: ECG_MIN, ecgMax: ECG_MAX });
+}
+
+// ------------------------------------------------------------------ Échocardiographie
+function renderEcho(v) {
+  const E = S.echo;
+  if (isDead()) { v.innerHTML = deadView('contraction'); return; }
+  if (!E.r) {
+    try { E.r = S.ctl.echo(S.inputs); } catch (e) { showError(e); return; }
+  }
+  mountEcho(v, E.r, E, { card, fmt });
 }
 
 // ------------------------------------------------------------------ Traitement (PK/PD)

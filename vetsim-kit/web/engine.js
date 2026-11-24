@@ -121,6 +121,11 @@ export class Controller {
     return this.withPatient(inp, ({ id }) => this.call('heart', id, JSON.stringify({ ...Controller.exposure(inp), seed: inp.seed, duration_s: durationS, fs: 200 })));
   }
 
+  /** Échocardiographie virtuelle : sorties du cœur animé et géométrie des cavités (API `echo`). */
+  echo(inp, durationS = 8) {
+    return this.withPatient(inp, ({ id }) => this.call('echo', id, JSON.stringify({ ...Controller.exposure(inp), seed: inp.seed, duration_s: durationS, fs: 200 })));
+  }
+
   treatment(inp, plan) {
     return this.withPatient(inp, ({ id }) => this.treatmentOf(id, plan));
   }

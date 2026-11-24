@@ -92,19 +92,29 @@ define_params! {
     r_pul,
     /// Résistance valvulaire à l'ouverture (mmHg·s/mL).
     r_valve,
-    /// Conductance de fuite mitrale (mL/s/mmHg).
-    g_mr,
-    /// Conductance de fuite aortique (mL/s/mmHg).
-    g_ar,
-    /// Conductance de fuite tricuspide (mL/s/mmHg).
-    g_tr,
-    /// Conductance de fuite pulmonaire (mL/s/mmHg).
-    g_pr,
-    /// Orifice mitral dynamique : `g_eff = g_mr·(VTD/mr_vref)^mr_k`, fixé par battement (point fixe,
-    /// Yoran 1979) ; 0 = orifice fixe.
+    /// Inertance de la colonne de sang éjectée (chambre de chasse et racine aortique),
+    /// `ρ·ℓ/A` (mmHg·s²/mL) ; 0 = éjection sans inertie (débit aortique algébrique).
+    l_ao,
+    /// Impédance caractéristique de l'aorte proximale `ρ·c/A` (mmHg·s/mL), comprise dans
+    /// `r_sys` (résistance totale) ; 0 = windkessel à deux éléments.
+    z_ao,
+    /// Orifice régurgitant effectif mitral au chien de 20 kg (cm²) ; fuite par la loi d'orifice
+    /// `Q = K·A·√Δp` (Bernoulli), aire mise à l'échelle des débits `(bw/20)^0,75`.
+    a_mr,
+    /// Orifice régurgitant effectif aortique (cm², 20 kg).
+    a_ar,
+    /// Orifice régurgitant effectif tricuspide (cm², 20 kg).
+    a_tr,
+    /// Orifice régurgitant effectif pulmonaire (cm², 20 kg).
+    a_pr,
+    /// Orifice mitral dynamique : `A_eff = a_mr·(VTD/mr_vref)^mr_k`, fixé par battement (point
+    /// fixe, Yoran 1979) ; 0 = orifice fixe.
     mr_k,
     /// Volume VG de référence de l'orifice dynamique (mL).
     mr_vref,
+    /// Borne anatomique de l'orifice régurgitant mitral (cm², 20 kg) : `A = x/(1 + x/mr_amax)`
+    /// avec `x` l'orifice dynamique ; 0 = sans borne.
+    mr_amax,
     /// Facteur de volémie (sans unité).
     bvf,
     /// Déficit (−) ou excès (+) de volume (mL).
@@ -404,6 +414,6 @@ mod tests {
             assert_eq!(p.get(n), Some(v));
         }
         assert_eq!(p.get("nope"), None);
-        assert_eq!(Params::NAMES.len(), 156); // + renal_co_auto (21/11/2026) ; + rr_mult (21/11/2026) ; + 6 axe cardio-rénal (20/11/2026) ; + 6 réponse à l'hypoxémie (20/11/2026) ; 73 + 11 décompensation + 6 oreillettes/systole + 3 force-intervalle + 22 conduction + 7 corrections du 18/11/2026 (creat_vd, urea_vd, map_arrest, av_symp, ven_cap, mr_k, mr_vref) + 3 échappements (esc_overdrive → esc_sup_gain, esc_sup_tau, esc_a_s, esc_a_v) + 5 chronologie (act_gamma, tr_frac, emd_v, emd_a, pa_ia) + 12 périphérie (temp_c … excitation)
+        assert_eq!(Params::NAMES.len(), 159); // + mr_amax (borne de l'orifice mitral) ; + l_ao, z_ao (éjection inertielle, windkessel à 4 éléments, 24/11/2026) ; renal_co_auto (21/11/2026) ; + rr_mult (21/11/2026) ; + 6 axe cardio-rénal (20/11/2026) ; + 6 réponse à l'hypoxémie (20/11/2026) ; 73 + 11 décompensation + 6 oreillettes/systole + 3 force-intervalle + 22 conduction + 7 corrections du 18/11/2026 (creat_vd, urea_vd, map_arrest, av_symp, ven_cap, mr_k, mr_vref) + 3 échappements (esc_overdrive → esc_sup_gain, esc_sup_tau, esc_a_s, esc_a_v) + 5 chronologie (act_gamma, tr_frac, emd_v, emd_a, pa_ia) + 12 périphérie (temp_c … excitation)
     }
 }

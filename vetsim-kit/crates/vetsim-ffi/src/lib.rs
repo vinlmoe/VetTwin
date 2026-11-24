@@ -103,6 +103,11 @@ impl Engine {
         self.with(|e| e.pcg(&patient_id, &options_json))
     }
 
+    /// Échocardiographie virtuelle : géométrie des cavités tirée des volumes simulés.
+    pub fn echo(&self, patient_id: String, options_json: String) -> String {
+        self.with(|e| e.echo(&patient_id, &options_json))
+    }
+
     /// Cœur animé : volumes des cavités, ECG et événements de conduction sur une même fenêtre.
     pub fn heart(&self, patient_id: String, options_json: String) -> String {
         self.with(|e| e.heart(&patient_id, &options_json))

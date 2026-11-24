@@ -217,3 +217,17 @@ button.mini { padding: 2px 8px; border-radius: 8px; font-size: 12px; }
 .vitals.compact .vital .v { font-size: 17px; }
 .row.regimen { gap: 6px; padding: 6px 0; border-top: 1px solid #eef1f4; }
 .row.regimen select { padding: 4px 6px; }
+
+/* échocardiographie virtuelle */
+.ec { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+.ec-main { flex: 1 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.ec-side { flex: 0 1 360px; min-width: 280px; display: flex; flex-direction: column; gap: 12px; }
+.ec-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ec-img { width: 100%; height: auto; background: #000; border-radius: 8px; touch-action: none; cursor: crosshair; }
+.ec-inset { width: 100%; height: auto; border: 1px solid var(--line); border-radius: 8px; margin-top: 6px; }
+.ec-sl { width: 100%; }
+.ec-sl input { width: 100%; }
+.ec-views { display: flex; flex-direction: column; gap: 4px; }
+.ec-views button { text-align: left; }
+.ec-tab { border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+.ec-tab td, .ec-tab th { padding: 2px 8px; border-bottom: 1px solid var(--line); text-align: left; }

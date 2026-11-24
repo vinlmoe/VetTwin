@@ -65,3 +65,9 @@ pub fn atan2(y: f64, x: f64) -> f64 {
 pub fn hypot(x: f64, y: f64) -> f64 {
     libm::hypot(x, y)
 }
+
+/// Racine cubique.
+#[inline]
+pub fn cbrt(x: f64) -> f64 {
+    libm::cbrt(x)
+}

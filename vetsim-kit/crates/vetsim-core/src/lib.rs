@@ -13,6 +13,7 @@ pub mod calibrate;
 pub mod case;
 pub mod dsl;
 pub mod dsp;
+pub mod echo;
 pub mod engine;
 pub mod error;
 pub mod gas;

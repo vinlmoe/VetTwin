@@ -14,6 +14,7 @@ bundle = {
     'patient': m('modules/healthy_dog.json'),
     'auscultation': m('modules/auscultation.json'),
     'variation': m('modules/variation.json'),
+    'echo': m('modules/echo.json'),
     'diseases': [m(p) for p in sorted(glob.glob('modules/diseases/*.json'))],
     'drugs': [m(p) for p in sorted(glob.glob('modules/drugs/*.json'))],
     'anesthesia': {
