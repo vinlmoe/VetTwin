@@ -72,6 +72,8 @@ pub struct EchoConfig {
     pub mitral_annulus_ratio: f64,
     pub leaflet_ratio: f64,
     pub open_ref_fraction: f64,
+    /// Dilatation de l'anneau mitral avec le VG : diamètre ∝ (LVIDd / D_ref)^exposant.
+    pub annulus_dilation_exponent: f64,
     /// Doppler (bloc `doppler`).
     pub doppler: DopplerConfig,
     /// Bloc `render` transmis tel quel au rendu (scène schématique, acoustique).
@@ -200,6 +202,7 @@ impl EchoConfig {
             mitral_annulus_ratio: r.num(&["valves", "mitral_annulus_ratio"], true),
             leaflet_ratio: r.num(&["valves", "leaflet_ratio"], true),
             open_ref_fraction: r.num(&["valves", "open_ref_fraction"], true),
+            annulus_dilation_exponent: r.num(&["valves", "annulus_dilation_exponent"], false),
             doppler: DopplerConfig {
                 mitral_open_deg: r.num(&["doppler", "mitral_open_deg"], true),
                 tricuspid_open_deg: r.num(&["doppler", "tricuspid_open_deg"], true),
@@ -430,6 +433,7 @@ pub fn echo_series(cfg: &EchoConfig, p: &Params, i: &EchoInputs) -> (EchoStatic,
         rv_wall: cfg.rv_wall_ratio * rf.w_ref,
         lv: rf,
     };
+    let mut st = st;
     let mut s = EchoSeries::default();
     for k in 0..i.v_lv.len() {
         let g = cfg.lv_geometry(&rf, i.v_lv[k]);
@@ -444,6 +448,11 @@ pub fn echo_series(cfg: &EchoConfig, p: &Params, i: &EchoInputs) -> (EchoStatic,
         let ra = cfg.ra_volume(p, i.v_sv[k]);
         s.ra_v.push(ra);
         s.ra_axes.push(ellipsoid_axes(cfg.ra.axes, ra));
+    }
+    // Anneau mitral : dilaté avec le VG (diamètre télédiastolique maximal de la fenêtre).
+    let d_ed = s.lv_d.iter().copied().fold(0.0, f64::max);
+    if d_ed > 0.0 {
+        st.mitral_annulus_d *= math::pow(d_ed / rf.d_ref, cfg.annulus_dilation_exponent);
     }
     let f = cfg.open_ref_fraction;
     s.mi_open = opening(i.q_mi, f);

@@ -320,7 +320,8 @@
         "calibre_sur",
         "mitral_annulus_ratio",
         "leaflet_ratio",
-        "open_ref_fraction"
+        "open_ref_fraction",
+        "annulus_dilation_exponent"
       ],
       "properties": {
         "source": {
@@ -348,6 +349,10 @@
         "open_ref_fraction": {
           "type": "number",
           "exclusiveMinimum": 0
+        },
+        "annulus_dilation_exponent": {
+          "type": "number",
+          "minimum": 0
         }
       }
     },

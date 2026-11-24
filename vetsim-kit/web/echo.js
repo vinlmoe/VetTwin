@@ -97,6 +97,7 @@ function buildScene(r) {
   return {
     bw, X, Y, wall, keel: th.ventral_taper || 0, Xi: X - wall, Yi: Y - wall, Xr: X - 0.25 * wall, Yr: Y - 0.25 * wall,
     ribs, ribW, notchY: hz.lung_notch_y_frac * Y, notchYL: (hz.lung_notch_y_frac - 0.45) * Y, e1, e2, e3, origin, center,
+    origin0: origin, epiLmax: Math.max(...E.series.lv_l.map((x, i) => x + E.series.lv_w[i])),
     zLo: center[2] - heartLen * 0.75, zHi: center[2] + heartLen * 0.75, tis,
     geo: E.geometry, st,
   };
@@ -111,11 +112,15 @@ function frameGeometry(r, sc, t) {
   const la = [at(S.la_ax[0]), at(S.la_ax[1]), at(S.la_ax[2])], ra = [at(S.ra_ax[0]), at(S.ra_ax[1]), at(S.ra_ax[2])];
   const st = sc.st, g = sc.geo;
   const epiD = d + 2 * w, epiL = l + w;
+  // apex quasi immobile, base mobile (descente de l'anneau en systole) : l'origine du repère
+  // cardiaque (centre de la base) avance vers l'apex de 85 % du raccourcissement
+  const bs = 0.85 * (sc.epiLmax - epiL);
+  sc.origin = add(sc.origin0, mul(sc.e3, bs));
   const lr = g.rv_length_fraction * epiL;
   const G = {
     d, l, w, epiD, epiL, rvt, lr, rvw: st.rv_wall, cosCov: Math.cos(g.rv_coverage_deg * D2R),
     // anneau mitral (repère cardiaque, plan de la base)
-    M: [-0.18 * d, 0], rm: 0.5 * st.mitral_annulus_d * Math.pow(d / st.lv_ref.d, 0.3), lfm: st.leaflet_l,
+    M: [-0.18 * d, 0], rm: 0.5 * st.mitral_annulus_d, lfm: st.leaflet_l,
     am: Math.pow(at(S.mi_open), 0.7) * sc.geo.mitral_open_deg * D2R,
     // racine aortique
     A: [0.42 * d, 0.28 * d, -0.15], ao: norm([0.1, 0.25, -1]), rao: st.ao_d / 2, aoLen: 3.2 * st.ao_d,
@@ -133,7 +138,7 @@ function frameGeometry(r, sc, t) {
     // extrémités libres des feuillets (dans le plan du pilier)
     const alM = Math.pow(at(S.mi_open), 0.7) * sc.geo.mitral_open_deg * D2R;
     const ch = [-0.35, 0, 0.35].map((dp) => {
-      const pp = ph + dp, rr = 0.5 * st.mitral_annulus_d * Math.pow(d / st.lv_ref.d, 0.3) - st.leaflet_l * Math.cos(alM) * 0.9;
+      const pp = ph + dp, rr = 0.5 * st.mitral_annulus_d - st.leaflet_l * Math.cos(alM) * 0.9;
       return [-0.18 * d + Math.cos(pp) * rr, Math.sin(pp) * rr, st.leaflet_l * Math.sin(alM) * 0.9 + 0.05];
     });
     return { c, a, al, tip, ch };

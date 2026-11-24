@@ -62,7 +62,8 @@
   "mitral_annulus_ratio": 0.78,
   "leaflet_ratio": 0.42,
   "open_ref_fraction": 0.25,
-  "source": "Diamètre de l'anneau mitral et longueur des feuillets rapportés au diamètre de référence du VG : placeholders. Ouverture des valves = min(1, débit antérograde / (open_ref_fraction × débit antérograde maximal)) : la valve suit le débit du modèle (fermeture partielle en diastasis, fermeture en systole).",
+  "annulus_dilation_exponent": 1.0,
+  "source": "annulus_dilation_exponent : l'anneau mitral se dilate avec le VG dans la MMVD (dilatation annulaire) ; diamètre proportionnel au diamètre télédiastolique du VG rapporté à sa référence (exposant 1, placeholder). Diamètre de l'anneau mitral et longueur des feuillets rapportés au diamètre de référence du VG : placeholders. Ouverture des valves = min(1, débit antérograde / (open_ref_fraction × débit antérograde maximal)) : la valve suit le débit du modèle (fermeture partielle en diastasis, fermeture en systole).",
   "evidence": "D",
   "calibre_sur": "non calé"
  },
@@ -83,13 +84,14 @@
   "source": "Scène schématique et constantes acoustiques du rendu. Atténuations : ordres de grandeur des manuels de physique de l'échographie (sang ~0,2, tissus mous ~0,5–1 dB/cm/MHz, os et poumon très atténuants) ; rétrodiffusion relative et disposition anatomique : placeholders, à remplacer par une anatomie segmentée sur scanner.",
   "evidence": "D",
   "calibre_sur": "non calé",
-  "thorax": { "depth_cm_per_kg13": 8.6, "width_cm_per_kg13": 5.2, "wall_cm_per_kg13": 0.4, "rib_spacing_cm_per_kg13": 0.95, "rib_width_cm_per_kg13": 0.42, "n_ribs": 9, "ventral_taper": 0.4 },
+  "thorax": { "depth_cm_per_kg13": 8.6, "width_cm_per_kg13": 5.2, "wall_cm_per_kg13": 0.4, "rib_spacing_cm_per_kg13": 0.95, "rib_width_cm_per_kg13": 0.42, "n_ribs": 9, "ventral_taper": 0.15 },
   "heart": {
-   "center_frac": [-0.12, -0.5, 0.05],
+   "center_frac": [-0.18, -0.42, 0.05],
    "long_axis_tilt_deg": 42.0,
-   "long_axis_yaw_deg": 32.0,
+   "long_axis_yaw_deg": 20.0,
    "septum_roll_deg": 28.0,
    "lung_notch_y_frac": 0.12,
+   "layout_note": "center_frac, long_axis_yaw_deg et ventral_taper choisis par recherche sur grille (54 combinaisons) maximisant la part de cœur visible sans ombre pulmonaire ou costale dans les cinq coupes de référence (grand axe et apicale comptées double) ; disposition schématique, à remplacer par une anatomie segmentée",
    "lung_notch_note": "incisure droite : poumon absent sous y = lung_notch_y_frac·Y du côté droit ; incisure gauche plus petite (0,3·Y plus ventrale)"
   },
   "tissues": {
