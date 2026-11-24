@@ -187,6 +187,77 @@ réverbérations pleurales (lignes A) ; réponse impulsionnelle axiale (≈ une 
 faisceau $\lambda F/A$ au foyer, élargie hors foyer) ; compression logarithmique, gain, gamme dynamique, TGC. Le mode TM
 calcule une ligne à chaque colonne de temps. Environ \SI{30}{ms} par image dans un navigateur de bureau.
 
+\section{Doppler (jalon E2)}
+\paragraph{Vitesses tirées du modèle} (\vp{doppler_series}, Rust) :
+\begin{itemize}
+\item \textbf{flux antérogrades par continuité}, $v=Q/A$ :
+  \begin{itemize}
+  \item $A$ aortique : anneau de Brown 2003 ;
+  \item $A$ pulmonaire : placeholder égal à l'aortique ;
+  \item orifices mitral et tricuspide : aire à l'extrémité des feuillets, d'après leur angle d'ouverture (il suit le débit), bornée à 25~\% de l'aire ouverte.
+  \end{itemize}
+  Le gradient direct du modèle ($\Delta P$ sur la résistance valvulaire linéaire) n'est pas utilisé : il donnerait une vitesse aortique de \SI{2,25}{m/s}.
+\item \textbf{jets régurgitants par Bernoulli simplifiée} sur les pressions du modèle :
+  $v=\sqrt{\Delta P/4}$ (m/s, mmHg), avec $\mathrm{EROA}=|Q|/v$. Un reflux inférieur à 3~\% du débit antérograde maximal
+  est considéré comme le volume de fermeture de la valve, pas comme un jet.
+\end{itemize}
+
+\paragraph{Champ de vitesses (rendu).}
+\begin{itemize}
+\item En aval des orifices : jets ronds turbulents. Cône potentiel sur $B\,d_0$, puis $U_c=U_0\,B\,d_0/x$ ; demi-largeur
+$r_{1/2}=S\,x$, avec $S=0{,}094$ et $B=5{,}8$ (Pope 2000). Fluctuations turbulentes : 22~\% de $U_c$.
+\item En amont : convergence hémisphérique $v=Q/(2\pi r^2)$. La zone de convergence de l'IM (PISA) en découle.
+\item Dans l'aorte : écoulement en bloc.
+\end{itemize}
+
+\paragraph{Modes.}
+\begin{itemize}
+\item \textbf{Doppler couleur} :
+  \begin{itemize}
+  \item vitesse moyenne estimée, avec bruit et turbulence ;
+  \item repliement au-delà de la limite de Nyquist $v_N = c\,\mathrm{PRF}/(4f_0)$, avec $\mathrm{PRF}\le c/(2\,d_{\max})$ ;
+  \item filtre de paroi, variance (vert), boîte réglable.
+  \end{itemize}
+\item \textbf{Doppler pulsé} : porte de \SI{3}{mm}, repliement selon la profondeur de la porte.
+\item \textbf{Doppler continu} : toute la ligne, sans repliement.
+\end{itemize}
+Les spectres sont construits par échantillonnage des vitesses (composante $v\cos\theta$) et élargissement spectral. L'angle
+faisceau/flux est affiché à la porte. Les calipers spectraux donnent la vitesse et le gradient $4v^2$, comparés aux
+valeurs « vraies » (E, A, E/A, Vmax aortique et pulmonaire, IM, IT et PAPs estimée).
+
+\paragraph{Calage et validation} (test \vp{echo_doppler_matches_published_values}). L'angle maximal d'ouverture des
+feuillets mitraux (68°) est calé sur l'onde E du chien sain (médianes publiées \SIrange{0,72}{0,82}{m/s}). Les autres
+vitesses ne sont pas calées.
+
+\begin{tabularx}{\linewidth}{@{}Xcc@{}}
+\toprule
+Chien de 20 kg & Modèle & Publié\\\midrule
+E / A (m/s) & 0,75 / 0,55 & 0,72 / 0,50, IR 0,43--1,05 / 0,31--0,86 (Bagardi 2025)\\
+E/A & 1,37 & 1,43, IR 0,8--2,25 (Bagardi 2025)\\
+Vmax aortique (m/s) & 1,65 & CW 1,60, IR 1,10--2,33 (Favier 2025)\\
+Vmax pulmonaire (m/s) & 1,18 & 0,94, IR 0,59--1,41 (Favier 2025)\\
+IM, MMVD (m/s) & 5,5--5,8 & médianes 5,3--5,9 (Koch 2024)\\
+E, MMVD $s=0{,}6$ (m/s) & 1,48 & B2 : 1,47 (Koch 2024)\\
+EROA, MMVD $s=0{,}6$ (cm²) & 0,25 & B2 0,15 ; C 0,27 (Koch 2024)\\
+\bottomrule
+\end{tabularx}
+
+\paragraph{Écarts signalés, sans correction de l'hémodynamique calibrée.}
+\begin{itemize}
+\item Débit aortique trop pointu : rapport pic/moyenne de 3, contre environ 2 sur une courbe réelle. La Vmax aortique est
+dans l'intervalle CW mais au-dessus des valeurs PW. L'ITV (\SI{10,4}{cm}) n'en dépend pas.
+\item MMVD très sévère ($s=0{,}9$) : E \SI{3,8}{m/s} et EROA \SI{1,4}{cm^2}, nettement au-delà du stade C publié
+(E \SI{1,75}{m/s} ; EROA \SIrange{0,27}{0,52}{cm^2}). Le débit régurgité du modèle est excessif à ce niveau de sévérité.
+\item Pas d'insuffisance tricuspide dans le module MMVD : la PAP systolique ne peut pas être estimée par l'IT. Pourtant,
+la PAP vraie monte (\SI{42}{mmHg} à $s=0{,}9$).
+\item Pas d'artère pulmonaire dans la scène : le flux pulmonaire n'est pas échantillonnable à l'image.
+\end{itemize}
+
+\paragraph{Scène.} Pour la coupe apicale, le thorax a été rendu en carène (40~\% plus étroit au sternum), le cœur
+abaissé et l'apex orienté de 32° vers la gauche. Les valves auriculo-ventriculaires sont placées dans le plan
+4 cavités, et l'OG est raccordée à l'anneau mitral. Contrepartie : la coupe parasternale droite grand axe est devenue
+plus oblique qu'en version 0.3.
+
 \section{Sonde}
 Point de contact sur la paroi (hémithorax, hauteur, position crânio-caudale) et trois angles (angulation crânio-caudale,
 dorso-ventrale, rotation). Cinq coupes de référence (parasternale droite grand axe 4 cavités et chambre de chasse, petit

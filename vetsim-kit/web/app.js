@@ -21,7 +21,8 @@ const S = {
   model: { selected: null },
   heart: { r: null, t: 0, speed: 0.25, playing: true, raf: null, last: null },
   echo: { r: null, t: 0, speed: 0.25, playing: true, raf: null, last: null, pose: null, meas: [], showTruth: false, mmode: false,
-    set: { freq: 0, depth: 0, focus: 0, gain: 6, dr: 50, tgc: [0, 0, 0], sector: 80, lines: 128, aperture: 1.4, flip: false, harmonic: true, gamma: 1, offset: 0.32, persist: 0.35, srf: 0.3 } },
+    set: { freq: 0, depth: 0, focus: 0, gain: 6, dr: 50, tgc: [0, 0, 0], sector: 80, lines: 128, aperture: 1.4, flip: false, harmonic: true, gamma: 1, offset: 0.32, persist: 0.35, srf: 0.3, cScale: 70, wallFilter: 0.06, pwScale: 120, cwScale: 600, gateLen: 0.3 },
+    dop: 'off', box: { c: 0, w: 40, r0: 2, r1: 8 }, gate: { theta: 0, r: 5 } },
 };
 
 // ------------------------------------------------------------------ données d'affichage

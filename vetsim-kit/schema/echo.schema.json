@@ -15,7 +15,8 @@
     "ra",
     "rv",
     "valves",
-    "render"
+    "render",
+    "doppler"
   ],
   "properties": {
     "schema_version": {
@@ -405,6 +406,68 @@
               }
             }
           }
+        }
+      }
+    },
+    "doppler": {
+      "type": "object",
+      "required": [
+        "source",
+        "evidence",
+        "calibre_sur",
+        "mitral_open_deg",
+        "tricuspid_open_deg",
+        "area_floor_fraction",
+        "pulmonic_to_aortic_ratio",
+        "tricuspid_to_mitral_ratio",
+        "jet_spread_rate",
+        "jet_decay_b"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "evidence": {
+          "enum": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ]
+        },
+        "calibre_sur": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "mitral_open_deg": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "tricuspid_open_deg": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "area_floor_fraction": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "pulmonic_to_aortic_ratio": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "tricuspid_to_mitral_ratio": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "jet_spread_rate": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "jet_decay_b": {
+          "type": "number",
+          "exclusiveMinimum": 0
         }
       }
     }

@@ -1225,7 +1225,7 @@ impl Engine {
     pub fn echo(&mut self, patient_id: &str, options: &str) -> String {
         let heart = self.heart(patient_id, options);
         self.respond(|e| {
-            use vetsim_core::echo::{echo_series, echo_truth, EchoInputs};
+            use vetsim_core::echo::{doppler_series, doppler_truth, echo_series, echo_truth, EchoInputs, Pressures};
             let cfg = e
                 .echo
                 .clone()
@@ -1257,7 +1257,12 @@ impl Engine {
                 .as_array()
                 .map(|a| a.iter().filter_map(|b| b["t"].as_f64()).collect())
                 .unwrap_or_default();
+            let (p_lv, p_la, p_rv, p_ra, p_ao, p_pa) = (arr("p_lv"), arr("p_la"), arr("p_rv"), arr("p_ra"), arr("p_ao"), arr("p_pa"));
+            let pr = Pressures { lv: &p_lv, la: &p_la, rv: &p_rv, ra: &p_ra, ao: &p_ao, pa: &p_pa };
+            let (dst, ds) = doppler_series(&cfg, &st, &s, &inp, &pr);
+            let act_a = arr("act_a");
             let tr = echo_truth(&st, &s, &v_lv, &q_ao, &beats, 1.0 / fs, vetsim_core::math::pow(p.bw, cfg.lvidd_exp));
+            let dtr = doppler_truth(&ds, &act_a, &pr, &beats, 1.0 / fs);
             let f32s = |v: &[f64]| v.iter().map(|x| *x as f32 as f64).collect::<Vec<_>>();
             let col = |i: usize, v: &[[f64; 3]]| v.iter().map(|a| a[i] as f32 as f64).collect::<Vec<_>>();
             h["echo"] = json!({
@@ -1279,6 +1284,20 @@ impl Engine {
                     "ef": tr.ef, "wall_d": tr.wall_d, "wall_s": tr.wall_s, "lvidd_n": tr.lvidd_n,
                     "ao": tr.ao, "la_d": tr.la_d, "la_ao": tr.la_ao, "la_max": tr.la_max,
                     "la_min": tr.la_min, "lv_mass_g": tr.lv_mass_g, "instants": tr.instants,
+                },
+                "doppler": {
+                    "static": { "a_ao": dst.a_ao, "a_pu": dst.a_pu, "a_mi_open": dst.a_mi_open, "a_tv_open": dst.a_tv_open },
+                    "series": {
+                        "v_mi": f32s(&ds.v_mi), "v_ao": f32s(&ds.v_ao), "v_tr": f32s(&ds.v_tr), "v_pu": f32s(&ds.v_pu),
+                        "a_mi": f32s(&ds.a_mi), "a_tv": f32s(&ds.a_tv),
+                        "v_mr": f32s(&ds.v_mr), "v_trj": f32s(&ds.v_trj), "v_ar": f32s(&ds.v_ar), "v_pr": f32s(&ds.v_pr),
+                        "eroa_mr": f32s(&ds.eroa_mr), "eroa_tr": f32s(&ds.eroa_tr),
+                    },
+                    "truth": {
+                        "n_beats": dtr.n_beats, "e": dtr.e, "a": dtr.a, "e_a": dtr.e_a, "ao_peak": dtr.ao_peak,
+                        "ao_vti": dtr.ao_vti, "pu_peak": dtr.pu_peak, "mr_peak": dtr.mr_peak, "tr_peak": dtr.tr_peak,
+                        "eroa_mr": dtr.eroa_mr, "pasp_est": dtr.pasp_est, "pasp_true": dtr.pasp_true,
+                    },
                 },
                 "geometry": cfg.geometry_json(),
                 "render": cfg.render,
@@ -1812,6 +1831,7 @@ mod tests {
         assert_eq!(r["ok"], true, "{r}");
         let t = r["echo"]["truth"].clone();
         println!("{bw} kg {dis}:{sev} → {t}");
+        println!("   Doppler → {}", r["echo"]["doppler"]["truth"]);
         t
     }
 
@@ -1873,6 +1893,72 @@ mod tests {
             frac(&af),
             frac(&h)
         );
+    }
+
+    /// Doppler tiré du modèle, comparé aux valeurs publiées (chien sain de 20 kg) :
+    /// Bagardi et al. 2025 (J Vet Med Sci, PMC11964857 ; IR 95 %) : E 0,43–1,05 m/s, A 0,31–0,86,
+    /// E/A 0,8–2,25 ; Favier et al. 2025 (Animals, PMC12153602) : aortique en CW 1,10–2,33 m/s,
+    /// pulmonaire 0,59–1,41. MMVD : vitesse du jet d'IM entre 4,5 et 6,5 m/s (médianes
+    /// 5,3–5,9 m/s, Koch et al. 2024, Animals, PMC11482544), EROA croissante avec la sévérité et
+    /// au-delà du seuil B1→B2 (0,09 cm², Koch 2024) quand OG/Ao ≥ 1,6. FA : pas d'onde A.
+    #[test]
+    fn echo_doppler_matches_published_values() {
+        let mut e = Engine::new();
+        e.load_modules(&bundle());
+        let dop = |e: &mut Engine, dis: &str, sev: f64| -> (Json, Json) {
+            let id = j(&e.new_patient(r#"{"bw": 20, "variability": false}"#))["patient_id"]
+                .as_str()
+                .unwrap()
+                .to_string();
+            if !dis.is_empty() {
+                e.add_disease(&id, &json!({"id": dis, "severity": sev}).to_string());
+            }
+            let r = j(&e.echo(&id, r#"{"duration_s": 6, "fs": 200, "seed": 3}"#));
+            (
+                r["echo"]["doppler"]["truth"].clone(),
+                r["echo"]["truth"].clone(),
+            )
+        };
+        let (h, _) = dop(&mut e, "", 0.0);
+        let v = |t: &Json, k: &str| t[k].as_f64().unwrap();
+        println!("sain : {h}");
+        assert!((43.0..105.0).contains(&v(&h, "e")), "E {}", v(&h, "e"));
+        assert!((31.0..86.0).contains(&v(&h, "a")), "A {}", v(&h, "a"));
+        assert!((0.8..2.25).contains(&v(&h, "e_a")), "E/A {}", v(&h, "e_a"));
+        assert!(
+            (110.0..233.0).contains(&v(&h, "ao_peak")),
+            "Ao {}",
+            v(&h, "ao_peak")
+        );
+        assert!(
+            (59.0..141.0).contains(&v(&h, "pu_peak")),
+            "P {}",
+            v(&h, "pu_peak")
+        );
+        assert_eq!(v(&h, "mr_peak"), 0.0, "pas de jet d'IM chez le chien sain");
+        let mut prev = 0.0;
+        for sev in [0.3, 0.6, 0.9] {
+            let (d, g) = dop(&mut e, "mmvd", sev);
+            println!("MMVD {sev} : {d}");
+            assert!(
+                (450.0..650.0).contains(&v(&d, "mr_peak")),
+                "IM {}",
+                v(&d, "mr_peak")
+            );
+            assert!(v(&d, "eroa_mr") > prev, "EROA croissante");
+            prev = v(&d, "eroa_mr");
+            if v(&g, "la_ao") >= 1.6 {
+                assert!(
+                    v(&d, "eroa_mr") > 0.09,
+                    "EROA {} avec OG/Ao {}",
+                    v(&d, "eroa_mr"),
+                    v(&g, "la_ao")
+                );
+            }
+        }
+        let (af, _) = dop(&mut e, "atrial_fibrillation", 0.8);
+        assert_eq!(v(&af, "a"), 0.0, "FA : pas d'onde A");
+        assert!(v(&af, "e") > 0.0);
     }
 
     /// Monte-Carlo : un même chien MMVD C sous traitement, 20 trajectoires ; les bandes ne sont

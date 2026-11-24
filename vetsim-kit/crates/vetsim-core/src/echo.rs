@@ -42,6 +42,18 @@ pub struct AtriumConfig {
     pub axes: [f64; 3],
 }
 
+/// Constantes du Doppler (bloc `doppler` de `modules/echo.json`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DopplerConfig {
+    pub mitral_open_deg: f64,
+    pub tricuspid_open_deg: f64,
+    pub area_floor_fraction: f64,
+    pub pulmonic_to_aortic_ratio: f64,
+    pub tricuspid_to_mitral_ratio: f64,
+    pub jet_spread_rate: f64,
+    pub jet_decay_b: f64,
+}
+
 /// Configuration du module (contenu de `modules/echo.json`).
 #[derive(Debug, Clone, PartialEq)]
 pub struct EchoConfig {
@@ -60,6 +72,8 @@ pub struct EchoConfig {
     pub mitral_annulus_ratio: f64,
     pub leaflet_ratio: f64,
     pub open_ref_fraction: f64,
+    /// Doppler (bloc `doppler`).
+    pub doppler: DopplerConfig,
     /// Bloc `render` transmis tel quel au rendu (scène schématique, acoustique).
     pub render: Json,
 }
@@ -158,6 +172,7 @@ impl EchoConfig {
             "ra",
             "rv",
             "valves",
+            "doppler",
             "render",
         ] {
             for k in ["source", "evidence", "calibre_sur"] {
@@ -185,6 +200,15 @@ impl EchoConfig {
             mitral_annulus_ratio: r.num(&["valves", "mitral_annulus_ratio"], true),
             leaflet_ratio: r.num(&["valves", "leaflet_ratio"], true),
             open_ref_fraction: r.num(&["valves", "open_ref_fraction"], true),
+            doppler: DopplerConfig {
+                mitral_open_deg: r.num(&["doppler", "mitral_open_deg"], true),
+                tricuspid_open_deg: r.num(&["doppler", "tricuspid_open_deg"], true),
+                area_floor_fraction: r.num(&["doppler", "area_floor_fraction"], true),
+                pulmonic_to_aortic_ratio: r.num(&["doppler", "pulmonic_to_aortic_ratio"], true),
+                tricuspid_to_mitral_ratio: r.num(&["doppler", "tricuspid_to_mitral_ratio"], true),
+                jet_spread_rate: r.num(&["doppler", "jet_spread_rate"], true),
+                jet_decay_b: r.num(&["doppler", "jet_decay_b"], true),
+            },
             render: root.get("render").cloned().unwrap_or(Json::Null),
         };
         if !(0.0..1.0 / 3.0).contains(&cfg.long_exponent) {
@@ -211,6 +235,10 @@ impl EchoConfig {
             "rv_coverage_deg": self.rv_coverage_deg,
             "rv_length_fraction": self.rv_length_fraction,
             "la_axes": self.la.axes,
+            "mitral_open_deg": self.doppler.mitral_open_deg,
+            "tricuspid_open_deg": self.doppler.tricuspid_open_deg,
+            "jet_spread_rate": self.doppler.jet_spread_rate,
+            "jet_decay_b": self.doppler.jet_decay_b,
             "ra_axes": self.ra.axes,
         })
     }
@@ -534,6 +562,220 @@ pub fn echo_truth(
     acc
 }
 
+// ------------------------------------------------------------------ Doppler
+
+/// Pressions du modèle (mmHg) sur la grille des séries.
+#[derive(Debug, Clone, Copy)]
+pub struct Pressures<'a> {
+    pub lv: &'a [f64],
+    pub la: &'a [f64],
+    pub rv: &'a [f64],
+    pub ra: &'a [f64],
+    pub ao: &'a [f64],
+    pub pa: &'a [f64],
+}
+
+/// Séries Doppler (cm/s, cm²). Antérogrades par continuité, régurgitations par Bernoulli.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DopplerSeries {
+    pub v_mi: Vec<f64>,
+    pub v_ao: Vec<f64>,
+    pub v_tr: Vec<f64>,
+    pub v_pu: Vec<f64>,
+    pub a_mi: Vec<f64>,
+    pub a_tv: Vec<f64>,
+    pub v_mr: Vec<f64>,
+    pub v_trj: Vec<f64>,
+    pub v_ar: Vec<f64>,
+    pub v_pr: Vec<f64>,
+    pub eroa_mr: Vec<f64>,
+    pub eroa_tr: Vec<f64>,
+}
+
+/// Aires fixes (cm²) : anneaux aortique et pulmonaire.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DopplerStatic {
+    pub a_ao: f64,
+    pub a_pu: f64,
+    pub a_mi_open: f64,
+    pub a_tv_open: f64,
+}
+
+/// Vitesse d'un jet (cm/s) par Bernoulli simplifiée : ΔP = 4v² (v en m/s, ΔP en mmHg).
+pub fn bernoulli_cm_s(dp_mmhg: f64) -> f64 {
+    100.0 * f64::sqrt(dp_mmhg.max(0.0) / 4.0)
+}
+
+/// Aire de l'orifice à l'extrémité de feuillets en entonnoir (rayon d'anneau `ra`, longueur
+/// `lf`, ouverture `open` ∈ [0, 1] → angle `open^0,7 · max`), bornée à `floor` × l'aire ouverte.
+pub fn tip_area(ra: f64, lf: f64, open: f64, max_deg: f64, floor: f64) -> (f64, f64) {
+    let r = |a: f64| (ra - lf * math::cos(a.to_radians())).max(0.0);
+    let sq = |x: f64| x * x;
+    let full = PI * sq(r(max_deg));
+    let a = PI * sq(r(math::pow(open.clamp(0.0, 1.0), 0.7) * max_deg));
+    (a.max(floor * full), full)
+}
+
+/// Séries Doppler à partir des débits, des pressions et de la géométrie.
+pub fn doppler_series(
+    cfg: &EchoConfig,
+    st: &EchoStatic,
+    s: &EchoSeries,
+    i: &EchoInputs,
+    p: &Pressures,
+) -> (DopplerStatic, DopplerSeries) {
+    let dc = &cfg.doppler;
+    let a_ao = PI * (st.ao_d / 2.0) * (st.ao_d / 2.0);
+    let a_pu = a_ao * dc.pulmonic_to_aortic_ratio * dc.pulmonic_to_aortic_ratio;
+    let ra_m = st.mitral_annulus_d / 2.0;
+    let ra_t = ra_m * dc.tricuspid_to_mitral_ratio;
+    let mut d = DopplerSeries::default();
+    let mut full = (0.0, 0.0);
+    // reflux de fermeture (volume de fermeture des valves) : pas un jet régurgitant ; seuil à
+    // 3 % du débit antérograde maximal de la valve
+    let fwd = |q: &[f64]| q.iter().copied().fold(0.0, f64::max);
+    let (e_mi, e_ao, e_tr, e_pu) = (
+        0.03 * fwd(i.q_mi),
+        0.03 * fwd(i.q_ao),
+        0.03 * fwd(i.q_tr),
+        0.03 * fwd(i.q_pu),
+    );
+    for k in 0..i.v_lv.len() {
+        let (am, fm) = tip_area(
+            ra_m,
+            st.leaflet_l,
+            s.mi_open[k],
+            dc.mitral_open_deg,
+            dc.area_floor_fraction,
+        );
+        let (at, ft) = tip_area(
+            ra_t,
+            st.leaflet_l,
+            s.tr_open[k],
+            dc.tricuspid_open_deg,
+            dc.area_floor_fraction,
+        );
+        full = (fm, ft);
+        d.a_mi.push(am);
+        d.a_tv.push(at);
+        d.v_mi.push(i.q_mi[k].max(0.0) / am);
+        d.v_tr.push(i.q_tr[k].max(0.0) / at);
+        d.v_ao.push(i.q_ao[k].max(0.0) / a_ao);
+        d.v_pu.push(i.q_pu[k].max(0.0) / a_pu);
+        let jet = |q: f64, eps: f64, dp: f64| {
+            if q < -eps.max(1.0) {
+                bernoulli_cm_s(dp)
+            } else {
+                0.0
+            }
+        };
+        let mr = jet(i.q_mi[k], e_mi, p.lv[k] - p.la[k]);
+        let tr = jet(i.q_tr[k], e_tr, p.rv[k] - p.ra[k]);
+        d.v_mr.push(mr);
+        d.v_trj.push(tr);
+        d.v_ar.push(jet(i.q_ao[k], e_ao, p.ao[k] - p.lv[k]));
+        d.v_pr.push(jet(i.q_pu[k], e_pu, p.pa[k] - p.rv[k]));
+        d.eroa_mr.push(if mr > 0.0 { -i.q_mi[k] / mr } else { 0.0 });
+        d.eroa_tr.push(if tr > 0.0 { -i.q_tr[k] / tr } else { 0.0 });
+    }
+    (
+        DopplerStatic {
+            a_ao,
+            a_pu,
+            a_mi_open: full.0,
+            a_tv_open: full.1,
+        },
+        d,
+    )
+}
+
+/// Mesures Doppler « vraies », moyennées sur les battements complets (vitesses en cm/s).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DopplerTruth {
+    pub n_beats: usize,
+    pub e: f64,
+    pub a: f64,
+    pub e_a: f64,
+    pub ao_peak: f64,
+    pub ao_vti: f64,
+    pub pu_peak: f64,
+    pub mr_peak: f64,
+    pub tr_peak: f64,
+    pub eroa_mr: f64,
+    /// PAP systolique estimée par la régurgitation tricuspide (4v² + POD moyenne) et vraie.
+    pub pasp_est: f64,
+    pub pasp_true: f64,
+}
+
+/// Mesures Doppler par battement (`beats` : débuts d'activation ventriculaire, s) ; l'onde A
+/// est le pic du flux mitral pendant l'activation atriale `act_a`, l'onde E le pic hors de
+/// celle-ci dans la même diastole.
+pub fn doppler_truth(
+    d: &DopplerSeries,
+    act_a: &[f64],
+    p: &Pressures,
+    beats: &[f64],
+    dt: f64,
+) -> DopplerTruth {
+    let n = d.v_ao.len();
+    let idx = |t: f64| ((t / dt).round().max(0.0) as usize).min(n.saturating_sub(1));
+    let mut tr = DopplerTruth::default();
+    let mx = |v: &[f64], a: usize, b: usize| v[a..b].iter().copied().fold(0.0, f64::max);
+    let mut acc = [0.0f64; 10];
+    let mut ea_beats = 0usize;
+    let mut nb = 0usize;
+    for w in beats.windows(2) {
+        let (a, b) = (idx(w[0]), idx(w[1]));
+        if a == 0 || b + 1 >= n || b <= a + 4 {
+            continue;
+        }
+        let (mut e, mut aa) = (0.0f64, 0.0f64);
+        for k in a..b {
+            if act_a.get(k).copied().unwrap_or(0.0) > 0.05 {
+                aa = aa.max(d.v_mi[k]);
+            } else if d.v_ao[k] <= 0.0 {
+                e = e.max(d.v_mi[k]);
+            }
+        }
+        // E mesurée à chaque battement ; A absente en fibrillation atriale (rapport E/A alors 0)
+        acc[0] += e;
+        if aa > 0.0 {
+            acc[1] += aa;
+            ea_beats += 1;
+        }
+        acc[2] += mx(&d.v_ao, a, b);
+        acc[3] += d.v_ao[a..b].iter().sum::<f64>() * dt;
+        acc[4] += mx(&d.v_pu, a, b);
+        acc[5] += mx(&d.v_mr, a, b);
+        acc[6] += mx(&d.v_trj, a, b);
+        acc[7] += mx(&d.eroa_mr, a, b);
+        acc[8] += p.ra[a..b].iter().sum::<f64>() / (b - a) as f64;
+        acc[9] += mx(p.pa, a, b);
+        nb += 1;
+    }
+    if nb == 0 {
+        return tr;
+    }
+    let k = nb as f64;
+    tr.n_beats = nb;
+    tr.e = acc[0] / k;
+    if ea_beats > 0 {
+        tr.a = acc[1] / ea_beats as f64;
+        tr.e_a = tr.e / tr.a;
+    }
+    tr.ao_peak = acc[2] / k;
+    tr.ao_vti = acc[3] / k;
+    tr.pu_peak = acc[4] / k;
+    tr.mr_peak = acc[5] / k;
+    tr.tr_peak = acc[6] / k;
+    tr.eroa_mr = acc[7] / k;
+    if tr.tr_peak > 0.0 {
+        tr.pasp_est = 4.0 * (tr.tr_peak / 100.0) * (tr.tr_peak / 100.0) + acc[8] / k;
+    }
+    tr.pasp_true = acc[9] / k;
+    tr
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -595,6 +837,15 @@ mod tests {
         let t1 = c.rv_thickness(5.0, 7.0, 30.0);
         let t2 = c.rv_thickness(5.0, 7.0, 60.0);
         assert!(t1 > 0.0 && t2 > t1);
+    }
+
+    #[test]
+    fn bernoulli_and_tip_area() {
+        // 4 m/s ⇔ 64 mmHg
+        assert!((bernoulli_cm_s(64.0) - 400.0).abs() < 1e-9);
+        let (a0, full) = tip_area(1.5, 1.6, 0.0, 75.0, 0.25);
+        let (a1, _) = tip_area(1.5, 1.6, 1.0, 75.0, 0.25);
+        assert!((a0 - 0.25 * full).abs() < 1e-12 && (a1 - full).abs() < 1e-12 && full > 0.0);
     }
 
     #[test]
