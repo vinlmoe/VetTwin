@@ -17,8 +17,8 @@
 \setlength{\parindent}{0pt}
 \newcommand{\vp}[1]{\texttt{\detokenize{#1}}}
 
-\title{Échocardiographie virtuelle : prototype E0--E1\\\large géométrie tirée du modèle, oreillette gauche observée, image formée par une physique simplifiée}
-\date{23 novembre 2026}
+\title{Échocardiographie virtuelle : prototype E0--E2\\\large géométrie tirée du modèle, image formée par une physique simplifiée, Doppler tiré des débits et des pressions}
+\date{24 novembre 2026}
 \begin{document}
 \maketitle
 
@@ -314,11 +314,20 @@ format MATLAB ; probablement ventricules seuls) --- piste la plus prometteuse ;
 \end{itemize}
 Aucun jeu ouvert de segmentation cardiaque canine en scanner n'a été trouvé. Repli : segmentations humaines
 (MM-WHS) remises à l'échelle, ou segmentation d'un angioscanner canin du service d'imagerie de l'école.
-Pour vérifier ces pistes, autoriser dans le réseau de l'environnement : cvrgrid.org, sketchfab.com, zenodo.org,
-data.mendeley.com, morphosource.org, 3d.nih.gov, vhlab.umn.edu.
+{\sloppy Pour vérifier ces pistes, autoriser dans le réseau de l'environnement : cvrgrid.org, sketchfab.com, zenodo.org,
+data.mendeley.com, morphosource.org, 3d.nih.gov, vhlab.umn.edu.\par}
 
 \section{Suite}
-E2 : Doppler pulsé, continu et couleur ($v=Q/A$, jets par Bernoulli $v=\sqrt{\Delta P/4}$, angle, repliement) ;
-remplacement de la scène par un maillage segmenté déformé pour respecter les volumes du modèle ; sonde imprimée en 3D
+Le Doppler (E2) est en place. Étape suivante : l'hypertension pulmonaire.
+\begin{itemize}
+\item \textbf{Moteur.} Windkessel pulmonaire à quatre éléments (inertance et impédance caractéristique de l'artère
+pulmonaire) et perte de Bernoulli aux valves sigmoïdes, pour obtenir un temps d'accélération pulmonaire réaliste
+(publié : 73--79~ms, rapport TA/TE 0,40--0,43 chez le chien sain ; Schober 2006, Visser 2016, Yuchi 2023). Le premier
+essai donne TA/TE 0,42, mais élève le débit et la PAM : le moteur doit être recalé sur Haskins 2005 et Yuchi 2021.
+\item \textbf{Échographie.} Tronc pulmonaire en observateur, rapport AP/Ao (Grosso 2023 : médiane 0,92, IR 0,78--1,01,
+269 chiens sains), profil pulsé pulmonaire (TA, TA/TE, encoche mésosystolique), jets d'IT et d'IP, estimation de la PAPs
+par $4v^2$ plus la pression de l'OD, et probabilité d'HTP selon le consensus ACVIM 2020.
+\item \textbf{Plus tard.} Maillage segmenté déformé pour respecter les volumes du modèle ; sonde imprimée en 3D
 (centrale inertielle et suivi par marqueur).
+\end{itemize}
 \end{document}
