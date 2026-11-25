@@ -7,7 +7,7 @@ def run(args):
 def add(cid, args):
     cases.append(dict(id=cid, args=args, expected=run(args)))
 for bw in (5, 20, 40): add(f'healthy_{bw}kg', ['eval', '--bw', str(bw)])
-for d in ('mmvd', 'ckd', 'addison', 'pneumonia'):
+for d in ('mmvd', 'ckd', 'addison', 'pneumonia', 'pulmonary_hypertension'):
     for s in (0.2, 0.5, 0.8): add(f'{d}_s{s}', ['eval', '--bw', '20', '--disease', f'{d}:{s}'])
 # troubles du rythme (conduction ; aléa SplitMix64 identique en Python et en Rust)
 for d in ('atrial_fibrillation', 'av_block', 'ventricular_premature', 'sick_sinus'):

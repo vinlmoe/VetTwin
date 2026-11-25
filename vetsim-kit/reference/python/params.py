@@ -23,6 +23,8 @@ def healthy_params(bw=20.0):
         r_sys=1.7925 / fq, r_pul=0.15626 / fq, r_valve=0.03 / fq,
         l_ao=0.00035 * s ** (-1 / 3),   # inertance de la colonne éjectée ρ·ℓ/A (ℓ ≈ 0,75 diamètre aortique, calée ; mmHg·s²/mL)
         z_ao=0.08 * s ** (-2 / 3),       # impédance caractéristique ρ·c/A (c ≈ 3,7 m/s, calée), comprise dans r_sys
+        l_pa=0.0013 * s ** (-1 / 3),    # inertance de la colonne éjectée par le VD (chambre de chasse + tronc, ℓ ≈ 6 cm ; calée sur TA/TE, 24/11/2026)
+        z_pa=0.02 * s ** (-2 / 3),      # impédance caractéristique du tronc pulmonaire (c ≈ 0,9 m/s), comprise dans r_pul
         a_mr=1e-4, a_ar=4e-5, a_tr=4e-5, a_pr=4e-5,   # orifices régurgitants effectifs à 20 kg (cm²), loi d'orifice Q = 50·A·√Δp
         mr_k=4.0, mr_vref=68.5 * s, mr_amax=1.5,   # orifice mitral dynamique a_mr·(VTD/mr_vref)^mr_k, fixé par battement (Yoran 1979 ; calé sur Suzuki 2013) ; mr_vref = VTD du chien sain
         bvf=1.0, vol_shift=-22.43 * s,          # facteur de volémie, déficit/excès de volume (mL)

@@ -1270,11 +1270,13 @@ impl Engine {
             let act_a = arr("act_a");
             let tr = echo_truth(&st, &s, &v_lv, &q_ao, &beats, 1.0 / fs, vetsim_core::math::pow(p.bw, cfg.lvidd_exp));
             let dtr = doppler_truth(&ds, &act_a, &pr, &beats, 1.0 / fs);
+            // tronc pulmonaire observé : suit la PAP systolique moyenne de la fenêtre
+            let mpa_ao = cfg.mpa_ao(dtr.pasp_true);
             let f32s = |v: &[f64]| v.iter().map(|x| *x as f32 as f64).collect::<Vec<_>>();
             let col = |i: usize, v: &[[f64; 3]]| v.iter().map(|a| a[i] as f32 as f64).collect::<Vec<_>>();
             h["echo"] = json!({
                 "bw": p.bw,
-                "static": { "ao_d": st.ao_d, "mitral_annulus_d": st.mitral_annulus_d,
+                "static": { "ao_d": st.ao_d, "mpa_d": mpa_ao * st.ao_d, "mitral_annulus_d": st.mitral_annulus_d,
                             "leaflet_l": st.leaflet_l, "rv_wall": st.rv_wall,
                             "lv_ref": { "v": st.lv.v_ref, "d": st.lv.d_ref, "l": st.lv.l_ref,
                                         "w": st.lv.w_ref, "v_myo": st.lv.v_myo } },
@@ -1291,6 +1293,7 @@ impl Engine {
                     "ef": tr.ef, "wall_d": tr.wall_d, "wall_s": tr.wall_s, "lvidd_n": tr.lvidd_n,
                     "ao": tr.ao, "la_d": tr.la_d, "la_ao": tr.la_ao, "la_max": tr.la_max,
                     "la_min": tr.la_min, "lv_mass_g": tr.lv_mass_g, "instants": tr.instants,
+                    "mpa": mpa_ao * tr.ao, "mpa_ao": mpa_ao,
                 },
                 "doppler": {
                     "static": { "a_ao": dst.a_ao, "a_pu": dst.a_pu, "a_mi_open": dst.a_mi_open, "a_tv_open": dst.a_tv_open },
@@ -1302,7 +1305,7 @@ impl Engine {
                     },
                     "truth": {
                         "n_beats": dtr.n_beats, "e": dtr.e, "a": dtr.a, "e_a": dtr.e_a, "ao_peak": dtr.ao_peak,
-                        "ao_vti": dtr.ao_vti, "pu_peak": dtr.pu_peak, "mr_peak": dtr.mr_peak, "tr_peak": dtr.tr_peak,
+                        "ao_vti": dtr.ao_vti, "pu_peak": dtr.pu_peak, "pu_at": dtr.pu_at, "pu_et": dtr.pu_et, "pu_at_et": dtr.pu_at_et, "mr_peak": dtr.mr_peak, "tr_peak": dtr.tr_peak,
                         "eroa_mr": dtr.eroa_mr, "pasp_est": dtr.pasp_est, "pasp_true": dtr.pasp_true,
                     },
                 },
@@ -1808,6 +1811,7 @@ mod tests {
             "av_block",
             "ventricular_premature",
             "sick_sinus",
+            "pulmonary_hypertension",
         ]
         .iter()
         .map(|d| read(&format!("diseases/{d}.json")))
@@ -1903,6 +1907,129 @@ mod tests {
             frac(&af),
             frac(&h)
         );
+    }
+
+    /// Signes pulmonaires. Chien sain de 5, 20 et 40 kg : rapport tronc pulmonaire / aorte dans
+    /// l'intervalle de référence de Grosso et al. 2023 (0,78–1,01, 269 chiens sains). Chien sain
+    /// de 20 kg : temps d'accélération du flux pulmonaire 73 ms et TA/TE 0,40 (Schober et Baade
+    /// 2006), 79 ms sous 36 mmHg de gradient d'IT (Visser et al. 2016), TA/TE 0,43 (Yuchi et al.
+    /// 2023) ; tolérance choisie ici : 60–95 ms et 0,33–0,50. MMVD sévère (hypertension
+    /// post-capillaire) : PAP systolique, rapport MPA/Ao en hausse, TA/TE en baisse.
+    #[test]
+    fn echo_pulmonary_signs_match_published_values() {
+        let mut e = Engine::new();
+        e.load_modules(&bundle());
+        let full = |e: &mut Engine, bw: f64, dis: &str, sev: f64| -> (Json, Json) {
+            let id = j(&e.new_patient(&json!({"bw": bw, "variability": false}).to_string()))
+                ["patient_id"]
+                .as_str()
+                .unwrap()
+                .to_string();
+            if !dis.is_empty() {
+                e.add_disease(&id, &json!({"id": dis, "severity": sev}).to_string());
+            }
+            let r = j(&e.echo(&id, r#"{"duration_s": 6, "fs": 200, "seed": 3}"#));
+            assert_eq!(r["ok"], true, "{r}");
+            (
+                r["echo"]["truth"].clone(),
+                r["echo"]["doppler"]["truth"].clone(),
+            )
+        };
+        let v = |t: &Json, k: &str| t[k].as_f64().unwrap();
+        for bw in [5.0, 20.0, 40.0] {
+            let (t, d) = full(&mut e, bw, "", 0.0);
+            println!(
+                "{bw} kg : MPA/Ao {} ; TA {} ms, TE {} ms, TA/TE {} ; PAPs {}",
+                v(&t, "mpa_ao"),
+                v(&d, "pu_at"),
+                v(&d, "pu_et"),
+                v(&d, "pu_at_et"),
+                v(&d, "pasp_true")
+            );
+            assert!(
+                (0.78..1.01).contains(&v(&t, "mpa_ao")),
+                "{bw} kg : MPA/Ao {}",
+                v(&t, "mpa_ao")
+            );
+        }
+        let (ht, hd) = full(&mut e, 20.0, "", 0.0);
+        assert!(
+            (60.0..95.0).contains(&v(&hd, "pu_at")),
+            "TA {}",
+            v(&hd, "pu_at")
+        );
+        assert!(
+            (0.33..0.50).contains(&v(&hd, "pu_at_et")),
+            "TA/TE {}",
+            v(&hd, "pu_at_et")
+        );
+        let (mt, md) = full(&mut e, 20.0, "mmvd", 0.9);
+        println!(
+            "MMVD 0,9 : MPA/Ao {} ; TA {} ms, TE {} ms, TA/TE {} ; PAPs {}",
+            v(&mt, "mpa_ao"),
+            v(&md, "pu_at"),
+            v(&md, "pu_et"),
+            v(&md, "pu_at_et"),
+            v(&md, "pasp_true")
+        );
+        assert!(
+            v(&md, "pasp_true") > v(&hd, "pasp_true") + 10.0,
+            "PAPs {}",
+            v(&md, "pasp_true")
+        );
+        assert!(
+            v(&mt, "mpa_ao") > v(&ht, "mpa_ao"),
+            "MPA/Ao {}",
+            v(&mt, "mpa_ao")
+        );
+    }
+
+    /// Hypertension pulmonaire pré-capillaire (module `pulmonary_hypertension`), chien de 20 kg au
+    /// milieu de chaque stade. Gradient d'IT par Bernoulli (jet tricuspide) dans les plages des
+    /// groupes de Visser et al. 2016 (36–50, 50–75, > 75 mmHg ; tolérance de 10 % choisie ici) ;
+    /// temps d'accélération et TA/TE décroissants ; TA sévère sous le seuil ACVIM de 58 ms
+    /// (Reinero et al. 2020) ; tronc pulmonaire dilaté au-delà de l'intervalle de référence de
+    /// Grosso et al. 2023 (MPA/Ao > 1,01) au stade sévère ; PAPs estimée par l'IT proche de la
+    /// PAPs vraie (écart attendu : perte sur la valve pulmonaire du modèle, < 20 mmHg).
+    #[test]
+    fn echo_pulmonary_hypertension_stages() {
+        let mut e = Engine::new();
+        e.load_modules(&bundle());
+        let v = |t: &Json, k: &str| t[k].as_f64().unwrap();
+        let mut prev: Option<(f64, f64)> = None;
+        for (s, lo, hi) in [(0.25, 36.0, 50.0), (0.55, 50.0, 75.0), (0.85, 75.0, 130.0)] {
+            let id = j(&e.new_patient(r#"{"bw": 20, "variability": false}"#))["patient_id"]
+                .as_str()
+                .unwrap()
+                .to_string();
+            e.add_disease(
+                &id,
+                &json!({"id": "pulmonary_hypertension", "severity": s}).to_string(),
+            );
+            let r = j(&e.echo(&id, r#"{"duration_s": 6, "fs": 200, "seed": 3}"#));
+            assert_eq!(r["ok"], true, "{r}");
+            let (t, d) = (&r["echo"]["truth"], &r["echo"]["doppler"]["truth"]);
+            let trpg = 4.0 * (v(d, "tr_peak") / 100.0) * (v(d, "tr_peak") / 100.0);
+            println!("HTP s = {s} : gradient d'IT {trpg:.1} mmHg, PAPs estimée {:.1} / vraie {:.1}, TA {:.0} ms, TA/TE {:.2}, MPA/Ao {:.2}",
+                v(d, "pasp_est"), v(d, "pasp_true"), v(d, "pu_at"), v(d, "pu_at_et"), v(t, "mpa_ao"));
+            assert!(v(d, "tr_peak") > 0.0, "jet d'IT attendu");
+            assert!(
+                (0.9 * lo..1.1 * hi).contains(&trpg),
+                "s = {s} : gradient d'IT {trpg}"
+            );
+            assert!((v(d, "pasp_est") - v(d, "pasp_true")).abs() < 20.0);
+            if let Some((at, ratio)) = prev {
+                assert!(
+                    v(d, "pu_at") < at && v(d, "pu_at_et") < ratio,
+                    "TA et TA/TE décroissants"
+                );
+            }
+            prev = Some((v(d, "pu_at"), v(d, "pu_at_et")));
+            if s > 0.8 {
+                assert!(v(d, "pu_at") < 58.0, "TA {}", v(d, "pu_at"));
+                assert!(v(t, "mpa_ao") > 1.01, "MPA/Ao {}", v(t, "mpa_ao"));
+            }
+        }
     }
 
     /// Doppler tiré du modèle, comparé aux valeurs publiées (chien sain de 20 kg) :
@@ -2363,7 +2490,7 @@ mod tests {
         assert_eq!(e.api_version(), "1.1.0");
         assert_eq!(j(&e.load_modules(&bundle()))["ok"], true);
         let l = j(&e.list_modules());
-        assert_eq!(l["diseases"].as_array().unwrap().len(), 8);
+        assert_eq!(l["diseases"].as_array().unwrap().len(), 9);
         let p = j(&e.new_patient(r#"{"bw": 20, "variability": false}"#));
         let id = p["patient_id"].as_str().unwrap().to_string();
         let c = j(&e.add_disease(&id, r#"{"id": "mmvd", "severity": 0.8}"#));

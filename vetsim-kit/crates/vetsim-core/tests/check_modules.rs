@@ -30,6 +30,7 @@ fn catalog() -> Catalog {
         "av_block",
         "ventricular_premature",
         "sick_sinus",
+        "pulmonary_hypertension",
     ]
     .iter()
     .map(|d| {
@@ -91,7 +92,7 @@ fn assert_params(label: &str, got: &Params, exp: &serde_json::Map<String, Json>)
 #[test]
 fn all_modules_load() {
     let c = catalog();
-    assert_eq!(c.diseases.len(), 8);
+    assert_eq!(c.diseases.len(), 9); // + hypertension pulmonaire pré-capillaire (24/11/2026)
     assert_eq!(c.drugs.len(), 5);
     assert_eq!(c.patient.params.len(), Params::NAMES.len());
 }
@@ -156,7 +157,7 @@ fn disease_modifiers_match_python() {
         }
         n += 1;
     }
-    assert_eq!(n, 72); // 8 maladies × 9 sévérités
+    assert_eq!(n, 81); // 9 maladies × 9 sévérités
 }
 
 #[test]

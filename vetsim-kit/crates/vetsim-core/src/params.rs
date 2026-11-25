@@ -98,6 +98,11 @@ define_params! {
     /// Impédance caractéristique de l'aorte proximale `ρ·c/A` (mmHg·s/mL), comprise dans
     /// `r_sys` (résistance totale) ; 0 = windkessel à deux éléments.
     z_ao,
+    /// Inertance de la colonne éjectée par le VD (infundibulum, tronc pulmonaire), mmHg·s²/mL ;
+    /// 0 = éjection pulmonaire algébrique.
+    l_pa,
+    /// Impédance caractéristique du tronc pulmonaire `ρ·c/A` (mmHg·s/mL), comprise dans `r_pul`.
+    z_pa,
     /// Orifice régurgitant effectif mitral au chien de 20 kg (cm²) ; fuite par la loi d'orifice
     /// `Q = K·A·√Δp` (Bernoulli), aire mise à l'échelle des débits `(bw/20)^0,75`.
     a_mr,
@@ -414,6 +419,6 @@ mod tests {
             assert_eq!(p.get(n), Some(v));
         }
         assert_eq!(p.get("nope"), None);
-        assert_eq!(Params::NAMES.len(), 159); // + mr_amax (borne de l'orifice mitral) ; + l_ao, z_ao (éjection inertielle, windkessel à 4 éléments, 24/11/2026) ; renal_co_auto (21/11/2026) ; + rr_mult (21/11/2026) ; + 6 axe cardio-rénal (20/11/2026) ; + 6 réponse à l'hypoxémie (20/11/2026) ; 73 + 11 décompensation + 6 oreillettes/systole + 3 force-intervalle + 22 conduction + 7 corrections du 18/11/2026 (creat_vd, urea_vd, map_arrest, av_symp, ven_cap, mr_k, mr_vref) + 3 échappements (esc_overdrive → esc_sup_gain, esc_sup_tau, esc_a_s, esc_a_v) + 5 chronologie (act_gamma, tr_frac, emd_v, emd_a, pa_ia) + 12 périphérie (temp_c … excitation)
+        assert_eq!(Params::NAMES.len(), 161); // + l_pa, z_pa (windkessel pulmonaire à 4 éléments, 24/11/2026) ; + mr_amax (borne de l'orifice mitral) ; + l_ao, z_ao (éjection inertielle, windkessel à 4 éléments, 24/11/2026) ; renal_co_auto (21/11/2026) ; + rr_mult (21/11/2026) ; + 6 axe cardio-rénal (20/11/2026) ; + 6 réponse à l'hypoxémie (20/11/2026) ; 73 + 11 décompensation + 6 oreillettes/systole + 3 force-intervalle + 22 conduction + 7 corrections du 18/11/2026 (creat_vd, urea_vd, map_arrest, av_symp, ven_cap, mr_k, mr_vref) + 3 échappements (esc_overdrive → esc_sup_gain, esc_sup_tau, esc_a_s, esc_a_v) + 5 chronologie (act_gamma, tr_frac, emd_v, emd_a, pa_ia) + 12 périphérie (temp_c … excitation)
     }
 }

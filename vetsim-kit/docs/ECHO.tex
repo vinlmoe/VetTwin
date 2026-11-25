@@ -17,7 +17,7 @@
 \setlength{\parindent}{0pt}
 \newcommand{\vp}[1]{\texttt{\detokenize{#1}}}
 
-\title{Échocardiographie virtuelle : prototype E0--E2\\\large géométrie tirée du modèle, image formée par une physique simplifiée, Doppler tiré des débits et des pressions}
+\title{Échocardiographie virtuelle : prototype E0--E2\\\large géométrie tirée du modèle, image formée par une physique simplifiée, Doppler tiré des débits et des pressions, hypertension pulmonaire}
 \author{Sébastien Lefebvre}
 \date{24 novembre 2026}
 \begin{document}
@@ -301,6 +301,49 @@ borné par l'anatomie.
 Le furosémide abaisse la POG de 19,5~\% (Suzuki 2013 : 27~\%).
 \end{itemize}
 
+\section{Hypertension pulmonaire (24/11/2026)}
+\paragraph{Moteur.} Windkessel pulmonaire à quatre éléments (inertance \vp{l_pa} et impédance caractéristique \vp{z_pa}
+du tronc pulmonaire), construit comme celui de l'aorte. Calé sur le temps d'accélération du flux pulmonaire du chien
+sain en gardant la PAP moyenne ; l'aorte et la circulation systémique sont inchangées (débit 3,32 contre
+\SI{3,30}{L/min}). Une perte de Bernoulli à l'anneau pulmonaire a été essayée puis écartée.
+
+\paragraph{Signes échographiques.}
+\begin{itemize}
+\item \textbf{Profil pulsé pulmonaire} : temps d'accélération (TA), d'éjection (TE) et rapport TA/TE, mesurés sur la
+vitesse du modèle (début et fin au passage de 2~\% du pic).
+\item \textbf{Tronc pulmonaire} (observateur chronique) : $\text{MPA/Ao} = 0{,}92 + (\text{PAPs} - 24)/146$. Médiane
+0,92 chez 269 chiens sains (Grosso et al.\ 2023, intervalle de référence 0,78--1,01) ; pente de la régression de Visser
+et al.\ 2016 (gradient d'IT $= 146\cdot\text{MPA:Ao} - 101{,}5$).
+\item \textbf{PAPs estimée} par le jet d'IT ($4v^2$ + POD moyenne), comparée à la PAPs vraie du modèle.
+\end{itemize}
+
+\paragraph{Module « hypertension pulmonaire pré-capillaire ».} Résistance vasculaire pulmonaire $\times m$,
+$m = 1 + 10\,s^2 z$ ; compliance et impédance du tronc liées à la résistance par les rapports mesurés dans l'embolie
+expérimentale du beagle (Yoshida et al.\ 2021 : RVP $\times 4{,}7$, compliance $\times 0{,}52$, vitesse d'onde
+$\times 2{,}4$) ; hypertrophie adaptative du VD et fuite tricuspide fonctionnelle (placeholders). L'HTP post-capillaire
+est celle de la MMVD.
+
+\begin{tabularx}{\linewidth}{@{}Xccccc@{}}
+\toprule
+20 kg & Gradient d'IT & PAPs estimée / vraie & TA & TA/TE & MPA/Ao\\\midrule
+Sain & -- & -- / 24 & \SI{71}{ms} & 0,41 & 0,92\\
+HTP légère ($s = 0{,}25$) & 41 (Visser : 36--50) & 46 / 32 & \SI{63}{ms} & 0,43 & 0,98\\
+HTP modérée ($s = 0{,}55$) & 62 (50--75) & 67 / 54 & \SI{52}{ms} & 0,39 & 1,13\\
+HTP sévère ($s = 0{,}85$) & 90 ($>$ 75) & 96 / 85 & \SI{46}{ms} & 0,36 & 1,34\\
+MMVD $s = 0{,}9$ (post-capillaire) & -- & -- / 46 & \SI{66}{ms} & 0,43 & 1,07\\
+\bottomrule
+\end{tabularx}
+
+\medskip
+Pressions en mmHg. Visser et al.\ 2016 (médianes par groupe) : TA 79, 63, 53, \SI{38}{ms} ; TA/TE 0,39, 0,37, 0,33,
+0,21. Stavri et al.\ 2026 : TA/TE 0,29 en HTP pré-capillaire, 0,36 en HTP post-capillaire isolée (TA \SI{63}{ms}) ; la
+MMVD du modèle reproduit ce second profil.
+
+\paragraph{Limites.} Paramètres localisés : pas de réflexion d'onde, donc ni encoche mésosystolique ni TA/TE de 0,21
+au stade sévère. Le gradient d'IT inclut la perte sur la valve pulmonaire (résistance linéaire commune aux quatre valves,
+environ \SI{12}{mmHg} chez le chien sain) et surestime la PAPs de 10 à \SI{14}{mmHg}. Tronc pulmonaire non dessiné dans la
+scène (mesure « vraie » seulement) ; pas d'indice RPAD (distensibilité cyclique de l'AP droite).
+
 \section{Sonde}
 Point de contact sur la paroi (hémithorax, hauteur, position crânio-caudale) et trois angles (angulation crânio-caudale,
 dorso-ventrale, rotation). Cinq coupes de référence (parasternale droite grand axe 4 cavités et chambre de chasse, petit
@@ -325,16 +368,13 @@ Aucun jeu ouvert de segmentation cardiaque canine en scanner n'a été trouvé. 
 data.mendeley.com, morphosource.org, 3d.nih.gov, vhlab.umn.edu.\par}
 
 \section{Suite}
-Le Doppler (E2) est en place. Étape suivante : l'hypertension pulmonaire.
 \begin{itemize}
-\item \textbf{Moteur.} Windkessel pulmonaire à quatre éléments (inertance et impédance caractéristique de l'artère
-pulmonaire) et perte de Bernoulli aux valves sigmoïdes, pour obtenir un temps d'accélération pulmonaire réaliste
-(publié : 73--79~ms, rapport TA/TE 0,40--0,43 chez le chien sain ; Schober 2006, Visser 2016, Yuchi 2023). Le premier
-essai donne TA/TE 0,42, mais élève le débit et la PAM : le moteur doit être recalé sur Haskins 2005 et Yuchi 2021.
-\item \textbf{Échographie.} Tronc pulmonaire en observateur, rapport AP/Ao (Grosso 2023 : médiane 0,92, IR 0,78--1,01,
-269 chiens sains), profil pulsé pulmonaire (TA, TA/TE, encoche mésosystolique), jets d'IT et d'IP, estimation de la PAPs
-par $4v^2$ plus la pression de l'OD, et probabilité d'HTP selon le consensus ACVIM 2020.
-\item \textbf{Plus tard.} Maillage segmenté déformé pour respecter les volumes du modèle ; sonde imprimée en 3D
+\item \textbf{Hypertension pulmonaire} : tronc et branches pulmonaires dans la scène (coupe petit axe de la base),
+indice RPAD, encoche mésosystolique (ligne de transmission pulmonaire avec réflexion), probabilité d'HTP selon le
+consensus ACVIM 2020.
+\item \textbf{Valves} : résistance propre des valves sigmoïdes, pour que le gradient VD--AP du chien sain tombe vers
+les quelques mmHg publiés.
+\item \textbf{Plus tard} : maillage segmenté déformé pour respecter les volumes du modèle ; sonde imprimée en 3D
 (centrale inertielle et suivi par marqueur).
 \end{itemize}
 \end{document}

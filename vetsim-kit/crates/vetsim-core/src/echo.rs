@@ -54,6 +54,14 @@ pub struct DopplerConfig {
     pub jet_decay_b: f64,
 }
 
+/// Tronc pulmonaire observé (bloc `pulmonary_artery`) : MPA/Ao = réf + pente·(PAPs − PAPs réf).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PulmonaryArteryConfig {
+    pub mpa_ao_ref: f64,
+    pub pasp_ref_mmhg: f64,
+    pub slope_per_mmhg: f64,
+}
+
 /// Configuration du module (contenu de `modules/echo.json`).
 #[derive(Debug, Clone, PartialEq)]
 pub struct EchoConfig {
@@ -63,6 +71,8 @@ pub struct EchoConfig {
     pub ivsd: Allometry,
     pub lvwd: Allometry,
     pub ao: Allometry,
+    /// Tronc pulmonaire (bloc `pulmonary_artery`).
+    pub pa: PulmonaryArteryConfig,
     pub lvidd_exp: f64,
     pub la: AtriumConfig,
     pub ra: AtriumConfig,
@@ -169,6 +179,7 @@ impl EchoConfig {
             "lv",
             "wall",
             "aorta",
+            "pulmonary_artery",
             "normalization",
             "la",
             "ra",
@@ -193,6 +204,11 @@ impl EchoConfig {
             ivsd: r.allo(&["wall", "ivsd"]),
             lvwd: r.allo(&["wall", "lvwd"]),
             ao: r.allo(&["aorta", "ao"]),
+            pa: PulmonaryArteryConfig {
+                mpa_ao_ref: r.num(&["pulmonary_artery", "mpa_ao_ref"], true),
+                pasp_ref_mmhg: r.num(&["pulmonary_artery", "pasp_ref_mmhg"], true),
+                slope_per_mmhg: r.num(&["pulmonary_artery", "slope_per_mmhg"], false),
+            },
             lvidd_exp: r.num(&["normalization", "lvidd_exp"], true),
             la: r.atrium("la"),
             ra: r.atrium("ra"),
@@ -232,6 +248,11 @@ impl EchoConfig {
 }
 
 impl EchoConfig {
+    /// Rapport tronc pulmonaire / aorte pour une PAP systolique (mmHg), borné à 0,5 en bas.
+    pub fn mpa_ao(&self, pasp: f64) -> f64 {
+        (self.pa.mpa_ao_ref + self.pa.slope_per_mmhg * (pasp - self.pa.pasp_ref_mmhg)).max(0.5)
+    }
+
     /// Constantes de forme utiles au rendu (croissant du VD, proportions des oreillettes).
     pub fn geometry_json(&self) -> Json {
         serde_json::json!({
@@ -708,12 +729,37 @@ pub struct DopplerTruth {
     pub ao_peak: f64,
     pub ao_vti: f64,
     pub pu_peak: f64,
+    /// Flux pulmonaire (Doppler pulsé) : temps d'accélération et d'éjection (ms), rapport TA/TE.
+    /// Début et fin de l'éjection au passage de 2 % du pic du battement.
+    pub pu_at: f64,
+    pub pu_et: f64,
+    pub pu_at_et: f64,
     pub mr_peak: f64,
     pub tr_peak: f64,
     pub eroa_mr: f64,
     /// PAP systolique estimée par la régurgitation tricuspide (4v² + POD moyenne) et vraie.
     pub pasp_est: f64,
     pub pasp_true: f64,
+}
+
+/// Temps d'accélération et d'éjection (s) d'un flux antérograde sur un battement : début au
+/// premier passage au-dessus de 2 % du pic, fin au retour sous ce seuil.
+pub fn ejection_times(v: &[f64], dt: f64) -> Option<(f64, f64)> {
+    let peak = v.iter().copied().fold(0.0, f64::max);
+    if peak <= 0.0 {
+        return None;
+    }
+    let thr = 0.02 * peak;
+    let i0 = (1..v.len()).find(|&i| v[i - 1] <= thr && v[i] > thr)?;
+    let mut ip = i0;
+    let mut i1 = i0;
+    while i1 < v.len() && v[i1] > thr {
+        if v[i1] > v[ip] {
+            ip = i1;
+        }
+        i1 += 1;
+    }
+    Some(((ip - i0) as f64 * dt, (i1 - i0) as f64 * dt))
 }
 
 /// Mesures Doppler par battement (`beats` : débuts d'activation ventriculaire, s) ; l'onde A
@@ -731,6 +777,7 @@ pub fn doppler_truth(
     let mut tr = DopplerTruth::default();
     let mx = |v: &[f64], a: usize, b: usize| v[a..b].iter().copied().fold(0.0, f64::max);
     let mut acc = [0.0f64; 10];
+    let (mut at_sum, mut et_sum, mut nt) = (0.0f64, 0.0f64, 0usize);
     let mut ea_beats = 0usize;
     let mut nb = 0usize;
     for w in beats.windows(2) {
@@ -755,6 +802,11 @@ pub fn doppler_truth(
         acc[2] += mx(&d.v_ao, a, b);
         acc[3] += d.v_ao[a..b].iter().sum::<f64>() * dt;
         acc[4] += mx(&d.v_pu, a, b);
+        if let Some((at, et)) = ejection_times(&d.v_pu[a..b], dt) {
+            at_sum += at;
+            et_sum += et;
+            nt += 1;
+        }
         acc[5] += mx(&d.v_mr, a, b);
         acc[6] += mx(&d.v_trj, a, b);
         acc[7] += mx(&d.eroa_mr, a, b);
@@ -775,6 +827,11 @@ pub fn doppler_truth(
     tr.ao_peak = acc[2] / k;
     tr.ao_vti = acc[3] / k;
     tr.pu_peak = acc[4] / k;
+    if nt > 0 {
+        tr.pu_at = 1000.0 * at_sum / nt as f64;
+        tr.pu_et = 1000.0 * et_sum / nt as f64;
+        tr.pu_at_et = at_sum / et_sum;
+    }
     tr.mr_peak = acc[5] / k;
     tr.tr_peak = acc[6] / k;
     tr.eroa_mr = acc[7] / k;

@@ -1,0 +1,204 @@
+{
+ "schema_version": "1.0.0",
+ "species": [
+  "dog"
+ ],
+ "license": "CC-BY-4.0",
+ "id": "pulmonary_hypertension",
+ "version": "1.0.0",
+ "name": {
+  "fr": "Hypertension pulmonaire pré-capillaire",
+  "en": "Pre-capillary pulmonary hypertension"
+ },
+ "evidence": "C",
+ "description": {
+  "fr": "Atteinte artérielle pulmonaire (dirofilariose, pneumopathie, thrombo-embolie) : résistance vasculaire pulmonaire ×m, m = 1 + 10·s²·z ; la compliance et l'impédance caractéristique du tronc suivent la résistance selon les rapports mesurés par Yoshida et al. 2021 (embolie expérimentale chez le beagle : RVP ×4,7, compliance ×0,52, vitesse d'onde ×2,4), soit c_pa × m^(ln 0,52/ln 4,7) et z_pa × m^(ln 2,4/ln 4,7). Hypertrophie adaptative du VD (élastance ×(1 + 1,5·s)) et fuite tricuspide fonctionnelle (orifice + 0,03 + 0,1·s cm², pour que le jet d'IT, base du diagnostic, existe dès le stade léger), placeholders. L'HTP post-capillaire est celle de la MMVD (POG élevée, module mmvd). Calée le 24/11/2026 sur les gradients d'IT médians de Visser et al. 2016 par stade (39, 59, 94 mmHg aux milieux des stades) ; validée sur le temps d'accélération du flux pulmonaire (64, 56, 48 ms contre 63, 53, 38 ms publiés) et TA/TE (0,43, 0,37, 0,32 contre 0,37, 0,33, 0,21 ; 0,29 en pré-capillaire chez Stavri et al. 2026)."
+ },
+ "severity": {
+  "stages": {
+   "legere": [
+    0.1,
+    0.4
+   ],
+   "moderee": [
+    0.4,
+    0.7
+   ],
+   "severe": [
+    0.7,
+    1.0
+   ]
+  },
+  "prior": {
+   "legere": 0.35,
+   "moderee": 0.35,
+   "severe": 0.3
+  }
+ },
+ "draws": {
+  "z_ph": {
+   "dist": "lognormal_mean1",
+   "sd": 0.25
+  }
+ },
+ "effects": [
+  {
+   "param": "r_pul",
+   "op": "mul",
+   "expr": {
+    "add": [
+     1,
+     {
+      "mul": [
+       10.0,
+       {
+        "pow": [
+         "s",
+         2
+        ]
+       },
+       "z_ph"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "param": "c_pa",
+   "op": "mul",
+   "expr": {
+    "pow": [
+     {
+      "add": [
+       1,
+       {
+        "mul": [
+         10.0,
+         {
+          "pow": [
+           "s",
+           2
+          ]
+         },
+         "z_ph"
+        ]
+       }
+      ]
+     },
+     -0.42255
+    ]
+   }
+  },
+  {
+   "param": "z_pa",
+   "op": "mul",
+   "expr": {
+    "pow": [
+     {
+      "add": [
+       1,
+       {
+        "mul": [
+         10.0,
+         {
+          "pow": [
+           "s",
+           2
+          ]
+         },
+         "z_ph"
+        ]
+       }
+      ]
+     },
+     0.56571
+    ]
+   }
+  },
+  {
+   "param": "ees_rv",
+   "op": "mul",
+   "expr": {
+    "add": [
+     1,
+     {
+      "mul": [
+       1.5,
+       "s"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "param": "a_tr",
+   "op": "add",
+   "expr": {
+    "mul": [
+     {
+      "add": [
+       0.03,
+       {
+        "mul": [
+         0.1,
+         "s"
+        ]
+       }
+      ]
+     },
+     {
+      "if": [
+       {
+        "gt": [
+         "s",
+         0
+        ]
+       },
+       1,
+       0
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "targets": [
+  {
+   "stage": "moderee",
+   "var": "pap_mean",
+   "range": [
+    27.0,
+    41.0
+   ],
+   "unit": "mmHg",
+   "source": "Yoshida T et al. 2021, Front Physiol 12:752550 (PMC8692872, lu) : PAP moyenne 34 ± 7 mmHg après embolie (RVP 13,7 UW, ×4,7) ; dans le module, cet état correspond à s ≈ 0,61",
+   "kind": "measured"
+  }
+ ],
+ "notes": {
+  "calage": "examples/fit_ph.rs : gradient d'IT du modèle (pic VD − OD moyenne) contre les médianes de Visser 2016, tableau 1 (TRPG 36–50 : 39,2 ; 50–75 : 59,0 ; > 75 : 93,7 mmHg). Retenu : a = 10, p = 2, hypertrophie 1,5 ; modèle 41,8 / 63,2 / 93,7 mmHg à s = 0,25 / 0,55 / 0,85.",
+  "limites": "Windkessel à paramètres localisés : pas de réflexion d'onde, donc pas d'encoche mésosystolique et un TA/TE sévère (0,32) au-dessus des 0,21 de Visser 2016. Le gradient d'IT du modèle comprend la perte sur la valve pulmonaire (résistance linéaire commune aux quatre valves, ~12 mmHg chez le chien sain), ce qui surestime la PAPs estimée. Hypertrophie du VD et fuite tricuspide : placeholders D. Données vasculaires issues d'un modèle aigu (embolie), sans remodelage chronique.",
+  "evidence_detail": "r_pul : C (forme et ampleur calées sur des médianes publiées) ; c_pa et z_pa : C (rapports mesurés chez le chien, modèle aigu) ; ees_rv et a_tr : D."
+ },
+ "refs": [
+  "Visser LC et al. 2016, J Vet Intern Med 30:543-552, doi:10.1111/jvim.13911 (PMC4913611, lu)",
+  "Yoshida T et al. 2021, Front Physiol 12:752550, doi:10.3389/fphys.2021.752550 (PMC8692872, lu)",
+  "Stavri A, Krasnow M, Schober KE 2026, J Vet Intern Med, doi:10.1093/jvimsj/aalag051 (PMC13034540, lu)",
+  "Reinero C et al. 2020, J Vet Intern Med 34:549-573, doi:10.1111/jvim.15725 (PMC7097566, lu)"
+ ],
+ "presentation": {
+  "difficulty": 3,
+  "owner_complaint": {
+   "fr": [
+    "intolérance à l'effort",
+    "dyspnée",
+    "syncope"
+   ]
+  },
+  "exams": [
+   "échocardiographie",
+   "radiographie thoracique",
+   "SpO2"
+  ]
+ }
+}

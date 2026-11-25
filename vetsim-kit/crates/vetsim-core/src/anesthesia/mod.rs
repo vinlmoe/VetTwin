@@ -17,8 +17,9 @@
 //!
 //! **Profondeur.** Indice hypnotique `H = Σ P_cerveau/MAC + Σ Ce/c_imm` (équivalents MAC) ;
 //! profondeur `Δ = H/((1 − R)·f_T)` avec `R` l'épargne de MAC combinée et `f_T` l'effet de
-//! l'hypothermie ; conscience perdue quand `H/((1 − Sd)·f_T)` dépasse `loc_mac`, `Sd` étant la
-//! sédation combinée (les sédatifs réduisent la dose d'hypnotique nécessaire à l'induction).
+//! l'hypothermie ; conscience perdue quand `H'/((1 − Sd)·f_T)` dépasse `loc_mac`, `Sd` étant la
+//! sédation combinée (les sédatifs réduisent la dose d'hypnotique nécessaire à l'induction) et
+//! `H'` l'indice où chaque halogéné pèse `loc_mac / (MAC-éveil/MAC)` de l'agent (24/11/2026).
 //!
 //! **Douleur.** Stimulus `N` (scénario chirurgical) atténué par les blocs locorégionaux et
 //! amplifié par la sensibilisation `S` ; nociception nette `ν = N·(1 − A_méd)·(1 − A_prof)` ;
@@ -387,6 +388,9 @@ const NS: usize = 9;
 #[derive(Debug, Clone, Copy)]
 struct PdSummary {
     hypnotic: f64,
+    /// Indice hypnotique pour la conscience : les halogénés y pèsent `loc_mac / rapport
+    /// MAC-éveil` de l'agent, pour que la conscience se perde à son MAC-éveil publié.
+    hypnotic_loc: f64,
     r: f64,
     sedation: f64,
     antinoc: f64,
@@ -844,9 +848,20 @@ impl Session {
             .enumerate()
             .map(|(k, m)| self.y[off + NI * k + 2].max(0.0) / m.mac_pct)
             .sum();
+        let hyp_gas_loc: f64 = self
+            .ph
+            .inhalants
+            .iter()
+            .enumerate()
+            .map(|(k, m)| {
+                let w = m.mac_awake_ratio.map_or(1.0, |r| self.model.loc_mac / r);
+                self.y[off + NI * k + 2].max(0.0) / m.mac_pct * w
+            })
+            .sum();
         let hypnotic = hyp_iv + hyp_gas;
         PdSummary {
             hypnotic,
+            hypnotic_loc: hyp_iv + hyp_gas_loc,
             r: 1.0 - keep_r,
             sedation: 1.0 - keep_sed,
             antinoc: 1.0 - keep_a,
@@ -859,7 +874,7 @@ impl Session {
         let m = &self.model;
         let ft = self.temp_factor();
         let delta = s.hypnotic / ((1.0 - s.r).max(1e-3) * ft);
-        let loc_index = s.hypnotic / ((1.0 - s.sedation).max(1e-3) * ft);
+        let loc_index = s.hypnotic_loc / ((1.0 - s.sedation).max(1e-3) * ft);
         let x = (loc_index / m.loc_mac).clamp(0.0, 1.0);
         let awareness = (1.0 - s.sedation) * (1.0 - math::pow(x, m.awareness_hill));
         let plane = if loc_index < m.loc_mac {
@@ -1120,10 +1135,13 @@ impl Session {
             let va_needed = 0.863 * q.vco2 * q.bw / paco2;
             q.vent_drive = va_needed / (q.va0 * q.bw * f_vent(&q) * chemo(paco2, ph, pao2_last));
             q.fio2 = (pao2_alv + paco2 / q.rq) / (q.pb - 47.0);
-            // atélectasie de l'anesthésie : shunt, dont l'effet sur le gradient A-a croît avec la
-            // FiO2 (négligeable à l'air) et la profondeur
+            // atélectasie de l'anesthésie : shunt, dont l'effet sur le gradient A-a croît avec
+            // l'O2 alvéolaire (négligeable à l'air) et la profondeur. FiO2 équivalente à la PAO2
+            // dynamique, et non FiO2 réglée : juste après l'intubation sous O2, la PAO2 est encore
+            // basse et le shunt ne peut pas retrancher le gradient d'une alvéole à 600 mmHg
+            // (24/11/2026 ; identique à l'état stable, donc calage d'Itami 2019 inchangé).
             let anesth = (depth.loc_index / self.model.loc_mac).clamp(0.0, 1.0);
-            q.aagrad += self.model.atelectasis_aa_mmhg * anesth * ((fio2 - 0.21) / 0.79).max(0.0);
+            q.aagrad += self.model.atelectasis_aa_mmhg * anesth * ((q.fio2 - 0.21) / 0.79).max(0.0);
             match evaluate(&q) {
                 Ok(e) => {
                     if self.account_o2(&e, dt_s) {

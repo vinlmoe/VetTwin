@@ -20,7 +20,8 @@ def main():
             if not math.isclose(v, ref[k], rel_tol=1e-9, abs_tol=1e-12):
                 print('ECART sain', bw, k, v, ref[k]); bad += 1
     for name, cls in [('mmvd', 'MMVD'), ('ckd', 'CKD'), ('addison', 'Addison'), ('pneumonia', 'Pneumonie'),
-                      ('atrial_fibrillation', 'FA'), ('av_block', 'BAV'), ('ventricular_premature', 'ESV'), ('sick_sinus', 'SSS')]:
+                      ('atrial_fibrillation', 'FA'), ('av_block', 'BAV'), ('ventricular_premature', 'ESV'), ('sick_sinus', 'SSS'),
+                      ('pulmonary_hypertension', 'HTP')]:
         mod = json.load(open(f'modules/diseases/{name}.json')); D.KM['zsd'] = 0.0
         for s in (0.2, 0.5, 0.8, 0.95):
             case = D.REGISTRY[cls].sample(Stub(), severity=s)

@@ -31,6 +31,7 @@ fn catalog() -> Catalog {
         "av_block",
         "ventricular_premature",
         "sick_sinus",
+        "pulmonary_hypertension",
     ]
     .iter()
     .map(|d| DiseaseModule::from_json(&read(&format!("modules/diseases/{d}.json")), d).unwrap())
@@ -129,7 +130,7 @@ fn golden_gas_and_chemistry_with_reference_hemodynamics() {
         worst.0,
         worst.1
     );
-    assert_eq!(cases, 27); // 15 + 4 troubles du rythme × 3 sévérités
+    assert_eq!(cases, 30); // 18 (dont hypertension pulmonaire × 3) + 4 troubles du rythme × 3 sévérités
     assert!(bad.is_empty(), "{} écarts\n{}", bad.len(), bad.join("\n"));
 }
 

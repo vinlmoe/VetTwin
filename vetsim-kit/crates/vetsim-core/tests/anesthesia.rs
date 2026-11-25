@@ -315,8 +315,10 @@ fn light_plane_moves_under_supramaximal_stimulus() {
         let sn = run(&mut s, 30.0, 5.0);
         (sn.reflexes.movement, sn.depth.delta)
     };
-    // plan léger : inconscient (Δ > 0,65) mais sous 1 MAC ; plan profond : Δ > 1,3
-    let (m_light, d_light) = moved(1.6);
+    // plan léger : inconscient mais sous 1 MAC ; plan profond : Δ > 1,3. Sous isoflurane, la
+    // conscience se perd à 0,77 MAC (MAC-éveil, Hofmeister 2008) : réglage 1,95 % (≈ 0,84 MAC ;
+    // 1,6 % avant le 24/11/2026, soit 0,69 MAC, sous le MAC-éveil publié de l'isoflurane).
+    let (m_light, d_light) = moved(1.95);
     let (m_deep, d_deep) = moved(4.0);
     assert!(
         d_light > 0.65 && d_light < 0.95 && d_deep > 1.3,
@@ -327,11 +329,24 @@ fn light_plane_moves_under_supramaximal_stimulus() {
 
 #[test]
 fn sevoflurane_recovers_faster_than_isoflurane() {
-    // 60 min à 1,5 MAC, arrêt du vaporisateur, délai jusqu'au retour de la déglutition
+    // 60 min à 1,5 MAC télé-expiratoire (vaporisateur réglé toutes les 30 s sur la FE visée, comme
+    // les études publiées : Lopez 2009, FE isoflurane 2,0 % et sévoflurane 3,2 %), arrêt du
+    // vaporisateur, délai jusqu'au retour de la déglutition. Avant le 24/11/2026, le vaporisateur
+    // restait fixe : l'agent le plus soluble finissait moins profond (0,96 contre 1,25 MAC).
     let recovery = |agent: &str, mac: f64| {
         let mut s = session();
-        anesthetized(&mut s, agent, 1.5 * mac * 1.15);
-        run(&mut s, 3600.0, 30.0);
+        let mut dial = 1.5 * mac * 1.15;
+        anesthetized(&mut s, agent, dial);
+        for _ in 0..120 {
+            let sn = s.step(30.0).unwrap();
+            let fe = sn.inhalants.iter().find(|g| g.id == agent).unwrap().fe;
+            dial = (dial + 0.8 * (1.5 * mac - fe)).clamp(0.0, 8.0);
+            s.apply(Event::Vaporizer {
+                agent: agent.into(),
+                pct: dial,
+            })
+            .unwrap();
+        }
         s.apply(Event::Vaporizer {
             agent: agent.into(),
             pct: 0.0,
