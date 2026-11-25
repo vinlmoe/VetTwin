@@ -215,7 +215,7 @@
   "iv_push_s": {
    "value": 30.0,
    "evidence": "C",
-   "source": "Durée d'injection par défaut d'un bolus IV : 30 s, comme l'induction au propofol de Cattai 2018 (PMC6134702, lu). La vitesse d'injection change l'incidence de l'apnée (Murison 2001, Bigby 2017) et l'hypotension : l'utilisateur peut la choisir."
+   "source": "Durée d'injection par défaut d'un bolus IV : 30 s, comme l'induction au propofol de Cattai 2018 (PMC6134702, lu). La vitesse d'injection change l'incidence de l'apnée (Murison 2001, Bigby 2017) et l'hypotension : elle est réglable à chaque injection."
   },
   "o2_debt_tol_ml_kg": {
    "value": 20.0,

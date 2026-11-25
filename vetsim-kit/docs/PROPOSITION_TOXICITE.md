@@ -2,7 +2,7 @@
 
 Suite donnée le 19/11/2026 : voir la fin du document (« Relations dose-effet sourcées »).
 
-Statut : **validée le 17/11/2026 et implémentée** avec les choix de l'utilisateur : termes toxiques séparés, placeholders D acceptés, référence Python étendue, **tout mécanistique** (pas de risque instantané statistique : le décès est l'absence d'état viable). Spécification normative : `docs/MODEL_SPEC.md` §6 bis. La section C ci-dessous (risque instantané) est donc **abandonnée**.
+Statut : **validée le 17/11/2026 et implémentée** avec les choix suivants : termes toxiques séparés, placeholders D acceptés, référence Python étendue, **tout mécanistique** (pas de risque instantané statistique : le décès est l'absence d'état viable). Spécification normative : `docs/MODEL_SPEC.md` §6 bis. La section C ci-dessous (risque instantané) est donc **abandonnée**.
 
 Usage pédagogique uniquement. Les seuils toxiques ne doivent jamais servir à choisir une dose réelle.
 
@@ -122,7 +122,7 @@ dissociation de ces deux sites qui produit les effets biphasiques, l'atropine en
 | Opioïde 1.2.0 | Consigne thermique, myosis, inhibition du complexe moteur migrant, sédation légère | Dysphorie (pas d'échelle ni de relation concentration–score), vomissements, histaminolibération, apnée sous halogéné |
 | Pimobendane 1.1.0 | Raccourcissement du PR (PQ −11,8 %) | Concentrations après surdosage (aucune publiée), hypertension du surdosage |
 | Furosémide 1.3.0 | Hémoconcentration (Hb, albumine sur le volume plasmatique) | Ototoxicité (relation dose-réponse décrite, aucun seuil accessible) |
-| Bêtabloquant | — | Volet incomplet : la recherche a été arrêtée par les garde-fous d'Anthropic. Aucune série d'intoxication canine trouvée, pour aucun bêtabloquant |
+| Bêtabloquant | — | Volet incomplet : la recherche bibliographique n'a pas abouti. Aucune série d'intoxication canine trouvée, pour aucun bêtabloquant |
 
 Quatre blocs effecteurs ont été ajoutés pour porter ces effets (`periph.rs`, MODEL_SPEC §8 bis) :
 thermorégulation, pupille, digestif et sécrétions, système nerveux central.

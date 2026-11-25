@@ -36,10 +36,11 @@
 
 \title{Module d'anesthésie en temps réel\\[0.3em]
 \large De la prémédication au réveil, avec la douleur comme variable d'état}
-\author{Projet VetTwin}
+\author{Sébastien Lefebvre}
 \date{19 novembre 2026 (version 1.0 du module)}
 
 \begin{document}
+\hypersetup{pdfauthor={Sébastien Lefebvre}}
 \maketitle
 
 \begin{abstract}
@@ -71,10 +72,10 @@ $\Delta t \le \SI{60}{s}$. À chaque pas :
 \node[b, fill=blue!6] (ev) {Actions\\(bolus, perfusion, vaporisateur,\\ventilation, chirurgie, fluides)};
 \node[b, right=of ev, fill=orange!8] (st) {États\\PK + $C_e$, halogénés,\\CO$_2$/O$_2$, $\nu$, $S$, T°, remplissage};
 \node[b, right=of st, fill=green!7] (pa) {Paramètres\\(effets JSON)};
-\node[b, below=of pa, fill=gray!10] (en) {\vp{evaluate}\\(inchangé)};
-\node[b, left=of en, fill=red!6] (mo) {Instantané : moniteur,\\réflexes, alarmes, feuille};
+\node[b, below=12mm of pa, fill=gray!10] (en) {\vp{evaluate}\\(inchangé)};
+\node[b, below=of en, fill=red!6] (mo) {Instantané : moniteur,\\réflexes, alarmes, feuille};
 \draw[a] (ev) -- (st); \draw[a] (st) -- (pa); \draw[a] (pa) -- (en); \draw[a] (en) -- (mo);
-\draw[a] (en.west) ++(0,0.25) -| node[pos=0.25, above, font=\scriptsize]{DC, $\dot V_A$} (st.south);
+\draw[a] (en.west) -- node[below, font=\scriptsize]{DC, $\dot V_A$ (états à $t+\Delta t$)} (en.west -| st.south) -- (st.south);
 \end{tikzpicture}
 \end{center}
 

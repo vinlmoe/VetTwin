@@ -1,6 +1,6 @@
 # VetTwins (application web)
 
-Patient virtuel canin dans le navigateur. Le moteur vetsim (Rust) est compilé en WebAssembly : tout le calcul se fait sur la machine de l'utilisateur, sans serveur de calcul, et aucune donnée n'est envoyée. **Usage pédagogique uniquement.**
+Patient virtuel canin dans le navigateur. Le moteur vetsim (Rust) est compilé en WebAssembly : tout le calcul se fait localement, dans le navigateur, sans serveur de calcul, et aucune donnée n'est envoyée. **Usage pédagogique uniquement.**
 
 ## Construire et lancer
 ```

@@ -58,7 +58,7 @@ fn eval_with(c: &Catalog, disease: Option<(&str, f64)>) -> Evaluation {
 fn hrv_targets_within_one_sd_over_20_seeds() {
     let c = catalog();
     let targets = parse_hrv_targets(&read("calibration/targets.json"), "targets.json").unwrap();
-    // Écart connu levé le 18/11/2026 : l'écart sur LF/HF (décision de l'utilisateur du
+    // Écart connu levé le 18/11/2026 : l'écart sur LF/HF (décision du
     // 17/11/2026) venait de la PAM saine trop haute ; avec la systole recalée (PAM 103), le
     // solveur du baroréflexe et sym_noise 0,14, LF/HF vaut 0,31 pour 0,28 ± 0,11. Les quatre
     // indicateurs doivent tenir ±1 ET. (Mécanisme conservé pour un écart futur déclaré.)

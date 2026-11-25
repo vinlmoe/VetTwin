@@ -1,6 +1,6 @@
 # Vérification de l'ECG du modèle contre des ECG canins de référence (17 novembre 2026)
 
-Ce rapport mesure l'ECG produit par le modèle (dérivation II, `signals.make_ecg_conducted`, chien de 20 kg sans variabilité interindividuelle, graine 0). Il compare ces mesures à des valeurs publiées. La première version de ce rapport ne modifiait rien. Les corrections de forme ont ensuite été appliquées à la demande de l'utilisateur (section « Corrections appliquées »). Aucun module ni aucun paramètre physiologique n'a été modifié. La recherche bibliographique a été faite par une session IA séparée de ce projet, ce n'est pas une relecture externe. Les 10 DOI cités ont été vérifiés dans OpenAlex (titre, auteurs, année).
+Ce rapport mesure l'ECG produit par le modèle (dérivation II, `signals.make_ecg_conducted`, chien de 20 kg sans variabilité interindividuelle, graine 0). Il compare ces mesures à des valeurs publiées. La première version de ce rapport ne modifiait rien. Les corrections de forme ont ensuite été appliquées (section « Corrections appliquées »). Aucun module ni aucun paramètre physiologique n'a été modifié. La recherche bibliographique a été faite par une session IA séparée de ce projet, ce n'est pas une relecture externe. Les 10 DOI cités ont été vérifiés dans OpenAlex (titre, auteurs, année).
 
 Accès aux sources : **lu** = texte intégral (Europe PMC) ; **résumé** = résumé seul.
 
@@ -72,7 +72,7 @@ Fenêtre de 8 s, sévérités indiquées.
 
 Le QRS d'un battement ventriculaire mesure environ 490 ms à 0,02 mV, alors que le paramètre vaut 2,2·`qrs`, soit 99 ms. L'onde T discordante, large, fusionne avec le QRS : même artefact de forme qu'en A.
 
-## Corrections appliquées (17 novembre 2026, validées par l'utilisateur)
+## Corrections appliquées (17 novembre 2026, validées)
 
 Les corrections ne touchent que la forme des ondes dans `signals.py` (référence) et `signals.rs` (port). Elles ne changent ni la physiologie, ni la conduction, ni les intervalles du modèle.
 
@@ -115,7 +115,7 @@ Battement ventriculaire : son T discordant suit le QRS presque sans segment ST, 
 
 ## Corrections proposées dans la première version de ce rapport
 
-Toutes portent sur les constantes de forme de `signals.py`, qui est une référence normative. Elles changeraient les fixtures ECG et demandent l'accord de l'utilisateur. Aucune ne touche la physiologie ni la conduction.
+Toutes portent sur les constantes de forme de `signals.py`, qui est une référence normative. Elles changeraient les fixtures ECG et demandent une décision du projet. Aucune ne touche la physiologie ni la conduction.
 
 1. **Largeur de P.** σ = 22 ms → environ 10 ms, ce qui donne une durée visible de 45 ms à 0,2 mV, au centre de [2, 3].
 2. **QRS.** Placer Q et S pour que la durée visible égale le paramètre `qrs`. Exemple : centres à ±0,3·`qrs` et σ de `qrs`/8. Calage à faire.

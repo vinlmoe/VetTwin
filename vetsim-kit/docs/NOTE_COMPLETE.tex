@@ -1,0 +1,49 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{booktabs,tabularx}
+\usepackage{pdfpages}
+\usepackage[bookmarks=true,bookmarksopen=true,hidelinks]{hyperref}
+\newcommand{\D}{.}
+\pagestyle{empty}
+\begin{document}
+\hypersetup{pdfauthor={Sébastien Lefebvre}}
+\pdfbookmark[1]{Page de garde}{garde}
+\begin{center}
+{\LARGE\bfseries VetTwin : note complète du modèle}\\[0.6em]
+{\large Guide général et notes détaillées}\\[0.6em]
+{\large Sébastien Lefebvre}\\[0.6em]
+24 novembre 2026
+\end{center}
+\vspace{1.5em}
+\emph{Usage pédagogique uniquement : aucun résultat de ce simulateur ne sert à décider d'un traitement réel.}
+
+\vspace{1em}
+Ce document réunit le guide général du modèle, à jour du moteur de \texttt{main} au 24/11/2026, et les notes
+détaillées produites au fil du projet. Chaque partie garde sa pagination propre ; les signets du PDF permettent d'y
+naviguer.
+
+\vspace{1em}
+\begin{tabularx}{\linewidth}{@{}lXl@{}}
+\toprule
+Partie & Contenu & Date\\\midrule
+I & Guide du modèle : tous les blocs, sources, placeholders, points ouverts & 24/11/2026\\
+II & Échocardiographie virtuelle et Doppler (prototype E0--E2) & 24/11/2026\\
+III & Anesthésie générale en temps réel (module 1.0) & 19/11/2026\\
+IV & Validation hors calibrage & 20/11/2026\\
+V & Vérification des maladies et des médicaments & 18/11/2026\\
+VI & Vérification bibliographique du PCG en MMVD & 19/11/2026\\
+\bottomrule
+\end{tabularx}
+
+\clearpage
+\includepdf[pages=-,addtotoc={1,section,1,{I. Guide du modèle (24/11/2026)},p1}]{\D/GUIDE_MODELE.pdf}
+\includepdf[pages=-,addtotoc={1,section,1,{II. Échocardiographie et Doppler (24/11/2026)},p2}]{\D/ECHO.pdf}
+\includepdf[pages=-,addtotoc={1,section,1,{III. Anesthésie (19/11/2026)},p3}]{\D/ANESTHESIE.pdf}
+\includepdf[pages=-,addtotoc={1,section,1,{IV. Validation hors calibrage (20/11/2026)},p4}]{\D/VALIDATION_HORS_CALIBRAGE.pdf}
+\includepdf[pages=-,addtotoc={1,section,1,{V. Vérification maladies et médicaments (18/11/2026)},p5}]{\D/VERIFICATION_MALADIES_MEDICAMENTS.pdf}
+\includepdf[pages=-,addtotoc={1,section,1,{VI. Vérification bibliographique PCG MMVD (19/11/2026)},p6}]{\D/VERIFICATION_PCG_MMVD_BIBLIO.pdf}
+\end{document}

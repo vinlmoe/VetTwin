@@ -1,8 +1,8 @@
 # vetsim-kit : lot de départ pour réaliser le moteur Rust + interface KMP
 
 Contenu
-- `PROMPT.md` : le prompt à donner à l'IA.
-- `CLAUDE.md` : règles de projet lues automatiquement par Claude Code.
+- `PROMPT.md` : le prompt de développement.
+- `CLAUDE.md` : règles de projet pour l'outillage de développement.
 - `docs/` : architecture, spécification du modèle, DSL, contrat du CLI, API KMP, feuille de route, provenance des données.
 - `schema/` : JSON Schema (expressions, maladies, médicaments, patient).
 - `modules/` : patient sain, 4 maladies (MMVD, MRC, Addison, pneumonie), 5 médicaments ; `modules/anesthesia/` : module d'anesthésie en temps réel (12 agents, 2 halogénés, constantes, 2 scénarios chirurgicaux ; `docs/ANESTHESIE.tex`).
