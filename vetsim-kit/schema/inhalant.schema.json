@@ -90,6 +90,12 @@
   },
   "notes": {
    "type": "string"
+  },
+  "mac_awake_ratio": {
+   "type": "number",
+   "exclusiveMinimum": 0,
+   "exclusiveMaximum": 1,
+   "description": "Rapport MAC-éveil/MAC de l'agent (perte de conscience)."
   }
  }
 }

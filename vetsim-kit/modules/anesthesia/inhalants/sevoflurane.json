@@ -17,6 +17,7 @@
   "muscle": 3.1,
   "fat": 48.0
  },
+ "mac_awake_ratio": 0.62,
  "vaporizer_max_pct": 8.0,
  "effects": [
   {
@@ -148,5 +149,8 @@
   "Yamashita K et al. 2012, J Vet Med Sci, doi:10.1292/jvms.11-0274 (résumé)",
   "Murahata Y et al. 2018, J Vet Med Sci (PMC6068302, lu)"
  ],
- "notes": "MAC 2,2 % (2,10 à 2,36 % : Kazama 1988, Hofmeister 2008, Yamashita 2012, Murahata 2018). Sang/gaz canin 0,664 (Soares 2012, lu). Cerveau/sang 1,70 (humain, Yasuda 1989) ; muscle/sang 3,1 et graisse/sang 48 : ordres de grandeur humains NON LUS (D). Ees −20 % par MAC (Hoka 1995 : −16 % à 1 MAC, −41 % à 2 MAC) ; vasodilatation max(0,1 ; 1 − c·M^p) et émoussement du baroréflexe (1 − b·M, mécanisme retenu, forme D) calés sur Bernard 1990 (PAM −22 % à 1,2 MAC, −38 % à 2 MAC, DC −17 % à 2 MAC) ; commande ventilatoire calée pour l'apnée à 3,45 MAC (Galloway 2004), avec la même PaCO2 à 1 MAC que l'isoflurane (hypothèse D, aucune valeur canine publiée trouvée)."
+ "notes": "MAC 2,2 % (2,10 à 2,36 % : Kazama 1988, Hofmeister 2008, Yamashita 2012, Murahata 2018). Sang/gaz canin 0,664 (Soares 2012, lu). Cerveau/sang 1,70 (humain, Yasuda 1989) ; muscle/sang 3,1 et graisse/sang 48 : ordres de grandeur humains NON LUS (D). Ees −20 % par MAC (Hoka 1995 : −16 % à 1 MAC, −41 % à 2 MAC) ; vasodilatation max(0,1 ; 1 − c·M^p) et émoussement du baroréflexe (1 − b·M, mécanisme retenu, forme D) calés sur Bernard 1990 (PAM −22 % à 1,2 MAC, −38 % à 2 MAC, DC −17 % à 2 MAC) ; commande ventilatoire calée pour l'apnée à 3,45 MAC (Galloway 2004), avec la même PaCO2 à 1 MAC que l'isoflurane (hypothèse D, aucune valeur canine publiée trouvée).",
+ "value_sources": {
+  "mac_awake_ratio": "MAC-éveil 1,3 ± 0,3 % pour une MAC de 2,1 ± 0,6 % (20 beagles, décrément lent), Hofmeister EH et al. 2008, Am J Vet Res 69:451, doi:10.2460/ajvr.69.4.451, résumé ; rapport 0,62."
+ }
 }

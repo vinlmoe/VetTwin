@@ -102,7 +102,7 @@ Bloc (\cmd{Block}) & Paramètres principaux & Section\\
 Patient & \vp{bw} & \ref{sec:patient}\\
 Ventricule gauche / droit & \vp{ees_lv}, \vp{v0_lv}, \vp{a_lv}, \vp{b_lv} ; \vp{ees_rv}, \vp{v0_rv}, \vp{a_rv}, \vp{b_rv} ; \vp{ts_coef}, \vp{ts_restitution}, \vp{ca_tau}, \vp{ca_recirc}, \vp{ees_wide} & \ref{sec:coeur}\\
 Circulation systémique & \vp{c_ao}, \vp{z_ao}, \vp{l_ao}, \vp{c_sv}, \vp{ven_cap}, \vp{v0_ao}, \vp{v0_sv}, \vp{r_sys}, \vp{k_ra} ; \vp{anemia_visc}, \vp{hb_ref} & \ref{sec:circ}, \ref{sec:decomp}\\
-Circulation pulmonaire et OG & \vp{c_pa}, \vp{c_pv}, \vp{v0_pa}, \vp{v0_pv}, \vp{r_pul}, \vp{k_la}, \vp{edema_k} & \ref{sec:circ}, \ref{sec:oreillettes}\\
+Circulation pulmonaire et OG & \vp{c_pa}, \vp{z_pa}, \vp{l_pa}, \vp{c_pv}, \vp{v0_pa}, \vp{v0_pv}, \vp{r_pul}, \vp{k_la}, \vp{edema_k} & \ref{sec:circ}, \ref{sec:oreillettes}\\
 Volémie & \vp{bvf}, \vp{vol_shift} & \ref{sec:circ}\\
 Valves & \vp{r_valve}, \vp{a_mr}, \vp{a_ar}, \vp{a_tr}, \vp{a_pr}, \vp{mr_k}, \vp{mr_vref}, \vp{mr_amax} & \ref{sec:valves}\\
 Système autonome, baroréflexe et conduction & \vp{hr}, \vp{map_set}, \vp{baro_gain}, \vp{s0}, \vp{v0}, \vp{a_s}, \vp{a_v}, \vp{vagal_add}, \vp{vagal_block}, \vp{beta_block}, \vp{rsa_depth}, \vp{vag_noise}, \vp{sym_noise}, \vp{baro_sens} ; conduction : \vp{sa_block}, \vp{af}, \vp{av_erp}, \vp{av_symp}\ldots & \ref{sec:auto}, \ref{sec:rythme}\\
@@ -210,6 +210,7 @@ Paramètre & Expression & Unité & Source (accès) & Év.\\
 \multicolumn{5}{@{}l}{\emph{Vaisseaux et volémie}}\\
 \vp{c_ao} & $1{,}4\,s$ & mL/mmHg & calée le 24/11/2026 avec \vp{z_ao} et \vp{l_ao} sur la PAM (Haskins 2005), la pression pulsée (Meyer 2010, télémétrie : 44--46 $\pm$ 8~mmHg, \acc{lu}) et la vitesse aortique Doppler ($\approx 1{,}2$~m/s) ; 0,7 auparavant & C\\
 \vp{z_ao}, \vp{l_ao} & $0{,}08\,s^{-2/3}$ ;\newline $0{,}00035\,s^{-1/3}$ & mmHg·s/mL ;\newline mmHg·s$^2$/mL & impédance caractéristique $\rho c/A$ et inertance $\rho\ell/A$ (aire aortique de Brown 2003) ; calées ensemble (section~\ref{sec:circ}) & C\\
+\vp{z_pa}, \vp{l_pa} & $0{,}02\,s^{-2/3}$ ;\newline $0{,}0013\,s^{-1/3}$ & mmHg·s/mL ;\newline mmHg·s$^2$/mL & windkessel pulmonaire (24/11/2026) : calés sur le temps d'accélération du flux pulmonaire (section~\ref{sec:circ}) & C\\
 \vp{c_sv} & $55\,s$ & mL/mmHg & non documenté & --\\
 \vp{c_pa} & $2{,}5\,s$ & mL/mmHg & PAP du chien vigile 20,0/12,8/6,4~mmHg (systolique/moyenne/diastolique, médianes, $n = 7$ ; Yuchi 2021, \acc{lu}) ; modèle 19,5/13,7/7,8 (1,5 donnait 22/13,5/5,6 et un débit pulmonaire en diastole) & C\\
 \vp{c_pv} & $5\,s$ & mL/mmHg & non documenté & --\\
@@ -336,13 +337,13 @@ Repère : le VES de l'ESV est de 2,5 à 4,1~mL à 200~ms de couplage, et de 10,2
 \section{Circulations systémique et pulmonaire, volémie}\label{sec:circ}
 %=====================================================================
 
-\textbf{Rôle.} Six compartiments en série, états = volumes $V = [V_{lv}, V_{rv}, V_{ao}, V_{sv}, V_{pa}, V_{pv}]$ : VG, VD, aorte, veines systémiques (avec l'OD), artère pulmonaire, veines pulmonaires (avec l'OG). Depuis le 24/11/2026, un septième état porte le débit antérograde aortique $q_a$ (mL/s), qui a une inertie.
+\textbf{Rôle.} Six compartiments en série, états = volumes $V = [V_{lv}, V_{rv}, V_{ao}, V_{sv}, V_{pa}, V_{pv}]$ : VG, VD, aorte, veines systémiques (avec l'OD), artère pulmonaire, veines pulmonaires (avec l'OG). Depuis le 24/11/2026, deux états de plus portent les débits antérogrades aortique $q_a$ et pulmonaire $q_p$ (mL/s), qui ont une inertie.
 
 \subsection{Pressions vasculaires}
 \begin{align}
 P_{ao} &= \underbrace{\frac{V_{ao} - \vp{v0_ao}}{\vp{c_ao}}}_{P_c} + \vp{z_ao}\,q_a, &
 P_{sv} &= (1 + \vp{k_ra}\,e_a)\,\frac{V_{sv} - \vp{v0_sv}}{\vp{c_sv}\cdot\vp{ven_cap}},\\
-P_{pa} &= \frac{V_{pa} - \vp{v0_pa}}{\vp{c_pa}}, &
+P_{pa} &= \frac{V_{pa} - \vp{v0_pa}}{\vp{c_pa}} + \vp{z_pa}\,q_p, &
 P_{pv} &= (1 + \vp{k_la}\,e_a)\,\frac{V_{pv} - \vp{v0_pv}}{\vp{c_pv}}.
 \end{align}
 $P_c$ est la pression du compartiment élastique (compliance aortique), $P_{ao}$ la pression aortique proximale ; $e_a$ est l'activation atriale (section~\ref{sec:oreillettes}). \vp{ven_cap} (capacitance veineuse relative, 1 = basale) n'intervient que dans la pression, pas dans le volume initial : une veinodilatation redistribue le volume sans en ajouter. Il a été ajouté le 18/11/2026 pour la veinodilatation du furosémide.
@@ -356,9 +357,11 @@ tant que la valve est ouverte (débit antérograde ou gradient positif) ; sinon 
 
 \textbf{Pourquoi.} Le Doppler aortique de l'échographie virtuelle (section~\ref{sec:echo}) a montré un débit trop pointu (rapport pic/moyenne de 3, vitesse de 1,65~m/s). L'inertance seule donne un circuit L--C sous-amorti ($\zeta \approx 0{,}33$, débit qui dépasse) ; avec \vp{z_ao}, $\zeta \approx 1{,}4$. Un premier essai ($c = 4{,}5$~m/s, $\ell$ = 3 diamètres, \vp{c_ao} inchangée) donnait une vitesse juste (1,24~m/s) mais une pression pulsée de 65~mmHg, d'où le calage conjoint de \vp{c_ao}, \vp{z_ao} et \vp{l_ao} (grille de 96 combinaisons à 5, 20 et 40~kg) sur la PAM (Haskins 2005 : 103~mmHg), la pression pulsée (Meyer et al.\ 2010, J Am Assoc Lab Anim Sci 49:464, PMC2919188, télémétrie intra-aortique chez le beagle vigile : 44--46 $\pm$ 8~mmHg, \acc{lu}) et la vitesse aortique Doppler (Yuill \& O'Grady 1991 : 1,18 ; Favier 2025, PW : 1,16 ; Wiegel 2022 : 1,39~m/s). Valeurs retenues : la valeur calée de \vp{l_ao} correspond à $\ell \approx 0{,}75$ diamètre aortique (chambre de chasse et racine, $\rho$ = 1,06~g/mL, aire $\pi(0{,}795\,\vp{bw}^{1/3}/2)^2$, Brown 2003) ; celle de \vp{z_ao} à une vitesse d'onde $c \approx 3{,}7$~m/s. Résultat à 20~kg : 132/88~mmHg, DC 3,3~L/min, vitesse aortique maximale 1,27~m/s.
 
+\textbf{Côté pulmonaire (24/11/2026).} Même construction pour l'éjection du VD : état $q_p$, inertance \vp{l_pa} et impédance \vp{z_pa} du tronc pulmonaire, retranchée de \vp{r_pul}. Sans eux, le flux pulmonaire culminait trop tôt (temps d'accélération 38~ms, TA/TE 0,18). Calage (\cmd{examples/fit\_pulmonary.rs}) sur le temps d'accélération du chien sain (73~ms et TA/TE 0,40, Schober \& Baade 2006, \acc{résumé} ; 79~ms et 0,39, Visser et al.\ 2016, PMC4913611, \acc{lu} ; TA/TE 0,43, Yuchi 2023, \acc{lu}) en gardant \vp{c_pa} et la PAP moyenne : $\vp{l_pa} = 0{,}0013\,s^{-1/3}$ (colonne d'environ 6~cm, chambre de chasse et tronc) et $\vp{z_pa} = 0{,}02\,s^{-2/3}$ (vitesse d'onde $\approx 0{,}9$~m/s ; Yoshida et al.\ 2021, PMC8692872, \acc{lu} : 1,1--1,2~m/s chez le beagle sain). À 20~kg : TA 71~ms, TA/TE 0,41, PAP 24/9~mmHg (moyenne 14,1) ; DC 3,32 et PAM 103,5 (3,30 et 103,2 avant). Une perte de Bernoulli à l'anneau pulmonaire a été essayée et écartée (éjection raccourcie, PAPs relevée).
+
 \subsection{Débits et bilan}
 \begin{align}
-Q_{sys} &= \frac{P_c - P_{sv}}{\vp{r_sys} - \vp{z_ao}}, \qquad Q_{pul} = \frac{P_{pa} - P_{pv}}{\vp{r_pul}},\\
+Q_{sys} &= \frac{P_c - P_{sv}}{\vp{r_sys} - \vp{z_ao}}, \qquad Q_{pul} = \frac{P_{pa} - \vp{z_pa}\,q_p - P_{pv}}{\vp{r_pul} - \vp{z_pa}},\\
 Q_{ao} &= q_a + \text{fuite aortique},\\
 \dot V_{lv} &= Q_{mi} - Q_{ao}, & \dot V_{rv} &= Q_{tr} - Q_{pu}, & \dot V_{ao} &= Q_{ao} - Q_{sys},\\
 \dot V_{sv} &= Q_{sys} - Q_{tr}, & \dot V_{pa} &= Q_{pu} - Q_{pul}, & \dot V_{pv} &= Q_{pul} - Q_{mi},
@@ -381,7 +384,7 @@ Régime périodique : 22 battements (11 avant le 20/11/2026 : le dernier cycle n
 
 \textbf{Statut.} \evA{} pour les cibles du sain (moyennes publiées) ; \evC{} pour \vp{c_ao}, \vp{z_ao}, \vp{l_ao} ; \evD{} ou non attribué pour les autres compliances.
 
-\limite{Le windkessel à quatre éléments ne concerne que l'aorte : la circulation pulmonaire reste à trois éléments (pas d'inertance ni d'impédance caractéristique pulmonaires), si bien que le temps d'accélération du flux pulmonaire est trop court (étape en cours, non fusionnée ; voir les points ouverts). Compliances linéaires et résistances constantes (pas d'autorégulation locale, pas de répartition régionale des débits ni de perfusion coronaire explicite : la pression de perfusion coronaire n'entre que par le critère $\text{PAD} - \text{PTDVG}$ de la section~\ref{sec:decomp}). Pas de compartiment interstitiel : le remplissage capillaire après diurèse est résumé par $\tau_\text{refill}$ (section~\ref{sec:furo}). En MMVD, faire baisser la POG demande un grand déficit de volume, car la POG dépend surtout de \vp{c_pv} et de la régurgitation (correction 7 du 18/11, d'abord « non appliquée », puis traitée par l'orifice dynamique et \vp{ven_cap}, section~\ref{sec:valves}).}
+\limite{Windkessels à paramètres localisés : pas de réflexion d'onde (ni encoche mésosystolique du flux pulmonaire ni raccourcissement extrême du temps d'accélération dans l'HTP sévère). Compliances linéaires et résistances constantes (pas d'autorégulation locale, pas de répartition régionale des débits ni de perfusion coronaire explicite : la pression de perfusion coronaire n'entre que par le critère $\text{PAD} - \text{PTDVG}$ de la section~\ref{sec:decomp}). Pas de compartiment interstitiel : le remplissage capillaire après diurèse est résumé par $\tau_\text{refill}$ (section~\ref{sec:furo}). En MMVD, faire baisser la POG demande un grand déficit de volume, car la POG dépend surtout de \vp{c_pv} et de la régurgitation (correction 7 du 18/11, d'abord « non appliquée », puis traitée par l'orifice dynamique et \vp{ven_cap}, section~\ref{sec:valves}).}
 
 %=====================================================================
 \section{Valves}\label{sec:valves}
@@ -997,7 +1000,7 @@ PaO$_2$ (mmHg) & 98,9 & 98,9 & 98,9 & 89,6 & 69,1\\
 \textbf{Congestion.} Repères : POG invasive chez des chiens MMVD en ICC (stades C/D) : médiane 14~mmHg (8--32), Allen 2021, JAVMA 258:638, doi:10.2460/javma.258.6.638 (\acc{résumé}) ; IM expérimentale de stade B2 : 14,6~$\pm$~3,8~mmHg (Suzuki 2012, PMC3489586, \acc{lu}) ; œdème expérimental aigu au-delà de 20--25~mmHg (Nakata 1986 ; Magno \& Szidon 1976 ; \acc{résumés}). Aucune série invasive par stade ACVIM n'a été trouvée chez le chien MMVD spontané. Cibles de plausibilité du module : POG C 14--24, D 20--32. La rétention tardive est plafonnée par l'effet du furosémide sur la POG, qui faiblit quand la volémie augmente.
 
 \sources{Stades : ACVIM 2019 (Keene, doi:10.1111/jvim.15488, \acc{lu}). Calage initial (\cmd{fit\_mmvd.py}) sur RF 17--81~\% en IM expérimentale (Oyama 2004, J Vet Intern Med 18:667, doi:10.1111/j.1939-1676.2004.tb02604.x, \acc{résumé}) et œdème si POG $> \approx 20$~mmHg (MSD Vet Manual). Version 2.0.0 : Koch 2024, Tidholm 2017, Kittleson \& Brown 2003 ci-dessus ; FC : Baisan 2023, Wilshaw 2021, Boswood 2018, Park 2026 ; congestion : Allen 2021, Suzuki 2012.}
-\limite{Avec les orifices à l'échelle des débits, la POG du milieu du stade C dépend encore du poids : 19,7~mmHg à 3~kg, 15,1 à 20~kg, 13,4 à 60~kg (fraction régurgitée 0,68 / 0,62 / 0,57). NT-proBNP non calculé ; indices échographiques (OG/Ao, LVIDdN) calculés par l'échocardiographie (section~\ref{sec:echo}). Pas de tachypnée en ICC. Pas d'insuffisance tricuspide ni d'hypertension pulmonaire propres au module (la PAP vraie monte avec la POG). VFC du stade C : voir section~\ref{sec:auto}. Au stade D, hypoxémie (PaO$_2$ 90~mmHg au milieu du stade, 69 à $s = 1$).}
+\limite{Avec les orifices à l'échelle des débits, la POG du milieu du stade C dépend encore du poids : 19,7~mmHg à 3~kg, 15,1 à 20~kg, 13,4 à 60~kg (fraction régurgitée 0,68 / 0,62 / 0,57). NT-proBNP non calculé ; indices échographiques (OG/Ao, LVIDdN) calculés par l'échocardiographie (section~\ref{sec:echo}). Pas de tachypnée en ICC. Pas d'insuffisance tricuspide propre au module. L'hypertension pulmonaire post-capillaire émerge de la POG : à $s = 0{,}9$, PAPs 46~mmHg, TA 66~ms et TA/TE 0,43, comme l'HTP post-capillaire isolée publiée (TA 63 $\pm$ 15~ms, TA/TE 0,36 $\pm$ 0,09 ; Stavri et al.\ 2026, PMC13034540, \acc{lu}). VFC du stade C : voir section~\ref{sec:auto}. Au stade D, hypoxémie (PaO$_2$ 90~mmHg au milieu du stade, 69 à $s = 1$).}
 
 \subsection{Maladie rénale chronique (\cmd{ckd.json} 1.2.0, evidence B)}\label{sec:ckd}
 Stades IRIS 1 à 4 : $[0{,}05; 0{,}25]$, $[0{,}25; 0{,}5]$, $[0{,}5; 0{,}75]$, $[0{,}75; 0{,}95]$. Tirages lognormaux ($\sigma$ 0,25) $z_{neph}$, $z_{xa}$, $z_{phos}$, $z_{hb}$, $z_{hyp}$ ; hypertension Bernoulli de probabilité $0{,}2 + 0{,}6\,s$.
@@ -1024,6 +1027,12 @@ Version 1.1.0 (20/11/2026) : acidose métabolique de la crise ($\vp{xa} \mathrel
 $\vp{aagrad} \mathrel{+}= 70\,s^{1{,}3} z_{aa}$ ($\sigma$ 0,25) ; \vp{vco2} et \vp{vo2} $\times (1 + 0{,}1\,s)$ ; $\vp{lact0} \mathrel{+}= 0{,}6\,s$ ; $\vp{vent_drive} \times (1 + 5\,s)$, $\vp{hr} \times (1 + 0{,}7\,s)$, $\vp{cl} \mathrel{+}= 5\,s$ (1.1.0, 20/11/2026) ; $\vp{rr_mult} \times (1 + 1{,}1\,s)$ (1.2.0, 21/11/2026).
 \sources{Validation hors calibrage (\cmd{VALIDATION\_HORS\_CALIBRAGE.pdf}) : à gradient A-a 47, PaCO$_2$ 38,1 $\to$ 29,9~mmHg (Viitanen, \acc{lu} : 28,8) et FC 87 $\to$ 118/min (Goggs, Young, \acc{lus} : 117--130) ; fréquence respiratoire : Viitanen 2017, Young 2022 (\acc{lus}).}
 \limite{FR 28/min contre 41--61 publiés. Pas de fièvre ni d'inflammation ; \vp{aagrad}, VO$_2$, lactate : coefficients non documentés.}
+
+\subsection{Hypertension pulmonaire pré-capillaire (\cmd{pulmonary\_hypertension.json} 1.0.0, evidence C)}\label{sec:htp}
+Dirofilariose, pneumopathie, thrombo-embolie. Résistance vasculaire pulmonaire $\vp{r_pul} \times m$, $m = 1 + 10\,s^2 z_{ph}$ ($\sigma$ 0,25). Compliance et impédance du tronc liées à la résistance par les rapports mesurés dans l'embolie expérimentale du beagle (Yoshida et al.\ 2021, PMC8692872, \acc{lu} : RVP $\times 4{,}7$, compliance $\times 0{,}52$, vitesse d'onde $\times 2{,}4$) : $\vp{c_pa} \times m^{\ln 0{,}52/\ln 4{,}7}$, $\vp{z_pa} \times m^{\ln 2{,}4/\ln 4{,}7}$. Hypertrophie adaptative du VD $\vp{ees_rv} \times (1 + 1{,}5\,s)$ : sans elle, le temps d'éjection pulmonaire s'effondre et TA/TE ne baisse pas. Fuite tricuspide fonctionnelle $\vp{a_tr} \mathrel{+}= 0{,}03 + 0{,}1\,s$~cm$^2$ : le jet d'IT, base du diagnostic, existe dès le stade léger.
+\sources{Calage (\cmd{examples/fit\_ph.rs}) sur les gradients d'IT médians de Visser et al.\ 2016 (PMC4913611, \acc{lu}, tableau 1 : 39, 59 et 94~mmHg dans les groupes 36--50, 50--75 et $>$ 75) ; modèle 42, 63 et 94~mmHg aux milieux des stades. Validation : TA 64, 56, 48~ms (publié 63, 53, 38) ; TA/TE 0,43, 0,37, 0,32 (0,37, 0,33, 0,21 ; 0,29 en pré-capillaire chez Stavri et al.\ 2026, \acc{lu}). Cible du stade modéré : PAP moyenne 34 $\pm$ 7~mmHg (Yoshida 2021). Échographie : MPA/Ao 0,98, 1,13 et 1,34 ; TA sévère sous le seuil ACVIM de 58~ms (Reinero et al.\ 2020, PMC7097566, \acc{lu}).}
+\textbf{Statut.} \evC{} pour la résistance, la compliance et l'impédance ; \evD{} pour l'hypertrophie du VD et la fuite tricuspide.
+\limite{Données vasculaires issues d'un modèle aigu (embolie), sans remodelage chronique. Pas de réflexion d'onde : TA/TE sévère (0,32) au-dessus des 0,21 de Visser 2016, pas d'encoche. Le gradient d'IT comprend la perte sur la valve pulmonaire (environ 12~mmHg chez le chien sain) et surestime la PAPs de 10 à 14~mmHg.}
 
 \subsection{Fibrillation atriale (\cmd{atrial\_fibrillation.json} 1.0.0, evidence C)}
 $\vp{af} \mathrel{+}= 1$ ; $\vp{av_erp} \mathrel{\times}= (1{,}25 - 0{,}5\,s)\,z_{av}$ ($\sigma$ 0,1). Stades : réponse lente, modérée, rapide. Réponse ventriculaire 105, 132 et 155/min aux sévérités 0,1 ; 0,5 ; 0,9 (avant \vp{av_symp}).
@@ -1162,9 +1171,9 @@ Module du 19/11/2026, complété les 20 et 21/11 ; détail : \cmd{ANESTHESIE.pdf
 \textbf{États et mécanismes.}
 \begin{itemize}
 \item \textbf{PK} par agent : dépôts IM et SC, compartiments central et périphérique, site effet ($k_{e0}$) ; bolus IV injecté à débit constant (30~s par défaut) : une injection rapide crée un pic plasmatique plus haut, donc plus d'apnée et d'hypotension ; antagonisme compétitif (EC$_{50}$ multipliées par $1 + \sum C_{e,ant}/K_i$).
-\item \textbf{Stocks de CO$_2$ et d'O$_2$} dont les équilibres sont exactement les relations de \cmd{gas.rs} ; commande ventilatoire et FiO$_2$ \emph{équivalentes} transmises à l'évaluation ; apnée d'induction selon la vitesse d'injection, seuil apnéique, ventilation contrôlée, atélectasie sous O$_2$, dette d'O$_2$ sous l'apport critique, puis arrêt hypoxique.
+\item \textbf{Stocks de CO$_2$ et d'O$_2$} dont les équilibres sont exactement les relations de \cmd{gas.rs} ; commande ventilatoire et FiO$_2$ \emph{équivalentes} transmises à l'évaluation ; apnée d'induction selon la vitesse d'injection, seuil apnéique, ventilation contrôlée, atélectasie sous O$_2$ (indexée depuis le 24/11/2026 sur la FiO$_2$ équivalente à la PAO$_2$, et non sur la FiO$_2$ réglée : une intubation sous O$_2$ ne retranche plus d'un coup le gradient d'une alvéole à 600~mmHg), dette d'O$_2$ sous l'apport critique, puis arrêt hypoxique.
 \item \textbf{Halogénés} (isoflurane, sévoflurane) : circuit, alvéoles, trois tissus perfusés ; effets JSON de $M = P_A/\text{MAC}$ et $MB = P_\text{cerveau}/\text{MAC}$ (contractilité, vasodilatation, émoussement du baroréflexe, commande ventilatoire).
-\item \textbf{Profondeur et conscience} : somme des fractions de MAC et des concentrations au site effet rapportées à $c_{imm}$, épargne de MAC et sédation combinées, effet de la température ; réflexes et plans par seuils.
+\item \textbf{Profondeur et conscience} : somme des fractions de MAC et des concentrations au site effet rapportées à $c_{imm}$, épargne de MAC et sédation combinées, effet de la température ; réflexes et plans par seuils. Pour la conscience seule, chaque halogéné pèse $\vp{loc_mac}/r$, $r$ étant son rapport MAC-éveil/MAC (\vp{mac_awake_ratio} : isoflurane 0,77, sévoflurane 0,62 ; Hofmeister et al.\ 2008, Am J Vet Res 69:451, \acc{résumé} ; 24/11/2026) : la conscience se perd au MAC-éveil publié de chaque agent, et le sévoflurane se réveille le premier à 1,5 MAC télé-expiratoire égale (extubation : isoflurane 8 contre sévoflurane 7~min, Lozano 2009, \acc{résumé}).
 \item \textbf{Nociception} : stimuli opératoires (ovariohystérectomie, orchiectomie), blocs locorégionaux, antinociception, sensibilisation (freinée par la kétamine) ; activation sympathique par les coefficients mêmes du baroréflexe du moteur et réinitialisation de \vp{map_set}.
 \item \textbf{Température, remplissage, hémorragie} : refroidissement peropératoire et réchauffement ; cristalloïdes ; hémorragie compensée par un remplissage transcapillaire (60~\% de la perte, $\tau$ 2,9~h), une contraction splénique (6,8~mL/kg) et une vasoconstriction vasopressine--angiotensine (21/11/2026) ; décès par choc après 60~min cumulées sous PAM 40 (\vp{shock_tol_min}).
 \end{itemize}
@@ -1190,6 +1199,8 @@ Prototype E0--E2 (23--24/11/2026) ; détail : \cmd{ECHO.pdf}. Le moteur Rust (\c
 \textbf{Formation de l'image.} Scène implicite en 3D (thorax en carène, côtes, poumon avec incisure cardiaque, graisse, péricarde) ; speckle attaché aux coordonnées matérielles ; réflexion et transmission aux interfaces, atténuation, harmonique, lobes secondaires, réverbérations, faisceau focalisé, TGC, compression logarithmique ; mode TM. Constantes acoustiques et disposition : placeholders \evD{} ajustés sur une image publiée (Visser 2019).
 
 \textbf{Doppler.} Flux antérogrades par continuité, $v = Q/A$ (anneaux aortique et pulmonaire ; orifices mitral et tricuspide à l'extrémité des feuillets, angle d'ouverture mitral de 68° calé sur l'onde E du sain) ; jets régurgitants par Bernoulli simplifiée sur les pressions du modèle, $v = \sqrt{\Delta P/4}$, et $\text{EROA} = |Q|/v$, égale à l'aire d'orifice du moteur depuis la loi d'orifice (section~\ref{sec:valves}) ; jets ronds turbulents ($S$ = 0,094, $B$ = 5,8 ; Pope 2000) et convergence hémisphérique (PISA) pour le rendu ; Doppler couleur avec repliement de Nyquist, pulsé (porte de 3~mm) et continu, composante $v\cos\theta$.
+
+\textbf{Hypertension pulmonaire (24/11/2026).} Profil pulsé pulmonaire (temps d'accélération TA, d'éjection TE, rapport TA/TE) ; tronc pulmonaire observé, $\text{MPA/Ao} = 0{,}92 + (\text{PAPs} - 24)/146$ (médiane de Grosso et al.\ 2023 chez 269 chiens sains, intervalle 0,78--1,01 ; pente de la régression de Visser 2016) ; PAPs estimée par le jet d'IT. Sain : TA 71~ms, TA/TE 0,41, MPA/Ao 0,92 ; HTP pré-capillaire et post-capillaire : sections~\ref{sec:htp} et \ref{sec:mmvd}.
 
 \textbf{Sonde.} Point de contact sur la paroi et trois angles ; cinq coupes de référence (parasternale droite grand axe 4 cavités et chambre de chasse, petit axe aux piliers et à la base, apicale gauche 4 cavités) avec aide à la recherche de fenêtre et indice de qualité ; option gyroscope d'un téléphone.
 
@@ -1254,6 +1265,13 @@ Billman 2013 & \nolinkurl{10.3389/fphys.2013.00222} & sens VFC--FC & lu\\
 Schouten 1987 ; Wier 1986 ; Cooper 1993 ; Prinzen 1999 & voir section~\ref{sec:coeur} & relation force-intervalle, QRS large (structure) & n.p.\\
 Yoran 1979 & PMID 445720 & orifice mitral dynamique (forme) & résumé\\
 Meyer 2010 & \nolinkurl{PMC2919188} & pression pulsée (calage \vp{c_ao}, \vp{z_ao}, \vp{l_ao}) & lu\\
+Visser 2016 & \nolinkurl{PMC4913611} & TA et TA/TE pulmonaires, gradients d'IT par groupe (calage \vp{l_pa}, \vp{z_pa}, module HTP), régression MPA:Ao & lu\\
+Yoshida 2021 & \nolinkurl{PMC8692872} & embolie expérimentale : RVP, compliance, vitesse d'onde (module HTP, \vp{z_pa}) & lu\\
+Stavri 2026 & \nolinkurl{PMC13034540} & TA, TA/TE en HTP pré- et post-capillaire (validation) & lu\\
+Grosso 2023 & -- & MPA/Ao du chien sain (échographie) & sec.\\
+Schober \& Baade 2006 & \nolinkurl{10.1892/0891-6640(2006)}\newline\nolinkurl{20[912:DEPOPH]2.0.CO;2} & TA et TA/TE pulmonaires du chien sain & résumé\\
+Hofmeister 2008 & \nolinkurl{10.2460/ajvr.69.4.451} & MAC-éveil de l'isoflurane et du sévoflurane & résumé\\
+Choi 2014 & \nolinkurl{PMC4081622} & carvédilol en FA (test du bêtabloquant) & lu\\
 Brown 2003 & \nolinkurl{10.1111/j.1939-1676.}\newline\nolinkurl{2003.tb02496.x} & diamètre aortique (\vp{l_ao}, \vp{z_ao}, échographie) & sec. lue\\
 Yuill \& O'Grady 1991 ; Favier 2025 ; Wiegel 2022 ; Bagardi 2025 & -- ; \nolinkurl{PMC12153602} ;\newline -- ; \nolinkurl{PMC11964857} & vitesses Doppler (aorte, E, A, pulmonaire) & n.p.\\
 Koch 2024 ; Tidholm 2017 ; Kittleson \& Brown 2003 & \nolinkurl{PMC11482544} ; \nolinkurl{PMC5354031} ; -- & EROA et FR par stade (MMVD 2.0.0) & n.p.\\
@@ -1321,6 +1339,7 @@ Rein dynamique & urine excédentaire iso-natrique, \vp{n_pressure}, \vp{urine_fl
 Variabilité dans le temps & toutes les amplitudes de \cmd{variation.json} & \\
 Anesthésie & intensités opératoires, nociception, température, stockage des gaz, forme de l'émoussement du baroréflexe & \cmd{anesthesia\_model.json}\\
 Échographie & forme du VG ($L/D$), VD, OD, $c$ de l'OG, valves, dilatation annulaire, scène, constantes acoustiques & \cmd{echo.json}\\
+HTP pré-capillaire & hypertrophie du VD (\vp{ees_rv}), fuite tricuspide fonctionnelle (\vp{a_tr}) & \cmd{pulmonary\_hypertension.json}\\
 \bottomrule
 \end{tabularx}
 
@@ -1329,7 +1348,8 @@ Anesthésie & intensités opératoires, nociception, température, stockage des 
 \section*{Points ouverts}
 \addcontentsline{toc}{section}{Points ouverts}
 \begin{itemize}
-\item \textbf{Étape suivante : hypertension pulmonaire.} La circulation pulmonaire est encore à trois éléments ; le temps d'accélération du flux pulmonaire est trop court (environ 40~ms et TA/TE 0,18, contre 73--79~ms et 0,40--0,43 chez le chien sain : Schober 2006, Visser 2016, Yuchi 2023). Un windkessel pulmonaire à quatre éléments, avec une perte de Bernoulli aux valves sigmoïdes, est en cours de mise au point et \emph{n'est pas intégré} au moteur décrit ici : un premier essai donne TA/TE 0,42 mais élève le débit et la PAM, et demande un recalage global (Haskins 2005, Yuchi 2021). L'échographie recevra ensuite le tronc pulmonaire (rapport AP/Ao, Grosso 2023), le profil pulsé pulmonaire, les jets d'IT et d'IP et l'estimation de la PAPs selon le consensus ACVIM 2020.
+\item \textbf{Hypertension pulmonaire, suite.} Réflexion d'onde (ligne de transmission pulmonaire) pour l'encoche mésosystolique et le TA/TE de l'HTP sévère ; tronc et branches pulmonaires dans la scène échographique et indice RPAD ; probabilité d'HTP selon le consensus ACVIM 2020 ; résistance propre des valves sigmoïdes (le gradient VD--AP du sain, environ 12~mmHg, surestime la PAPs estimée).
+\item \textbf{Désaturation apnéique} plus rapide que publié (SpO$_2$ 90~\% en 20 à 25~s d'apnée contre environ 70~s en air ambiant, McNally 2009, \acc{résumé}) : recaler la réserve sanguine d'O$_2$ (\vp{blood_o2_store_frac}, D) avec le délai d'arrêt par asphyxie.
 \item Les chiffres de sortie du chien sain, de la MMVD et de l'échographie ont été recalculés le 24/11/2026 ; les autres viennent des calages et des tests de leur date (\cmd{tests/drug\_corrections.rs}, \cmd{tests/litterature.rs}, \cmd{VERIFICATION\_MALADIES\_MEDICAMENTS.pdf}, \cmd{VALIDATION\_HORS\_CALIBRAGE.pdf}) ; ils changent si un module est recalé. Les cibles de l'anesthésie n'ont pas été rejouées depuis la révision du moteur du 24/11/2026.
 \item Bayne 1979, Adin 2020, Chetboul 2017, Collignon 2012, Bowsher 1985, Morales 1999, Granot 1985 : cités sans DOI dans le dépôt ; ils ne figurent pas dans \cmd{references.bib}.
 \item La provenance individuelle de nombreuses valeurs du chien sain (compliances, volumes non contraints, \vp{hb}, \vp{gfr0}, \vp{creat0}\ldots) n'est pas documentée ; le niveau de preuve par paramètre n'est pas un champ du JSON.

@@ -138,7 +138,7 @@ pub fn blocks_of(name: &str) -> &'static [Block] {
         "c_ao" | "c_sv" | "ven_cap" | "v0_ao" | "v0_sv" | "r_sys" | "l_ao" | "z_ao" => {
             &[SystemicCirculation]
         }
-        "c_pa" | "c_pv" | "v0_pa" | "v0_pv" | "r_pul" => &[PulmonaryCirculation],
+        "c_pa" | "c_pv" | "v0_pa" | "v0_pv" | "r_pul" | "l_pa" | "z_pa" => &[PulmonaryCirculation],
         "bvf" | "vol_shift" => &[Volume],
         "vco2" | "va0" | "vent_drive" | "aagrad" | "fio2" | "pb" | "rq" => &[Ventilation],
         // œdème : la POG élève le gradient alvéolo-artériel

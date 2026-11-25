@@ -10,7 +10,7 @@ class Stub:
     def lognormal(self, *a): return 1.0
     def random(self): return 0.99
 
-NAMES = {'mmvd': 'MMVD', 'ckd': 'CKD', 'addison': 'Addison', 'pneumonia': 'Pneumonie', 'atrial_fibrillation': 'FA', 'av_block': 'BAV', 'ventricular_premature': 'ESV', 'sick_sinus': 'SSS'}
+NAMES = {'mmvd': 'MMVD', 'ckd': 'CKD', 'addison': 'Addison', 'pneumonia': 'Pneumonie', 'atrial_fibrillation': 'FA', 'av_block': 'BAV', 'ventricular_premature': 'ESV', 'sick_sinus': 'SSS', 'pulmonary_hypertension': 'HTP'}
 ap = argparse.ArgumentParser(); ap.add_argument('--cmd', required=True); a = ap.parse_args()
 D.KM['zsd'] = 0.0
 combos = [[]] + [[(n, s)] for n in NAMES for s in (0.2, 0.5, 0.8, 0.95)] + [[('mmvd', 0.8), ('ckd', 0.6)], [('addison', 0.9), ('pneumonia', 0.4)]]

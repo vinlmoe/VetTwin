@@ -125,7 +125,7 @@ $(V_{CRF} + 0{,}863\,f_b\,V_S\,\mathrm{d}C_aO_2/\mathrm{d}P)\,\dot P_AO_2 = \dot
 sans effet à l'équilibre. Apnée totale sous O$_2$ pur (isoflurane 1,3 MAC, après 10 min de ventilation contrôlée ; atélectasie comprise depuis le 20/11/2026) : SaO$_2$ < 90\,\% à 4,8 min, arrêt hypoxique à 10,3 min
 (DeBehnke 1995 : 11,4 ± 2,4 min, PaCO$_2$ 93) ; préoxygénation au masque publiée : 187 à 298 s selon la PaO$_2$ de départ
 (Ambros 2018, McNally 2009). Flow-by : 88 s (FiO$_2$ 0,40 du modèle ; 66 s à FiO$_2$ 0,30 chez Ambros). À l'air en apnée stricte : 28 s pour la SaO$_2$ artérielle (McNally 2009 : PaO$_2$ 62 mmHg et SaO$_2$ 82\,\% à 30 s ; la SpO$_2$ ne passe sous 90\,\% qu'à 70 s, retard du capteur absent du modèle).
-Atélectasie : sous anesthésie, le gradient A-a reçoit $\vp{atelectasis_aa_mmhg}\cdot a\cdot\max(0, (F_IO_2 - 0{,}21)/0{,}79)$ (110 mmHg, calé sur Itami 2019 et Kato 2024 : PaO$_2$ 523–550 mmHg sous O$_2$). La ventilation réelle vaut $\vp{va0}\cdot bw\cdot\vp{vent_drive}\cdot f_K\cdot\chi$ en ventilation spontanée
+Atélectasie : sous anesthésie, le gradient A-a reçoit $\vp{atelectasis_aa_mmhg}\cdot a\cdot\max(0, (F_IO_{2,\mathrm{eq}} - 0{,}21)/0{,}79)$ (110 mmHg, calé sur Itami 2019 et Kato 2024 : PaO$_2$ 523–550 mmHg sous O$_2$), avec la FiO$_2$ équivalente à la PAO$_2$ dynamique (24/11/2026) : égale à la FiO$_2$ réglée à l'état stable, elle évite qu'une intubation sous O$_2$ retranche le gradient d'une alvéole à 600 mmHg alors que la PAO$_2$ est encore basse. La ventilation réelle vaut $\vp{va0}\cdot bw\cdot\vp{vent_drive}\cdot f_K\cdot\chi$ en ventilation spontanée
 et $\mathrm{FR}\,(V_T - V_D)$ en ventilation contrôlée. Apnée signalée si $\dot V_A < 10\,\%$ du repos.
 
 \subsection{Halogénés}
@@ -148,7 +148,7 @@ H = \sum_{\text{halogénés}} \frac{P_{cerveau}}{\mathrm{MAC}} + \sum_{\text{IV}
 L = \frac{H}{(1 - S_d)\,f_T},
 \]
 $R = 1 - \prod(1 - R_j)$ l'épargne de MAC combinée, $S_d = 1 - \prod(1 - S_j)$ la sédation combinée,
-$f_T = \max(0{,}3;\ 1 - \vp{mac_per_c}\,(T_0 - T))$. Conscience perdue si $L \ge \vp{loc_mac}$ ; niveau de conscience
+$f_T = \max(0{,}3;\ 1 - \vp{mac_per_c}\,(T_0 - T))$. Conscience perdue si $L \ge \vp{loc_mac}$, $L$ étant calculé avec un indice hypnotique où chaque halogéné pèse $\vp{loc_mac}/r_\mathrm{agent}$, $r_\mathrm{agent}$ = MAC-éveil/MAC (\vp{mac_awake_ratio} : isoflurane 0,77, sévoflurane 0,62, Hofmeister 2008 ; 24/11/2026) ; niveau de conscience
 $(1 - S_d)\,(1 - x^n)$ avec $x = \mathrm{clip}(L/\vp{loc_mac}, 0, 1)$ et $n$ = \vp{awareness_hill} = 3 (calé sur les délais de réveil, Rastas 2025, Lozano 2009 ; voir \vp{VALIDATION_HORS_CALIBRAGE.tex}). L'intubation est refusée tant que la déglutition est présente ($L < \vp{swallow_mac}$). Plans et réflexes par seuils de $\Delta$ (palpébral, mâchoire, globe, mydriase)
 et de $L$ (déglutition) ; un agent dissociatif majoritaire conserve le réflexe palpébral et le globe central.
 

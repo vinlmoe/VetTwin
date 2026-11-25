@@ -31,6 +31,9 @@ pub struct InhalantModule {
     pub tissue_blood: [f64; 3],
     /// Réglage maximal du vaporisateur (%).
     pub vaporizer_max_pct: f64,
+    /// Rapport MAC-éveil / MAC propre à l'agent (perte de conscience) ; absent : `loc_mac` du
+    /// modèle.
+    pub mac_awake_ratio: Option<f64>,
     /// Effets sur les paramètres (variables `M` : pression artérielle / MAC ; `MB` : cérébrale).
     pub effects: Vec<Effect>,
     /// Références.
@@ -59,6 +62,15 @@ impl InhalantModule {
         let mac = c.req_num_in(m, "", "mac_pct", pos, "> 0");
         let bg = c.req_num_in(m, "", "blood_gas", pos, "> 0");
         let vmax = c.req_num_in(m, "", "vaporizer_max_pct", pos, "> 0");
+        let awake = m.get("mac_awake_ratio").and_then(Json::as_f64);
+        if let Some(r) = awake {
+            if !(r > 0.0 && r < 1.0) {
+                c.err(
+                    "/mac_awake_ratio",
+                    "rapport MAC-éveil/MAC attendu dans ]0, 1[",
+                );
+            }
+        }
         let mut tb = [0.0; 3];
         let mut tb_ok = true;
         match c
@@ -90,6 +102,7 @@ impl InhalantModule {
                     blood_gas,
                     tissue_blood: tb,
                     vaporizer_max_pct,
+                    mac_awake_ratio: awake,
                     effects,
                     refs,
                     notes,

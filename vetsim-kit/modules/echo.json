@@ -25,6 +25,15 @@
   "evidence": "B",
   "calibre_sur": "coefficient publié (source secondaire lue)"
  },
+ "pulmonary_artery": {
+  "model": "observateur chronique : rapport tronc pulmonaire / aorte MPA/Ao = mpa_ao_ref + slope_per_mmhg · (PAPs − pasp_ref_mmhg), PAPs = pression systolique de l'artère pulmonaire du modèle (moyenne des battements de la fenêtre) ; diamètre MPA = MPA/Ao × Ao. Constant au cours du battement (pas de distensibilité cyclique).",
+  "mpa_ao_ref": 0.92,
+  "pasp_ref_mmhg": 24.0,
+  "slope_per_mmhg": 0.00685,
+  "source": "mpa_ao_ref : médiane du rapport MPA/Ao chez 269 chiens sains (Grosso et al. 2023 ; intervalle de référence 0,78–1,01). slope_per_mmhg : pente de la régression de Visser et al. 2016 entre gradient d'IT et rapport MPA/Ao (gradient = 146·MPA:Ao − 101,5, soit 1/146 par mmHg), appliquée à la PAP systolique. pasp_ref_mmhg : PAP systolique du chien sain simulé de 20 kg (24 mmHg ; 22,5 à 5 kg, 25 à 40 kg), à laquelle on associe la médiane de Grosso.",
+  "evidence": "C",
+  "calibre_sur": "médiane publiée au chien sain simulé ; pente d'une régression publiée (relation transversale entre chiens, remodelage chronique compris)"
+ },
  "normalization": {
   "lvidd_exp": 0.294,
   "source": "LVIDdN = LVIDd / BW^0,294 (Cornell 2004 ; critère du stade B2 ACVIM, Keene et al. 2019, J Vet Intern Med 33:1127-1140).",

@@ -205,5 +205,27 @@ class SickSinus(Disease):
         return Case(self.name, s, mods, dict(stage=st))
 
 
+class PulmonaryHypertension(Disease):
+    """Hypertension pulmonaire pré-capillaire (miroir de modules/diseases/pulmonary_hypertension.json) :
+    résistance vasculaire pulmonaire ×m, m = 1 + 10·s²·z ; compliance et impédance du tronc suivant la
+    résistance selon les rapports mesurés par Yoshida et al. 2021 (RVP ×4,7, compliance ×0,52, vitesse
+    d'onde ×2,4) ; hypertrophie du VD et fuite tricuspide fonctionnelle (placeholders D)."""
+    name = 'HTP'
+    stages = {'legere': (0.1, 0.4), 'moderee': (0.4, 0.7), 'severe': (0.7, 1.0)}
+    stage_probs = {'legere': 0.35, 'moderee': 0.35, 'severe': 0.3}
+
+    def sample(self, rng, severity=None, stage=None):
+        s, st = self.draw_severity(rng, severity, stage)
+        z = _lnz(rng)
+        m = 1 + 10.0 * s ** 2 * z
+        mods = [('r_pul', 'mul', m),
+                ('c_pa', 'mul', m ** -0.42255),     # ln 0,52 / ln 4,7
+                ('z_pa', 'mul', m ** 0.56571),      # ln 2,4 / ln 4,7
+                ('ees_rv', 'mul', 1 + 1.5 * s),
+                ('a_tr', 'add', (0.03 + 0.1 * s) * (1 if s > 0 else 0))]
+        return Case(self.name, s, mods, dict(stage=st))
+
+
 REGISTRY = {c.name: c for c in (MMVD(), CKD(), Hypoadrenocorticism(), Pneumonia(),
-                                AtrialFibrillation(), AVBlock(), VentricularPremature(), SickSinus())}
+                                AtrialFibrillation(), AVBlock(), VentricularPremature(), SickSinus(),
+                                PulmonaryHypertension())}

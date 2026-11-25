@@ -178,13 +178,22 @@ fn sustained_map_below_40_is_not_viable() {
 
 #[test]
 fn beta_blocker_slows_ventricular_rate_in_atrial_fibrillation() {
-    // Correction 6 : effet dromotrope du sympathique sur le nœud AV (dénervation : 144,5 → 121,5
-    // /min, PMC7872775). Contrôle d'échec : sans av_symp, aucun ralentissement.
+    // Correction 6 : effet dromotrope du sympathique sur le nœud AV. Cai et al. 2021
+    // (PMC7872775, lu) : section du tronc sympathique thoracique gauche chez le beagle en FA
+    // persistante induite, 121,5 contre 144,5/min chez les témoins à 30 min (deux groupes ; ce
+    // n'est pas un bêtabloquant). Bêtabloquant en FA chez le chien : effet modeste, carvédilol
+    // 12,5 mg × 2/j 123,3 → 120,3/min, −2,4 % (Choi et al. 2014, PMC4081622, lu) ; aténolol seul
+    // sans amélioration de la FC (Jung et al. 2016, PMC4913664, lu, n = 3). Attendu : baisse
+    // franche mais modeste, entre 0 et 15 % (révisé le 24/11/2026 ; −8 % au moins auparavant).
+    // Contrôle d'échec : sans av_symp, aucun ralentissement.
     let c = catalog();
     let af = patient(&c, Some(("atrial_fibrillation", 0.8)));
     let hr = |p: &Params| evaluate(p).unwrap().params.hr;
     let (h0, h1) = (hr(&af), hr(&drugged(&c, &af, "betabloquant", 10.0)));
-    assert!(h1 < 0.92 * h0, "FC ventriculaire {h0} → {h1}");
+    assert!(
+        h1 < 0.98 * h0 && h1 > 0.85 * h0,
+        "FC ventriculaire {h0} → {h1}"
+    );
     let mut off = af.clone();
     off.av_symp = 0.0;
     let (g0, g1) = (hr(&off), hr(&drugged(&c, &off, "betabloquant", 10.0)));

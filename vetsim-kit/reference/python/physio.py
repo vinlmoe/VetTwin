@@ -32,8 +32,8 @@ AO_CLOSE_Q = 0.5       # miroir de hemo::AO_CLOSE_Q (mL/s)
 
 
 def _aortic_forward(dp, qa, r_f, l_ao):
-    """Éjection inertielle L·dQ/dt = Δp − r·Q (miroir de hemo::aortic_forward) ; l_ao = 0 :
-    débit algébrique σ·Δp/r."""
+    """Éjection semi-lunaire inertielle L·dQ/dt = Δp − r·Q (miroir de hemo::aortic_forward), aortique
+    ou pulmonaire ; L = 0 : débit algébrique σ·Δp/r."""
     s2 = 0.5 * (1 + np.tanh(dp / 0.3))
     if l_ao <= 0.0:
         return s2 * dp / r_f, -qa / AO_CLOSE_TAU
@@ -52,22 +52,25 @@ def _leak(dp, area, eps=0.3):
     return (1 - s) * ORIFICE_K * area * dp / np.sqrt(np.sqrt(dp * dp + ORIFICE_DELTA ** 2))
 
 
-def _valve_flows(P, qa, p):
-    """Débits pour des pressions données (P['ao'] proximale = compliance + z_ao·qa) et le débit
-    inertiel qa (miroir de hemo::valve_flows)."""
+def _valve_flows(P, qa, qp, p):
+    """Débits pour des pressions données (P['ao'] et P['pa'] proximales = compliance + z·q) et les
+    débits inertiels qa et qp (miroir de hemo::valve_flows)."""
     rf = p['r_valve']
     gs = (p['bw'] / 20.0) ** 0.75   # orifices normalisés à 20 kg, à l'échelle des débits (miroir de hemo::leak_scale)
     dp_ao = P['lv'] - P['ao']
     qf, dqa = _aortic_forward(dp_ao, qa, rf, p['l_ao'])
     p_c = P['ao'] - p['z_ao'] * qa
+    p_cp = P['pa'] - p['z_pa'] * qp
+    dp_pu = P['rv'] - P['pa']
+    qpf, dqp = _aortic_forward(dp_pu, qp, rf, p['l_pa'])
     Q = dict(
         mi=_valve(P['pv'] - P['lv'], rf, p['a_mr'] * gs),
         ao=qf + _leak(dp_ao, p['a_ar'] * gs),
         tr=_valve(P['sv'] - P['rv'], rf, p['a_tr'] * gs),
-        pu=_valve(P['rv'] - P['pa'], rf, p['a_pr'] * gs),
+        pu=qpf + _leak(dp_pu, p['a_pr'] * gs),
         sys=(p_c - P['sv']) / (p['r_sys'] - p['z_ao']),
-        pul=(P['pa'] - P['pv']) / p['r_pul'])
-    return Q, dqa
+        pul=(p_cp - P['pv']) / (p['r_pul'] - p['z_pa']))
+    return Q, dqa, dqp
 
 
 def _atrial_act(t, T, p, pr=None):
@@ -89,7 +92,7 @@ def mech_offset(p, wide):
 
 
 def _flows(V, t, p, T, ts, tr, pr=None):
-    lv, rv, ao, sv, pa, pv, qa = V
+    lv, rv, ao, sv, pa, pv, qa, qp = V
     e = _act(t, T, ts, tr, p['act_gamma'])
     ea = _atrial_act(t, T, p, pr)
     # oreillettes contractiles : élastance active proportionnelle à la pression passive
@@ -98,9 +101,9 @@ def _flows(V, t, p, T, ts, tr, pr=None):
         lv=_vent_p(lv, e, p['ees_lv'], p['v0_lv'], p['a_lv'], p['b_lv']),
         rv=_vent_p(rv, e, p['ees_rv'], p['v0_rv'], p['a_rv'], p['b_rv']),
         ao=(ao - p['v0_ao']) / p['c_ao'] + p['z_ao'] * qa, sv=(1 + p['k_ra'] * ea) * (sv - p['v0_sv']) / (p['c_sv'] * p['ven_cap']),
-        pa=(pa - p['v0_pa']) / p['c_pa'], pv=(1 + p['k_la'] * ea) * (pv - p['v0_pv']) / p['c_pv'])
-    Q, dqa = _valve_flows(P, qa, p)
-    return P, Q, e, dqa
+        pa=(pa - p['v0_pa']) / p['c_pa'] + p['z_pa'] * qp, pv=(1 + p['k_la'] * ea) * (pv - p['v0_pv']) / p['c_pv'])
+    Q, dqa, dqp = _valve_flows(P, qa, qp, p)
+    return P, Q, e, (dqa, dqp)
 
 
 def _initial_volumes(p):
@@ -112,7 +115,7 @@ def _initial_volumes(p):
     sv = p['v0_sv'] + p['c_sv'] * 4.0 + (p['bvf'] - 1.0) * vtot + p['vol_shift']
     pa = p['v0_pa'] + p['c_pa'] * 14.0
     pv = p['v0_pv'] + p['c_pv'] * 6.0
-    return np.array([lv, rv, ao, sv, pa, pv, 0.0])
+    return np.array([lv, rv, ao, sv, pa, pv, 0.0, 0.0])
 
 
 def _edp_at(t, plv, tb):
@@ -159,9 +162,9 @@ def _simulate_hemo_once(p, n_beats, dt, pr):
     V0 = _initial_volumes(p)
 
     def rhs(t, V):
-        _, Q, _, dqa = _flows(V, t, p, T, ts, tr, pr)
+        _, Q, _, (dqa, dqp) = _flows(V, t, p, T, ts, tr, pr)
         return [Q['mi'] - Q['ao'], Q['tr'] - Q['pu'], Q['ao'] - Q['sys'],
-                Q['sys'] - Q['tr'], Q['pu'] - Q['pul'], Q['pul'] - Q['mi'], dqa]
+                Q['sys'] - Q['tr'], Q['pu'] - Q['pul'], Q['pul'] - Q['mi'], dqa, dqp]
 
     t_end = n_beats * T
     t_eval = np.arange(t_end - 2 * T, t_end, dt)
@@ -616,15 +619,16 @@ def _activations(t, beats, atr, p):
 
 
 def _flows_beats(V, t, p, beats, atr):
-    lv, rv, ao, sv, pa, pv, qa = V
+    lv, rv, ao, sv, pa, pv, qa, qp = V
     e, e_act, ea = _activations(t, beats, atr, p)
     P = dict(
         lv=_vent_p(lv, e, p['ees_lv'], p['v0_lv'], p['a_lv'], p['b_lv'], e_act),
         rv=_vent_p(rv, e, p['ees_rv'], p['v0_rv'], p['a_rv'], p['b_rv'], e_act),
         ao=(ao - p['v0_ao']) / p['c_ao'] + p['z_ao'] * qa, sv=(1 + p['k_ra'] * ea) * (sv - p['v0_sv']) / (p['c_sv'] * p['ven_cap']),
-        pa=(pa - p['v0_pa']) / p['c_pa'], pv=(1 + p['k_la'] * ea) * (pv - p['v0_pv']) / p['c_pv'])
-    Q, dqa = _valve_flows(P, qa, p)
+        pa=(pa - p['v0_pa']) / p['c_pa'] + p['z_pa'] * qp, pv=(1 + p['k_la'] * ea) * (pv - p['v0_pv']) / p['c_pv'])
+    Q, dqa, dqp = _valve_flows(P, qa, qp, p)
     Q['_dqa'] = dqa
+    Q['_dqp'] = dqp
     return P, Q, e, ea
 
 
@@ -638,14 +642,14 @@ def simulate_hemo_beats(p, cond, t_end, warm, period0, dt=0.002):
     def rhs(t, V):
         _, Q, _, _ = _flows_beats(V, t, p, beats, atr)
         return [Q['mi'] - Q['ao'], Q['tr'] - Q['pu'], Q['ao'] - Q['sys'],
-                Q['sys'] - Q['tr'], Q['pu'] - Q['pul'], Q['pul'] - Q['mi'], Q['_dqa']]
+                Q['sys'] - Q['tr'], Q['pu'] - Q['pul'], Q['pul'] - Q['mi'], Q['_dqa'], Q['_dqp']]
 
     t_eval = np.arange(warm, t_end, dt)
     sol = solve_ivp(rhs, (0, t_end), V0, method='LSODA', t_eval=t_eval, rtol=1e-6, atol=1e-6, max_step=0.004)
     V, t = sol.y, sol.t
     rows = [_flows_beats(V[:, j], t[j], p, beats, atr) for j in range(len(t))]
     P = {k: np.array([r[0][k] for r in rows]) for k in rows[0][0]}
-    Q = {k: np.array([r[1][k] for r in rows]) for k in rows[0][1] if k != '_dqa'}
+    Q = {k: np.array([r[1][k] for r in rows]) for k in rows[0][1] if k not in ('_dqa', '_dqp')}
     ea = np.array([r[3] for r in rows])
     # battements complets dans la fenêtre
     starts = [b[0] for b in beats if b[0] >= warm]

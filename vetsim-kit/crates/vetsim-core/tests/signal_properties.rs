@@ -28,6 +28,7 @@ fn catalog() -> Catalog {
         "av_block",
         "ventricular_premature",
         "sick_sinus",
+        "pulmonary_hypertension",
     ]
     .iter()
     .map(|d| DiseaseModule::from_json(&read(&format!("modules/diseases/{d}.json")), d).unwrap())
