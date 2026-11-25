@@ -1,0 +1,249 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage[margin=1.8cm]{geometry}
+\usepackage{booktabs,array,tabularx,longtable,ltablex}
+\keepXColumns
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{textcomp}
+\usepackage{siunitx}
+\sisetup{locale=FR,detect-all}
+
+\setlength{\parskip}{0.4em}
+\setlength{\parindent}{0pt}
+\newcommand{\cmd}[1]{\texttt{#1}}
+\newcommand{\ok}{\textcolor{green!45!black}{\textbf{OK}}}
+\newcommand{\ecart}{\textcolor{red!70!black}{\textbf{Écart}}}
+\newcommand{\partiel}{\textcolor{orange!80!black}{\textbf{Partiel}}}
+\newcommand{\absent}{\textcolor{red!70!black}{\textbf{Absent}}}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+\renewcommand{\arraystretch}{1.15}
+
+\title{Vérification de la toxicité, molécule par molécule\\[0.3em]
+\large Les 19 molécules du catalogue : surdosage simulé par le moteur Rust et confrontation à la littérature canine}
+\author{Sébastien Lefebvre}
+\date{25 novembre 2026}
+
+\begin{document}
+\hypersetup{pdfauthor={Sébastien Lefebvre}}
+\sloppy
+\maketitle
+
+\begin{center}
+\fbox{\parbox{0.92\linewidth}{\textbf{Usage pédagogique uniquement.} Les multiples de dose testés ici servent à éprouver le modèle. Ce ne sont ni des recommandations ni des seuils de toxicité. Aucun résultat ne doit servir à décider d'une dose ou d'un traitement réel.}}
+\end{center}
+
+\section{Question et méthode}
+
+Pour chaque molécule du catalogue, on pose deux questions : la toxicité est-elle représentée (terme \cmd{pd.toxicity}, ou effet qui émerge des mécanismes du moteur) ? Et le comportement en surdosage est-il conforme à ce que décrivent le module lui-même et la littérature canine ?
+
+\begin{itemize}
+\item \textbf{Médicaments} (\cmd{modules/drugs}, 5 molécules). Banc existant \cmd{vetsim-api/examples/drug\_matrix.rs}. Chien sain de \SI{20}{kg}, doses $\times 1$ à $\times 100$, état au pic de la variable clé (à \SI{12}{h} pour le furosémide). Les tests \cmd{decompensation.rs}, \cmd{periph\_drugs.rs} et \cmd{drug\_corrections.rs} passent (19/19).
+\item \textbf{Agents d'anesthésie} (12 molécules) \textbf{et halogénés} (2). Nouveau banc \cmd{vetsim-api/examples/tox\_audit.rs}, dans une session temps réel. Chien sain de \SI{20}{kg}, vigile, à l'air ambiant, non intubé ; bolus aux doses $\times 1$, 3 et 10 ; extrema sur \SI{20}{min}, pas de \SI{5}{s}. Halogénés : induction au propofol \SI{5,2}{mg/kg} sous O$_2$, intubation, vaporisateur à $k \times$ MAC (plafonné au maximum de l'appareil) pendant \SI{40}{min}, relevé sur les 10 dernières minutes.
+\item \textbf{Littérature.} Les sources déjà citées dans les modules, plus une recherche du 25/11/2026. Les données nouvelles (résumés seulement, textes intégraux non lus) sont signalées.
+\end{itemize}
+
+État de base du chien sain : FC 86\,/min, PAM \SI{103}{mmHg}, PaCO$_2$ \SI{40,2}{mmHg}.
+
+\section{Défaut du moteur corrigé}
+
+\textbf{Site des termes toxiques dans la session d'anesthésie.} \cmd{Session::agent\_effects} (\cmd{anesthesia/mod.rs}) calculait chaque terme toxique d'un agent sur la concentration plasmatique $C_p$, quel que soit son champ \cmd{site}. Le chemin hors session (\cmd{pkpd::apply\_drug\_effects\_sites}) et le Python respectent, eux, \cmd{site: "effect"}.
+
+Ce défaut était latent : aucun agent d'anesthésie ne porte encore de terme toxique. Il aurait faussé le premier qui en recevrait un. La correction lit $C_e$ quand \cmd{site = effect}.
+
+Test ajouté : \cmd{agent\_toxicity\_follows\_declared\_site} (\cmd{tests/anesthesia.rs}). On construit dans le test un terme fictif sur la lidocaïne ; aucun module n'est modifié. \SI{15}{s} après le bolus, $C_e \ll C_p$, et le terme au site d'effet doit donc agir moins que le terme plasmatique.
+
+Contrôle d'échec : sans la correction, le test échoue (FC 77,3 dans les deux cas).
+
+Aucune valeur de module, de golden ni de calibration n'a été modifiée.
+
+\section{Synthèse}
+
+\begin{longtable}{P{2.6cm}P{2.3cm}P{9.2cm}P{1.5cm}}
+\toprule
+Molécule & Toxicité & Constat & Verdict\\
+\midrule
+\endhead
+Atropine 1.1.0 & 3 termes (C) & Termes conformes à leurs sources (tests). Plateau à FC 181 dès \SI{0,4}{mg/kg} ; ni hyperthermie ni signes centraux (non modélisés, déclaré). & \partiel\\
+Opioïde 1.2.0 & 1 terme (D) & PaCO$_2$ 65,4 et pH 7,19 sans décès à \SI{30}{mg/kg} : conforme à Bailey 1987. & \ok\\
+Pimobendane 1.1.0 & 1 terme (D) & Tachycardie et hypotension, survie : sens conforme à Reinker 2012. L'hypertension (2 chiens sur 7) est impossible. EC50 toxique non sourcée. & \partiel\\
+Bêtabloquant 1.1.0 & émergente & À $\times 100$ : FC $-3{,}4$\,\%, PAM $-1$\,\%. Les notes du module annoncent bradycardie et hypotension. & \ecart\\
+Furosémide 1.4.0 & émergente & Hypokaliémie, hypochlorémie, azotémie, hypotension modérée ; survie à \SI{200}{mg/kg} (DL50 IV > 300). Ototoxicité absente (déclaré). & \partiel\\
+Acépromazine & émergente & PAM $-12$\,\% à $\times 10$ : sens conforme (hypotension dose-dépendante, RCP). Plateau. & \partiel\\
+Alfaxalone & émergente & Hypoventilation dose-dépendante, apnée brève à \SI{20}{mg/kg} ; aucune hypotension (RCP : hypotension, apnée, décès en surdosage). & \partiel\\
+Atipamézole & aucune & Aucun effet propre jusqu'à $\times 10$ (\SI{1}{mg/kg} IM) ; RCP : $\times 10$ toléré. & \ok\\
+Bupivacaïne & aucune & Bolus IV accepté ; aucun effet jusqu'à \SI{10}{mg/kg}. Convulsions à \SI{4,3}{mg/kg} et arythmies ventriculaires chez 5 chiens sur 6 (Feldman 1989). & \ecart\\
+Dexmédétomidine & émergente & Bradycardie (37\,/min) et hypertension (PAM 139) à $\times 10$ ; aucun BAV (déjà signalé). & \partiel\\
+Fentanyl & aucune & PaCO$_2$ $\leq$ 42,2 jusqu'à \SI{3}{mg/kg} IV ; Bailey 1987 (même molécule) : jusqu'à 67. & \ecart\\
+Kétamine & aucune & Aucun signe jusqu'à \SI{50}{mg/kg} IV. & \absent\\
+Lidocaïne & aucune & PK juste ($C_p$ 48 contre 47,2~$\mu$g/mL à $\approx$ \SI{20}{mg/kg}, Feldman 1989) ; aucun signe toxique (déclaré dans les notes). & \absent\\
+Méthadone & aucune & PaCO$_2$ $\leq$ 42,3 jusqu'à \SI{10}{mg/kg} IV ; incohérent avec le module opioïde, qui a la même PK. & \ecart\\
+Midazolam & émergente & PaCO$_2$ 41 à \SI{2}{mg/kg} ; plateau. Large marge attendue, non chiffrée. & \partiel\\
+Naloxone & aucune & Aucun effet jusqu'à \SI{0,4}{mg/kg}. & \ok\\
+Propofol & émergente & Apnée, PAM 29 à $\times 3$ ; arrêt hypoxique à \SI{505}{s} à $\times 10$. Dépression cardiorespiratoire dose-dépendante. & \ok\\
+Isoflurane & émergente & Apnée à 2,61 MAC (analytique ; Steffey 1977 : 2,5 ; Galloway 2004 : 2,6). PAM décroissante. & \ok\\
+Sévoflurane & émergente & Apnée à 3,45 MAC (Galloway 2004). PAM $-62$\,\% à $F_E$ 2,5 MAC : à confronter à Bernard 1990 en régime établi. & \partiel\\
+\bottomrule
+\end{longtable}
+
+Bilan : 6 \ok, 8 \partiel, 5 \ecart{} ou \absent. Le code des termes toxiques est correct après la correction de la section~2. Les écarts tiennent aux modules (termes absents, notes contredites par la simulation) ; ils ne sont pas corrigés ici, conformément aux règles du projet.
+
+\section{Médicaments}
+
+\subsection*{Atropine 1.1.0 : 3 termes, niveau C}
+
+\begin{itemize}
+\item \cmd{paradoxical\_vagal} (plasma), \cmd{antimuscarinic\_peripheral} (site d'effet), \cmd{excess\_tachycardia} (plasma).
+\item Cibles des sources reproduites par \cmd{periph\_drugs.rs} :
+  \begin{itemize}
+  \item +50\,\% de FC à 39,5~$\mu$g/kg IV ;
+  \item bradycardie paradoxale à 6,25~$\mu$g/kg ;
+  \item bradycardie précoce en IM ;
+  \item motilité $< 20$\,\%, SOI $< 20$~mmHg ;
+  \item tachycardie excessive de 5 à 45~bpm au-delà de la vagotomie à \SI{0,1}{mg/kg}.
+  \end{itemize}
+\item Vérification à la main : $T_\text{exc}(0{,}065~\text{mg/L}) = 0{,}75$, d'où FC $\times 1{,}15$ à \SI{0,1}{mg/kg} ; $T_\text{exc}(0{,}026) = 0{,}16$, d'où $\times 1{,}03$ à 39,5~$\mu$g/kg. C'est ce qu'annonce la source.
+\item Surdosage : FC 170, 180 puis 181 à \SI{0,12}{}, \SI{0,4}{} et \SI{4}{mg/kg}, PAM 110, aucun décès. Les signes de surdosage décrits (excitation du SNC, hyperthermie) restent absents ; c'est déclaré dans le module (aucune donnée canine dose–température ; un seul cas de délire).
+\end{itemize}
+
+\subsection*{Opioïde 1.2.0 : 1 terme, niveau D (borné par la littérature)}
+
+PaCO$_2$ 42,0, 42,3, 46,2, 61,3 puis 65,4~mmHg de $\times 1$ à $\times 100$ ; pH 7,19 et dépression par acidémie à $\times 100$, sans apnée ni décès. C'est conforme à Bailey 1987 : de 125 à 3000~$\mu$g/kg de fentanyl chez le chien vigile, ni apnée ni PaCO$_2$ > 67. À \SI{0,9}{mg/kg} ($C \approx 0{,}27$~mg/L), PaCO$_2$ +2,1, conforme à Maiante 2009. Le contrôle d'échec existe (\cmd{toxicity\_terms\_extend\_dose\_response}).
+
+\subsection*{Pimobendane 1.1.0 : 1 terme, niveau D}
+
+\cmd{vasodilation} : EC50 = 10 $\times$ EC50 thérapeutique, sans source.
+
+\begin{center}
+\begin{tabular}{lrrl}
+\toprule
+Dose (PO) & FC & PAM & Issue\\
+\midrule
+\SI{2,5}{mg/kg} ($\times 10$) & 104 & 95 & stable\\
+\SI{7,5}{mg/kg} ($\times 30$) & 167 & 71 & hypoperfusion rénale\\
+\SI{25}{mg/kg} ($\times 100$) & 189 & 63,5 & ischémie coronaire, survie\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Reinker 2012 (7 chiens, 2,6 à 21,3~mg/kg) : tachycardie 4/7, hypotension 2/7, hypertension 2/7, tous survivants. Le sens et la survie sont conformes. L'hypertension ne peut pas se produire dans le modèle : déjà signalé dans \cmd{VERIFICATION\_MALADIES\_MEDICAMENTS}.
+
+\subsection*{Bêtabloquant 1.1.0 (profil aténolol) : aucun terme, \ecart}
+
+Les notes du module affirment : « En surdosage, bradycardie et hypotension émergent du blocage bêta ». La simulation les contredit.
+
+\begin{center}
+\begin{tabular}{lrrrr}
+\toprule
+& $\times 1$ & $\times 10$ & $\times 100$ & base\\
+\midrule
+FC (/min) & 84,1 & 83,1 & 83,0 & 85,9\\
+PAM (mmHg) & 102,6 & 102,1 & 102,1 & 103,5\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+MMVD~B2 : FC 88,7 puis 87,4. Le Manuel vétérinaire MSD retient bradycardie et hypotension comme signes les plus fréquents de l'intoxication par bêtabloquant.
+
+Mécanisme : au repos, le tonus sympathique vaut $s_0 = 0{,}2$. Le blocage n'agit que sur $s_\text{eff}$ (FC, inotropisme, nœud AV), soit $0{,}85 \times 0{,}2 = 0{,}17$ de tonus retiré. Le baroréflexe compense ensuite par retrait vagal et par la composante $\alpha$ de \cmd{r\_sys}, que le blocage ne touche pas.
+
+Ce point avait déjà été noté (rapport du 18/11, l.~75 : « le surdosage devient bénin au repos »), mais les notes du module n'ont pas été mises à jour. Décision à prendre (non tranchée ici, faute de données canines chiffrées) :
+\begin{itemize}
+\item soit corriger les notes du module ;
+\item soit sourcer un terme toxique, par exemple un effet chronotrope ou dromotrope direct à haute concentration.
+\end{itemize}
+
+\subsection*{Furosémide 1.4.0 : aucun terme, toxicité émergente}
+
+À \SI{200}{mg/kg} IV, à \SI{12}{h} : K$^+$ 3,13, Cl$^-$ 92,8, HCO$_3^-$ 31,6 (alcalose), créatinine 214~$\mu$mol/L, PAM 87,6, FC 122. Le chien survit, comme le laissent attendre les DL50 IV > 300 et > 464~mg/kg. L'ototoxicité n'est pas modélisée (déclaré : aucun seuil accessible).
+
+\section{Agents d'anesthésie}
+
+Pour 11 des 12 agents, la toxicité n'est représentée que par l'effet thérapeutique saturé (\cmd{pd.effects}, $E \leq E_\text{max}$). Le propofol fait exception : sa dépression ventilatoire et vasculaire est directement mortelle. Aucun agent n'a de terme \cmd{pd.toxicity}. Au-delà de quelques EC50, la réponse plafonne donc.
+
+\begin{longtable}{P{2.2cm}P{2.6cm}P{5.3cm}P{5.2cm}}
+\toprule
+Agent & Doses testées (mg/kg) & Modèle (extrema) & Littérature / commentaire\\
+\midrule
+\endhead
+Acépromazine & 0,03 ; 0,09 ; 0,3 IM & PAM 98, 95, 91 ; FC max 97, 106, 115 & Hypotension transitoire dose-dépendante (RCP). Sens conforme.\\
+Alfaxalone & 2 ; 6 ; 20 IV & PaCO$_2$ 53, 59, 62 ; apnée \SI{30}{s} à 20 ; PAM $\geq$ 100 & RCP : hypotension, apnée, hypoxie, décès possible en surdosage. Muir 2008 (chien, 2, 6 et \SI{20}{mg/kg}) : non lu. Vasodilatation placeholder D trop faible pour produire l'hypotension.\\
+Atipamézole & 0,1 ; 0,3 ; 1 IM & aucun effet & $\times 10$ toléré chez le chien sain (RCP). Conforme.\\
+Bupivacaïne & 1 ; 3 ; 10 IV & aucun effet ($C_p$ jusqu'à 9,9~$\mu$g/mL) & Feldman 1989 : convulsions à $4{,}31 \pm 0{,}36$~mg/kg ($18{,}0 \pm 2{,}7$~$\mu$g/mL), arythmies ventriculaires chez 5 chiens sur 6. Le module est réservé au bloc locorégional, mais la voie IV n'est pas refusée.\\
+Dexmédétomidine & 0,01 ; 0,03 ; 0,1 IM & FC 37 ; PAM 131, 137, 139 ; aucun BAV & Bradycardie conforme ; BAV absent (Karna 2022, déjà signalé dans le module).\\
+Fentanyl & 0,005 ; 0,015 ; 0,05 ; 0,125 ; 1 ; 3 IV & PaCO$_2$ 40,4 $\rightarrow$ 42,2 (plateau dès \SI{0,125}{mg/kg}) ; FC 56 & Bailey 1987 : PaCO$_2$ jusqu'à 67, sans apnée. Le terme \cmd{respiratory\_depression} du module opioïde, calé sur ces mêmes données, n'a pas été repris.\\
+Kétamine & 5 ; 15 ; 50 IV & FC max 98 ; PAM 112 ; PaCO$_2$ 41,6 & Rigidité musculaire et convulsions aux fortes doses (qualitatif) ; aucun seuil chiffré trouvé.\\
+Lidocaïne & 2 ; 6 ; 20 IV & aucun effet ; $C_p$ max 4,8 ; 14,4 ; 48,0~$\mu$g/mL & Feldman 1989 : convulsions à $20{,}8 \pm 4{,}0$~mg/kg ($47{,}2 \pm 5{,}4$~$\mu$g/mL) ; 2 chiens sur 6 morts (hypotension, arrêt respiratoire). PK confirmée ; toxicité absente, déclarée dans les notes.\\
+Méthadone & 0,3 ; 0,9 ; 3 ; 10 IV & PaCO$_2$ 42,0 $\rightarrow$ 42,3 ; FC 56 & Le module opioïde (même PK) donne 46 à $C \approx 0{,}9$~mg/L et 65 au plateau.\\
+Midazolam & 0,2 ; 0,6 ; 2 IV & PaCO$_2$ 40,4 ; 40,7 ; 41,0 & Large marge ; aucune donnée chiffrée trouvée.\\
+Naloxone & 0,04 ; 0,12 ; 0,4 IV & aucun effet & Large marge ; conforme qualitativement.\\
+Propofol & 4 ; 12 ; 40 IV & $\times 3$ : apnée \SI{370}{s}, PAM 29, PaCO$_2$ 69, conduction anormale, survie ; $\times 10$ : arrêt hypoxique à \SI{505}{s} & Dépression cardiorespiratoire dose-dépendante (AAHA 2020). Conforme.\\
+\bottomrule
+\end{longtable}
+
+\section{Halogénés}
+
+La commande ventilatoire $\max(0,\ 1 - c\,M^p)$ s'annule à $M^\ast = c^{-1/p}$ :
+\begin{itemize}
+\item isoflurane : $M^\ast = 2{,}61$ MAC, contre 2,5 (indice anesthésique, Steffey \& Howland 1977) et 2,6 (Galloway 2004) ;
+\item sévoflurane : $M^\ast = 3{,}45$ MAC (Galloway 2004).
+\end{itemize}
+Les deux valeurs sont conformes.
+
+En ventilation spontanée, la session n'atteint pas ces concentrations en \SI{40}{min} : $F_E$ plafonne à 1,90 MAC (isoflurane, vaporisateur à 5\,\%) et à 2,54 MAC (sévoflurane, 8\,\%). L'hypoventilation limite l'absorption, ce qui est physiologique. Aucune apnée n'est donc observée.
+
+\begin{center}
+\begin{tabular}{lrrrl}
+\toprule
+Agent & $F_E$/MAC & PAM & PaCO$_2$ & Mécanismes\\
+\midrule
+Isoflurane & 1,01 & 90 & 45,4 & --\\
+ & 1,49 & 79 & 48,9 & --\\
+ & 1,90 & 64 & 53,5 & hypoperfusion rénale\\
+Sévoflurane & 1,02 & 89 & 45,5 & --\\
+ & 1,69 & 72 & 49,1 & hypoperfusion rénale\\
+ & 2,14 & 42 & 52,2 & + ischémie coronaire\\
+ & 2,54 & 37 & 56,7 & idem\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+La PaCO$_2$ à 1 MAC (45,4) correspond à la cible de Steffey 1993 (46). Pour le sévoflurane, la PAM chute de 50 à 60\,\% vers 2 MAC, contre $-38$\,\% chez Bernard 1990 à 2 MAC. Comme $F_E$ n'est pas la MAC cérébrale à l'équilibre, la comparaison doit être refaite en régime établi avant de parler d'écart.
+
+Les notes de l'isoflurane se contredisent : elles disent à la fois « baroréflexe non déprimé par l'agent » et décrivent l'émoussement \cmd{baro\_gain} $\times (1 - 0{,}44\,M)$ présent dans les effets. C'est une incohérence de documentation.
+
+\section{Décisions demandées (modules : non modifiés)}
+
+\begin{enumerate}
+\item \textbf{Bêtabloquant.} Corriger les notes, ou sourcer un terme toxique.
+\item \textbf{Fentanyl et méthadone.} Reprendre le terme \cmd{respiratory\_depression} du module opioïde, avec une EC50 propre au fentanyl (Bailey 1987).
+\item \textbf{Lidocaïne et bupivacaïne.} Décider entre deux options : un état convulsif et cardiotoxique, avec les seuils de Feldman 1989 (à lire en texte intégral) ; ou, à défaut, faire refuser par la session la voie IV de la bupivacaïne et faire émettre une alarme au-delà de 8,2~$\mu$g/mL de lidocaïne.
+\item \textbf{Alfaxalone.} Lire Muir 2008 (2, 6 et \SI{20}{mg/kg} chez le chien) pour caler l'hypotension du surdosage.
+\item \textbf{Kétamine, midazolam.} Recherche de données de surdosage canines chiffrées.
+\item \textbf{Sévoflurane.} Comparer la PAM à Bernard 1990 en régime établi, à MAC cérébrale imposée.
+\end{enumerate}
+
+\section{Reproduire}
+
+\begin{verbatim}
+cargo run --release -p vetsim-api --example drug_matrix > matrice.tsv
+cargo run --release -p vetsim-api --example tox_audit > tox_audit.tsv
+cargo run --release -p vetsim-api --example tox_audit -- fentanyl 0.125,1,3
+cargo test --release -p vetsim-core --test anesthesia agent_toxicity
+\end{verbatim}
+
+\section{Sources ajoutées le 25/11/2026 (résumés)}
+
+\begin{itemize}
+\item Feldman HS, Arthur GR, Covino BG 1989, Anesth Analg 69:794 (convulsions : lidocaïne \SI{20,8}{mg/kg}, 47,2~$\mu$g/mL ; bupivacaïne \SI{4,31}{mg/kg}, 18,0~$\mu$g/mL ; chien vigile).
+\item Steffey EP, Howland D 1977, Am J Vet Res (indice anesthésique de l'isoflurane : 2,5 chez le chien).
+\item MSD Veterinary Manual, \emph{Cardiovascular medications toxicity} (bêtabloquants : bradycardie, hypotension).
+\item Alfaxan, RCP ; Antisedan, RCP ; AAHA 2020 Anesthesia Guidelines (induction IV).
+\item Non lus : Muir W et al. 2008, Vet Anaesth Analg 35:451 (alfaxalone, doses supracliniques chez le chien) ; Sage et al. (Reg Anesth, convulsions, lidocaïne et bupivacaïne).
+\end{itemize}
+
+\end{document}
