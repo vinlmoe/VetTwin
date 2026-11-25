@@ -17,7 +17,7 @@ class EngineFfiTest {
     fun mmvdStageCThroughFfi() {
         val c = DemoController()
         assertEquals("1.1.0", c.apiVersion)
-        assertEquals(8, c.catalog.diseases.size) // 4 maladies + 4 troubles du rythme
+        assertEquals(9, c.catalog.diseases.size) // 5 maladies (dont HTP, PR #21) + 4 troubles du rythme
         val r = c.evaluate(DemoInputs(diseaseId = "mmvd", stage = "C"))
         assertEquals(4000, r.ecg.size)
         assertTrue(r.ao.isNotEmpty() && r.lv.size == r.ao.size)

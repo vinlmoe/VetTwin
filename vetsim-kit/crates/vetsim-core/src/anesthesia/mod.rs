@@ -962,13 +962,19 @@ impl Session {
                 pd.emax * x / (math::pow(pd.ec50_mg_l * sh, pd.hill) + x)
             };
             let cp = self.cp(j);
+            let ce = self.ce(j);
             let mut env = Env::new();
-            env.set_num("E", emax(self.ce(j)));
+            env.set_num("E", emax(ce));
             env.set_num("EP", emax(cp));
             apply(q, &a.pd.effects, &env, &a.id)?;
             for t in &a.pd.toxicity {
+                // site déclaré par le terme (comme `pkpd::apply_drug_effects_sites`)
+                let ct = match t.site {
+                    crate::modules::ConcSite::Plasma => cp,
+                    crate::modules::ConcSite::Effect => ce,
+                };
                 let mut env = Env::new();
-                env.set_num("T", crate::pkpd::toxic_effect(t, cp));
+                env.set_num("T", crate::pkpd::toxic_effect(t, ct));
                 apply(q, &t.effects, &env, &a.id)?;
             }
         }

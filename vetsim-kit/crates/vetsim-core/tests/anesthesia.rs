@@ -627,3 +627,35 @@ fn untreated_apnea_desaturates_then_causes_hypoxic_arrest() {
     );
     assert!(a > d + 60.0, "arrêt {a} s, désaturation {d} s");
 }
+
+/// Un terme toxique d'agent d'anesthésie suit le site déclaré (`site`) : 15 s après un bolus IV de
+/// lidocaïne (ke0 0,5/min), Ce ≪ Cp ; le terme « effect » agit donc moins que le terme « plasma ».
+/// Terme fictif construit dans le test (aucun module modifié) ; contrôle d'échec du 25/11/2026 :
+/// la session calculait tous les termes sur Cp, quel que soit `site`.
+#[test]
+fn agent_toxicity_follows_declared_site() {
+    let hr_after = |site: &str| {
+        let mut j: serde_json::Value =
+            serde_json::from_str(&read("modules/anesthesia/agents/lidocaine.json")).unwrap();
+        j["pd"]["toxicity"] = serde_json::json!([{
+            "id": "probe", "emax": 1.0, "ec50_mg_L": 5.0, "hill": 2.0, "site": site,
+            "evidence": "D",
+            "effects": [{"param": "hr", "op": "mul", "expr": {"add": [1, {"mul": [-0.5, "T"]}]}}]
+        }]);
+        let lido = DrugModule::from_json(&j.to_string(), "lidocaine").unwrap();
+        let model =
+            AnesthesiaModel::from_json(&read("modules/anesthesia/anesthesia_model.json"), "m")
+                .unwrap();
+        let mut s = Session::new(base(), vec![lido], vec![], model, None, 1).unwrap();
+        s.apply(bolus("lidocaine", 4.0, AdminRoute::Iv)).unwrap();
+        let sn = run(&mut s, 15.0, 5.0);
+        let l = &sn.agents[0];
+        assert!(l.ce < 0.5 * l.cp, "Ce {} / Cp {}", l.ce, l.cp);
+        hr(&sn)
+    };
+    let (plasma, effect) = (hr_after("plasma"), hr_after("effect"));
+    assert!(
+        effect > plasma + 5.0,
+        "effect {effect:.1} / plasma {plasma:.1}"
+    );
+}
